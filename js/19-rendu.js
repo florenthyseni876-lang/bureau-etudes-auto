@@ -31,7 +31,7 @@ function renderStage(){
     const tr=M.C.trace;let end=tr.findIndex(p=>p.x>=400);if(end<0) end=tr.length-1;
     wireCross($('#runCh'),tr.slice(0,end+1).map(q=>q.t),[tr.slice(0,end+1).map(q=>q.v)],i=>`<b>${nf(tr[i].t,2)} s</b> · ${nf(tr[i].v)} km/h · ${tr[i].g+1}${tr[i].g?'e':'re'} · ${nf(tr[i].x)} m`,$('#runRead'));
   }else{
-    draw.innerHTML=carFigure();data.innerHTML=stageData();
+    if(ui.tab==='carrosserie') renderBodyStage(draw);else draw.innerHTML=carFigure();data.innerHTML=stageData();
     if(ui.tab==='transmission'){
       const C=M.C,n=C.gears.length,vTop=C.vAt(M.E.limiter,n-1),xs=[],ys=[],gs=[];
       for(let i=0;i<=80;i++){const v=vTop*i/80;let g=0;while(g<n-1&&v>C.vAt(C.shiftRpm[g],g)) g++;xs.push(v);ys.push(Math.max(g===0?C.launch:0,v/C.vAt(1000,g)*1000));gs.push(g);}
@@ -51,7 +51,7 @@ function saveDesign(){if(G){saveGame();return;}try{localStorage.setItem('bea.des
 function setTab(t,fromHash){
   if(!TABS.some(x=>x[0]===t)) t='moteur';
   if(G&&!G.wiz&&stepIdx(t)>=0&&t!=='essais') t='qg';
-  ui.tab=t;run=null;cruise=null;ui.sweep=null;dispose3D();if(AU) audioSet({rpm:M.E?M.E.idle:900,ld:0,pr:1},false);
+  ui.tab=t;run=null;cruise=null;ui.sweep=null;dispose3D();disposeCar3D();if(AU) audioSet({rpm:M.E?M.E.idle:900,ld:0,pr:1},false);
   for(const b of $$('#tabs .tab')){b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false');if(b.dataset.tab===t) b.classList.remove('ping');}
   const full=t==='essais'||isCTab(t);
   $('#board').classList.toggle('full',full);$('#controls').hidden=full;$('#keys').hidden=isCTab(t);
