@@ -27,7 +27,7 @@ function renderStage(){
     wireCross($('#dyno'),E.curve.map(p=>p.rpm),[E.curve.map(p=>p.tq),E.curve.map(p=>p.pw)],i=>`<b>${nf(E.curve[i].rpm)} tr/min</b> · ${nf(E.curve[i].tq)} Nm · ${nf(E.curve[i].pw)} ch`,$('#dynoRead'));
     ui.rpm=clamp(ui.rpm||M.E.idle,M.E.idle,M.E.limiter);benchUpdate();engFrame();kickEngine();
   }else if(ui.tab==='essais'){
-    run=null;cruise=null;draw.innerHTML='';data.innerHTML=essaisHTML();runChart(400);cruiseUI();updBroken();
+    run=null;cruise=null;draw.innerHTML='';data.innerHTML=essaisHTML();runChart(400);cruiseUI();updBroken();sceneDraw(0,0,M.E.idle);
     const tr=M.C.trace;let end=tr.findIndex(p=>p.x>=400);if(end<0) end=tr.length-1;
     wireCross($('#runCh'),tr.slice(0,end+1).map(q=>q.t),[tr.slice(0,end+1).map(q=>q.v)],i=>`<b>${nf(tr[i].t,2)} s</b> · ${nf(tr[i].v)} km/h · ${tr[i].g+1}${tr[i].g?'e':'re'} · ${nf(tr[i].x)} m`,$('#runRead'));
   }else{

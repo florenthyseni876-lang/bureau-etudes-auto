@@ -6,7 +6,7 @@ let engTheta=.7,engLast=0,engRaf=0;
 function drawEngine(){
   if(M.E&&M.E.rot) return drawRotary(false);
   const cv=$('#engCv');if(!cv||!M.E) return;cv.classList.remove('cyc');
-  const c=CFG[S.config],w=cv.clientWidth,stack=w<520;
+  const c=M.E&&M.E.c?M.E.c:CFG[S.config],w=cv.clientWidth,stack=w<520;
   cv.classList.toggle('stack',stack);
   const h=cv.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);
   if(!w||!h) return;

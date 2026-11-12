@@ -26,7 +26,7 @@ function essaisHTML(){
   const crit=C.checks.filter(k=>k.lv==='crit').length;
   return `<div class="essais">
   <div class="card wide"><h3>Piste d'essai</h3>
-    <div><div class="road" id="road">${carSVG({cut:false,dims:false,pxw,id:'r'})}</div>
+    <div>${sceneHTML(pxw)}
     <div class="brk-box"></div><dl class="hud"><div><dt class="cell-l">Temps</dt><dd id="hT">0,00<small>s</small></dd></div><div><dt class="cell-l">Vitesse</dt><dd id="hV">0<small>km/h</small></dd></div><div><dt class="cell-l">Rapport</dt><dd id="hG">1</dd></div><div><dt class="cell-l">Régime</dt><dd id="hR">${nf(E.idle)}<small>tr/min</small></dd><div class="rev"><i id="hRb"></i></div></div><div><dt class="cell-l">Distance</dt><dd id="hX">0<small>m</small></dd></div></dl></div>
     <div class="run-ctl"><button class="btn" id="run400" type="button">Lancer le 400 m</button><button class="btn ghost" id="run1000" type="button">Lancer le 1 000 m</button><label class="chip-btn"><input type="checkbox" id="sndTog"${ui.snd?' checked':''}>Son</label><label class="chip-btn"><input type="checkbox" id="animTog"${ui.noAnim?'':' checked'}>Animations</label><p class="run-msg" id="runMsg">Départ arrêté, pied au plancher, en temps réel.</p></div>
     <div class="run-ctl"><button class="btn ghost" id="cruiseGo" type="button">Rouler à vitesse stabilisée</button><div class="f cruise-f"><div class="f-top"><label for="cruiseV">Vitesse visée</label><output id="cruiseVO" for="cruiseV"></output></div><input type="range" id="cruiseV" min="30" max="300" step="5"></div></div>
@@ -74,8 +74,8 @@ function startRun(dist){
   if(cruise){cruise=null;cruiseUI();}
   let end=runChart(dist,0);const tr=M.C.trace,rb=runBreak(end);if(rb.k) end=rb.i;
   if(reduced()){run=null;finishRun(dist,end,rb);return;}
-  const svg=road.querySelector('svg.car'),vb=svg.viewBox.baseVal,ppm=svg.getBoundingClientRect().width/(vb.width/1000);
-  run={t0:performance.now(),dist,end,ppm,wheels:$$('.wheel',svg),line:null,last:-1,brk:rb};
+  const svg=road.querySelector('svg.car'),ppm=svg?svg.getBoundingClientRect().width/(svg.viewBox.baseVal.width/1000):30;
+  run={t0:performance.now(),dist,end,ppm,wheels:svg?$$('.wheel',svg):[],line:null,last:-1,brk:rb};
   $('#runMsg').textContent='Essai en cours…';$('#runRead').innerHTML='';
   requestAnimationFrame(stepRun);
 }
@@ -85,7 +85,7 @@ function stepRun(now){
   if(i!==run.last){
     run.last=i;hud(p);audioSet({rpm:p.rpm,ld:1,pr:M.E.prAt(p.rpm)},true);
     const road=$('#road'),off=p.x*run.ppm;
-    road.style.setProperty('--rx',(off%140).toFixed(1)+'px');road.style.setProperty('--rx2',(off*.6%700).toFixed(1)+'px');
+    road.style.setProperty('--rx',(off%140).toFixed(1)+'px');road.style.setProperty('--rx2',(off*.6%700).toFixed(1)+'px');sceneDraw(p.x,p.v,p.rpm);
     const ang=-(p.x/M.C.r)*180/Math.PI%360;for(const wl of run.wheels) wl.style.transform=`rotate(${ang.toFixed(1)}deg)`;
     const sv=$('#runCh svg');
     if(sv){const d=sv.dataset;let path='';for(let k=0;k<=i;k+=1){const q=tr[k];path+=(k?'L':'M')+(+d.l+(q.t-d.x0)/(d.x1-d.x0)*d.pw).toFixed(1)+' '+(+d.b-q.v/d.y1*d.ph).toFixed(1);}sv.querySelector('.ch-line').setAttribute('d',path);}

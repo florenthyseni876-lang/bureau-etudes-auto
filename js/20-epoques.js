@@ -39,6 +39,9 @@ const TECHS=[
  ['m_alusil','mot','Cylindres Alusil',1971,[['liner','alusil']],1,'Alliage hypereutectique, cylindres usinés dans l\'aluminium.'],
  ['m_5cyl','mot','Cinq cylindres en ligne',1974,[['config','I5']],1,'Un compromis entre quatre et six cylindres.'],
  ['m_3cyl','mot','Trois cylindres',1977,[['config','I3']],.8,'Petit, léger et économique.'],
+ ['m_hyd','mot','Poussoirs hydrauliques',1935,[['camF','hyd']],.7,'Rattrapent le jeu tout seuls : silencieux, sans réglage.'],
+ ['m_roller','mot','Poussoirs à rouleaux',1987,[['camF','roller']],.8,'Moins de frottements sur les cames.'],
+ ['m_finger','mot','Linguets à rouleaux',1996,[['camF','finger']],.9,'Légers et précis : le moteur prend plus de tours.'],
  ['m_vvt','mot','Calage variable des arbres à cames',1980,[['vvt',true]],1.2,'Du couple en bas sans sacrifier le haut.'],
  ['m_cda','mot','Désactivation de cylindres',1981,[['cda',true]],1,'Coupe des cylindres à faible charge.'],
  ['m_vario','mot','Admission à longueur variable',1985,[['intake','vario']],1,'Deux longueurs de conduits selon le régime.'],
@@ -105,6 +108,8 @@ const TECHS=[
  ['c_4x4','car','Transmission intégrale',1941,[['drive','awd']],1.2,'Les quatre roues motrices.'],
  ['c_atpneu','car','Pneus tout-terrain',1945,[['compound','at']],.5,'Crampons pour les chemins.'],
  ['c_alu','car','Panneaux en aluminium',1950,[['panels','alu']],.8,'Carrosserie plus légère.'],
+ ['c_semi','car','Bras semi-tirés',1951,[['suspR','semi']],.7,'Roues arrière indépendantes simples.'],
+ ['c_hydro','car','Suspension hydropneumatique',1955,[['suspF','hydro'],['suspR','hydro']],1.4,'Sphères d\'azote et liquide : confort exceptionnel et hauteur constante.'],
  ['c_mac','car','Suspension MacPherson',1951,[['suspF','mac'],['suspR','mac']],.9,'Simple, compacte et bon marché.'],
  ['c_tube','car','Châssis treillis tubulaire',1952,[['chassis','tube']],1,'Léger et rigide, pour les sportives.'],
  ['c_composite','car','Carrosserie composite',1953,[['panels','grp']],.8,'Fibre de verre et résine.'],
@@ -125,10 +130,12 @@ const TECHS=[
  ['c_semi','car','Pneus semi-slicks',1985,[['compound','semi']],.6,'Presque des pneus de course.'],
  ['c_diffpil','car','Différentiel piloté',1987,[['diff','active']],1,'Répartit le couple entre les roues.'],
  ['c_monoalu','car','Monocoque aluminium',1990,[['chassis','alu']],1.4,'Caisse bien plus légère.'],
+ ['c_air','car','Suspension pneumatique pilotée',1990,[['suspF','air'],['suspR','air']],1.2,'Coussins d\'air réglables : confort et hauteur variable.'],
  ['c_poussoirs','car','Suspension à poussoirs',1990,[['suspF','push'],['suspR','push']],1,'Combinés inboard, comme en course.'],
  ['c_fondplat','car','Fond plat et diffuseur',1990,[['flatFloor',true]],.8,'L\'appui vient du dessous.'],
  ['c_pneueco','car','Pneus basse résistance',1992,[['compound','eco']],.6,'Consommation réduite.'],
  ['c_carbone','car','Fibre de carbone',1992,[['chassis','carbon'],['panels','carbon']],2,'Structure ultralégère.'],
+ ['c_magneto','car','Amortisseurs magnétiques',2002,[['suspF','magneto'],['suspR','magneto']],1.2,'Un fluide chargé de particules de fer change de viscosité à la demande.'],
  ['c_ccm','car','Freins carbone-céramique',2001,[['brakeF','ccm'],['brakeR','ccm']],1.2,'Inusables et légers.'],
 
  ['t_synchro','tra','Boîte synchronisée',1929,[['gSync','brass']],1,'Plus besoin de double débrayage : les passages deviennent faciles.'],
@@ -169,15 +176,15 @@ const LOCK={};for(const t of TECHS) for(const [k,v] of t[4]) LOCK[k+'|'+v]=t[0];
 const YEAR_LOCK={};
 for(const [k,T] of [['style',STYLE],['bumper',BUMPER],['lights',LIGHTS],['mirrors',MIRROR]]) for(const [v,o] of Object.entries(T)) if(o.y>1900) YEAR_LOCK[k+'|'+v]={n:o.n,y:o.y,yl:1};
 // valeur de repli d'époque (toujours disponible) pour chaque clé verrouillable
-const ERA_BASE={style:'hippo',bumper:'none',lights:'acet',mirrors:'none',gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
+const ERA_BASE={camF:'mech',style:'hippo',bumper:'none',lights:'acet',mirrors:'none',gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'leaf',suspR:'leaf',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
   vvt:false,vvl:false,cda:false,flex:false,launchCtl:false,pops:false,startStop:false,ecuVmax:false,splitter:false,flatFloor:false,abs:false,tc:false,esp:false};
 
 // repli vers l'option d'époque la plus proche quand une valeur est verrouillée
-const ERA_FB={style:{moderne:'bio',bio:'aero',aero:'tendu',tendu:'ponton',ailerons:'ponton',ponton:'profile',profile:'classique',classique:'hippo'},bumper:{carbone:'bouclier',bouclier:'caout',caout:'chrome',massif:'chrome',chrome:'none'},lights:{laser:'led',led:'xenon',xenon:'halo',halo:'rond',escam:'rond',rond:'elec',elec:'acet'},mirrors:{camera:'elec',elec:'porte',porte:'aile',aile:'none'},gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
+const ERA_FB={camF:{finger:'roller',roller:'hyd',hyd:'mech'},style:{moderne:'bio',bio:'aero',aero:'tendu',tendu:'ponton',ailerons:'ponton',ponton:'profile',profile:'classique',classique:'hippo'},bumper:{carbone:'bouclier',bouclier:'caout',caout:'chrome',massif:'chrome',chrome:'none'},lights:{laser:'led',led:'xenon',xenon:'halo',halo:'rond',escam:'rond',rond:'elec',elec:'acet'},mirrors:{camera:'elec',elec:'porte',porte:'aile',aile:'none'},gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
   valveMat:{ti:'sodium',sodium:'steel'},internals:{ti:'forged',forged:'cast'},aspiration:{tri:'biturbo',quad:'biturbo',biturbo:'turbo',turbo:'na',sc:'na'},turboStage:{comp:'seq',seq:'par'},turboType:{et:'vgt',vgt:'wg',ts:'wg'},
   intercooler:{water:'air',air:'none'},oilGrade:{'0w20':'5w30','5w30':'10w40','5w40':'10w40','10w60':'20w50','10w40':'20w50'},manifold:{race:'tub',tub:'cast'},cat:{gpf:'tri',sport:'tri',tri:'none'},muffler:{valve:'sport',sport:'std',comf:'std'},
   body:{suv:'break',break:'berline',compacte:'berline',citadine:'compacte',supercar:'coupe',coupe:'roadster',pickup:'berline'},enginePos:{MR:'FL',RR:'FL',FT:'FL'},drive:{awd:'rwd',fwd:'rwd'},chassis:{carbon:'alu',alu:'steel',steel:'ladder',tube:'ladder'},panels:{carbon:'alu',alu:'steel',grp:'steel'},
-  gearbox:{dct:'auto',amt:'man',cvt:'auto',auto:'man',seq:'man'},suspF:{push:'dw',multi:'dw',mac:'dw',dw:'rigid'},suspR:{push:'dw',multi:'mac',mac:'dw',torsion:'mac',dw:'rigid'},compound:{semi:'sport',sport:'road',eco:'road',at:'road'},
+  gearbox:{dct:'auto',amt:'man',cvt:'auto',auto:'man',seq:'man'},suspF:{hydro:'dw',air:'dw',magneto:'multi',push:'dw',multi:'dw',mac:'dw',dw:'rigid'},suspR:{semi:'mac',hydro:'dw',air:'multi',magneto:'multi',push:'dw',multi:'mac',mac:'dw',torsion:'mac',dw:'rigid'},compound:{semi:'sport',sport:'road',eco:'road',at:'road'},
   brakeF:{ccm:'vent',vent:'disc',disc:'drum'},brakeR:{ccm:'vent',vent:'disc',disc:'drum'},rimType:{forged:'alloy',alloy:'steel'},trim:{prem:'std',std:'basic'},media:{screen:'hifi',hifi:'radio',radio:'none'},passive:{adv:'std',std:'min'},steering:{elec:'hyd',hyd:'mech'},wing:{wing:'lip',lip:'none'},
   fuel:{e85:'sp98',sp98:'sp95',diesel:'sp95'},ecuFuel:{e85:'sp98',sp98:'sp95'},config:{W16:'W12',W12:'V12',W8:'V8',V10:'V8',R4:'R2',R3:'R2',R2:'I4',F6:'I6',I5:'I4',I3:'I4',V6:'I6',F4:'I4',V12:'V8',V8:'I6',I6:'I4'},scType:{screw:'roots',centri:'roots'},turboBearing:{ball:'journal'},sump:{dry:'wet'},springs:{pneu:'coil'},intake:{vario:'std',itb:'std'},timing:{belt:'chain'},headMat:{alu:'iron'},diff:{active:'lsd',lsd:'open'}};
 // plafonds des curseurs selon l'année

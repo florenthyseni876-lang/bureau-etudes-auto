@@ -50,7 +50,7 @@ function computeCar(S,E){
   const isAuto=S.gearbox==='auto'||cvt;
   const launch=isAuto?Math.min(2400,Math.max(1600,E.peakTrpm)):clamp(E.peakTrpm,1800,lim*.8);
   // départ arrêté
-  const out={},trace=[],dt=.01;let t=0,v=0,x=0,g=0,sh=0,slipT=0,next=0;
+  const out={},trace=[],dt=.01;let t=0,v=0,x=0,g=0,sh=0,slipT=0,next=0,slip2=0;
   const marks=[[80,'t80'],[100,'t100'],[120,'t120'],[200,'t200']];
   while(t<60&&x<1010){
     const ratio=gears[g]*S.final,rpm=wRpm(v,g);
@@ -59,7 +59,7 @@ function computeCar(S,E){
     rpmE=clamp(rpmE,E.idle,lim);
     if(rpm<lim) F=E.tq(rpmE)*mult*ratio*etaD/r;
     if(sh>0){F*=gb.cut;sh-=dt;}
-    let slip=false;if(F>Ftr){if(F>Ftr*1.15) slipT+=dt;F=Ftr*.97;slip=true;}
+    let slip=false;if(F>Ftr){if(F>Ftr*1.25){slipT+=dt;if(g>0) slip2+=dt;}F=Ftr*.97;slip=true;}
     const a=(F-res(v))/(mP*(slip?1.03:1.04+.0011*ratio*ratio)),v2=Math.max(0,v+a*dt);
     for(const [kmh,key] of marks){const vv=kmh/3.6;if(!out[key]&&v<vv&&v2>=vv) out[key]=t+dt*(vv-v)/(v2-v);}
     x+=(v+v2)/2*dt;v=v2;t+=dt;
@@ -68,7 +68,7 @@ function computeCar(S,E){
     if(sh<=0&&g<n-1&&wRpm(v,g)>=shiftRpm[g]){g++;sh=gb.shift;}
     if(t>=next-1e-9){trace.push({t,v:v*3.6,x,g,rpm:Math.round(clamp(Math.max(wRpm(v,g),g===0?Math.min(launch,rpmE):0),E.idle,lim))});next+=.05;}
   }
-  const spin=slipT>.8;
+  const spin=!S.tc&&(slip2>.25||slipT>2.2);
   // vitesse maxi
   let vmax=0,vg=0,vlim=false;
   for(let gi=0;gi<n;gi++) for(let kmh=20;kmh<=470;kmh+=.5){
@@ -164,7 +164,7 @@ function computeCar(S,E){
   if(S.brakeFd>discMax||S.brakeRd>discMax) add('crit','Disques et jantes',`Une jante de ${S.rim}" accepte ${nf(discMax)} mm au plus.`);
   if(od>B.tireMax) add('crit','Passages de roue',`La roue fait ${nf(od)} mm de diamètre pour ${nf(B.tireMax)} mm admis par cette caisse.`);
   else if(od<B.tireMax-150) add('warn','Passages de roue',`La roue de ${nf(od)} mm paraît petite pour cette caisse (jusqu'à ${nf(B.tireMax)} mm).`);
-  if(spin) add('warn','Motricité','Les roues motrices patinent au démarrage : le couple dépasse ce que les pneus transmettent.');
+  if(spin) add('warn','Motricité',slip2>.25?'Les roues patinent encore en deuxième : le couple dépasse nettement ce que les pneus transmettent. Pneus plus larges ou plus tendres, transmission intégrale, antipatinage ou couple plus progressif.':'Démarrage difficile : les roues patinent longtemps en première. Un antipatinage, des pneus plus adhérents ou une première plus longue aideraient.');
   const gbxCap=gset?gset.cap:gsp.cap,gbxR=E.peakT/gbxCap;
   {let wk=null,wr=0;for(const k in E.fails) if(E.fails[k].r>wr){wr=E.fails[k].r;wk=k;}
    const lv=wk?lvOf(wk,wr):'ok';if(wk) add(lv==='break'?'crit':lv==='crit'?'warn':'ok','Résistance du moteur',lv==='ok'||lv==='warn'?`Organe le plus sollicité : ${lc(FAILS[wk].n)} (${nf(wr*100)} % de sa limite).`:`${FAILS[wk].n} à ${nf(wr*100)} % de sa limite : ${lv==='break'?'le moteur cassera lors d\'un essai à fond.':'usure très rapide.'} ${FAILS[wk].fix}`);}

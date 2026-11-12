@@ -12,6 +12,7 @@ function sanitize(){
   if(!POS[S.enginePos].drv.includes(S.drive)) S.drive=POS[S.enginePos].drv[0];
   if(!B.seats.includes(S.seats)) S.seats=B.seats[B.seats.length-1];
   if(S.suspR==='torsion'&&S.drive!=='fwd') S.suspR='mac';
+  if(S.suspR==='dedion'&&S.drive==='fwd') S.suspR='torsion';
   if(!S.abs) S.esp=false;
   for(const [k,tb,df] of [['blockMat',BLOCK,'alu'],['liner',LINER,'alusil'],['sump',SUMP,'wet'],['valveMat',VALVE,'steel'],['springs',SPRING,'coil'],['intake',INTAKE,'std'],['turboType',TURBO,'wg'],['turboBearing',BEAR,'journal'],['scType',SCT,'roots'],['gearbox',GBX,'man']]) if(!tb[S[k]]) S[k]=df;
   if(NT[S.aspiration]==null) S.aspiration='na';if(!STAGE[S.turboStage]) S.turboStage='par';

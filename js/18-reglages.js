@@ -7,6 +7,7 @@ const UI={
   {t:'Architecture',note:()=>{const E=M.E,q=S.stroke/S.bore;if(E.rot) return `${E.c.full} · ${E.rot} × ${nf(E.disp/E.rot)} cm³ = ${nf(E.disp)} cm³ · respire comme un ${nf(E.disp*2,-1)} cm³ à pistons, car chaque rotor a une combustion par tour d'arbre.`;return `${E.c.full} · ${nf(E.disp)} cm³ · ${nf(E.disp/E.n)} cm³ par cylindre · ${q<.95?'moteur supercarré':q>1.05?'moteur longue course':'moteur carré'} (course/alésage ${nf(q,2)})`;},items:[
    {k:'config',type:'seg',l:'Disposition des cylindres',wide:1,opts:Object.entries(CFG).map(([k,v])=>[k,v.lab,v.full])},
    {k:'bore',type:'range',l:'Alésage',lf:()=>CFG[S.config].rot?'Rayon du rotor':'Alésage',min:60,max:110,step:.5,d:1,u:'mm',hint:'Un grand alésage loge de grosses soupapes : le moteur respire mieux à haut régime.'},
+   {k:'vAngle',type:'seg',l:'Angle du V',opts:[[0,"D'origine"],[60,'60°'],[90,'90°']],dis:S=>CFG[S.config].lay!=='V'&&'Réservé aux moteurs en V',hint:'60° : moteur étroit et haut ; idéal pour V6 et V12. 90° : large et bas, parfait pour un V8 à vilebrequin croisé, mais un V6 à 90° vibre davantage.'},
    {k:'stroke',type:'range',l:'Course',lf:()=>CFG[S.config].rot?'Largeur du rotor':'Course',min:50,max:110,step:.2,d:1,u:'mm',hint:'Une longue course donne du couple en bas mais limite le régime maxi.'},
   ]},
   {t:'Bloc et équipage mobile',items:[
@@ -20,6 +21,9 @@ const UI={
    {k:'valvetrain',type:'seg',l:'Commande des soupapes',wide:1,opts:o(VT),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif'},
    {k:'timing',type:'seg',l:'Entraînement de la distribution',wide:1,opts:o(TIMING),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Courroie : légère et silencieuse. Chaîne : durable. Cascade de pignons : précise à haut régime, mais lourde et bruyante.'},
    {k:'cam',type:'range',l:"Profil d'arbre à cames",lf:()=>CFG[S.config].rot?'Calage des lumières':"Profil d'arbre à cames",min:0,max:100,step:1,f:v=>(v<25?'Souple':v<50?'Routier':v<75?'Sport':'Course')+' · '+v,hint:'Un profil pointu déplace le couple vers les hauts régimes et dégrade le ralenti.'},
+   {k:'camLift',type:'range',l:'Levée des cames',min:0,max:100,step:1,f:v=>(v<30?'Faible':v<65?'Moyenne':'Forte')+` · ${nf(7+v*.07,1)} mm`,dis:S=>!!CFG[S.config].rot,hint:"Plus de levée laisse entrer plus d'air en haut, mais fatigue les ressorts : les soupapes s'affolent plus tôt."},
+   {k:'camOverlap',type:'range',l:'Croisement des soupapes',min:0,max:100,step:1,f:v=>`${Math.round(5+v*.75)}°`+(v<30?' · doux':v<60?' · route':' · agressif'),dis:S=>!!CFG[S.config].rot,hint:"Beaucoup de croisement : le moteur respire mieux en haut avec un bon échappement, mais le ralenti devient irrégulier (le fameux « galop ») et il consomme plus."},
+   {k:'camF',type:'seg',l:'Poussoirs',wide:1,opts:o(CAMF),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Hydrauliques : silencieux et sans réglage, mais ils limitent le régime. Linguets à rouleaux : peu de frottements et des régimes élevés.'},
    {k:'limiter',type:'range',l:'Rupteur',min:1500,max:11000,step:100,u:'tr/min',hint:'Au-delà de ce que tiennent pistons et soupapes, la fiabilité chute.'},
    {k:'valveMat',type:'seg',l:'Soupapes',wide:1,opts:o(VALVE),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Sodium : évacue la chaleur des soupapes d\'échappement. Titane : plus légères, elles suivent les cames plus haut.'},
    {k:'springs',type:'seg',l:'Rappel des soupapes',wide:1,opts:o(SPRING),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Le rappel pneumatique vient de la compétition : il repousse très loin l\'affolement.'},
@@ -121,8 +125,8 @@ const UI={
  ],
  trains:[
   {t:'Suspension',items:[
-   {k:'suspF',type:'seg',l:'Train avant',wide:1,opts:['mac','dw','multi','push','rigid'].map(k=>[k,SUSP[k].n])},
-   {k:'suspR',type:'seg',l:'Train arrière',wide:1,opts:['torsion','mac','dw','multi','push','rigid'].map(k=>[k,SUSP[k].n]),dis:(S,v)=>v==='torsion'&&S.drive!=='fwd'&&'Réservé aux tractions'},
+   {k:'suspF',type:'seg',l:'Train avant',wide:1,opts:['leaf','rigid','mac','dw','multi','push','hydro','air','magneto'].map(k=>[k,SUSP[k].n]),hint:'Lames : simples et robustes, peu confortables. Hydropneumatique : un tapis volant. Magnétique : l\'amortissement change en quelques millisecondes.'},
+   {k:'suspR',type:'seg',l:'Train arrière',wide:1,opts:['leaf','rigid','dedion','torsion','semi','mac','dw','multi','push','hydro','air','magneto'].map(k=>[k,SUSP[k].n]),dis:(S,v)=>(v==='torsion'&&S.drive!=='fwd'&&'Réservé aux tractions')||(v==='dedion'&&S.drive==='fwd'&&'Réservé aux propulsions')},
    {k:'stiff',type:'range',l:'Tarage ressorts et amortisseurs',min:0,max:100,step:1,f:v=>(v<30?'Souple':v<55?'Moyen':v<80?'Ferme':'Piste')+' · '+v},
    {k:'gc',type:'range',l:'Garde au sol',min:80,max:300,step:5,u:'mm'},
    {k:'arbF',type:'range',l:'Barre antiroulis avant',min:0,max:100,step:1,hint:"Plus raide à l'avant : plus sous-vireur."},

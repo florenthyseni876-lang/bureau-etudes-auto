@@ -215,7 +215,7 @@ const FIRST_CAR={name:'Type A',config:'I4',bore:80,stroke:110,limiter:1900,cr:7,
 function newGame(o){
   const st=START[o.y]||START[1900],m=o.diff==='fac'?1.8:o.diff==='dur'?.6:1;
   G={v:1,co:o.co||'Automobiles Nouvelles',y:o.y,q:0,start:o.y,diff:o.diff||'nor',cash:st.cash*m*eraK(o.y),startCash:st.cash*m*eraK(o.y),lab:0,resL:[],debt:0,rep:o.diff==='fac'?40:30,fac:st.fac,facInv:0,build:null,
-     techs:TECHS.filter(t=>t[3]<=o.y-4).map(t=>t[0]),models:[],hist:[],news:[],acc:{rev:0,cost:0,units:0,profit:0},negQ:0,over:false,mid:1};
+     techs:TECHS.filter(t=>t[3]<=o.y-4).map(t=>t[0]),models:[],hist:[],news:[],acc:{rev:0,cost:0,units:0,profit:0},negQ:0,over:false,mid:1,spd:1,qt:0};
   for(let l=1;l<=G.fac;l++) G.facInv+=facCost(l,o.y);
   syncEra();
   // premier projet : base d'époque

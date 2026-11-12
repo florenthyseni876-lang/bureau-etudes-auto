@@ -4,8 +4,8 @@ let cruise=null;
 function cruiseUI(){const b=$('#cruiseGo');if(b) b.textContent=cruise?'Arrêter le roulage':'Rouler à vitesse stabilisée';const r=$('#cruiseV'),o=$('#cruiseVO');if(r){if(+r.value!==ui.cruiseV) r.value=ui.cruiseV;r.style.setProperty('--p',((ui.cruiseV-30)/270*100)+'%');o.textContent=ui.cruiseV+' km/h';}}
 function startCruise(){
   const road=$('#road');if(!road) return;if(ui.broken){flashBroken();return;}run=null;
-  const svg=road.querySelector('svg.car'),vb=svg.viewBox.baseVal;
-  cruise={t:0,v:0,x:0,g:0,sh:0,last:performance.now(),ppm:svg.getBoundingClientRect().width/(vb.width/1000),wheels:$$('.wheel',svg),hist:[[0,0]],hs:0,ct:-1,mt:-1};
+  const svg=road.querySelector('svg.car');
+  cruise={t:0,v:0,x:0,g:0,sh:0,last:performance.now(),ppm:svg?svg.getBoundingClientRect().width/(svg.viewBox.baseVal.width/1000):30,wheels:$$('.wheel',svg),hist:[[0,0]],hs:0,ct:-1,mt:-1};
   $('#runRead').innerHTML='';cruiseUI();requestAnimationFrame(stepCruise);
 }
 function stopCruise(){if(!cruise) return;cruise=null;cruiseUI();audioSet({rpm:M.E.idle,ld:0,pr:1},false);const m=$('#runMsg');if(m) m.textContent='Roulage arrêté.';}
@@ -32,7 +32,7 @@ function stepCruise(now){
   }
   const rpm=Math.round(clamp(Math.max(D.wRpm(c.v,c.g),c.g===0&&mode===0?D.launch:0),E.idle,D.lim));
   hud({t:c.t,v:c.v*3.6,x:c.x,g:c.g,rpm});
-  const road=$('#road'),off=c.x*c.ppm;road.style.setProperty('--rx',(off%140).toFixed(1)+'px');road.style.setProperty('--rx2',(off*.6%700).toFixed(1)+'px');
+  const road=$('#road'),off=c.x*c.ppm;road.style.setProperty('--rx',(off%140).toFixed(1)+'px');road.style.setProperty('--rx2',(off*.6%700).toFixed(1)+'px');sceneDraw(c.x,c.v*3.6,rpm);
   if(!reduced()){const ang=-(c.x/C.r)*180/Math.PI%360;for(const wl of c.wheels) wl.style.transform=`rotate(${ang.toFixed(1)}deg)`;}
   audioSet({rpm,ld:load,pr:1+(E.prAt(rpm)-1)*load},true);
   if(c.t-c.hs>=.25){c.hs=c.t;c.hist.push([c.t,c.v*3.6]);if(c.hist.length>260) c.hist.shift();}

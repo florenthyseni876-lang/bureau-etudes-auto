@@ -197,8 +197,10 @@ function build3D(){
   const beltP=[];
   if(!ecu&&!dz){const pK=P('Carburateur',"Dose l'essence par dépression, sans électronique");box(0,plTop.x,plTop.y+32,plTop.z,80,64,80,mAlu,pK);cyl(V(plTop.x,plTop.y+64,plTop.z),V(plTop.x,plTop.y+116,plTop.z),110,mBlk,pK);pK.pin=V(plTop.x,plTop.y+116,plTop.z);}
   else{
-    const pTb=P('Boîtier papillon',"Règle le débit d'air selon l'accélérateur");cylX(tb.x-28,tb.x+28,tb.y,tb.z,36,mAlu,pTb);cylX(tb.x-32,tb.x-28,tb.y,tb.z,41,mSteel,pTb);cylX(tb.x+28,tb.x+32,tb.y,tb.z,41,mSteel,pTb);box(0,tb.x,tb.y-44,tb.z,34,26,44,mBlk,pTb);
-    if(ecu){const pTps=P('Capteur de position papillon',"Indique au calculateur l'ouverture du papillon");box(0,tb.x,tb.y+42,tb.z,26,16,30,mSens,pTps);}
+    if(dz){const pIn=P("Entrée d'air sans papillon","Un diesel ne règle pas l'air : sa puissance dépend seulement de la quantité de gazole injectée. Seul un volet d'arrêt et la vanne EGR équipent l'admission.");cylX(tb.x-28,tb.x+28,tb.y,tb.z,36,mAlu,pIn);cylX(tb.x-32,tb.x-28,tb.y,tb.z,41,mSteel,pIn);
+      if(ecu){const pE=P('Vanne EGR',"Réinjecte une partie des gaz d'échappement à l'admission pour limiter les oxydes d'azote");box(0,tb.x,tb.y+48,tb.z,46,40,46,mAlu,pE);cyl(V(tb.x,tb.y+68,tb.z),V(tb.x,tb.y+98,tb.z),14,mSens,pE);}}
+    else{const pTb=P('Boîtier papillon',"Règle le débit d'air selon l'accélérateur");cylX(tb.x-28,tb.x+28,tb.y,tb.z,36,mAlu,pTb);cylX(tb.x-32,tb.x-28,tb.y,tb.z,41,mSteel,pTb);cylX(tb.x+28,tb.x+32,tb.y,tb.z,41,mSteel,pTb);box(0,tb.x,tb.y-44,tb.z,34,26,44,mBlk,pTb);}
+    if(ecu&&!dz){const pTps=P('Capteur de position papillon',"Indique au calculateur l'ouverture du papillon");box(0,tb.x,tb.y+42,tb.z,26,16,30,mSens,pTps);}
     if(ecu){const pMap=P("Capteur de pression d'admission",'Mesure la charge du moteur dans le plénum');{const mx=plTop.x+Lx*(E.sc?.36:.2);cyl(V(mx,plTop.y-4,plTop.z),V(mx,plTop.y+26,plTop.z),11,mSens,pMap);pMap.pin=V(mx,plTop.y+26,plTop.z);}}
     if(S.fuelSys==='mono'){const pM=P('Injecteur monopoint','Un seul injecteur, monté sur le boîtier papillon');cyl(V(tb.x-10,tb.y+30,tb.z-14),V(tb.x-10,tb.y+62,tb.z-22),9,mSteel,pM);}
     if(E.turbo){

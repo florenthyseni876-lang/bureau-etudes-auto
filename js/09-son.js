@@ -35,7 +35,12 @@ function audioInit(){
     split.connect(hp,0);hp.connect(p1);p1.connect(p2);p2.connect(p3);p3.connect(lp);lp.connect(lp2);lp2.connect(eg);eg.connect(comp);
     const mh=bq('highpass',220,.7),ml=bq('lowpass',5200,.7),mg=g(.5);split.connect(mh,1);mh.connect(ml);ml.connect(mg);mg.connect(comp);
     const ot=ctx.createOscillator(),tg=g(0);ot.type='sine';ot.connect(tg);tg.connect(comp);ot.start();
-    AU={ctx,master,sp,st,p1,p2,p3,lp,lp2,eg,mg,ot,tg,sig:''};return true;
+    // turbo : sifflement de la roue de compresseur (fondamentale + harmonique) et souffle d'air
+    const mkW=()=>{const o=ctx.createOscillator(),o2=ctx.createOscillator(),gg=g(0),g2=g(.35);o.type='sine';o2.type='triangle';o.connect(gg);o2.connect(g2);g2.connect(gg);gg.connect(comp);o.start();o2.start();return {o,o2,gg};};
+    const w1=mkW(),w2=mkW();
+    const nb=ctx.createBuffer(1,sr*2,sr),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++) nd[i]=Math.random()*2-1;
+    const ns=ctx.createBufferSource();ns.buffer=nb;ns.loop=true;const nbp=bq('bandpass',1200,1.2),ng=g(0);ns.connect(nbp);nbp.connect(ng);ng.connect(comp);ns.start();
+    AU={ctx,master,sp,st,p1,p2,p3,lp,lp2,eg,mg,ot,tg,w1,w2,nbp,ng,nb,sig:'',tb:{s:0,s2:0,t:performance.now(),ld:0,bov:0}};return true;
   }catch(e){AU=null;return false;}
 }
 function audioCfg(){
@@ -58,19 +63,47 @@ function audioSet(b,on){
   const rf=b.rpm/E.limiter,ld=b.ld,mf=S.muffler==='valve'?(ld>.45||rf>.6?'free':'std'):S.muffler,cam=S.cam/100;
   st.trpm=b.rpm;st.tld=ld;st.ton=on?1:0;st.rf=rf;
   st.w=Math.min(.42,(.17+.08*(1-ld))*(S.manifold==='race'?.8:S.manifold==='cast'?1.1:1)*(E.turbo?1.3:1));
-  st.vr=(faultOn('timing')?.2:0)+.06+.28*cam*(1-rf)+(S.fuelSys==='carb'?.05:0)+(E.dz?.04:0);st.mis=(cam>.7&&rf<.3?.07:0)+(E.mism==='lean'?.14:0)+(E.idleLow&&rf<.25?.12:0);
+  st.vr=(faultOn('timing')?.2:0)+.06+.34*(E.lope!=null?E.lope:cam)*(1-rf)*(1-rf)+(S.fuelSys==='carb'?.05:0)+(E.dz?.04:0);st.mis=((E.lope!=null?E.lope:cam)>.62&&rf<.3?.09:0)+(E.mism==='lean'?.14:0)+(E.idleLow&&rf<.25?.12:0);
   st.pop=!E.dz&&b.rpm>E.idle*1.8&&((ui.sweep&&ui.sweep.ph===2&&(mf==='free'||mf==='sport'))||(S.pops&&E.ecuOn&&ld<.06))?1:0;
   const vol={free:1,sport:.72,std:.5,comf:.34}[mf]*(E.turbo?.72:1)*(E.dz?.7:1)*(S.cat==='none'?1.1:1);
   const cut={free:4800,sport:2700,std:1500,comf:820}[mf]*(.55+.45*ld)+b.rpm*.06;
   const ck=faultOn('cat')?.5:1;T(AU.lp.frequency,cut*ck);T(AU.lp2.frequency,cut*1.8*ck);T(AU.eg.gain,vol*(.7+.3*rf));
   T(AU.mg.gain,(E.dz?.75:.5)*{belt:.85,chain:1,gear:1.5}[S.timing]);
-  const sp=E.boosted?clamp((b.pr-1)/Math.max(.2,S.boost),0,1):0;
   const gearW=S.timing==='gear'&&!E.boosted;
-  T(AU.ot.frequency,E.sc?b.rpm/60*21:gearW?b.rpm/60*34:2800+6500*sp,.15);T(AU.tg.gain,on?(E.turbo?.02*sp:E.sc?.02*(.3+.7*ld):gearW?.012*rf:0):0,.1);
+  // compresseur volumétrique : sifflement lié au régime ; cascade de pignons : chant de la distribution
+  T(AU.ot.frequency,E.sc?b.rpm/60*({roots:21,screw:30,centri:38}[S.scType]||21)*(S.scType==='centri'?(.6+.4*rf):1):b.rpm/60*34,.12);
+  T(AU.tg.gain,on?(E.sc?(S.scType==='centri'?.03*rf*rf:.022*(.3+.7*ld)):gearW?.012*rf:0):0,.1);
+  // turbo : la vitesse de la turbine suit la pression avec un temps de réponse qui dépend de la taille
+  const tb=AU.tb,now=performance.now(),dt=Math.min(.25,(now-tb.t)/1000);tb.t=now;
+  if(E.turbo&&on){
+    const pr=Math.max(1,b.pr||1),bst=Math.max(.2,S.boost),sz=S.turboSize/100,two=E.nt>1&&S.turboStage!=='par';
+    let tgt=clamp(Math.sqrt(clamp((pr-1)/bst,0,1.2)),0,1.1);
+    if(ld<.15) tgt*=.25;                                   // pied levé : la turbine ralentit
+    const tau=S.turboType==='et'?.08:(.25+1.1*sz)*(S.turboBearing==='ball'?.7:1)*(S.turboType==='vgt'?.75:1)*(S.turboType==='ts'?.85:1);
+    tb.s+=(tgt-tb.s)*(1-Math.exp(-dt/(tgt>tb.s?tau:tau*.6)));
+    // décharge (soupape de dérivation) quand on lève le pied turbine lancée
+    if(!E.dz&&tb.ld>.55&&ld<.2&&tb.s>.45&&now-tb.bov>600){tb.bov=now;turboBov(tb.s);}
+    tb.ld=ld;
+    const fMax=9800-4600*sz,fMin=700+400*(1-sz),f=fMin+(fMax-fMin)*clamp(tb.s,0,1.1);
+    T(AU.w1.o.frequency,f,.03);T(AU.w1.o2.frequency,f*2.02,.03);
+    T(AU.w1.gg.gain,.024*tb.s*tb.s*(.35+.65*ld)*(E.dz?.8:1),.05);
+    if(two){const s2=clamp((b.rpm-S.seqRpm)/1200,0,1)*tb.s,f2=fMin*.8+(9800-4600*S.turboSize2/100-fMin*.8)*s2;T(AU.w2.o.frequency,f2,.04);T(AU.w2.o2.frequency,f2*2.02,.04);T(AU.w2.gg.gain,.02*s2*s2*(.35+.65*ld),.06);}
+    else T(AU.w2.gg.gain,0,.1);
+    T(AU.nbp.frequency,900+2600*tb.s,.05);T(AU.ng.gain,.035*tb.s*(.2+.8*ld),.06);
+  }else{tb.s*=.9;T(AU.w1.gg.gain,0,.1);T(AU.w2.gg.gain,0,.1);T(AU.ng.gain,0,.1);}
 }
 function setSound(v){
   ui.snd=v;
   if(v){if(!audioInit()){ui.snd=false;return false;}try{AU.ctx.resume();}catch(e){}}
   if(AU&&!v){AU.master.gain.setTargetAtTime(0,AU.ctx.currentTime,.05);AU.st.ton=0;}
   return true;
+}
+
+// décharge du turbo : souffle bref et sifflant, plus fort si la turbine tournait vite
+function turboBov(s){
+  if(!AU||!ui.snd) return;
+  const c=AU.ctx,t=c.currentTime,src=c.createBufferSource();src.buffer=AU.nb;
+  const f=c.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(3200,t);f.frequency.exponentialRampToValueAtTime(1300,t+.45);f.Q.value=.9;
+  const g=c.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.16*s,t+.015);g.gain.exponentialRampToValueAtTime(.001,t+.5);
+  src.connect(f);f.connect(g);g.connect(AU.master);src.start(t,Math.random());src.stop(t+.55);
 }

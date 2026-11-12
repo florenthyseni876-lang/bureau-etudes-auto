@@ -1,20 +1,20 @@
 'use strict';
 /* ───────────── Modèle moteur ───────────── */
 function computeEngine(S){
-  const c=CFG[S.config],n=c.n,rot=c.rot||0,vt=rot?VTR:VT[S.valvetrain],fs=FS[S.fuelSys],fu=FUEL[S.fuel];
+  const c0=CFG[S.config],c=c0.lay==='V'&&S.vAngle&&S.vAngle!==c0.ang?Object.assign({},c0,{ang:S.vAngle,full:`${c0.lab} à ${S.vAngle}°`,sm:c0.sm+((VANG_SM[S.config]||{})[S.vAngle]||0)}):c0,n=c.n,rot=c.rot||0,vt=rot?VTR:VT[S.valvetrain],fs=FS[S.fuelSys],fu=FUEL[S.fuel];
   const bore=rot?86:S.bore,stroke=rot?62:S.stroke;
   const disp=rot?3*Math.sqrt(3)*(S.bore/7)*S.bore*S.stroke*rot/1000:Math.PI/4*bore*bore*stroke*n/1000,L=disp/1000,dispM3=disp*(rot?2:1)/1e6,Ls=rot?2*L:L;
   const F=ui.faults,fOn=k=>!!F[k],ecu0=S.fuelSys!=='carb'&&S.fuelSys!=='idi';
-  const cam=S.cam/100,nt=NT[S.aspiration]||0,turbo=nt>0,sc=S.aspiration==='sc',boosted=turbo||sc,bi=nt>1,stg=nt>1?S.turboStage:'par',ts2=S.turboSize2/100;
+  const cam=S.cam/100,lift=c0.rot?.5:(S.camLift==null?50:S.camLift)/100,ov=c0.rot?.4:(S.camOverlap==null?40:S.camOverlap)/100,cf=c0.rot?CAMF.mech:(CAMF[S.camF]||CAMF.mech),nt=NT[S.aspiration]||0,turbo=nt>0,sc=S.aspiration==='sc',boosted=turbo||sc,bi=nt>1,stg=nt>1?S.turboStage:'par',ts2=S.turboSize2/100;
   const boost=boosted?S.boost*(fOn('boost')?.2:1):0,ts=S.turboSize/100;
   const blk=BLOCK[S.blockMat],lin=LINER[S.liner],vm=VALVE[S.valveMat],spg=SPRING[S.springs],itk=INTAKE[S.intake],tt=TURBO[S.turboType],tbr=BEAR[S.turboBearing],sct=SCT[S.scType],dry=S.sump==='dry';
   const exh=EXH.man[S.manifold].f*EXH.cat[S.cat].f*EXH.muf[S.muffler].f*(dry?1.008:1)*(fOn('cat')&&S.cat!=='none'?.93:1);
-  const rpmPk=(2800+4200*cam)*Math.pow(86/stroke,.5)*vt.rf;
-  const vePk=vt.ve+.07*cam+fs.ve+(S.vvl?.01:0)+itk.ve-(fOn('timing')?.08:0);
-  const aLow=(.18+.42*cam)*(S.vvt?.6:1)*(S.vvl?.85:1)*itk.al*(fOn('timing')?1.25:1);
+  const rpmPk=(2800+4200*cam+900*(ov-.4)+500*(lift-.5))*Math.pow(86/stroke,.5)*vt.rf;
+  const vePk=vt.ve+.07*cam+.05*(lift-.5)-(ov>.55&&S.manifold==='cast'?.05*(ov-.55):0)+fs.ve+(S.vvl?.01:0)+itk.ve-(fOn('timing')?.08:0);
+  const aLow=(.18+.42*cam)*(1+.7*(ov-.4))*(S.vvt?.6:1)*(S.vvl?.85:1)*itk.al*(fOn('timing')?1.25:1);
   const aHigh=vt.ah*Math.pow(stroke/bore,.4)*(S.vvl?.75:1)*itk.ah*(fOn('cat')&&S.cat!=='none'?2.4:1);
   const tm=TIMING[S.timing],two0=c.lay!=='I'&&!rot,tmF=(rot?0:1)*(S.valvetrain==='ohv'?.5:1)*(two0?1.7:1)*(S.valvetrain.indexOf('dohc')===0?1.25:1)*(.8+.05*n),tmMass=tm.m*tmF;
-  const floatRpm=vt.flt*Math.pow(86/stroke,.25)*(S.internals==='ti'?1.05:1)*tm.flt*vm.flt*spg.flt;
+  const floatRpm=(1-.14*(lift-.5))*cf.flt*vt.flt*Math.pow(86/stroke,.25)*(S.internals==='ti'?1.05:1)*tm.flt*vm.flt*spg.flt;
   const dz=!!fu.diesel,otto=(1-Math.pow(S.cr,-.3))/(1-Math.pow(10,-.3))*(dz?.93:1)*(c.rot?.82:1);
   let mism='',lamK=1;if(ecu0&&!fu.diesel&&!S.flex&&S.ecuFuel!==S.fuel){const rr=FNEED[S.fuel]/FNEED[S.ecuFuel];lamK=rr/clamp(rr,.8,1.25);mism=lamK>1.03?'lean':lamK<.97?'rich':'';}
   const adv=ecu0?S.ecuAdv:0,misK=(mism==='lean'?.84:mism==='rich'?.96:1)*(S.fuel==='e85'&&S.ecuFuel!=='e85'&&!S.flex&&ecu0?1/1.04:1)*(1+.004*adv-.0006*adv*adv);
@@ -56,7 +56,7 @@ function computeEngine(S){
   if(duty>1){const cw=pkW/duty;capW=capW?Math.min(capW,cw):cw;}
   const injBig=S.fuelSys!=='carb'&&injFlow>3.5*injNeed;
   const tq=(rpm,bf)=>{const t=tq0(rpm,bf);return capW&&t*rpm*Math.PI/30>capW?capW/(rpm*Math.PI/30):t;};
-  const idle0=Math.round((650+450*cam+(n<=3?100:0)+(dz?150:0))/50)*50,idle=ecu0&&S.ecuIdle?S.ecuIdle:idle0,idleLow=idle<idle0-120,limiter=S.limiter;
+  const idle0=Math.round((650+450*cam+Math.max(0,320*(ov-.4))+(n<=3?100:0)+(dz?150:0))/50)*50,idle=ecu0&&S.ecuIdle?S.ecuIdle:idle0,idleLow=idle<idle0-120,limiter=S.limiter;
   const curve=[];let peakP=0,peakPrpm=0,peakT=0,peakTrpm=0;
   for(let rpm=1000;rpm<=limiter+1;rpm+=100){
     const t=tq(rpm),p=t*rpm*Math.PI/30/1000*1.3596;
@@ -84,18 +84,18 @@ function computeEngine(S){
   const oilReq=6.5+4*(peakP/Ls/100)+(turbo?1.5:0)+(dz?1:0);
   rel-=Math.max(0,oilReq-oil.h)*4+(oil.c>250?2:0)+(oilQ<.6?40:oilQ<.85?(.85-oilQ)*60:0)+(oilQ>1.3?25:oilQ>1.1?5+(oilQ-1.1)*40:0);
   rel+=blk.rel+tm.rel+lin.rel+vm.rel+spg.rel+(dry?3:0)+(turbo?tt.rel:0)-(S.cda?1:0)-(rot?8+boost*6:0)-(mism==='lean'?12:0)-(duty>1?15:duty>.85?4:0)-Math.max(0,adv-4)*1.5-Math.max(0,S.fuelPress-4.5)*4-(fOn('misfire')?15:0)-(fOn('boost')&&boosted?8:0)-(fOn('coolant')?30:0)-(fOn('oilpump')?35:0)-(fOn('lambda')&&ecu0&&!dz?6:0)-(fOn('cat')&&S.cat!=='none'?12:0)-(fOn('fuelpump')?8:0)-(fOn('timing')?20:0)-(fOn('headgasket')?40:0); rel=clamp(rel,0,100);
-  const smooth=clamp(c.sm-14*cam-Math.max(0,disp/n-550)*.02-(dz?8:0)-(fOn('misfire')?25:0)-(fOn('timing')?10:0)-(fOn('headgasket')?8:0)-(mism==='lean'?20:0)-(idleLow?10:0)-(injBig?6:0),0,100);
+  const smooth=clamp(c.sm-14*cam-12*(ov-.4)-Math.max(0,disp/n-550)*.02-(dz?8:0)-(fOn('misfire')?25:0)-(fOn('timing')?10:0)-(fOn('headgasket')?8:0)-(mism==='lean'?20:0)-(idleLow?10:0)-(injBig?6:0),0,100);
   const resp=turbo?clamp(86-46*ts*(stg==='par'?1:.55)-8*boost+tt.resp+(S.turboBearing==='ball'?5:0),10,100):sc?(S.scType==='centri'?82:92):clamp(94+itk.resp,0,100);
   let sum=0,cnt=0;for(let r=1500;r<=3500;r+=250){sum+=tq(r);cnt++;}
   const flat=clamp((sum/cnt/peakT-.45)/.5*100,0,100);
   const agr=clamp(.45*flat+.3*resp+.25*smooth,0,100);
   const mf=EXH.muf[S.muffler];
-  const noise=clamp(mf.noise+10*cam+(S.cat==='none'?5:0)+(S.manifold==='race'?4:0)-(turbo?6:0)+(dz?8:0)+tm.noise,0,100);
-  const sound=clamp(c.snd*.72+mf.snd+10*cam-(turbo?5:0)+(S.manifold!=='cast'?4:0)+10-(dz?18:0),0,100);
+  const noise=clamp(mf.noise+10*cam+5*(lift-.5)+cf.noise+(S.cat==='none'?5:0)+(S.manifold==='race'?4:0)-(turbo?6:0)+(dz?8:0)+tm.noise,0,100);
+  const sound=clamp(c.snd*.72+mf.snd+10*cam+8*(ov-.4)-(turbo?5:0)+(S.manifold!=='cast'?4:0)+10-(dz?18:0),0,100);
   const etaW=.385*otto*fs.eff*(dz?1:mix*lam/.968);
   const lamC=S.fuelSys==='carb'?lam:lerp(1,lam,.35);
   const cdaK=(injBig?.97:1)*(S.pops&&ecu0?.98:1)*(mism==='rich'?.9:1)*(rot?.85:1)*(S.cda&&n>=4?(n>=6?1.06:1.03):1)*(fOn('misfire')?(n-1)/n:1);
-  const etaC=cdaK*(dz?etaW*(1-.1*Math.pow(cam,1.5)):.385*otto*fs.eff*(mixF(lamC)*lamC/.968)*(1-.2*Math.pow(cam,1.5)));
+  const etaC=(1-.05*(ov-.4))*cf.eta*cdaK*(dz?etaW*(1-.1*Math.pow(cam,1.5)):.385*otto*fs.eff*(mixF(lamC)*lamC/.968)*(1-.2*Math.pow(cam,1.5)));
   const bmepMax=peakT*4*Math.PI/dispM3/1e5;
   const etaB=etaW*bmepMax/(bmepMax+fmep(peakTrpm));
   // ── résistance des organes (1 = limite de la pièce)
@@ -178,5 +178,5 @@ function computeEngine(S){
   else{len=k*(bore+9)+140;wid=2*(2*stroke+180)+100;hgt=bore+330;}
   if(dry) hgt-=60;
   return {c,n,disp,L,dispM3,tq,fmep,idle,limiter,curve,peakP,peakPrpm,peakT,peakTrpm,mass,cost,rel,smooth,resp,agr,noise,sound,etaC,etaB,bmepMax,
-    spLim,spMax,specT,tMax,knock,effCR,limit,floatRpm,len,wid,hgt,turbo,sc,boosted,dz,rot,nt,stg,nSm,ecuOn:ecu0,mism,lamAct:lam,adv,duty,injNeed,injFlow,injBig,nInj,idle0,idleLow,tauK:tt.tau*tbr.tau*(nt>1?(stg==='par'?[1,1,.7,.6,.55][nt]:.5):1),tmMass,oil,oilCap,oilQ,oilReq,prAt,etaW,fails,stressAt,oilP,pReqAt,egtAt,turboCap,life,lifeF,oilRec,oilInt,maint:mnt,mYear,mLife,rebuild,kmY,notes,pumpK:dz?.12:.62,emis:S.cat!=='none'&&S.fuelSys!=='carb'};
+    spLim,spMax,specT,tMax,knock,effCR,limit,floatRpm,len,wid,hgt,turbo,sc,boosted,dz,rot,nt,stg,nSm,ecuOn:ecu0,mism,lamAct:lam,adv,duty,injNeed,injFlow,injBig,nInj,idle0,idleLow,tauK:tt.tau*tbr.tau*(nt>1?(stg==='par'?[1,1,.7,.6,.55][nt]:.5):1),tmMass,oil,oilCap,oilQ,oilReq,prAt,etaW,fails,stressAt,oilP,pReqAt,egtAt,turboCap,life,lifeF,oilRec,oilInt,maint:mnt,mYear,mLife,rebuild,kmY,notes,pumpK:dz?.12:.62,lope:clamp((ov-.35)/.55,0,1)*.7+cam*.3,camLift:lift,camOv:ov,emis:S.cat!=='none'&&S.fuelSys!=='carb'};
 }

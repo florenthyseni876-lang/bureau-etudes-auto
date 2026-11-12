@@ -653,3 +653,31 @@ body.lfx-on{overflow:hidden}
 .car3d-w{position:relative;height:clamp(260px,42vw,420px);touch-action:none}
 #car3d{display:block;width:100%;height:100%;cursor:grab}
 #car3d:active{cursor:grabbing}
+
+/* horloge de la carrière */
+.clock{display:flex;border:1.5px solid var(--sheet);border-radius:2px;overflow:hidden}
+.clk{background:transparent;color:var(--sheet);border:0;border-right:1px solid rgba(255,255,255,.25);padding:6px 9px;font-size:12px;letter-spacing:-.12em;cursor:pointer;min-width:38px;font-family:var(--f-m)}
+.clk:last-child{border-right:0}
+.clk.on{background:var(--accent);color:var(--on-accent)}
+.cbar{position:sticky}
+.cb-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12);padding:0!important;border:0!important;display:block!important}
+.cb-prog i{display:block;height:100%;background:var(--accent);transition:width .2s linear}
+@media (max-width:700px){.clk{padding:6px 6px;min-width:32px}.cbar .cb-act{gap:6px}}
+/* piste d'essai : décors et vues */
+.scene-tools{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:8px}
+.scene-tools .seg{margin-top:0}
+.scene-tools .seg button{padding:3px 10px;font-size:12.5px}
+.road.scene{height:clamp(230px,34vw,360px);background:#9cc8ef}
+.road.scene::before,.road.scene::after{display:none}
+.road.scene canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.road.scene .scene-car{position:absolute;z-index:1}
+.road.scene .scene-car svg.car{position:static;width:100%;height:auto;display:block}
+.cam-cote .scene-car{left:3%;bottom:4px;width:min(64%,470px)}
+.cam-poursuite .scene-car{left:50%;bottom:2%;width:min(46%,340px);transform:translateX(-50%)}
+.cam-poursuite .scene-car .c-shadow{opacity:.6}
+.cam-cockpit .scene-car{display:none}
+.cam-helico .scene-car{left:50%;top:50%;width:min(40%,260px);transform:translate(-50%,-50%) rotate(90deg)}
+.cam-helico .scene-car svg{filter:drop-shadow(6px 0 6px rgba(0,0,0,.35))}
+
+.c3-parts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.c3-parts .chip-btn[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--ink)}

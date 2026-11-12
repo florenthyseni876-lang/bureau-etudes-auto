@@ -69,12 +69,14 @@ function renderCbar(){
    <div class="cb-debt"><span class="eyebrow">Dette</span><b>${moneyF(G.debt)}</b></div>
    <div><span class="eyebrow">Réputation</span><b>${nf(G.rep)}<small>/100</small></b></div>
    <div class="cb-fac"><span class="eyebrow">${FAC[G.fac][0]}</span><b>${nf(cap)}<small> voit./an</small></b></div>
-   <div class="cb-act"><button class="btn sm" type="button" id="nextQ"${G.over?' disabled':''}>Trimestre suivant</button><button class="btn sm ghost" type="button" id="nextY"${G.over?' disabled':''}>+1 an</button></div>`;
+   <div class="cb-act"><div class="clock" role="group" aria-label="Écoulement du temps">${[[0,'❚❚','Pause'],[1,'▶','Vitesse normale'],[2,'▶▶','Vitesse ×2'],[4,'▶▶▶','Vitesse ×4']].map(([v,ic,l])=>`<button type="button" class="clk${(G.spd||0)===v?' on':''}" data-spd="${v}" aria-pressed="${(G.spd||0)===v}" aria-label="${l}" title="${l}">${ic}</button>`).join('')}</div><button class="btn sm ghost" type="button" id="nextQ"${G.over?' disabled':''} title="Passer directement au trimestre suivant">Trimestre suivant</button></div>
+   <div class="cb-prog" aria-hidden="true"><i id="qProg" style="width:${(clamp((G.qt||0)/QSEC,0,1)*100).toFixed(1)}%"></i></div>`;
 }
 function advance(n){
+  const y0=G.y,nt0=G.techs.length;G.qt=0;
   for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
   renderCbar();
-  if(isCTab(ui.tab)){render();}else{buildControls();render();}
+  if(isCTab(ui.tab)||(G.y===y0&&G.techs.length===nt0)){render();}else{buildControls();render();}
   if(G.pendingNews&&G.pendingNews.length){const id=G.pendingNews.shift();saveGame();const m=G.models.find(x=>x.id===id);if(m&&m.press) showLaunch(m);}
 }
 
@@ -265,7 +267,7 @@ function resHTML(){
   }
   return `<div class="career">${h}</div>`;
 }
-const U_TAB={gMat:GMAT,gTeeth:GTEETH,gSync:GSYNC,clutch:CLUTCH,config:CFG,valvetrain:VT,fuelSys:FS,timing:TIMING,blockMat:BLOCK,liner:LINER,sump:SUMP,valveMat:VALVE,springs:SPRING,intake:INTAKE,turboStage:STAGE,turboType:TURBO,turboBearing:BEAR,scType:SCT,oilGrade:OIL,fuel:FUEL,body:BODY,enginePos:POS,chassis:CHAS,panels:PANEL,gearbox:GBX,suspF:SUSP,suspR:SUSP,compound:TYRE,brakeF:BRK,brakeR:BRK,trim:TRIM,media:MEDIA,passive:PASS,steering:STEER,manifold:EXH.man,cat:EXH.cat,muffler:EXH.muf};
+const U_TAB={camF:CAMF,gMat:GMAT,gTeeth:GTEETH,gSync:GSYNC,clutch:CLUTCH,config:CFG,valvetrain:VT,fuelSys:FS,timing:TIMING,blockMat:BLOCK,liner:LINER,sump:SUMP,valveMat:VALVE,springs:SPRING,intake:INTAKE,turboStage:STAGE,turboType:TURBO,turboBearing:BEAR,scType:SCT,oilGrade:OIL,fuel:FUEL,body:BODY,enginePos:POS,chassis:CHAS,panels:PANEL,gearbox:GBX,suspF:SUSP,suspR:SUSP,compound:TYRE,brakeF:BRK,brakeR:BRK,trim:TRIM,media:MEDIA,passive:PASS,steering:STEER,manifold:EXH.man,cat:EXH.cat,muffler:EXH.muf};
 function uLabel(k,v){
   if(k==='ecuFuel'||k==='brakeR'||k==='suspR'||k==='splitter') return '';
   if(typeof v==='boolean') return {vvt:'calage variable',vvl:'levée variable',cda:'désactivation de cylindres',flex:'capteur d\'éthanol',launchCtl:'launch control',pops:'cartographies',startStop:'stop & start',ecuVmax:'bridage électronique',gCool:'radiateur de boîte',flatFloor:'fond plat',abs:'ABS',tc:'antipatinage',esp:'ESP'}[k]||'';
@@ -324,7 +326,18 @@ function careerInput(e){
 $('#stage').addEventListener('click',e=>{if(careerClick(e)) e.stopImmediatePropagation();},true);
 $('#stage').addEventListener('input',careerInput);
 $('#stage').addEventListener('change',careerInput);
-$('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!G) return;if(b.id==='nextQ') advance(1);else if(b.id==='nextY') advance(4);});
+$('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!G) return;if(b.id==='nextQ') advance(1);else if(b.id==='nextY') advance(4);else if(b.dataset.spd!=null){G.spd=+b.dataset.spd;saveGame();renderCbar();}});
+/* ── le temps passe en direct : un trimestre dure QSEC secondes à vitesse normale ── */
+const QSEC=30;
+let clkLast=performance.now();
+function clockPaused(){return !G||G.over||!(G.spd>0)||!$('#home').hidden||!LFX.hidden||document.hidden;}
+setInterval(()=>{
+  const now=performance.now(),dt=Math.min(1,(now-clkLast)/1000);clkLast=now;
+  if(clockPaused()) return;
+  G.qt=(G.qt||0)+dt*G.spd;
+  const pb=$('#qProg');if(pb) pb.style.width=(clamp(G.qt/QSEC,0,1)*100).toFixed(1)+'%';
+  if(G.qt>=QSEC){G.qt=0;const ae=document.activeElement;if(ae&&ae.type==='range'&&ae.matches(':active')){G.qt=QSEC-1;return;}advance(1);}
+},200);
 $('#homeBtn').addEventListener('click',showHome);
 
 /* ── lancement : animation puis journal en double page ── */
