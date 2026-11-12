@@ -2,7 +2,7 @@
 /* ───────────── Rendu ───────────── */
 function renderKeys(){
   const E=M.E,C=M.C;
-  $('#keys').innerHTML=[['Puissance',nf(E.peakP),'ch'],['Couple',nf(E.peakT),'Nm'],['Masse à vide',nf(C.mass),'kg'],['0–100 km/h',C.t100?nf(C.t100,1):'—','s'],['Vitesse maxi',nf(C.vmax),'km/h'],['Conso mixte',nf(C.conso.mix,1),'l/100'],['Prix estimé',nf(Math.round(C.price/100)*100),'€'],['Durée de vie moteur',nf(E.life),'km']]
+  $('#keys').innerHTML=[['Puissance',nf(E.peakP),'ch'],['Couple',nf(E.peakT),'Nm'],['Masse à vide',nf(C.mass),'kg'],['0–100 km/h',C.t100?nf(C.t100,1):'—','s'],['Vitesse maxi',nf(C.vmax),'km/h'],['Conso mixte',nf(C.conso.mix,1),'l/100'],(G?['Coût de fabrication',nf(Math.round(unitCost({cost:C.cost},Math.min(FAC[G.fac][1],2000))/100)*100),'€']:['Prix estimé',nf(Math.round(C.price/100)*100),'€']),['Durée de vie moteur',nf(E.life),'km']]
     .map(c=>`<div class="key"><dt>${c[0]}</dt><dd>${c[1]}<small>${c[2]}</small></dd></div>`).join('');
   const b=$('#tabs [data-tab="essais"]');if(b) b.innerHTML='Essais'+(C.issues?`<span class="badge" title="${C.issues} point(s) à voir dans les contrôles">${C.issues}</span>`:'');
 }
@@ -44,12 +44,13 @@ function render(){
   sanitize();if(ERA){eraFix();sanitize();}
   if(!S.injSize||!S.ecuIdle){const fresh=!S.injSize;if(fresh&&!FUEL[S.fuel].diesel) S.ecuFuel=S.fuel;const E0=computeEngine(Object.assign({},S,{injSize:1e6,ecuIdle:0,fuelPress:3}));if(fresh) S.injSize=clamp(Math.round(E0.injNeed*1.25/10)*10,60,3000);if(!S.ecuIdle) S.ecuIdle=E0.idle0;}
   M.E=computeEngine(S);if(!S.oilInt){S.oilInt=M.E.oilRec;M.E=computeEngine(S);}M.C=computeCar(S,M.E);
-  renderKeys();renderStage();for(const f of ctlUpd) f();
+  renderKeys();renderStage();for(const f of ctlUpd) f();renderNav();
   clearTimeout(saveT);saveT=setTimeout(saveDesign,400);
 }
 function saveDesign(){if(G){saveGame();return;}try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}}
 function setTab(t,fromHash){
   if(!TABS.some(x=>x[0]===t)) t='moteur';
+  if(G&&!G.wiz&&stepIdx(t)>=0&&t!=='essais') t='qg';
   ui.tab=t;run=null;cruise=null;ui.sweep=null;dispose3D();if(AU) audioSet({rpm:M.E?M.E.idle:900,ld:0,pr:1},false);
   for(const b of $$('#tabs .tab')){b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false');if(b.dataset.tab===t) b.classList.remove('ping');}
   const full=t==='essais'||isCTab(t);

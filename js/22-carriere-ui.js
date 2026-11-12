@@ -1,9 +1,9 @@
 'use strict';
 /* ───────────── Carrière : écran d'accueil et interface ───────────── */
 const BASE_TABS=TABS.slice();
-const CTABS=[['direction','Direction'],['recherche','Recherche'],['marche','Marché']];
+const CTABS=[['qg','Quartier général'],['gamme','Ma gamme'],['recherche','Recherche'],['usine','Usine et banque'],['marche','Marché'],['vente','Mise en vente']];
 const isCTab=t=>CTABS.some(x=>x[0]===t);
-ui.resAll=false;ui.newPrice=0;ui.newName='';ui.msg='';
+ui.resAll=false;ui.newPrice=0;ui.newName='';ui.msg='';ui.flash='';ui.wizOk=null;
 
 function loadDesign(obj){for(const k of Object.keys(S)) delete S[k];Object.assign(S,DEF);if(obj) for(const k of Object.keys(DEF)) if(typeof obj[k]===typeof DEF[k]) S[k]=obj[k];ui.broken=null;ui.dmg={};ui.faults={};}
 function renderTabs(){$('#tabs').innerHTML=TABS.map(([k,n])=>`<button class="tab${isCTab(k)?' tab-c':''}" role="tab" type="button" data-tab="${k}" id="tab_${k}" aria-selected="false">${n}</button>`).join('');}
@@ -23,7 +23,7 @@ function setMode(mode,g){
   $('#cbar').hidden=!G;$('#presetCell').hidden=!!G;
   $('#projName').value=S.name||'';
   renderTabs();renderCbar();hideHome();
-  setTab(G?'direction':'moteur');
+  setTab(G?(G.wiz?STEPS[G.wiz.max][0]:'qg'):'moteur');
 }
 
 /* ── écran d'accueil ── */
@@ -54,7 +54,7 @@ function initHome(){
     else if(b.id==='hFound'){
       const y=+($('input[name=eraY]:checked')||{value:1900}).value,diff=($('input[name=diff]:checked')||{value:'nor'}).value,co=$('#coName').value.trim()||'Automobiles Nouvelles';
       if(!G){try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}}else saveGame();
-      G=null;syncEra();newGame({y,diff,co});setMode('carriere',G);
+      G=null;syncEra();newGame({y,diff,co});sanitize();eraFix();tuneSafe();setMode('carriere',G);
     }
   });
 }
@@ -75,7 +75,6 @@ function advance(n){
   for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
   renderCbar();
   if(isCTab(ui.tab)){render();}else{buildControls();render();}
-  const nb=$('#tab_direction');if(nb&&ui.tab!=='direction'&&G.news[0]&&G.news[0].y===G.y) nb.classList.add('ping');
 }
 
 /* ── pages ── */
@@ -83,29 +82,134 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 function tile(l,v,sub){return `<div class="tile"><span class="eyebrow">${l}</span><b>${v}</b>${sub?`<small>${sub}</small>`:''}</div>`;}
 function stBadge(m){return m.st==='dev'?`<span class="pill">Développement · ${m.devLeft} trim.</span>`:m.st==='prod'?'<span class="pill ok">En production</span>':'<span class="pill off">Arrêté</span>';}
 function careerHTML(t){
-  if(t==='direction') return dirHTML();
-  if(t==='recherche') return resHTML();
-  return mktHTML();
+  return ({qg:qgHTML,gamme:gammeHTML,usine:usineHTML,vente:venteHTML,recherche:resHTML,marche:mktHTML}[t]||qgHTML)();
 }
-function dirHTML(){
-  const y=yq(),lq=G.lastQ||{rev:0,profit:0,units:0},cap=FAC[G.fac][1];
+function lastQHTML(){
+  const lq=G.lastQ||{rev:0,profit:0,units:0},cap=FAC[G.fac][1];
+  return `<section class="cgrp"><h3>Le trimestre écoulé</h3><div class="tiles">${tile('Voitures vendues',nf(lq.units),`capacité ${nf(cap/4)} par trimestre`)}${tile('Chiffre d\'affaires',moneyF(lq.rev))}${tile('Résultat',moneyF(lq.profit),lq.upk?`dont usine ${moneyF(-lq.upk)}${lq.int?` · intérêts ${moneyF(-lq.int)}`:''}`:'')}${tile('Réputation',nf(G.rep)+' / 100',G.rep>=60?'Marque recherchée':G.rep>=40?'Marque connue':'Marque peu connue')}</div></section>`;
+}
+function todo(){
+  const t=[];
+  if(G.over) return t;
+  const prod=G.models.filter(m=>m.st==='prod'),dev=G.models.filter(m=>m.st==='dev');
+  if(G.wiz) t.push({t:`Terminer la conception de « ${esc(S.name||'Sans nom')} »`,d:`Étape ${Math.min(G.wiz.max+1,STEPS.length)} sur ${STEPS.length} : ${STEPS[Math.min(G.wiz.max,STEPS.length-1)][1].toLocaleLowerCase()}.`,b:`<button class="btn" type="button" data-go="${STEPS[G.wiz.max][0]}">Reprendre la conception</button>`});
+  else if(!G.models.length) t.push({t:'Concevoir votre première voiture',d:`Vous allez passer par ${STEPS.length} étapes : ${STEPS.map(x=>x[1].toLocaleLowerCase()).join(', ')}. Chaque étape se valide avant la suivante.`,b:'<button class="btn" type="button" data-newcar="1">Concevoir ma première voiture</button>'});
+  if(dev.length&&!prod.length) t.push({t:`${esc(dev[0].name)} est en développement`,d:`Encore ${dev[0].devLeft} trimestre${dev[0].devLeft>1?'s':''} avant la sortie. Appuyez sur « Trimestre suivant » en haut pour avancer le temps.`});
+  if(prod.some(m=>m.last&&m.last.lim)) t.push({t:'Votre usine tourne à plein',d:'Des clients repartent sans voiture : agrandissez l\'usine ou augmentez vos prix.',b:'<button class="chip-btn" type="button" data-go="usine">Voir l\'usine</button>'});
+  if(prod.length&&prod.every(m=>m.last&&m.last.u===0)) t.push({t:'Aucune vente ce trimestre',d:'Votre prix est peut-être trop élevé, ou la voiture n\'attire aucune clientèle. Comparez-la aux attentes dans la page Marché.',b:'<button class="chip-btn" type="button" data-go="marche">Voir le marché</button>'});
+  if(!G.res&&G.models.length){const av=TECHS.filter(x=>x[3]<=G.y&&!G.techs.includes(x[0]));if(av.length) t.push({t:'Aucune recherche en cours',d:`${av.length} technologie${av.length>1?'s':''} disponible${av.length>1?'s':''} à étudier.`,b:'<button class="chip-btn" type="button" data-go="recherche">Choisir une recherche</button>'});}
+  if(!t.length) t.push({t:'Tout roule',d:'Passez au trimestre suivant, ou préparez un nouveau modèle pour suivre les attentes des clients.'});
+  return t;
+}
+function qgHTML(){
   let h='';
   if(G.over) h+=`<div class="brk"><b>Faillite de ${esc(G.co)}</b><p>La trésorerie est restée négative deux trimestres de suite. Vous pouvez fonder une nouvelle entreprise depuis l'accueil.</p><button class="btn sm" type="button" id="goHome">Retour à l'accueil</button></div>`;
-  h+=`<section class="cgrp"><h3>Le trimestre écoulé</h3><div class="tiles">${tile('Voitures vendues',nf(lq.units),`capacité ${nf(cap/4)} par trimestre`)}${tile('Chiffre d\'affaires',moneyF(lq.rev))}${tile('Résultat',moneyF(lq.profit),lq.upk?`dont usine ${moneyF(-lq.upk)}${lq.int?` · intérêts ${moneyF(-lq.int)}`:''}`:'')}${tile('Réputation',nf(G.rep)+' / 100',G.rep>=60?'Marque recherchée':G.rep>=40?'Marque connue':'Marque peu connue')}</div></section>`;
-  // gamme
+  if(ui.flash){h+=`<div class="flash" role="status">${esc(ui.flash)}</div>`;ui.flash='';}
+  const td=todo();
+  h+=`<section class="cgrp todo"><h3>À faire maintenant</h3><ol class="todo-l">${td.map(x=>`<li><div><b>${x.t}</b><p>${x.d}</p></div>${x.b?`<div>${x.b}</div>`:''}</li>`).join('')}</ol></section>`;
+  if(G.models.length) h+=lastQHTML();
+  const prod=G.models.filter(m=>m.st==='prod').length,dev=G.models.filter(m=>m.st==='dev').length,lq=G.lastQ,uti=lq&&lq.cap?lq.units*4/lq.cap:0;
+  const card=(go,t,d,ico)=>`<button class="qg-card" type="button" ${go}><span class="qg-i" aria-hidden="true">${ico}</span><b>${t}</b><span>${d}</span></button>`;
+  h+=`<section class="qg-grid" aria-label="Services de l'entreprise">
+   ${card(G.wiz?`data-go="${STEPS[G.wiz.max][0]}"`:'data-newcar="1"',G.wiz?'Reprendre la conception':'Nouvelle voiture',G.wiz?`${esc(S.name||'Sans nom')} · étape ${G.wiz.max+1} sur ${STEPS.length}`:'Concevoir un modèle, étape par étape','✎')}
+   ${card('data-go="gamme"','Ma gamme',G.models.length?`${prod} en vente · ${dev} en développement`:'Aucun modèle pour l\'instant','▤')}
+   ${card('data-go="recherche"','Recherche',G.res?`En cours : ${TECH[G.res.id].n}`:'Aucune recherche en cours','⚗')}
+   ${card('data-go="usine"','Usine et banque',`${FAC[G.fac][0]} · utilisée à ${nf(uti*100)} %`,'⚙')}
+   ${card('data-go="marche"','Marché',`${nf(marketVol(yq()),-3)} voitures neuves par an en ${G.y}`,'◷')}
+  </section>`;
+  h+=`<section class="cgrp"><h3>Actualités</h3><ul class="news">${G.news.slice(0,6).map(n=>`<li class="nw-${n.k}"><span class="eyebrow">${Q[n.q]} ${n.y}</span><b>${esc(n.t)}</b><p>${esc(n.d)}</p></li>`).join('')}</ul></section>`;
+  return `<div class="career">${h}</div>`;
+}
+function gammeHTML(){
   const ms=G.models.slice().reverse();
-  h+=`<section class="cgrp"><h3>Gamme</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" value="${Math.round(m.price)}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="act"><button class="chip-btn" type="button" data-open="${m.id}">Reprendre au bureau</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div>`:'<p class="grp-note">Aucun modèle pour l\'instant. Concevez une voiture dans les onglets Moteur, Carrosserie, Transmission… puis lancez son développement ci-dessous.</p>'}</section>`;
-  h+=newModelHTML();
-  // usine
-  const nl=G.fac+1,uti=lq.cap?lq.units*4/lq.cap:0;
-  h+=`<section class="cgrp"><h3>Usine</h3><div class="row2"><div><p><b>${FAC[G.fac][0]}</b> · ${nf(cap)} voitures par an · charges fixes ${moneyF(facUpkeep(G.fac,y))} par an.</p><div class="gmeter" role="img" aria-label="Utilisation de l'usine ${nf(uti*100)} %"><i style="width:${clamp(uti*100,0,100).toFixed(1)}%"></i></div><p class="grp-note">Utilisation ${nf(uti*100)} % au dernier trimestre.</p></div><div>${G.build?`<p>Construction en cours : <b>${FAC[G.build.l][0]}</b>, mise en service dans ${G.build.left} trimestre${G.build.left>1?'s':''}.</p>`:nl<FAC.length?`<p>Agrandir : <b>${FAC[nl][0]}</b> (${nf(FAC[nl][1])} voitures par an) · ${moneyF(facCost(nl,y))} · 3 trimestres · charges ${moneyF(facUpkeep(nl,y))} par an.</p><button class="btn sm" type="button" id="facUp"${G.over?' disabled':''}>Construire</button>`:'<p>Capacité maximale atteinte.</p>'}</div></div></section>`;
-  // finances
+  let h=`<section class="cgrp"><h3>Modèles</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" value="${Math.round(m.price)}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="act"><button class="chip-btn" type="button" data-evol="${m.id}">Créer une évolution</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div><p class="hint">Le prix se modifie directement dans le tableau. « Créer une évolution » ouvre la conception à partir de ce modèle.</p>`:'<p class="grp-note">Aucun modèle pour l\'instant.</p>'}<div class="btns"><button class="btn sm" type="button" data-newcar="1"${G.over?' disabled':''}>Concevoir une nouvelle voiture</button></div></section>`;
+  if(G.models.length) h=lastQHTML()+h;
+  return `<div class="career">${h}</div>`;
+}
+function usineHTML(){
+  const y=yq(),lq=G.lastQ||{},cap=FAC[G.fac][1],nl=G.fac+1,uti=lq.cap?lq.units*4/lq.cap:0;
+  let h=`<section class="cgrp"><h3>Usine</h3><div class="row2"><div><p><b>${FAC[G.fac][0]}</b> · ${nf(cap)} voitures par an · charges fixes ${moneyF(facUpkeep(G.fac,y))} par an.</p><div class="gmeter" role="img" aria-label="Utilisation de l'usine ${nf(uti*100)} %"><i style="width:${clamp(uti*100,0,100).toFixed(1)}%"></i></div><p class="grp-note">Utilisation ${nf(uti*100)} % au dernier trimestre.</p></div><div>${G.build?`<p>Construction en cours : <b>${FAC[G.build.l][0]}</b>, mise en service dans ${G.build.left} trimestre${G.build.left>1?'s':''}.</p>`:nl<FAC.length?`<p>Agrandir : <b>${FAC[nl][0]}</b> (${nf(FAC[nl][1])} voitures par an) · ${moneyF(facCost(nl,y))} · 3 trimestres · charges ${moneyF(facUpkeep(nl,y))} par an.</p><button class="btn sm" type="button" id="facUp"${G.over?' disabled':''}>Construire</button>`:'<p>Capacité maximale atteinte.</p>'}</div></div></section>`;
   const lim=loanLimit(),step=Math.max(1e4,Math.pow(10,Math.floor(Math.log10(Math.max(lim,1e4))))/2);
   h+=`<section class="cgrp"><h3>Banque</h3><p>Dette ${moneyF(G.debt)} sur un plafond de ${moneyF(lim)} · intérêts 6 % par an. Si la trésorerie passe sous zéro, la banque comble automatiquement dans la limite du plafond.</p><div class="btns"><button class="chip-btn" type="button" id="borrow"${G.debt+step>lim||G.over?' disabled':''}>Emprunter ${moneyF(step)}</button><button class="chip-btn" type="button" id="repay"${G.debt<=0||G.cash<Math.min(step,G.debt)?' disabled':''}>Rembourser ${moneyF(Math.min(step,G.debt))}</button></div></section>`;
   h+=histHTML();
-  h+=`<section class="cgrp"><h3>Actualités</h3><ul class="news">${G.news.slice(0,14).map(n=>`<li class="nw-${n.k}"><span class="eyebrow">${Q[n.q]} ${n.y}</span><b>${esc(n.t)}</b><p>${esc(n.d)}</p></li>`).join('')}</ul></section>`;
   return `<div class="career">${h}</div>`;
 }
+function venteHTML(){
+  if(!G.wiz) return `<div class="career"><section class="cgrp"><h3>Mise en vente</h3><p class="grp-note">Aucune voiture en cours de conception.</p><div class="btns"><button class="btn sm" type="button" data-newcar="1">Concevoir une nouvelle voiture</button></div></section></div>`;
+  return `<div class="career">${newModelHTML()}</div>`;
+}
+
+/* ── conception guidée ── */
+const STEPS=[['moteur','Moteur'],['carrosserie','Carrosserie'],['transmission','Transmission'],['trains','Trains roulants'],['habitacle','Habitacle'],['essais','Essais'],['vente','Mise en vente']];
+const STEP_CHK={
+  moteur:['Cliquetis','Auto-allumage','Vitesse de piston',"Vitesse des segments d'arête",'Tenue au couple','Lubrification','Affolement des soupapes','Résistance du moteur','Calculateur','Injecteurs','Ralenti'],
+  carrosserie:['Implantation du moteur'],
+  transmission:['Boîte et embrayage','Étagement','Motricité'],
+  trains:['Freinage','Disques et jantes','Passages de roue','Garde au sol'],
+  habitacle:[],essais:null,
+};
+const STEP_BLOCK=['Implantation du moteur','Auto-allumage','Disques et jantes','Passages de roue'];
+const STEP_HELP={
+  moteur:'Choisissez l\'architecture, la cylindrée, l\'alimentation et le réglage du moteur. Les pièces grisées ne sont pas encore inventées ou pas encore recherchées.',
+  carrosserie:'Choisissez la silhouette, la position du moteur, la structure et la peinture. La silhouette détermine les clientèles visées.',
+  transmission:'Choisissez la boîte de vitesses, l\'étagement et les roues motrices.',
+  trains:'Réglez les suspensions, les roues, les pneus et les freins.',
+  habitacle:'Choisissez le nombre de places, la finition, les équipements et la sécurité.',
+  essais:'Faites rouler la voiture : accélération, vitesse maxi, consommation et liste des points à surveiller.',
+  vente:'Donnez un nom à la voiture, fixez son prix et lancez son développement.',
+};
+const stepIdx=t=>STEPS.findIndex(x=>x[0]===t);
+const inWiz=()=>!!(G&&G.wiz&&stepIdx(ui.tab)>=0);
+function stepIssues(t){
+  const C=M.C;if(!C) return {block:[],warn:[]};const L=STEP_CHK[t];
+  const ks=C.checks.filter(k=>k.lv!=='ok'&&(L===null||(L&&L.includes(k.t)))&&!eraMoot(k));
+  return {block:ks.filter(k=>k.lv==='crit'&&STEP_BLOCK.includes(k.t)),warn:ks.filter(k=>!(k.lv==='crit'&&STEP_BLOCK.includes(k.t)))};
+}
+// avertissements sans objet à l'époque (aucune solution n'existe encore)
+function eraMoot(k){return !!G&&((k.t==='Homologation'&&G.y<1993)||(k.t==='Freinage'&&G.y<1955)||(k.t==='Lubrification'&&k.lv==='warn'&&!G.techs.includes('a_multigrade')));}
+// projet de départ : baisse la compression jusqu'à supprimer le cliquetis
+function tuneSafe(){for(let n=0;n<16;n++){const E=computeEngine(Object.assign({},S,{injSize:1e6,ecuIdle:0,fuelPress:3}));if(!(E.knock>0)||S.cr<=7.5||E.dz) break;S.cr=Math.round((S.cr-.5)*10)/10;}}
+function startWiz(base){
+  if(base){loadDesign(base.snap);S.name=base.name+' II';}
+  else{
+    for(const k of Object.keys(S)) delete S[k];
+    Object.assign(S,DEF,ERA_BASE,FIRST_CAR,{preset:''});
+    if(G.y>=1950) Object.assign(S,DEF,PRESETS.berline.s,{preset:''});
+    S.injSize=0;S.ecuIdle=0;S.oilInt=0;S.name=`Modèle ${G.models.length+1}`;ui.broken=null;ui.dmg={};ui.faults={};
+  }
+  if(ERA){eraFix();sanitize();eraFix();}if(!base) tuneSafe();
+  G.wiz={max:0};ui.wizOk=null;ui.newPrice=0;ui.newName='';ui.msg='';
+  $('#projName').value=S.name;saveGame();setTab('moteur');
+}
+function renderNav(){
+  const n=$('#cnav'),f=$('#wizFoot');
+  if(!G){n.hidden=true;f.hidden=true;return;}
+  n.hidden=false;
+  const i=stepIdx(ui.tab);
+  document.body.classList.toggle('in-wiz',!!(G.wiz&&i>=0));
+  if(G.wiz&&i>=0){
+    n.innerHTML=`<div class="cnav-top"><button class="chip-btn" type="button" data-go="qg">← Quartier général</button><span class="eyebrow">Conception de « ${esc(S.name||'Sans nom')} »</span></div>
+     <ol class="steps">${STEPS.map(([k,l],j)=>`<li><button type="button" data-go="${k}" class="${j===i?'cur':j<G.wiz.max||j<i?'done':''}"${j>G.wiz.max?' disabled':''} aria-current="${j===i?'step':'false'}"><span>${j<G.wiz.max&&j!==i?'✓':j+1}</span>${l}</button></li>`).join('')}</ol>
+     <p class="step-help"><b>Étape ${i+1} sur ${STEPS.length} · ${STEPS[i][1]}.</b> ${STEP_HELP[STEPS[i][0]]}</p>`;
+    f.hidden=false;
+    {const ol=$('.steps',n),cur=$('.cur',n);if(ol&&cur) ol.scrollLeft=cur.parentNode.offsetLeft-(ol.clientWidth-cur.offsetWidth)/2;}
+    const t=STEPS[i][0],iss=stepIssues(t),nx=STEPS[i+1];
+    let msg='';
+    if(t==='vente') msg='<span class="ok">Dernière étape : lancez le développement avec le bouton ci-dessus.</span>';
+    else if(iss.block.length) msg=`<span class="bad">À corriger avant de continuer : ${iss.block.map(k=>esc(k.t)).join(', ')}.</span>`;
+    else if(iss.warn.length) msg=`<span class="warn">${ui.wizOk===t?'Validé malgré':'À surveiller'} : ${iss.warn.map(k=>esc(k.t)).join(', ')}.</span>`;
+    else msg='<span class="ok">✓ Aucun problème détecté.</span>';
+    const lab=nx?(iss.warn.length&&!iss.block.length&&ui.wizOk!==t?'Valider quand même':`Valider ${STEPS[i][1].toLocaleLowerCase()}`):'';
+    f.innerHTML=`<div class="wf-in"><button class="btn ghost sm" type="button" id="wizPrev"${i===0?' disabled':''}>← Précédent</button><p class="wf-msg" role="status">${msg}</p>${nx?`<button class="btn sm" type="button" id="wizNext"${iss.block.length?' disabled':''}>${lab} →</button>`:''}</div>`;
+    const all=iss.block.concat(iss.warn);
+    if(all.length&&t!=='vente') f.querySelector('.wf-msg').insertAdjacentHTML('beforeend',`<details class="wf-det"><summary>${iss.block.length?'Comment corriger':'Voir le détail'}</summary><ul>${all.map(k=>`<li><b>${esc(k.t)}</b> : ${esc(k.d)}</li>`).join('')}</ul></details>${!iss.block.length&&ui.wizOk!==t?'<small>Vous pouvez corriger, ou valider quand même.</small>':''}`);
+  }else{
+    f.hidden=true;
+    const T=CTABS.find(x=>x[0]===ui.tab);
+    n.innerHTML=ui.tab==='qg'?`<div class="cnav-top"><h2 class="cnav-h">Quartier général</h2></div>`:`<div class="cnav-top"><button class="chip-btn" type="button" data-go="qg">← Quartier général</button><h2 class="cnav-h">${T?T[1]:''}</h2></div>`;
+  }
+}
+
 function newModelHTML(){
   const y=yq(),met=measure(M.E,M.C),uc=unitCost(met,Math.min(FAC[G.fac][1],2000)),sug=Math.round(uc*1.35/100)*100;
   if(!ui.newPrice) ui.newPrice=sug;
@@ -113,8 +217,8 @@ function newModelHTML(){
   const segs=SEGS.map(s=>[s,d.seg[s.k]||0]),mx=Math.max(1,...segs.map(x=>x[1]));
   const issues=[];if(!met.fit) issues.push('Le moteur ne rentre pas dans la caisse : impossible à produire.');if(ban) issues.push(`Non homologable : ${ban.n} (il faut : ${ban.need}).`);
   for(const r of REGS) if(r[0]>G.y&&r[0]<=G.y+6&&!r[2](met)) issues.push(`Sera interdit en ${r[0]} : ${r[1]}.`);
-  if(met.defects.length) issues.push(`Défauts techniques (${met.defects.join(', ')}) : frais de garantie et réputation en baisse. Voir l'onglet Essais.`);
-  return `<section class="cgrp" id="newModel"><h3>Lancer un nouveau modèle</h3><p class="grp-note">Projet actuel du bureau d'études : <b>${esc(S.name||'Sans nom')}</b> · ${BODY[met.body].n} · ${met.cfg} ${nf(met.L,1)} l · ${nf(met.P)} ch · ${nf(met.v)} km/h · ${nf(met.mix,1)} l/100 km. Modifiez-le dans les onglets de conception.</p>
+  if(met.defects.length) issues.push(`Défauts techniques (${met.defects.join(', ')}) : frais de garantie et réputation en baisse. Voir l'étape Essais.`);
+  return `<section class="cgrp" id="newModel"><h3>Lancer un nouveau modèle</h3><p class="grp-note">Projet actuel du bureau d'études : <b>${esc(S.name||'Sans nom')}</b> · ${BODY[met.body].n} · ${met.cfg} ${nf(met.L,1)} l · ${nf(met.P)} ch · ${nf(met.v)} km/h · ${nf(met.mix,1)} l/100 km. Pour le modifier, revenez aux étapes précédentes.</p>
   <div class="row2"><div><div class="f"><div class="f-top"><label for="nmName">Nom commercial</label></div><input class="txt" type="text" id="nmName" maxlength="30" value="${esc(ui.newName||S.name||'')}"></div>
   <div class="f"><div class="f-top"><label for="nmPrice">Prix de vente</label><output id="nmMarg">marge ${nf((price-uc)/price*100)} %</output></div><input class="num wide" type="number" inputmode="numeric" id="nmPrice" min="100" step="100" value="${price}"><p class="hint">Coût de fabrication estimé ${moneyF(uc)} par voiture · prix conseillé ${moneyF(sug)}. Prix moyen d'une voiture populaire en ${G.y} : ${moneyF(refPrice(y))}.</p></div>
   <p>Étude et outillage : <b>${moneyF(dc)}</b> · sortie dans ${devQ(y)} trimestres.</p>
@@ -183,7 +287,7 @@ function careerClick(e){
   if(!G) return false;
   const b=e.target.closest('button');if(!b) return false;
   const id=b.id;let msg=null;
-  if(id==='launch'){const nm=($('#nmName').value||'').trim()||S.name;msg=launchModel(nm,ui.newPrice);ui.msg=msg||'';if(!msg){ui.newPrice=0;ui.newName='';}}
+  if(id==='launch'){const nm=($('#nmName').value||'').trim()||S.name;msg=launchModel(nm,ui.newPrice);ui.msg=msg||'';if(!msg){ui.newPrice=0;ui.newName='';G.wiz=null;const m=G.models[G.models.length-1];ui.flash=`Développement lancé : ${m.name}. Sortie dans ${m.devLeft} trimestres. Passez le temps avec « Trimestre suivant ».`;saveGame();renderCbar();setTab('qg');return true;}}
   else if(id==='facUp') msg=buildFactory();
   else if(id==='borrow'){const lim=loanLimit(),st=Math.max(1e4,Math.pow(10,Math.floor(Math.log10(Math.max(lim,1e4))))/2);if(G.debt+st<=lim){G.debt+=st;G.cash+=st;}}
   else if(id==='repay'){const lim=loanLimit(),st=Math.min(G.debt,Math.max(1e4,Math.pow(10,Math.floor(Math.log10(Math.max(lim,1e4))))/2));if(G.cash>=st){G.debt-=st;G.cash-=st;}}
@@ -191,7 +295,9 @@ function careerClick(e){
   else if(b.dataset.res){msg=startResearch(b.dataset.res);}
   else if(b.dataset.rf){ui.resAll=b.dataset.rf==='1';}
   else if(b.dataset.stop){const m=G.models.find(x=>x.id==b.dataset.stop);if(m&&confirm(`Arrêter définitivement la production de ${m.name} ?`)){m.st='stop';news(`Fin de production : ${m.name}`,`${nf(m.sold)} exemplaires vendus.`);}}
-  else if(b.dataset.open){const m=G.models.find(x=>x.id==b.dataset.open);if(m){loadDesign(m.snap);S.name=m.name+' II';$('#projName').value=S.name;saveGame();setTab('moteur');return true;}}
+  else if(b.dataset.evol){const m=G.models.find(x=>x.id==b.dataset.evol);if(m){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer ?')) return true;startWiz(m);}return true;}
+  else if(b.dataset.newcar){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer par une nouvelle voiture ?')) return true;startWiz(null);return true;}
+  else if(b.dataset.go){setTab(b.dataset.go);window.scrollTo({top:0});return true;}
   else return false;
   if(msg) ui.msg=msg;
   saveGame();renderCbar();render();
@@ -209,4 +315,18 @@ $('#stage').addEventListener('input',careerInput);
 $('#stage').addEventListener('change',careerInput);
 $('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!G) return;if(b.id==='nextQ') advance(1);else if(b.id==='nextY') advance(4);});
 $('#homeBtn').addEventListener('click',showHome);
+function navClick(e){
+  const b=e.target.closest('button');if(!b||!G) return;
+  if(b.dataset.go){setTab(b.dataset.go);window.scrollTo({top:0});return;}
+  const i=stepIdx(ui.tab);
+  if(b.id==='wizPrev'&&i>0){setTab(STEPS[i-1][0]);window.scrollTo({top:0});}
+  else if(b.id==='wizNext'&&G.wiz){
+    const t=STEPS[i][0],iss=stepIssues(t);
+    if(iss.block.length) return;
+    if(iss.warn.length&&ui.wizOk!==t){ui.wizOk=t;renderNav();return;}
+    G.wiz.max=Math.max(G.wiz.max,i+1);ui.wizOk=null;saveGame();setTab(STEPS[i+1][0]);window.scrollTo({top:0});
+  }
+}
+$('#cnav').addEventListener('click',navClick);
+$('#wizFoot').addEventListener('click',navClick);
 initHome();

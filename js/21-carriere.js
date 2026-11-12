@@ -131,7 +131,7 @@ const START={
   1980:{cash:3e8,fac:3,n:'L\'électronique',d:'Chocs pétroliers, injection, turbo et premières aides à la conduite.'},
   2000:{cash:1.2e9,fac:3,n:'Le XXIe siècle',d:'Normes antipollution, sécurité, mondialisation.'},
 };
-const FIRST_CAR={name:'Type A',config:'I4',bore:80,stroke:110,limiter:1900,cr:7,cam:10,body:'roadster',seats:2,gears:4,first:3.6,top:1,final:4.2,rim:17,tireW:145,profile:80,stagger:0,stiff:30,gc:200,brakeFd:260,brakeRd:260,trim:'basic',media:'none',wing:'none',gbxCap:300,arbF:20,arbR:20,paint:'#2f3b2c'};
+const FIRST_CAR={name:'Type A',config:'I4',bore:80,stroke:110,limiter:1900,cr:7,cam:10,body:'roadster',seats:2,gears:4,first:3.6,top:1,final:3.6,rim:16,tireW:145,profile:80,stagger:0,stiff:30,gc:200,brakeFd:260,brakeRd:260,trim:'basic',media:'none',wing:'none',gbxCap:300,arbF:20,arbR:20,paint:'#2f3b2c'};
 
 function newGame(o){
   const st=START[o.y]||START[1900],m=o.diff==='fac'?1.8:o.diff==='dur'?.6:1;
@@ -146,7 +146,7 @@ function newGame(o){
   if(false){Object.assign(S,{body:'berline',seats:4,bore:76,stroke:80,limiter:5000,cr:8,rim:15,tireW:165,profile:80,gears:4,first:3.6,top:1,final:4.1,stiff:40,gc:150,gbxCap:300,cam:25});}
   S.injSize=0;S.ecuIdle=0;S.oilInt=0;
   eraFix();
-  news(`Fondation de ${G.co}`,`${st.n} · ${st.d} Concevez votre premier modèle dans le bureau d'études, puis lancez-le en production depuis l'onglet Direction.`,'good');
+  news(`Fondation de ${G.co}`,`${st.n} · ${st.d} Première étape : concevez votre première voiture depuis le quartier général.`,'good');
   saveGame();
 }
 function saveGame(){if(!G) return;try{G.design=Object.assign({},S);localStorage.setItem('bea.career.v1',JSON.stringify(G));}catch(e){}}
