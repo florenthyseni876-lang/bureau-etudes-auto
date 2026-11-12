@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bureau d'Études Auto</title>
+<meta name="description" content="Simulateur d'ingénierie automobile : concevez moteurs et voitures, testez-les au banc et sur piste.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#e6ebf0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a1d35" media="(prefers-color-scheme: dark)">
+<!-- pwa:start -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bureau Auto">
+<!-- pwa:end -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="cartouche">
+    <div>
+      <p class="eyebrow">Simulateur d'ingénierie automobile</p>
+      <h1>Bureau d'Études Auto</h1>
+      <!-- pwa:start --><button class="chip-btn install-btn" id="installBtn" type="button" hidden>Installer l'application</button><!-- pwa:end -->
+    </div>
+    <div>
+      <label class="cell-l" for="projName">Désignation du projet</label>
+      <input type="text" id="projName" maxlength="40" autocomplete="off" spellcheck="false">
+    </div>
+    <div>
+      <label class="cell-l" for="preset">Repartir d'une base</label>
+      <select id="preset"></select>
+    </div>
+  </header>
+  <dl class="keys" id="keys" aria-label="Chiffres clés du véhicule"></dl>
+  <nav class="tabs" role="tablist" aria-label="Postes de conception" id="tabs"></nav>
+  <main class="board" id="board">
+    <section class="stage" id="stage" aria-live="off">
+      <div id="stageDraw"></div>
+      <div id="stageData"></div>
+    </section>
+    <section class="controls" id="controls" aria-label="Réglages"></section>
+  </main>
+</div>
+
+<!-- pwa:start -->
+<div class="modal" id="installHelp" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+    <h2 id="installTitle">Installer sur l'iPhone</h2>
+    <ol>
+      <li>Ouvrez cette page dans <b>Safari</b>.</li>
+      <li>Touchez le bouton <b>Partager</b> (le carré avec une flèche vers le haut).</li>
+      <li>Choisissez <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</li>
+    </ol>
+    <p>L'application s'ouvre ensuite en plein écran, avec son icône, et fonctionne sans connexion.</p>
+    <button class="btn sm" type="button" data-close>Compris</button>
+  </div>
+</div>
+<div class="toast" id="updToast" role="status" hidden><span>Une nouvelle version est prête.</span><button class="btn sm" id="updBtn" type="button">Mettre à jour</button></div>
+<!-- pwa:end -->
+
+<!-- three:start --><script src="vendor/three.min.js"></script><!-- three:end -->
+<!-- app:start -->
+<script src="js/00-outils.js"></script>
+<script src="js/01-donnees.js"></script>
+<script src="js/02-etat.js"></script>
+<script src="js/03-moteur.js"></script>
+<script src="js/04-vehicule.js"></script>
+<script src="js/05-dessin-voiture.js"></script>
+<script src="js/06-dessin-moteur.js"></script>
+<script src="js/07-moteur-3d.js"></script>
+<script src="js/08-banc.js"></script>
+<script src="js/09-son.js"></script>
+<script src="js/10-combustion.js"></script>
+<script src="js/11-roulage.js"></script>
+<script src="js/12-pannes.js"></script>
+<script src="js/13-rotatif.js"></script>
+<script src="js/14-resistance.js"></script>
+<script src="js/15-graphiques.js"></script>
+<script src="js/16-planche.js"></script>
+<script src="js/17-essais.js"></script>
+<script src="js/18-reglages.js"></script>
+<script src="js/19-rendu.js"></script>
+<!-- app:end -->
+<!-- pwa:start --><script src="js/pwa.js"></script><!-- pwa:end -->
+</body>
+</html>
