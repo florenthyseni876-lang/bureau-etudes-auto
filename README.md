@@ -55,3 +55,12 @@ puis ouvrir http://127.0.0.1:8000. (Le fonctionnement hors connexion exige `http
 **GitHub Pages (recommandé)** : envoyer le projet sur un dépôt GitHub, puis dans *Settings → Pages*, choisir *Source : GitHub Actions*. Le fichier `.github/workflows/pages.yml` publie ensuite automatiquement chaque nouvelle version sur `https://<compte>.github.io/<dépôt>/`.
 
 Tout hébergeur de pages statiques convient aussi (Netlify, Cloudflare Pages…) : il suffit de servir le dossier tel quel, en HTTPS.
+
+## Mode carrière
+
+Depuis l'écran d'accueil, « Nouvelle carrière » fonde un constructeur en 1900, 1920, 1950, 1980 ou 2000.
+
+- Le temps avance par trimestre (bouton « Trimestre suivant » ou « +1 an »).
+- Chaque technologie a son année d'invention (`js/20-epoques.js`) : elle se recherche à partir de cette date, puis se débloque dans le bureau d'études. Le rupteur, la compression, la pression de turbo, le nombre de rapports et la taille des pneus sont plafonnés selon l'année.
+- Le marché (`js/21-carriere.js`) compare chaque modèle à la voiture moyenne de l'année pour cinq clientèles : populaire, familiale, sportive, luxe, utilitaire.
+- Les montants sont en euros constants (valeur 2020). La partie est enregistrée sur l'appareil.

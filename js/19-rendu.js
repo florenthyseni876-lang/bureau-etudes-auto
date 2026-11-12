@@ -8,6 +8,12 @@ function renderKeys(){
 }
 function renderStage(){
   const draw=$('#stageDraw'),data=$('#stageData');
+  if(isCTab(ui.tab)){
+    if(!G){setTab('moteur');return;}
+    const f=document.activeElement,fid=f&&f.tagName==='INPUT'?f.id:'';draw.innerHTML='';data.innerHTML=careerHTML(ui.tab);
+    if(fid&&$('#'+fid)) $('#'+fid).focus({preventScroll:true});
+    return;
+  }
   if(ui.tab==='moteur'){
     if(!$('#engCv')){
       draw.innerHTML=`<figure class="draw eng"><div class="draw-tools"><div class="seg" role="radiogroup" aria-label="Vue du moteur"><button type="button" role="radio" data-ev="3d" id="ev_3d">3D habillé</button><button type="button" role="radio" data-ev="cut" id="ev_cut">3D écorché</button><button type="button" role="radio" data-ev="2d" id="ev_2d">Coupe 2D</button><button type="button" role="radio" data-ev="cyc" id="ev_cyc">Chambre de combustion</button></div><label class="chip-btn" id="pinLab"><input type="checkbox" id="pinTog"${ui.pins?' checked':''}>Repères</label><button class="chip-btn" id="zoomOut" type="button" aria-label="Dézoomer">−</button><button class="chip-btn" id="zoomIn" type="button" aria-label="Zoomer">+</button></div><div class="eng-view"><canvas id="eng3d" role="img" aria-label="Vue 3D du moteur et de ses périphériques"></canvas><div id="engPins" aria-hidden="true"></div><canvas id="engCv" role="img" aria-label="Coupe animée du moteur"></canvas></div><div id="cycBar" hidden><div class="seg" role="group" aria-label="Temps du cycle">${CYC_N.map((n,i)=>`<button type="button" data-ph="${i}">${i+1}. ${n}</button>`).join('')}<button type="button" id="cycPlay">Pause</button></div><p class="leg-desc" id="cycDesc"></p></div><figcaption id="engCap"></figcaption>${benchHTML()}<div id="engLegend"></div></figure>`;
@@ -35,17 +41,19 @@ function renderStage(){
 }
 let saveT=0;
 function render(){
-  sanitize();
+  sanitize();if(ERA){eraFix();sanitize();}
   if(!S.injSize||!S.ecuIdle){const fresh=!S.injSize;if(fresh&&!FUEL[S.fuel].diesel) S.ecuFuel=S.fuel;const E0=computeEngine(Object.assign({},S,{injSize:1e6,ecuIdle:0,fuelPress:3}));if(fresh) S.injSize=clamp(Math.round(E0.injNeed*1.25/10)*10,60,3000);if(!S.ecuIdle) S.ecuIdle=E0.idle0;}
   M.E=computeEngine(S);if(!S.oilInt){S.oilInt=M.E.oilRec;M.E=computeEngine(S);}M.C=computeCar(S,M.E);
   renderKeys();renderStage();for(const f of ctlUpd) f();
-  clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}},400);
+  clearTimeout(saveT);saveT=setTimeout(saveDesign,400);
 }
+function saveDesign(){if(G){saveGame();return;}try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}}
 function setTab(t,fromHash){
   if(!TABS.some(x=>x[0]===t)) t='moteur';
   ui.tab=t;run=null;cruise=null;ui.sweep=null;dispose3D();if(AU) audioSet({rpm:M.E?M.E.idle:900,ld:0,pr:1},false);
-  for(const b of $$('#tabs .tab')) b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false');
-  $('#board').classList.toggle('full',t==='essais');$('#controls').hidden=t==='essais';
+  for(const b of $$('#tabs .tab')){b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false');if(b.dataset.tab===t) b.classList.remove('ping');}
+  const full=t==='essais'||isCTab(t);
+  $('#board').classList.toggle('full',full);$('#controls').hidden=full;$('#keys').hidden=isCTab(t);
   $('#stageDraw').innerHTML='';$('#stageData').innerHTML='';
   buildControls();render();
   if(!fromHash){try{history.replaceState(null,'','#'+t);}catch(e){try{location.hash=t;}catch(e2){}}}
@@ -59,13 +67,13 @@ function applyPreset(k){
 }
 function init(){
   readTheme();
-  $('#tabs').innerHTML=TABS.map(([k,n])=>`<button class="tab" role="tab" type="button" data-tab="${k}" id="tab_${k}" aria-selected="false">${n}</button>`).join('');
+  renderTabs();
   $('#preset').innerHTML=Object.entries(PRESETS).map(([k,p])=>`<option value="${k}">${p.label}</option>`).join('');
   $('#preset').value=PRESETS[S.preset]?S.preset:'coupe';
   $('#projName').value=S.name||'';
   $('#tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(b) setTab(b.dataset.tab);});
   $('#preset').addEventListener('change',e=>applyPreset(e.target.value));
-  $('#projName').addEventListener('input',e=>{S.name=e.target.value;if(ui.tab==='essais'&&$('#fiche')) $('#fiche').textContent=fiche();clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(err){}},400);});
+  $('#projName').addEventListener('input',e=>{S.name=e.target.value;if(ui.tab==='essais'&&$('#fiche')) $('#fiche').textContent=fiche();clearTimeout(saveT);saveT=setTimeout(saveDesign,400);});
   $('#stage').addEventListener('change',e=>{if(e.target.id==='cutTog'){ui.cut=e.target.checked;renderStage();}else if(e.target.id==='pinTog'){ui.pins=e.target.checked;setEngView();engFrame();}else if(e.target.id==='animTog'){ui.noAnim=!e.target.checked;if(ui.tab==='moteur') kickEngine();}else if(e.target.id==='sndTog'){if(!setSound(e.target.checked)) e.target.checked=false;if(ui.tab==='moteur') kickEngine();else audioSet({rpm:M.E.idle,ld:0,pr:1},ui.snd);}else if(e.target.id==='thermTog'){ui.therm=e.target.checked;benchUpdate();engFrame();}});
   $('#stage').addEventListener('input',e=>{if(e.target.id==='cruiseV'){ui.cruiseV=+e.target.value;cruiseUI();return;}if(e.target.id==='benchRpm'){ui.sweep=null;ui.rpm=+e.target.value;benchUpdate();kickEngine();}else if(e.target.id==='benchLoad'){ui.sweep=null;ui.load=+e.target.value;benchUpdate();kickEngine();}});
   const hov=e=>{const b=e.target.closest&&e.target.closest('#engLegend [data-pi]');if(E3&&b) mark3D(e.type==='mouseout'||e.type==='focusout'?null:E3.shown[+b.dataset.pi]);};
@@ -96,7 +104,7 @@ function init(){
       try{navigator.clipboard.writeText(txt).then(()=>{msg.textContent='Fiche copiée.';},sel);}catch(err){sel();}
     }
   });
-  window.addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t&&t!==ui.tab) setTab(t,true);});
+  window.addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t&&t!==ui.tab&&TABS.some(x=>x[0]===t)) setTab(t,true);});
   const mq=matchMedia('(prefers-color-scheme: dark)'),th=()=>{readTheme();engFrame();};
   if(mq.addEventListener) mq.addEventListener('change',th);
   new MutationObserver(th).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
@@ -107,9 +115,9 @@ function init(){
   let lastW=0;
   const setKeysH=()=>document.documentElement.style.setProperty('--keys-h',$('#keys').offsetHeight+'px');
   if(window.ResizeObserver) new ResizeObserver(()=>{const w=$('#stage').clientWidth;setKeysH();if(Math.abs(w-lastW)>6){lastW=w;if(M.E&&!run) renderStage();}}).observe($('#stage'));
-  const h=location.hash.slice(1);
-  setTab(TABS.some(x=>x[0]===h)?h:ui.tab,true);
+  setTab('moteur',true);
   lastW=$('#stage').clientWidth;setKeysH();
+  showHome();
 }
 function start(d){
   try{const raw=localStorage.getItem('bea.design.v1');if(raw){const sv=JSON.parse(raw);for(const k of Object.keys(DEF)) if(typeof sv[k]===typeof DEF[k]) S[k]=sv[k];}}catch(e){}
@@ -117,6 +125,6 @@ function start(d){
   if(d&&d.tab) ui.tab=d.tab;
   init();
 }
-window.__bea={S,M,applyPreset,setTab,render:()=>render(),get au(){return AU;},get e3(){return E3;}};
+window.__bea={S,M,applyPreset,setTab,render:()=>render(),get G(){return G;},advance,get au(){return AU;},get e3(){return E3;}};
 window.claude?.hot?.snapshot?.(()=>({S:Object.assign({},S),tab:ui.tab}));
 window.claude?.hot?.ready?window.claude.hot.ready(start):start(window.claude?.hot?.data??{});

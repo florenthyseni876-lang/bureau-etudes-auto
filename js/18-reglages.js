@@ -20,7 +20,7 @@ const UI={
    {k:'valvetrain',type:'seg',l:'Commande des soupapes',wide:1,opts:o(VT),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif'},
    {k:'timing',type:'seg',l:'Entraînement de la distribution',wide:1,opts:o(TIMING),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Courroie : légère et silencieuse. Chaîne : durable. Cascade de pignons : précise à haut régime, mais lourde et bruyante.'},
    {k:'cam',type:'range',l:"Profil d'arbre à cames",lf:()=>CFG[S.config].rot?'Calage des lumières':"Profil d'arbre à cames",min:0,max:100,step:1,f:v=>(v<25?'Souple':v<50?'Routier':v<75?'Sport':'Course')+' · '+v,hint:'Un profil pointu déplace le couple vers les hauts régimes et dégrade le ralenti.'},
-   {k:'limiter',type:'range',l:'Rupteur',min:4500,max:11000,step:100,u:'tr/min',hint:'Au-delà de ce que tiennent pistons et soupapes, la fiabilité chute.'},
+   {k:'limiter',type:'range',l:'Rupteur',min:1500,max:11000,step:100,u:'tr/min',hint:'Au-delà de ce que tiennent pistons et soupapes, la fiabilité chute.'},
    {k:'valveMat',type:'seg',l:'Soupapes',wide:1,opts:o(VALVE),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Sodium : évacue la chaleur des soupapes d\'échappement. Titane : plus légères, elles suivent les cames plus haut.'},
    {k:'springs',type:'seg',l:'Rappel des soupapes',wide:1,opts:o(SPRING),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Le rappel pneumatique vient de la compétition : il repousse très loin l\'affolement.'},
    {k:'vvt',type:'toggle',l:'Calage variable',dis:S=>!!CFG[S.config].rot,hint:'Remplit mieux à bas régime.'},
@@ -146,11 +146,16 @@ const UI={
 const ctlUpd=[];
 function makeCtl(it){
   const id='c_'+it.k;let wrap;
+  if(it.type==='seg'||it.type==='toggle'){const d0=it.dis,tg=it.type==='toggle';it=Object.assign({},it,{dis:(S,v)=>eraDis(it.k,tg?true:v)||(d0?d0(S,v):false)});}
   if(it.type==='range'){
     wrap=el('div','f'+(it.wide?' wide':''),`<div class="f-top"><label for="${id}">${it.l}</label><output for="${id}"></output></div><input type="range" id="${id}" min="${it.min}" max="${it.max}" step="${it.step}">${it.hint?`<p class="hint">${it.hint}</p>`:''}`);
     const inp=$('input',wrap),out=$('output',wrap),lab=$('label',wrap);if(it.lf) ctlUpd.push(()=>{lab.textContent=it.lf();});
     inp.addEventListener('input',()=>{S[it.k]=+inp.value;if(it.on) it.on();render();});
-    ctlUpd.push(()=>{inp.value=S[it.k];out.textContent=it.f?it.f(S[it.k]):nf(S[it.k],it.d||0)+(it.u?' '+it.u:'');const d=!!(it.dis&&it.dis(S));inp.disabled=d;wrap.classList.toggle('is-off',d);inp.style.setProperty('--p',((S[it.k]-it.min)/(it.max-it.min)*100).toFixed(1)+'%');});
+    const capP=el('p','era-cap');capP.hidden=true;wrap.appendChild(capP);
+    const fmt=v=>it.f?it.f(v):nf(v,it.d||0)+(it.u?' '+it.u:'');
+    ctlUpd.push(()=>{const r=eraRange(it.k),mn=r&&r.min!=null?Math.max(it.min,r.min):it.min,mx=r&&r.max!=null?Math.min(it.max,r.max):it.max;inp.min=mn;inp.max=mx;
+      const parts=[];if(r&&mx<it.max) parts.push('au plus '+fmt(mx));if(r&&mn>it.min) parts.push('au moins '+fmt(mn));capP.hidden=!parts.length;capP.textContent=parts.length?`Limite technique en ${ERA.y} : ${parts.join(' · ')}`:'';
+      inp.value=S[it.k];out.textContent=it.f?it.f(S[it.k]):nf(S[it.k],it.d||0)+(it.u?' '+it.u:'');const d=!!(it.dis&&it.dis(S));inp.disabled=d;wrap.classList.toggle('is-off',d);inp.style.setProperty('--p',clamp((S[it.k]-mn)/Math.max(1e-9,mx-mn)*100,0,100).toFixed(1)+'%');});
   }else if(it.type==='seg'){
     wrap=el('fieldset','f'+(it.wide?' wide':''),`<legend>${it.l}</legend><div class="seg" role="radiogroup" aria-label="${it.l}"></div>${it.hint?`<p class="hint">${it.hint}</p>`:''}`);
     const seg=$('.seg',wrap),btns=it.opts.map(([v,lab,title])=>{const b=el('button','',lab);b.type='button';b.setAttribute('role','radio');b.id=id+'_'+v;if(title) b.title=title;b.addEventListener('click',()=>{S[it.k]=v;if(it.on) it.on();render();});seg.appendChild(b);return [v,b,title||''];});
@@ -159,22 +164,23 @@ function makeCtl(it){
     wrap=el('div','f',`<label class="f-tog"><input type="checkbox" id="${id}"><span class="sw"></span><span>${it.l}</span></label>${it.hint?`<p class="hint">${it.hint}</p>`:''}`);
     const inp=$('input',wrap);
     inp.addEventListener('change',()=>{S[it.k]=inp.checked;render();});
-    ctlUpd.push(()=>{inp.checked=!!S[it.k];const d=!!(it.dis&&it.dis(S));inp.disabled=d;wrap.classList.toggle('is-off',d);});
+    ctlUpd.push(()=>{inp.checked=!!S[it.k];const r=it.dis&&it.dis(S),d=!!r;inp.disabled=d;wrap.classList.toggle('is-off',d);wrap.title=typeof r==='string'?r:'';});
   }else if(it.type==='gearsel'){
     const grp=[['auto','Automatiques à convertisseur'],['dct','Double embrayage'],['amt','Robotisées simple embrayage'],['cvt','Variation continue']];
     wrap=el('div','f wide',`<label for="${id}">Boîtes automatiques réelles</label><select id="${id}" class="sel"><option value="">Étagement libre</option>${grp.map(([t,n])=>`<optgroup label="${n}">${Object.entries(GEARSETS).filter(([,g])=>g.type===t).map(([k,g])=>`<option value="${k}">${g.n}</option>`).join('')}</optgroup>`).join('')}</select><p class="hint">Rapports relevés sur les boîtes de série, valeurs approchées. Le rapport de pont reste à régler selon le moteur.</p>`);
     const sel=$('select',wrap);
     sel.addEventListener('change',()=>{S.gearSet=sel.value;const g=GEARSETS[sel.value];if(g){S.gearbox=g.type;S.gbxCap=g.cap;if(g.r){S.gears=g.r.length;S.first=g.r[0];S.top=g.r[g.r.length-1];}else{S.first=g.first;S.top=g.top;}}render();});
-    ctlUpd.push(()=>{sel.value=S.gearSet||'';});
+    ctlUpd.push(()=>{sel.value=S.gearSet||'';for(const op of sel.options){if(!op.value) continue;const g=GEARSETS[op.value];op.disabled=!!ERA&&(GEAR_Y[op.value]>ERA.y||!!eraDis('gearbox',g.type));}});
   }else if(it.type==='engsel'){
     wrap=el('div','f wide',`<label for="${id}">Charger un moteur connu</label><select id="${id}" class="sel"><option value="">Choisir un moteur…</option>${ENGINES.map((g,gi)=>`<optgroup label="${g[0]}">${g[1].map((e,ei)=>`<option value="${gi}.${ei}">${e[0]}</option>`).join('')}</optgroup>`).join('')}</select>`);
     const sel=$('select',wrap);sel.value=ui.engSel;
+    if(ERA){let n=0;for(const op of sel.options){if(!op.value) continue;const [gi,ei]=op.value.split('.').map(Number);const ok=eraOK(Object.assign({},ENG_BASE,ENGINES[gi][1][ei][1]));op.disabled=!ok;if(ok) n++;}$('label',wrap).textContent=`Charger un moteur connu (${n} accessible${n>1?'s':''} en ${ERA.y})`;}
     sel.addEventListener('change',()=>{ui.engSel=sel.value;if(!sel.value) return;const [gi,ei]=sel.value.split('.').map(Number);Object.assign(S,ENG_BASE,ENGINES[gi][1][ei][1],{injSize:0,ecuIdle:0,ecuAdv:0,flex:false,fuelPress:3,oilInt:0});ui.broken=null;ui.dmg={};ui.sweep=null;ui.rpm=0;ui.load=0;render();});
   }else if(it.type==='bodies'){
     wrap=el('div','f wide','<div class="bodies" role="radiogroup" aria-label="Type de carrosserie"></div>');
     const host=$('.bodies',wrap),btns=Object.entries(BODY).map(([k,B])=>{const b=el('button','body-card',`${miniCar(k)}<b>${B.n}</b><span>${B.d}</span>`);b.type='button';b.id=id+'_'+k;b.setAttribute('role','radio');
       b.addEventListener('click',()=>{S.body=k;S.gc=B.gc0;while(S.rim*25.4+2*S.tireW*S.profile/100>B.tireMax&&S.profile>25) S.profile-=5;while(S.rim*25.4+2*S.tireW*S.profile/100<B.tireMax-150&&S.profile<80) S.profile+=5;render();});host.appendChild(b);return [k,b];});
-    ctlUpd.push(()=>{for(const [k,b] of btns) b.setAttribute('aria-checked',S.body===k?'true':'false');});
+    ctlUpd.push(()=>{for(const [k,b] of btns){b.setAttribute('aria-checked',S.body===k?'true':'false');const d=eraDis('body',k);b.disabled=!!d;b.title=d||'';}});
   }else{
     wrap=el('div','f wide','<div class="swatches" role="radiogroup" aria-label="Teinte de carrosserie"></div>');
     const host=$('.swatches',wrap),btns=PAINTS.map(([c,n],i)=>{const b=el('button');b.type='button';b.id=id+'_'+i;b.style.background=c;b.title=n;b.setAttribute('aria-label',n);b.setAttribute('role','radio');b.addEventListener('click',()=>{S.paint=c;render();});host.appendChild(b);return [c,b];});

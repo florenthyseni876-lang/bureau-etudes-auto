@@ -26,17 +26,18 @@
     <div>
       <p class="eyebrow">Simulateur d'ingénierie automobile</p>
       <h1>Bureau d'Études Auto</h1>
-      <!-- pwa:start --><button class="chip-btn install-btn" id="installBtn" type="button" hidden>Installer l'application</button><!-- pwa:end -->
+      <div class="hd-btns"><button class="chip-btn" id="homeBtn" type="button">Accueil</button><!-- pwa:start --><button class="chip-btn install-btn" id="installBtn" type="button" hidden>Installer l'application</button><!-- pwa:end --></div>
     </div>
     <div>
       <label class="cell-l" for="projName">Désignation du projet</label>
       <input type="text" id="projName" maxlength="40" autocomplete="off" spellcheck="false">
     </div>
-    <div>
+    <div id="presetCell">
       <label class="cell-l" for="preset">Repartir d'une base</label>
       <select id="preset"></select>
     </div>
   </header>
+  <div class="cbar" id="cbar" hidden></div>
   <dl class="keys" id="keys" aria-label="Chiffres clés du véhicule"></dl>
   <nav class="tabs" role="tablist" aria-label="Postes de conception" id="tabs"></nav>
   <main class="board" id="board">
@@ -46,6 +47,31 @@
     </section>
     <section class="controls" id="controls" aria-label="Réglages"></section>
   </main>
+</div>
+
+<div class="home" id="home" hidden>
+  <div class="home-in">
+    <p class="eyebrow">Simulateur d'ingénierie automobile</p>
+    <h1 class="home-t">Bureau d'Études Auto</h1>
+    <p class="home-sub">Concevez des moteurs et des voitures, puis fondez votre marque et traversez plus d'un siècle d'histoire de l'automobile.</p>
+    <div class="home-cars" id="homeCars" aria-hidden="true"></div>
+    <div class="home-menu" id="homeMenu">
+      <button class="home-b prim" type="button" id="hContinue"><b>Continuer la carrière</b><span id="homeContSub"></span></button>
+      <button class="home-b" type="button" id="hNew"><b>Nouvelle carrière</b><span>Fondez un constructeur et vendez vos voitures, de 1900 à nos jours.</span></button>
+      <button class="home-b" type="button" id="hFree"><b>Bureau d'études libre</b><span>Toutes les technologies, sans contrainte de budget ni d'époque.</span></button>
+    </div>
+    <div class="home-new" id="homeNew" hidden>
+      <div class="f"><div class="f-top"><label for="coName">Nom de l'entreprise</label></div><input class="txt" type="text" id="coName" maxlength="32" autocomplete="off" placeholder="Automobiles Nouvelles"></div>
+      <fieldset class="f"><legend>Année de fondation</legend><div class="era-pick" id="eraPick"></div></fieldset>
+      <fieldset class="f"><legend>Difficulté</legend><div class="diff-pick">
+        <label><input type="radio" name="diff" value="fac"><span><b>Facile</b><small>Plus de capital, moins de concurrents</small></span></label>
+        <label><input type="radio" name="diff" value="nor" checked><span><b>Normale</b><small>L'équilibre prévu</small></span></label>
+        <label><input type="radio" name="diff" value="dur"><span><b>Difficile</b><small>Capital réduit, concurrence rude</small></span></label>
+      </div></fieldset>
+      <p class="hint" id="newWarn" hidden>Une carrière est déjà enregistrée : elle sera remplacée.</p>
+      <div class="btns"><button class="btn" type="button" id="hFound">Fonder l'entreprise</button><button class="btn ghost" type="button" id="hBack">Retour</button></div>
+    </div>
+  </div>
 </div>
 
 <!-- pwa:start -->
@@ -85,6 +111,9 @@
 <script src="js/16-planche.js"></script>
 <script src="js/17-essais.js"></script>
 <script src="js/18-reglages.js"></script>
+<script src="js/20-epoques.js"></script>
+<script src="js/21-carriere.js"></script>
+<script src="js/22-carriere-ui.js"></script>
 <script src="js/19-rendu.js"></script>
 <!-- app:end -->
 <!-- pwa:start --><script src="js/pwa.js"></script><!-- pwa:end -->

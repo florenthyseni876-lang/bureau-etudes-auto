@@ -345,22 +345,141 @@ pre.fiche{margin:0;font-family:var(--f-m);font-size:12.5px;line-height:1.6;white
 .modal-card ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .modal-card .btn{align-self:flex-start}
 .toast{position:fixed;z-index:40;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--sheet);padding:8px 8px 8px 14px;display:flex;gap:12px;align-items:center;font-size:14px;max-width:calc(100% - 32px)}
+
+/* ───────── Carrière et écran d'accueil ───────── */
+.hd-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.hd-btns .install-btn{margin:0}
+.home{position:fixed;inset:0;z-index:40;overflow-y:auto;background:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:32px 32px;
+  padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(32px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+body.home-on{overflow:hidden}
+.home-in{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding-top:4vh}
+.home-t{font-family:var(--f-d);font-weight:700;font-size:clamp(40px,9vw,76px);line-height:.95;text-transform:uppercase;letter-spacing:.01em;margin:0}
+.home-sub{font-size:16.5px;color:var(--ink-2);max-width:56ch;text-wrap:pretty}
+.home-cars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);padding:14px 0 10px;color:var(--ink)}
+.home-cars figure{display:flex;flex-direction:column;align-items:center;gap:4px;opacity:0;animation:hcar .7s ease-out forwards}
+.home-cars figure:nth-child(2){animation-delay:.15s}.home-cars figure:nth-child(3){animation-delay:.3s}.home-cars figure:nth-child(4){animation-delay:.45s}
+.home-cars figure>div{width:100%}
+.home-cars svg{display:block;width:100%;height:auto}
+.home-cars figcaption{font-family:var(--f-m);font-size:11px;color:var(--muted);letter-spacing:.08em}
+@keyframes hcar{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.home-cars figure{animation:none;opacity:1}}
+.home-menu{display:flex;flex-direction:column;gap:10px}
+.home-b{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;background:var(--sheet);border:1.5px solid var(--ink);padding:14px 18px;cursor:pointer;border-radius:2px;color:var(--ink)}
+.home-b b{font-family:var(--f-d);font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.03em;line-height:1.05}
+.home-b span{font-size:14px;color:var(--ink-2)}
+.home-b.prim{background:var(--accent);color:var(--on-accent)}
+.home-b.prim span{color:var(--on-accent);opacity:.85}
+.home-b:hover{filter:brightness(1.04)}
+.home-new{display:flex;flex-direction:column;gap:16px;background:var(--sheet);border:1.5px solid var(--ink);padding:18px}
+.txt,.num{width:100%;background:transparent;border:0;border-bottom:1.5px solid var(--ink);padding:5px 0;font-family:var(--f-d);font-weight:600;font-size:21px;border-radius:0;color:var(--ink)}
+.num{font-family:var(--f-m);font-size:14px;font-weight:500;text-align:right;width:110px;font-variant-numeric:tabular-nums}
+.num.wide{width:100%;text-align:left;font-size:18px}
+.era-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px}
+.era-card,.diff-pick label{display:block;cursor:pointer}
+.era-card input,.diff-pick input{position:absolute;opacity:0;pointer-events:none}
+.era-card span,.diff-pick span{display:flex;flex-direction:column;gap:2px;height:100%;border:1px solid var(--rule);padding:10px 12px;border-radius:2px;background:var(--paper)}
+.era-card b{font-family:var(--f-d);font-weight:700;font-size:26px;line-height:1}
+.era-card em{font-style:normal;font-weight:600;font-size:14px}
+.era-card small,.diff-pick small{font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.era-card input:checked+span,.diff-pick input:checked+span{border:1.5px solid var(--ink);background:var(--accent);color:var(--on-accent)}
+.era-card input:checked+span small,.diff-pick input:checked+span small{color:var(--on-accent)}
+.era-card input:focus-visible+span,.diff-pick input:focus-visible+span{outline:2px solid var(--s1);outline-offset:2px}
+.diff-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+@media (max-width:520px){.diff-pick{grid-template-columns:minmax(0,1fr)}.home-cars{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.btns{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+.cbar{display:flex;flex-wrap:wrap;align-items:stretch;background:var(--ink);color:var(--sheet);border:1.5px solid var(--ink);border-bottom:0}
+.cbar>div{padding:8px 14px;border-right:1px solid rgba(255,255,255,.14);display:flex;flex-direction:column;justify-content:center;min-width:0}
+.cbar .eyebrow{color:var(--rule)}
+.cbar b{font-family:var(--f-d);font-weight:600;font-size:21px;line-height:1.1;white-space:nowrap}
+.cbar b small{font-family:var(--f-m);font-weight:400;font-size:11px;opacity:.8}
+.cbar b.neg{color:#ff9b8f}
+.cbar .cb-id b{white-space:normal;overflow-wrap:break-word}
+.cbar .cb-act{flex-direction:row;align-items:center;gap:8px;margin-left:auto;border-right:0}
+.cbar .btn.ghost{color:var(--sheet);border-color:var(--sheet)}
+@media (max-width:700px){.cbar>div{flex:1 1 33%}.cbar .cb-act{flex:1 1 100%;border-top:1px solid rgba(255,255,255,.14)}.cbar .cb-act .btn{flex:1}}
+.tab-c{color:var(--ink)}
+.tab.ping::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:7px;vertical-align:3px}
+
+.career{padding:16px;display:flex;flex-direction:column;gap:16px}
+.cgrp{border:1px solid var(--rule);padding:14px 16px 16px;background:var(--sheet);display:flex;flex-direction:column;gap:10px;min-width:0}
+.cgrp h3{font-family:var(--f-d);font-weight:600;font-size:17px;letter-spacing:.06em;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+.cgrp .grp-note{margin-top:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;gap:2px;border-left:3px solid var(--accent);padding:4px 0 4px 12px;min-width:0}
+.tile b{font-family:var(--f-d);font-weight:600;font-size:28px;line-height:1.05}
+.tile small{font-size:12.5px;color:var(--ink-2)}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.row2>div{display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (max-width:760px){.row2{grid-template-columns:minmax(0,1fr)}}
+.tbl-w{overflow-x:auto}
+.ctbl td,.ctbl th{vertical-align:middle;text-align:left;padding:7px 12px 7px 0}
+.ctbl .n{text-align:right}
+.ctbl td b{font-family:var(--f-b);font-size:14px}
+.ctbl td small{display:block;color:var(--ink-2);font-size:11px;white-space:normal;min-width:180px}
+.ctbl td.neg,.neg{color:var(--crit)}
+.ctbl .act{display:flex;gap:6px;justify-content:flex-end}
+.mini{display:inline-block;width:46px;vertical-align:middle;margin-right:8px;color:var(--ink)}
+.mini svg{display:block;width:100%;height:auto}
+.pill{display:inline-block;font-family:var(--f-m);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border:1px solid var(--rule);border-radius:9px;white-space:nowrap}
+.pill.ok{border-color:var(--good)}
+.pill.ok::before{content:"✓ ";color:var(--good)}
+.pill.off{color:var(--muted)}
+.pill.warn{border-color:var(--serious)}
+.gmeter{height:8px;background:var(--inset);border-radius:4px;overflow:hidden}
+.gmeter i{display:block;height:100%;background:var(--s1);border-radius:4px}
+.sbars{list-style:none;display:flex;flex-direction:column;gap:7px}
+.sbars li{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr) 64px;gap:10px;align-items:center;font-size:13.5px}
+.sbars i{display:block;height:8px;background:var(--inset);border-radius:4px;overflow:hidden}
+.sbars i b{display:block;height:100%;background:var(--s1);border-radius:0 4px 4px 0}
+.sbars em{font-style:normal;font-family:var(--f-m);font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums}
+.iss{list-style:none;display:flex;flex-direction:column;gap:6px}
+.iss li{font-size:13.5px;padding-left:12px;border-left:3px solid var(--serious)}
+.news{list-style:none;display:flex;flex-direction:column;gap:10px}
+.news li{padding-left:12px;border-left:3px solid var(--rule)}
+.news li b{display:block;font-size:14.5px}
+.news li p{font-size:13.5px;color:var(--ink-2)}
+.news .nw-good{border-color:var(--good)}.news .nw-crit{border-color:var(--crit)}.news .nw-warn{border-color:var(--serious)}.news .nw-hist{border-color:var(--ink)}.news .nw-tech{border-color:var(--s1)}
+.techs{list-style:none;display:flex;flex-direction:column}
+.techs li{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid var(--grid)}
+.techs li:last-child{border-bottom:0}
+.techs li>div:first-child{min-width:0}
+.techs li b{font-size:14.5px;margin-right:8px}
+.techs li p{font-size:13px;color:var(--ink-2)}
+.techs li p em{font-style:normal;color:var(--ink)}
+.techs li.is-has b{color:var(--ink-2)}
+.techs li.is-fut{opacity:.6}
+.techs .chip-btn{white-space:nowrap}
+.techs .chip-btn:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:600px){.techs li{flex-direction:column;align-items:flex-start;gap:6px}}
+.res-tools{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.res-tools .seg{margin-top:0}
+.era-cap{font-family:var(--f-m);font-size:11.5px;color:var(--serious);margin-top:4px}
+.body-card:disabled{opacity:.35;cursor:not-allowed}
+.ch-w{overflow-x:auto}
+.brk p{font-size:14px}
+body.mode-c .cartouche{grid-template-columns:minmax(0,1.2fr) minmax(0,2fr)}
+@media (max-width:979px){body.mode-c .cartouche{grid-template-columns:minmax(0,1fr)}body.mode-c .cartouche>div:nth-child(2){border-right:0}}
+@media (max-width:600px){.career{padding:10px;gap:12px}.cgrp{padding:12px}.cbar>div{padding:7px 12px}.cbar .cb-id{flex:1 1 100%}}
 </style>
 <div class="app">
   <header class="cartouche">
     <div>
       <p class="eyebrow">Simulateur d'ingénierie automobile</p>
       <h1>Bureau d'Études Auto</h1>
+      <div class="hd-btns"><button class="chip-btn" id="homeBtn" type="button">Accueil</button></div>
     </div>
     <div>
       <label class="cell-l" for="projName">Désignation du projet</label>
       <input type="text" id="projName" maxlength="40" autocomplete="off" spellcheck="false">
     </div>
-    <div>
+    <div id="presetCell">
       <label class="cell-l" for="preset">Repartir d'une base</label>
       <select id="preset"></select>
     </div>
   </header>
+  <div class="cbar" id="cbar" hidden></div>
   <dl class="keys" id="keys" aria-label="Chiffres clés du véhicule"></dl>
   <nav class="tabs" role="tablist" aria-label="Postes de conception" id="tabs"></nav>
   <main class="board" id="board">
@@ -370,6 +489,31 @@ pre.fiche{margin:0;font-family:var(--f-m);font-size:12.5px;line-height:1.6;white
     </section>
     <section class="controls" id="controls" aria-label="Réglages"></section>
   </main>
+</div>
+
+<div class="home" id="home" hidden>
+  <div class="home-in">
+    <p class="eyebrow">Simulateur d'ingénierie automobile</p>
+    <h1 class="home-t">Bureau d'Études Auto</h1>
+    <p class="home-sub">Concevez des moteurs et des voitures, puis fondez votre marque et traversez plus d'un siècle d'histoire de l'automobile.</p>
+    <div class="home-cars" id="homeCars" aria-hidden="true"></div>
+    <div class="home-menu" id="homeMenu">
+      <button class="home-b prim" type="button" id="hContinue"><b>Continuer la carrière</b><span id="homeContSub"></span></button>
+      <button class="home-b" type="button" id="hNew"><b>Nouvelle carrière</b><span>Fondez un constructeur et vendez vos voitures, de 1900 à nos jours.</span></button>
+      <button class="home-b" type="button" id="hFree"><b>Bureau d'études libre</b><span>Toutes les technologies, sans contrainte de budget ni d'époque.</span></button>
+    </div>
+    <div class="home-new" id="homeNew" hidden>
+      <div class="f"><div class="f-top"><label for="coName">Nom de l'entreprise</label></div><input class="txt" type="text" id="coName" maxlength="32" autocomplete="off" placeholder="Automobiles Nouvelles"></div>
+      <fieldset class="f"><legend>Année de fondation</legend><div class="era-pick" id="eraPick"></div></fieldset>
+      <fieldset class="f"><legend>Difficulté</legend><div class="diff-pick">
+        <label><input type="radio" name="diff" value="fac"><span><b>Facile</b><small>Plus de capital, moins de concurrents</small></span></label>
+        <label><input type="radio" name="diff" value="nor" checked><span><b>Normale</b><small>L'équilibre prévu</small></span></label>
+        <label><input type="radio" name="diff" value="dur"><span><b>Difficile</b><small>Capital réduit, concurrence rude</small></span></label>
+      </div></fieldset>
+      <p class="hint" id="newWarn" hidden>Une carrière est déjà enregistrée : elle sera remplacée.</p>
+      <div class="btns"><button class="btn" type="button" id="hFound">Fonder l'entreprise</button><button class="btn ghost" type="button" id="hBack">Retour</button></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -2193,7 +2337,7 @@ const UI={
    {k:'valvetrain',type:'seg',l:'Commande des soupapes',wide:1,opts:o(VT),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif'},
    {k:'timing',type:'seg',l:'Entraînement de la distribution',wide:1,opts:o(TIMING),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Courroie : légère et silencieuse. Chaîne : durable. Cascade de pignons : précise à haut régime, mais lourde et bruyante.'},
    {k:'cam',type:'range',l:"Profil d'arbre à cames",lf:()=>CFG[S.config].rot?'Calage des lumières':"Profil d'arbre à cames",min:0,max:100,step:1,f:v=>(v<25?'Souple':v<50?'Routier':v<75?'Sport':'Course')+' · '+v,hint:'Un profil pointu déplace le couple vers les hauts régimes et dégrade le ralenti.'},
-   {k:'limiter',type:'range',l:'Rupteur',min:4500,max:11000,step:100,u:'tr/min',hint:'Au-delà de ce que tiennent pistons et soupapes, la fiabilité chute.'},
+   {k:'limiter',type:'range',l:'Rupteur',min:1500,max:11000,step:100,u:'tr/min',hint:'Au-delà de ce que tiennent pistons et soupapes, la fiabilité chute.'},
    {k:'valveMat',type:'seg',l:'Soupapes',wide:1,opts:o(VALVE),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Sodium : évacue la chaleur des soupapes d\'échappement. Titane : plus légères, elles suivent les cames plus haut.'},
    {k:'springs',type:'seg',l:'Rappel des soupapes',wide:1,opts:o(SPRING),dis:S=>CFG[S.config].rot&&'Sans objet sur un moteur rotatif',hint:'Le rappel pneumatique vient de la compétition : il repousse très loin l\'affolement.'},
    {k:'vvt',type:'toggle',l:'Calage variable',dis:S=>!!CFG[S.config].rot,hint:'Remplit mieux à bas régime.'},
@@ -2319,11 +2463,16 @@ const UI={
 const ctlUpd=[];
 function makeCtl(it){
   const id='c_'+it.k;let wrap;
+  if(it.type==='seg'||it.type==='toggle'){const d0=it.dis,tg=it.type==='toggle';it=Object.assign({},it,{dis:(S,v)=>eraDis(it.k,tg?true:v)||(d0?d0(S,v):false)});}
   if(it.type==='range'){
     wrap=el('div','f'+(it.wide?' wide':''),`<div class="f-top"><label for="${id}">${it.l}</label><output for="${id}"></output></div><input type="range" id="${id}" min="${it.min}" max="${it.max}" step="${it.step}">${it.hint?`<p class="hint">${it.hint}</p>`:''}`);
     const inp=$('input',wrap),out=$('output',wrap),lab=$('label',wrap);if(it.lf) ctlUpd.push(()=>{lab.textContent=it.lf();});
     inp.addEventListener('input',()=>{S[it.k]=+inp.value;if(it.on) it.on();render();});
-    ctlUpd.push(()=>{inp.value=S[it.k];out.textContent=it.f?it.f(S[it.k]):nf(S[it.k],it.d||0)+(it.u?' '+it.u:'');const d=!!(it.dis&&it.dis(S));inp.disabled=d;wrap.classList.toggle('is-off',d);inp.style.setProperty('--p',((S[it.k]-it.min)/(it.max-it.min)*100).toFixed(1)+'%');});
+    const capP=el('p','era-cap');capP.hidden=true;wrap.appendChild(capP);
+    const fmt=v=>it.f?it.f(v):nf(v,it.d||0)+(it.u?' '+it.u:'');
+    ctlUpd.push(()=>{const r=eraRange(it.k),mn=r&&r.min!=null?Math.max(it.min,r.min):it.min,mx=r&&r.max!=null?Math.min(it.max,r.max):it.max;inp.min=mn;inp.max=mx;
+      const parts=[];if(r&&mx<it.max) parts.push('au plus '+fmt(mx));if(r&&mn>it.min) parts.push('au moins '+fmt(mn));capP.hidden=!parts.length;capP.textContent=parts.length?`Limite technique en ${ERA.y} : ${parts.join(' · ')}`:'';
+      inp.value=S[it.k];out.textContent=it.f?it.f(S[it.k]):nf(S[it.k],it.d||0)+(it.u?' '+it.u:'');const d=!!(it.dis&&it.dis(S));inp.disabled=d;wrap.classList.toggle('is-off',d);inp.style.setProperty('--p',clamp((S[it.k]-mn)/Math.max(1e-9,mx-mn)*100,0,100).toFixed(1)+'%');});
   }else if(it.type==='seg'){
     wrap=el('fieldset','f'+(it.wide?' wide':''),`<legend>${it.l}</legend><div class="seg" role="radiogroup" aria-label="${it.l}"></div>${it.hint?`<p class="hint">${it.hint}</p>`:''}`);
     const seg=$('.seg',wrap),btns=it.opts.map(([v,lab,title])=>{const b=el('button','',lab);b.type='button';b.setAttribute('role','radio');b.id=id+'_'+v;if(title) b.title=title;b.addEventListener('click',()=>{S[it.k]=v;if(it.on) it.on();render();});seg.appendChild(b);return [v,b,title||''];});
@@ -2332,22 +2481,23 @@ function makeCtl(it){
     wrap=el('div','f',`<label class="f-tog"><input type="checkbox" id="${id}"><span class="sw"></span><span>${it.l}</span></label>${it.hint?`<p class="hint">${it.hint}</p>`:''}`);
     const inp=$('input',wrap);
     inp.addEventListener('change',()=>{S[it.k]=inp.checked;render();});
-    ctlUpd.push(()=>{inp.checked=!!S[it.k];const d=!!(it.dis&&it.dis(S));inp.disabled=d;wrap.classList.toggle('is-off',d);});
+    ctlUpd.push(()=>{inp.checked=!!S[it.k];const r=it.dis&&it.dis(S),d=!!r;inp.disabled=d;wrap.classList.toggle('is-off',d);wrap.title=typeof r==='string'?r:'';});
   }else if(it.type==='gearsel'){
     const grp=[['auto','Automatiques à convertisseur'],['dct','Double embrayage'],['amt','Robotisées simple embrayage'],['cvt','Variation continue']];
     wrap=el('div','f wide',`<label for="${id}">Boîtes automatiques réelles</label><select id="${id}" class="sel"><option value="">Étagement libre</option>${grp.map(([t,n])=>`<optgroup label="${n}">${Object.entries(GEARSETS).filter(([,g])=>g.type===t).map(([k,g])=>`<option value="${k}">${g.n}</option>`).join('')}</optgroup>`).join('')}</select><p class="hint">Rapports relevés sur les boîtes de série, valeurs approchées. Le rapport de pont reste à régler selon le moteur.</p>`);
     const sel=$('select',wrap);
     sel.addEventListener('change',()=>{S.gearSet=sel.value;const g=GEARSETS[sel.value];if(g){S.gearbox=g.type;S.gbxCap=g.cap;if(g.r){S.gears=g.r.length;S.first=g.r[0];S.top=g.r[g.r.length-1];}else{S.first=g.first;S.top=g.top;}}render();});
-    ctlUpd.push(()=>{sel.value=S.gearSet||'';});
+    ctlUpd.push(()=>{sel.value=S.gearSet||'';for(const op of sel.options){if(!op.value) continue;const g=GEARSETS[op.value];op.disabled=!!ERA&&(GEAR_Y[op.value]>ERA.y||!!eraDis('gearbox',g.type));}});
   }else if(it.type==='engsel'){
     wrap=el('div','f wide',`<label for="${id}">Charger un moteur connu</label><select id="${id}" class="sel"><option value="">Choisir un moteur…</option>${ENGINES.map((g,gi)=>`<optgroup label="${g[0]}">${g[1].map((e,ei)=>`<option value="${gi}.${ei}">${e[0]}</option>`).join('')}</optgroup>`).join('')}</select>`);
     const sel=$('select',wrap);sel.value=ui.engSel;
+    if(ERA){let n=0;for(const op of sel.options){if(!op.value) continue;const [gi,ei]=op.value.split('.').map(Number);const ok=eraOK(Object.assign({},ENG_BASE,ENGINES[gi][1][ei][1]));op.disabled=!ok;if(ok) n++;}$('label',wrap).textContent=`Charger un moteur connu (${n} accessible${n>1?'s':''} en ${ERA.y})`;}
     sel.addEventListener('change',()=>{ui.engSel=sel.value;if(!sel.value) return;const [gi,ei]=sel.value.split('.').map(Number);Object.assign(S,ENG_BASE,ENGINES[gi][1][ei][1],{injSize:0,ecuIdle:0,ecuAdv:0,flex:false,fuelPress:3,oilInt:0});ui.broken=null;ui.dmg={};ui.sweep=null;ui.rpm=0;ui.load=0;render();});
   }else if(it.type==='bodies'){
     wrap=el('div','f wide','<div class="bodies" role="radiogroup" aria-label="Type de carrosserie"></div>');
     const host=$('.bodies',wrap),btns=Object.entries(BODY).map(([k,B])=>{const b=el('button','body-card',`${miniCar(k)}<b>${B.n}</b><span>${B.d}</span>`);b.type='button';b.id=id+'_'+k;b.setAttribute('role','radio');
       b.addEventListener('click',()=>{S.body=k;S.gc=B.gc0;while(S.rim*25.4+2*S.tireW*S.profile/100>B.tireMax&&S.profile>25) S.profile-=5;while(S.rim*25.4+2*S.tireW*S.profile/100<B.tireMax-150&&S.profile<80) S.profile+=5;render();});host.appendChild(b);return [k,b];});
-    ctlUpd.push(()=>{for(const [k,b] of btns) b.setAttribute('aria-checked',S.body===k?'true':'false');});
+    ctlUpd.push(()=>{for(const [k,b] of btns){b.setAttribute('aria-checked',S.body===k?'true':'false');const d=eraDis('body',k);b.disabled=!!d;b.title=d||'';}});
   }else{
     wrap=el('div','f wide','<div class="swatches" role="radiogroup" aria-label="Teinte de carrosserie"></div>');
     const host=$('.swatches',wrap),btns=PAINTS.map(([c,n],i)=>{const b=el('button');b.type='button';b.id=id+'_'+i;b.style.background=c;b.title=n;b.setAttribute('aria-label',n);b.setAttribute('role','radio');b.addEventListener('click',()=>{S.paint=c;render();});host.appendChild(b);return [c,b];});
@@ -2366,6 +2516,653 @@ function buildControls(){
   }
 }
 
+/* ───────────── Époques et technologies (mode carrière) ─────────────
+   Chaque technologie a une année d'invention : impossible de la rechercher avant.
+   Ce que débloque une technologie est verrouillé dans le bureau d'études tant qu'elle n'est pas acquise.
+   Les curseurs (rupteur, compression, pression de turbo, rapports, pneus) sont plafonnés par l'année. */
+
+// interpolation linéaire dans une table [[année, valeur], …]
+function itp(t,y){if(y<=t[0][0]) return t[0][1];for(let i=1;i<t.length;i++) if(y<=t[i][0]){const [a,va]=t[i-1],[b,vb]=t[i];return va+(vb-va)*(y-a)/(b-a);}return t[t.length-1][1];}
+
+const DOMS=[['prod','Production'],['mot','Moteur'],['ali','Alimentation et échappement'],['sur','Suralimentation'],['car','Carrosserie et châssis'],['tra','Transmission'],['sec','Sécurité et confort']];
+
+// [id, domaine, nom, année, déblocages [[clé, valeur]…], coût relatif, description]
+const TECHS=[
+ ['p_chaine','prod','Chaîne de montage',1913,[],1.5,'Le travail à la chaîne divise le temps d\'assemblage : coût de fabrication −33 %.'],
+ ['p_presses','prod','Caisses embouties en série',1922,[],1.2,'Grandes presses et tôles d\'acier embouties : coût de fabrication −15 %.'],
+ ['p_soufflerie','prod','Essais en soufflerie',1935,[],.8,'Les formes sont mises au point en soufflerie : traînée −6 % sur les nouveaux modèles.'],
+ ['p_cao','prod','Conception assistée par ordinateur',1982,[],1.2,'Calcul et dessin sur ordinateur : développement d\'un modèle −30 %.'],
+ ['p_robots','prod','Robots de soudure et de peinture',1978,[],1.5,'Usines robotisées : coût de fabrication −15 %, qualité plus régulière.'],
+ ['p_lean','prod','Production à flux tendu',1988,[],1,'Moins de stocks, moins de défauts : coût de fabrication −10 %.'],
+ ['p_plateforme','prod','Plateformes modulaires',2000,[],1.5,'Plusieurs modèles partagent la même base : coût −10 % et développement −20 %.'],
+
+ ['m_i6','mot','Six cylindres en ligne',1903,[['config','I6']],1,'Plus doux et plus puissant que le quatre cylindres.'],
+ ['m_v8','mot','Moteur en V8',1910,[['config','V8']],1.2,'Huit cylindres compacts : couple et rondeur.'],
+ ['m_v12','mot','Moteur en V12',1915,[['config','V12']],1.5,'Le moteur des voitures de prestige.'],
+ ['m_sohc','mot','Arbre à cames en tête',1925,[['valvetrain','sohc']],1,'Supprime tiges et culbuteurs : le moteur tourne plus vite.'],
+ ['m_culasse','mot','Culasse en aluminium',1930,[['headMat','alu']],.8,'Évacue mieux la chaleur : compression plus haute possible.'],
+ ['m_forge','mot','Vilebrequin et bielles forgés',1935,[['internals','forged']],1,'Encaisse plus de couple et de régime.'],
+ ['m_sodium','mot','Soupapes refroidies au sodium',1935,[['valveMat','sodium']],.8,'Venues de l\'aviation, elles résistent aux hautes températures.'],
+ ['m_boxer','mot','Quatre cylindres à plat',1936,[['config','F4']],1,'Bas et compact, idéal en porte-à-faux arrière.'],
+ ['m_v6','mot','Moteur en V6',1950,[['config','V6']],1,'Six cylindres courts, faciles à loger.'],
+ ['m_cartersec','mot','Carter sec',1955,[['sump','dry']],1,'Réservoir d\'huile séparé : moteur plus bas, pas de déjaugeage en virage.'],
+ ['m_itb','mot','Papillons individuels',1960,[['intake','itb']],1,'Un papillon par cylindre : réponse immédiate.'],
+ ['m_f6','mot','Six cylindres à plat',1960,[['config','F6']],1.1,'Le six cylindres boxer des sportives à moteur arrière.'],
+ ['m_blocalu','mot','Bloc-cylindres en aluminium',1961,[['blockMat','alu']],1.2,'Moteur nettement plus léger.'],
+ ['m_courroie','mot','Courroie de distribution',1962,[['timing','belt']],.8,'Légère et silencieuse, mais à remplacer régulièrement.'],
+ ['m_dohc','mot','Double arbre, 4 soupapes par cylindre',1965,[['valvetrain','dohc4']],1.4,'Le moteur respire beaucoup mieux à haut régime.'],
+ ['m_wankel','mot','Moteur rotatif Wankel',1967,[['config','R2']],1.6,'Un rotor triangulaire à la place des pistons : compact et doux.'],
+ ['m_nikasil','mot','Cylindres Nikasil',1970,[['liner','nikasil']],1,'Revêtement dur sans chemise : moins de frottements.'],
+ ['m_alusil','mot','Cylindres Alusil',1971,[['liner','alusil']],1,'Alliage hypereutectique, cylindres usinés dans l\'aluminium.'],
+ ['m_5cyl','mot','Cinq cylindres en ligne',1974,[['config','I5']],1,'Un compromis entre quatre et six cylindres.'],
+ ['m_3cyl','mot','Trois cylindres',1977,[['config','I3']],.8,'Petit, léger et économique.'],
+ ['m_vvt','mot','Calage variable des arbres à cames',1980,[['vvt',true]],1.2,'Du couple en bas sans sacrifier le haut.'],
+ ['m_cda','mot','Désactivation de cylindres',1981,[['cda',true]],1,'Coupe des cylindres à faible charge.'],
+ ['m_vario','mot','Admission à longueur variable',1985,[['intake','vario']],1,'Deux longueurs de conduits selon le régime.'],
+ ['m_vvl','mot','Levée variable des soupapes',1989,[['vvl',true]],1.3,'Deux profils de cames : souple en bas, rageur en haut.'],
+ ['m_5s','mot','Cinq soupapes par cylindre',1990,[['valvetrain','dohc5']],1,'Encore plus de section de passage.'],
+ ['m_titane','mot','Titane pour soupapes et bielles',1990,[['valveMat','ti'],['internals','ti']],1.5,'Pièces mobiles plus légères : le moteur prend plus de tours.'],
+ ['m_rotors','mot','Trirotor et quadrirotor',1990,[['config','R3'],['config','R4']],1.3,'Wankel à trois et quatre rotors.'],
+ ['m_v10','mot','Moteur en V10',1991,[['config','V10']],1.3,'Le moteur des supercars et de la Formule 1.'],
+ ['m_pneu','mot','Rappel pneumatique des soupapes',1992,[['springs','pneu']],2,'Technologie de Formule 1 : plus d\'affolement des soupapes.'],
+ ['m_cgi','mot','Fonte vermiculaire',2000,[['blockMat','cgi']],1,'Plus résistante que la fonte grise : pour les diesels modernes.'],
+ ['m_w','mot','Moteurs en W',2001,[['config','W8'],['config','W12']],1.4,'Deux V étroits accolés : beaucoup de cylindres dans peu de place.'],
+ ['m_mg','mot','Bloc magnésium-aluminium',2004,[['blockMat','mg']],1.3,'Le bloc le plus léger.'],
+ ['m_w16','mot','W16',2005,[['config','W16']],2,'Seize cylindres pour l\'hypercar.'],
+ ['m_plasma','mot','Cylindres projetés au plasma',2007,[['liner','plasma']],1.2,'Revêtement très fin et très dur.'],
+
+ ['a_comf','ali','Silencieux confort',1950,[['muffler','comf']],.6,'Échappement feutré pour les voitures de luxe.'],
+ ['a_octane','ali','Essence à haut indice d\'octane',1950,[['fuel','sp98'],['ecuFuel','sp98']],.8,'Supporte une compression plus forte.'],
+ ['a_multigrade','ali','Huiles multigrades',1952,[['oilGrade','10w40']],.6,'Fluide à froid, épaisse à chaud.'],
+ ['a_tub','ali','Collecteur d\'échappement tubulaire',1955,[['manifold','tub']],.7,'Tubes accordés : le moteur se vide mieux.'],
+ ['a_mufsport','ali','Échappement sport',1960,[['muffler','sport']],.5,'Moins de contre-pression, plus de son.'],
+ ['a_course','ali','Collecteur course',1965,[['manifold','race']],.8,'Tubes longs et égaux, pour la compétition.'],
+ ['a_diesel','ali','Moteur Diesel automobile',1936,[['fuel','diesel'],['fuelSys','idi']],1.5,'Allumage par compression : sobre et coupleux.'],
+ ['a_mpi','ali','Injection d\'essence multipoint',1967,[['fuelSys','mpi']],1.4,'Un injecteur par cylindre : dosage précis, plus de puissance.'],
+ ['a_cat','ali','Pot catalytique 3 voies',1975,[['cat','tri']],1,'Indispensable pour les futures normes antipollution.'],
+ ['a_mono','ali','Injection monopoint',1980,[['fuelSys','mono']],.8,'Un seul injecteur : une injection bon marché.'],
+ ['a_synth','ali','Huiles de synthèse',1985,[['oilGrade','5w30'],['oilGrade','5w40'],['oilGrade','10w60']],.8,'Film d\'huile plus résistant et vidanges espacées.'],
+ ['a_elec','ali','Calculateur électronique',1987,[['ecuVmax',true],['pops',true]],1,'Gestion du moteur programmable.'],
+ ['a_catsport','ali','Catalyseur haut débit',1990,[['cat','sport']],.6,'Moins de contre-pression.'],
+ ['a_di','ali','Injection directe d\'essence',1996,[['fuelSys','di']],1.4,'L\'essence est injectée dans la chambre : rendement en hausse.'],
+ ['a_cr','ali','Diesel à rampe commune',1997,[['fuelSys','cr']],1.4,'Injection à très haute pression pilotée électroniquement.'],
+ ['a_pd','ali','Diesel injecteur-pompe',1998,[['fuelSys','pd']],1,'Une pompe par injecteur, pression énorme.'],
+ ['a_launch','ali','Départ automatisé',2000,[['launchCtl',true]],.6,'Le calculateur gère le démarrage.'],
+ ['a_flex','ali','Flex-fuel E85',2003,[['fuel','e85'],['ecuFuel','e85'],['flex',true]],.8,'Le moteur accepte l\'éthanol.'],
+ ['a_dual','ali','Injection mixte directe + indirecte',2005,[['fuelSys','dual']],1,'Le meilleur des deux injections.'],
+ ['a_clapets','ali','Échappement actif à clapets',2005,[['muffler','valve']],.6,'Discret en ville, sonore à fond.'],
+ ['a_0w20','ali','Huile 0W-20 basse friction',2005,[['oilGrade','0w20']],.5,'Moins de frottements, moins de consommation.'],
+ ['a_ss','ali','Stop & start',2006,[['startStop',true]],.6,'Coupe le moteur à l\'arrêt.'],
+ ['a_gpf','ali','Filtre à particules essence',2017,[['cat','gpf']],.8,'Requis pour les injections directes récentes.'],
+
+ ['s_roots','sur','Compresseur Roots',1921,[['aspiration','sc'],['scType','roots']],1.3,'Entraîné par le moteur, il souffle dès le ralenti.'],
+ ['s_centri','sur','Compresseur centrifuge',1929,[['scType','centri']],1,'Sa pression monte avec le régime.'],
+ ['s_turbo','sur','Turbocompresseur',1962,[['aspiration','turbo']],1.6,'Récupère l\'énergie des gaz d\'échappement.'],
+ ['s_ic','sur','Refroidisseur d\'air air/air',1977,[['intercooler','air']],.8,'Refroidit l\'air comprimé : plus de puissance, moins de cliquetis.'],
+ ['s_bi','sur','Biturbo',1981,[['aspiration','biturbo']],1.2,'Deux petits turbos qui répondent plus vite.'],
+ ['s_vis','sur','Compresseur à double vis',1985,[['scType','screw']],1,'Plus efficace que le Roots.'],
+ ['s_seq','sur','Turbos séquentiels',1986,[['turboStage','seq']],1.2,'Un petit turbo en bas, le gros le rejoint ensuite.'],
+ ['s_vgt','sur','Turbo à géométrie variable',1989,[['turboType','vgt']],1.3,'Des ailettes mobiles adaptent la turbine au régime.'],
+ ['s_icw','sur','Refroidisseur air/eau',1990,[['intercooler','water']],.8,'Circuit d\'eau dédié, plus compact.'],
+ ['s_ts','sur','Turbo twin-scroll',1990,[['turboType','ts']],1,'Sépare les bouffées des cylindres.'],
+ ['s_billes','sur','Turbo sur roulements à billes',1990,[['turboBearing','ball']],.8,'Moins de frottements, réponse plus vive.'],
+ ['s_quad','sur','Quatre turbos',1991,[['aspiration','quad']],1.5,'Quatre petits turbos pour une supercar.'],
+ ['s_serie','sur','Turbos étagés en série',2004,[['turboStage','comp']],1.2,'Un petit turbo haute pression souffle dans un gros.'],
+ ['s_tri','sur','Trois turbos',2012,[['aspiration','tri']],1.3,'Pour les diesels les plus puissants.'],
+ ['s_elec','sur','Turbo électrique',2016,[['turboType','et']],1.5,'Un moteur électrique lance la turbine.'],
+
+ ['c_coupe','car','Carrosserie coupé',1910,[['body','coupe']],.7,'Deux portes, toit fermé.'],
+ ['c_pickup','car','Pick-up',1925,[['body','pickup']],.7,'Un plateau pour les artisans et les fermiers.'],
+ ['c_mono','car','Caisse autoporteuse',1934,[['chassis','steel']],1.4,'La carrosserie devient la structure : plus léger, plus rigide.'],
+ ['c_traction','car','Traction avant',1934,[['drive','fwd']],1.2,'Plancher plat et tenue de route sûre.'],
+ ['c_arriere','car','Moteur en porte-à-faux arrière',1934,[['enginePos','RR']],1,'Le moteur derrière les roues arrière.'],
+ ['c_ifs','car','Roues avant indépendantes',1934,[['suspF','dw'],['suspR','dw']],1.2,'Double triangulation : confort et précision.'],
+ ['c_break','car','Break',1935,[['body','break']],.6,'Un grand coffre pour les familles.'],
+ ['c_lsd','car','Différentiel autobloquant',1935,[['diff','lsd']],.8,'Limite le patinage d\'une roue.'],
+ ['c_4x4','car','Transmission intégrale',1941,[['drive','awd']],1.2,'Les quatre roues motrices.'],
+ ['c_atpneu','car','Pneus tout-terrain',1945,[['compound','at']],.5,'Crampons pour les chemins.'],
+ ['c_alu','car','Panneaux en aluminium',1950,[['panels','alu']],.8,'Carrosserie plus légère.'],
+ ['c_mac','car','Suspension MacPherson',1951,[['suspF','mac'],['suspR','mac']],.9,'Simple, compacte et bon marché.'],
+ ['c_tube','car','Châssis treillis tubulaire',1952,[['chassis','tube']],1,'Léger et rigide, pour les sportives.'],
+ ['c_composite','car','Carrosserie composite',1953,[['panels','grp']],.8,'Fibre de verre et résine.'],
+ ['c_disque','car','Freins à disque',1955,[['brakeF','disc'],['brakeR','disc']],1.2,'Ils résistent bien mieux à l\'échauffement.'],
+ ['c_citadine','car','Citadine',1957,[['body','citadine']],.8,'Une petite voiture pour la ville.'],
+ ['c_transversal','car','Moteur avant transversal',1959,[['enginePos','FT']],1,'Le moteur en travers libère de la place.'],
+ ['c_alliage','car','Jantes en alliage',1960,[['rimType','alloy']],.6,'Moins de masse non suspendue.'],
+ ['c_pneusport','car','Pneus sport',1965,[['compound','sport']],.7,'Plus d\'adhérence.'],
+ ['c_ventile','car','Disques ventilés',1966,[['brakeF','vent'],['brakeR','vent']],.8,'Mieux refroidis : moins d\'échauffement.'],
+ ['c_supercar','car','Supercar à moteur central',1966,[['body','supercar'],['enginePos','MR']],1.5,'Le moteur entre les essieux.'],
+ ['c_becquet','car','Becquet',1970,[['wing','lip']],.5,'Réduit la portance à haute vitesse.'],
+ ['c_aileron','car','Aileron et lame avant',1972,[['wing','wing'],['splitter',true]],.8,'Appui aérodynamique.'],
+ ['c_compacte','car','Compacte à hayon',1974,[['body','compacte']],.8,'Polyvalente : la voiture à tout faire.'],
+ ['c_torsion','car','Essieu de torsion',1974,[['suspR','torsion']],.6,'Train arrière simple pour les tractions.'],
+ ['c_multi','car','Suspension multibras',1982,[['suspF','multi'],['suspR','multi']],1.1,'Guide précisément la roue.'],
+ ['c_suv','car','SUV',1984,[['body','suv']],1,'Garde au sol haute, allure de tout-terrain.'],
+ ['c_jforge','car','Jantes forgées',1985,[['rimType','forged']],.6,'Les plus légères.'],
+ ['c_semi','car','Pneus semi-slicks',1985,[['compound','semi']],.6,'Presque des pneus de course.'],
+ ['c_diffpil','car','Différentiel piloté',1987,[['diff','active']],1,'Répartit le couple entre les roues.'],
+ ['c_monoalu','car','Monocoque aluminium',1990,[['chassis','alu']],1.4,'Caisse bien plus légère.'],
+ ['c_poussoirs','car','Suspension à poussoirs',1990,[['suspF','push'],['suspR','push']],1,'Combinés inboard, comme en course.'],
+ ['c_fondplat','car','Fond plat et diffuseur',1990,[['flatFloor',true]],.8,'L\'appui vient du dessous.'],
+ ['c_pneueco','car','Pneus basse résistance',1992,[['compound','eco']],.6,'Consommation réduite.'],
+ ['c_carbone','car','Fibre de carbone',1992,[['chassis','carbon'],['panels','carbon']],2,'Structure ultralégère.'],
+ ['c_ccm','car','Freins carbone-céramique',2001,[['brakeF','ccm'],['brakeR','ccm']],1.2,'Inusables et légers.'],
+
+ ['t_auto','tra','Boîte automatique',1940,[['gearbox','auto']],1.3,'Plus besoin d\'embrayer.'],
+ ['t_cvt','tra','Variateur continu',1958,[['gearbox','cvt']],1,'Une courroie et deux poulies.'],
+ ['t_seq','tra','Boîte séquentielle',1990,[['gearbox','seq']],1,'Venue de la compétition.'],
+ ['t_amt','tra','Boîte robotisée',1997,[['gearbox','amt']],1,'Une boîte manuelle pilotée par des vérins.'],
+ ['t_dct','tra','Double embrayage',2003,[['gearbox','dct']],1.4,'Passages sans rupture de couple.'],
+
+ ['x_std','sec','Habitacle confortable',1920,[['trim','std']],.6,'Sièges rembourrés, vitres et chauffage.'],
+ ['x_radio','sec','Autoradio',1930,[['media','radio']],.6,'La musique à bord.'],
+ ['x_dirassist','sec','Direction assistée',1951,[['steering','hyd']],.8,'Manœuvres sans effort.'],
+ ['x_prem','sec','Finition haut de gamme',1955,[['trim','prem']],.7,'Matériaux nobles et équipements.'],
+ ['x_passive','sec','Ceintures et zones déformables',1959,[['passive','std']],1,'Habitacle rigide, avant et arrière qui absorbent le choc.'],
+ ['x_abs','sec','ABS',1978,[['abs',true]],1.2,'Les roues ne se bloquent plus au freinage.'],
+ ['x_hifi','sec','Hi-fi embarquée',1985,[['media','hifi']],.5,'Un vrai système audio.'],
+ ['x_asr','sec','Antipatinage',1987,[['tc',true]],.8,'Limite le patinage à l\'accélération.'],
+ ['x_dirlec','sec','Direction assistée électrique',1993,[['steering','elec']],.8,'Consomme moins que l\'hydraulique.'],
+ ['x_airbag','sec','Airbags et crash-tests',1995,[['passive','adv']],1.3,'Coussins gonflables et structure optimisée.'],
+ ['x_esp','sec','Contrôle de stabilité (ESP)',1995,[['esp',true]],1.2,'Corrige les dérapages.'],
+ ['x_ecran','sec','Écran tactile',2008,[['media','screen']],.6,'Navigation et multimédia.'],
+];
+const TECH={};for(const t of TECHS) TECH[t[0]]={id:t[0],dom:t[1],n:t[2],y:t[3],u:t[4],k:t[5],d:t[6]};
+// verrou : LOCK['clé|valeur'] = technologie qui débloque cette valeur
+const LOCK={};for(const t of TECHS) for(const [k,v] of t[4]) LOCK[k+'|'+v]=t[0];
+
+// valeur de repli d'époque (toujours disponible) pour chaque clé verrouillable
+const ERA_BASE={config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
+  vvt:false,vvl:false,cda:false,flex:false,launchCtl:false,pops:false,startStop:false,ecuVmax:false,splitter:false,flatFloor:false,abs:false,tc:false,esp:false};
+
+// repli vers l'option d'époque la plus proche quand une valeur est verrouillée
+const ERA_FB={valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
+  valveMat:{ti:'sodium',sodium:'steel'},internals:{ti:'forged',forged:'cast'},aspiration:{tri:'biturbo',quad:'biturbo',biturbo:'turbo',turbo:'na',sc:'na'},turboStage:{comp:'seq',seq:'par'},turboType:{et:'vgt',vgt:'wg',ts:'wg'},
+  intercooler:{water:'air',air:'none'},oilGrade:{'0w20':'5w30','5w30':'10w40','5w40':'10w40','10w60':'20w50','10w40':'20w50'},manifold:{race:'tub',tub:'cast'},cat:{gpf:'tri',sport:'tri',tri:'none'},muffler:{valve:'sport',sport:'std',comf:'std'},
+  body:{suv:'break',break:'berline',compacte:'berline',citadine:'compacte',supercar:'coupe',coupe:'roadster',pickup:'berline'},enginePos:{MR:'FL',RR:'FL',FT:'FL'},drive:{awd:'rwd',fwd:'rwd'},chassis:{carbon:'alu',alu:'steel',steel:'ladder',tube:'ladder'},panels:{carbon:'alu',alu:'steel',grp:'steel'},
+  gearbox:{dct:'auto',amt:'man',cvt:'auto',auto:'man',seq:'man'},suspF:{push:'dw',multi:'dw',mac:'dw',dw:'rigid'},suspR:{push:'dw',multi:'mac',mac:'dw',torsion:'mac',dw:'rigid'},compound:{semi:'sport',sport:'road',eco:'road',at:'road'},
+  brakeF:{ccm:'vent',vent:'disc',disc:'drum'},brakeR:{ccm:'vent',vent:'disc',disc:'drum'},rimType:{forged:'alloy',alloy:'steel'},trim:{prem:'std',std:'basic'},media:{screen:'hifi',hifi:'radio',radio:'none'},passive:{adv:'std',std:'min'},steering:{elec:'hyd',hyd:'mech'},wing:{wing:'lip',lip:'none'},
+  fuel:{e85:'sp98',sp98:'sp95',diesel:'sp95'},ecuFuel:{e85:'sp98',sp98:'sp95'},config:{W16:'W12',W12:'V12',W8:'V8',V10:'V8',R4:'R2',R3:'R2',R2:'I4',F6:'I6',I5:'I4',I3:'I4',V6:'I6',F4:'I4',V12:'V8',V8:'I6',I6:'I4'},scType:{screw:'roots',centri:'roots'},turboBearing:{ball:'journal'},sump:{dry:'wet'},springs:{pneu:'coil'},intake:{vario:'std',itb:'std'},timing:{belt:'chain'},headMat:{alu:'iron'},diff:{active:'lsd',lsd:'open'}};
+// plafonds des curseurs selon l'année
+const ERA_CAP={
+  limiter:{max:[[1900,2000],[1910,2800],[1920,3500],[1930,4200],[1945,4800],[1955,5500],[1965,6500],[1975,7000],[1990,8000],[2000,9000],[2010,9500]],u:'tr/min'},
+  cr:{max:[[1900,7.5],[1930,7.5],[1950,8.5],[1965,9.5],[1980,10],[1995,11],[2005,12],[2012,13],[2018,14]],skip:S=>FUEL[S.fuel]&&FUEL[S.fuel].diesel},
+  boost:{max:[[1921,.6],[1960,.7],[1975,1],[1985,1.5],[1995,1.8],[2005,2.2],[2015,2.8],[2020,3.5]],u:'bar'},
+  boostLow:{max:[[1921,.5],[1985,1],[2005,1.5],[2015,2]],u:'bar'},
+  gears:{max:[[1900,4],[1964,4],[1965,5],[1987,5],[1988,6],[2002,6],[2003,7],[2008,8],[2013,9],[2017,10]],step:1},
+  tireW:{max:[[1900,155],[1930,165],[1950,175],[1965,195],[1975,225],[1985,255],[1995,295],[2005,345]],u:'mm',step:10},
+  profile:{min:[[1900,80],[1960,70],[1970,60],[1980,50],[1990,45],[2000,35],[2010,25]],step:5},
+};
+// boîtes réelles : année de sortie
+const GEAR_Y={gm4l60:1992,zf6hp:2000,aisin6:2003,mb7g:2003,dq250:2003,smart5:1998,zf8hp:2009,pdk7:2008,getrag7:2009,etg6:2009,jatco:2009,mb9g:2013,ford10r:2017};
+
+// état « époque » : null hors carrière
+let ERA=null; // {y, has:Set}
+function capOf(k,y){const c=ERA_CAP[k];if(!c) return null;const r={};if(c.max){let m=itp(c.max,y);if(c.step) m=Math.floor(m/c.step+1e-6)*c.step;r.max=m;}if(c.min){let m=itp(c.min,y);if(c.step) m=Math.ceil(m/c.step-1e-6)*c.step;r.min=m;}return r;}
+function eraRange(k){if(!ERA) return null;const c=ERA_CAP[k];if(!c||(c.skip&&c.skip(S))) return null;return capOf(k,ERA.y);}
+function lockOf(k,v){const id=LOCK[k+'|'+v];return id&&!ERA.has.has(id)?TECH[id]:null;}
+// raison du verrou (chaîne) ou false
+function eraDis(k,v){
+  if(!ERA) return false;
+  if(v===undefined) v=true;
+  const t=lockOf(k,v);
+  if(t) return t.y>ERA.y?`Pas encore inventé : ${t.n} (${t.y})`:`À rechercher : ${t.n}`;
+  return false;
+}
+// un ensemble de valeurs (moteur tout prêt, boîte réelle) est-il accessible ?
+function eraOK(obj){
+  if(!ERA) return true;
+  for(const [k,v] of Object.entries(obj)){
+    if(typeof v==='boolean'){if(v&&lockOf(k,true)) return false;continue;}
+    if(LOCK[k+'|'+v]&&lockOf(k,v)) return false;
+    const c=ERA_CAP[k];if(c&&typeof v==='number'){const r=capOf(k,ERA.y);if((r.max!=null&&v>r.max+1e-9)||(r.min!=null&&v<r.min-1e-9)) return false;}
+  }
+  return true;
+}
+// remet le projet en conformité avec l'époque
+function eraFix(){
+  if(!ERA) return;
+  for(const k of Object.keys(ERA_BASE)){
+    const v=S[k];
+    if(typeof ERA_BASE[k]==='boolean'){if(v&&lockOf(k,true)) S[k]=false;continue;}
+    let w=v,n=0;while(lockOf(k,w)&&n++<8) w=(ERA_FB[k]&&ERA_FB[k][w])||ERA_BASE[k];
+    if(lockOf(k,w)) w=ERA_BASE[k];
+    S[k]=w;
+  }
+  if(S.fuel==='sp95'&&FS[S.fuelSys]&&FS[S.fuelSys].d) S.fuelSys=lockOf('fuelSys','mpi')?'carb':'mpi';
+  if(S.aspiration!=='na'&&S.aspiration!=='sc'&&lockOf('aspiration',S.aspiration)) S.aspiration='na';
+  if(S.ecuFuel&&lockOf('ecuFuel',S.ecuFuel)) S.ecuFuel='sp95';
+  if(S.gearSet&&GEAR_Y[S.gearSet]>ERA.y) S.gearSet='';
+  for(const k of Object.keys(ERA_CAP)){const r=eraRange(k);if(!r) continue;if(r.max!=null&&S[k]>r.max) S[k]=r.max;if(r.min!=null&&S[k]<r.min) S[k]=r.min;}
+}
+
+/* ───────────── Carrière : entreprise, marché, finances ─────────────
+   Monnaie en euros constants (valeur 2020) pour comparer les époques.
+   Le temps avance par trimestre. Les attentes des clients (puissance, vitesse, confort,
+   sécurité, consommation, prix) suivent l'année : une voiture vieillit même sans changer. */
+
+const MARKET=[[1900,9e3],[1905,3e4],[1910,1.2e5],[1920,4e5],[1930,9e5],[1938,1.1e6],[1950,1.5e6],[1960,4e6],[1970,8e6],[1980,1e7],[1990,1.3e7],[2000,1.5e7],[2010,1.5e7],[2020,1.4e7],[2040,1.4e7]];
+const SHOCK={1914:.3,1915:.25,1916:.25,1917:.25,1918:.3,1919:.7,1930:.7,1931:.6,1932:.55,1933:.75,1940:.15,1941:.1,1942:.08,1943:.08,1944:.08,1945:.2,1946:.5,1947:.75,1974:.85,1975:.9,1980:.92,1981:.9,1993:.92,2009:.85,2010:.92,2020:.78,2021:.88};
+const NCOMP=[[1900,60],[1925,80],[1950,50],[1970,35],[2000,25],[2040,25]];
+const REF={
+  P:[[1900,22],[1910,28],[1920,34],[1930,42],[1950,50],[1960,62],[1970,78],[1980,88],[1990,102],[2000,118],[2010,132],[2020,150]],
+  V:[[1900,70],[1910,82],[1920,92],[1930,105],[1950,120],[1960,138],[1970,152],[1980,165],[1990,180],[2000,192],[2010,202],[2020,208]],
+  comf:[[1900,32],[1950,45],[1970,55],[2000,62],[2020,66]],
+  saf:[[1900,24],[1960,32],[1980,48],[2000,70],[2020,82]],
+  hand:[[1900,45],[1960,50],[2000,62],[2020,66]],
+  cons:[[1900,14],[1950,11],[1975,9.5],[2000,7.5],[2020,6]],
+  prest:[[1900,22],[2020,50]],
+};
+const ECO_IMP=[[1900,.3],[1972,.5],[1974,1.2],[1990,1],[2008,1.3],[2020,1.5]];
+const SAF_IMP=[[1900,.2],[1965,.3],[1975,.8],[1995,1.2]];
+const PROD_EXP=[[1900,2.4],[1913,2.4],[1916,1.6],[1922,1.6],[1926,1.36],[1978,1.36],[1982,1.16],[1988,1.16],[1992,1.04],[2000,1.04],[2004,.94]];
+const DEVF=[[1900,1],[1920,2],[1950,6],[1970,20],[1990,80],[2010,300],[2020,500]];
+const BASECOST=[[1900,14000],[1960,15000],[1980,16500],[2000,19000],[2020,22000]];
+// segments de clientèle : clé = nom du segment calculé par computeCar
+const SEGS=[
+  {k:'Citadine',n:'Populaire',pm:1,el:2,pmax:2.5,sp:.8,sv:.9,share:[[1900,.2],[1920,.32],[1950,.35],[1980,.3],[2020,.22]],w:{P:.12,V:.05,comf:.1,rel:.2,eco:.2,saf:.1,pract:.1}},
+  {k:'Familiale',n:'Familiale',pm:1.5,el:1.6,pmax:2,sp:1,sv:1,share:[[1900,.1],[1930,.22],[1960,.3],[1990,.32],[2020,.25]],w:{P:.15,V:.05,comf:.2,rel:.2,eco:.15,saf:.2,pract:.25}},
+  {k:'Sportive',n:'Sportive',pm:2.2,el:1,pmax:1.4,sp:1.8,sv:1.2,share:[[1900,.2],[1930,.1],[1960,.1],[2020,.06]],w:{P:.45,V:.25,hand:.25,rel:.05,prest:.1}},
+  {k:'Grand tourisme',n:'Luxe',pm:3,el:.6,pmax:1.15,sp:1.6,sv:1.1,share:[[1900,.45],[1930,.26],[1960,.15],[2020,.12]],w:{P:.2,V:.1,comf:.3,prest:.8,rel:.1,saf:.1}},
+  {k:'Tout-terrain',n:'Utilitaire et tout-terrain',pm:1.6,el:1.2,pmax:1.8,sp:1.1,sv:.85,share:[[1900,.05],[1930,.1],[1960,.1],[1990,.12],[2020,.35]],w:{off:.4,P:.15,rel:.25,pract:.2}},
+];
+// part des acheteurs d'un segment qui envisagent cette carrosserie
+const FIT={
+  Citadine:{citadine:1,compacte:.8,berline:.45,break:.3,coupe:.2,roadster:.25,suv:.2,pickup:.05,supercar:0},
+  Familiale:{citadine:.3,compacte:.75,berline:1,break:1,coupe:.15,roadster:.05,suv:.85,pickup:.25,supercar:0},
+  Sportive:{citadine:.3,compacte:.55,berline:.3,break:.1,coupe:1,roadster:1,suv:.15,pickup:.05,supercar:.9},
+  'Grand tourisme':{citadine:.05,compacte:.15,berline:.8,break:.5,coupe:.85,roadster:.6,suv:.7,pickup:.05,supercar:.8},
+  'Tout-terrain':{citadine:.03,compacte:.05,berline:.1,break:.35,coupe:.02,roadster:.02,suv:1,pickup:1,supercar:0},
+};
+const FAC=[['Atelier',60],['Fabrique',600],['Usine',6000],['Grande usine',50000],['Complexe industriel',250000],['Groupe mondial',1000000]];
+const REGS=[[1979,'Ceintures et structure déformable obligatoires',m=>m.passive!=='min','Sécurité passive « Standard » au minimum'],[1993,'Norme Euro 1 : pot catalytique obligatoire',m=>m.emis,'Injection et catalyseur'],[2004,'ABS obligatoire',m=>m.abs,'ABS'],[2014,'Contrôle de stabilité (ESP) obligatoire',m=>m.esp,'ESP']];
+const HIST=[
+ [1903,'Les grandes courses','Paris-Madrid est arrêtée à Bordeaux après une série d\'accidents. Les clients aisés veulent toujours plus de vitesse.'],
+ [1908,'Une voiture pour tous','Aux États-Unis, un constructeur lance une voiture simple et robuste, bientôt fabriquée à la chaîne. Les prix vont chuter.'],
+ [1914,'Guerre mondiale','Les usines sont réquisitionnées : le marché civil s\'effondre jusqu\'en 1918.'],
+ [1919,'La paix revient','La demande repart : beaucoup de familles veulent leur première voiture.'],
+ [1929,'Krach boursier','La crise économique frappe : ventes en forte baisse pendant plusieurs années.'],
+ [1934,'Révolution technique','Traction avant et caisse autoporteuse arrivent dans les voitures de série.'],
+ [1939,'Seconde Guerre mondiale','La production civile s\'arrête presque totalement jusqu\'en 1945.'],
+ [1946,'Reconstruction','Le marché renaît : il faut des voitures simples, sobres et bon marché.'],
+ [1955,'Les Trente Glorieuses','La voiture se démocratise : le marché grandit très vite.'],
+ [1973,'Premier choc pétrolier','Le prix de l\'essence s\'envole : la consommation devient un critère décisif.'],
+ [1979,'Second choc pétrolier','Nouvelle flambée du pétrole. Ceintures et structures déformables deviennent obligatoires.'],
+ [1990,'L\'électronique partout','Injection, ABS et calculateurs se généralisent. Une norme antipollution arrive en 1993.'],
+ [1993,'Norme Euro 1','Toute voiture neuve doit avoir l\'injection et un pot catalytique.'],
+ [2004,'ABS obligatoire','Tous les modèles neufs doivent avoir l\'ABS.'],
+ [2008,'Crise financière','Les ventes reculent pendant deux ans ; la sobriété compte encore plus.'],
+ [2014,'ESP obligatoire','Le contrôle de stabilité devient obligatoire sur les modèles neufs.'],
+ [2015,'Scandale des moteurs diesel','Les tests truqués d\'un grand groupe ternissent l\'image du diesel.'],
+ [2020,'Pandémie','Les usines s\'arrêtent quelques semaines : marché en recul.'],
+];
+const DEFECTS={'Résistance du moteur':1,'Boîte et embrayage':1,'Lubrification':.7,'Affolement des soupapes':.6,'Cliquetis':.8,'Vitesse de piston':.7,"Vitesse des segments d'arête":.7,'Tenue au couple':.8,'Calculateur':.8,'Injecteurs':.6,'Auto-allumage':1,'Passages de roue':.4,'Freinage':.5};
+
+let G=null; // partie en cours
+const Q=['T1','T2','T3','T4'];
+const yq=()=>G.y+G.q/4;
+const devF=y=>itp(DEVF,y);
+function prodF(){let f=2.4;const h=k=>G.techs.includes(k);if(h('p_chaine')) f*=2/3;if(h('p_presses')) f*=.85;if(h('p_robots')) f*=.85;if(h('p_lean')) f*=.9;if(h('p_plateforme')) f*=.9;return f;}
+function refPrice(y,seg){return itp(BASECOST,y)*itp(PROD_EXP,y)*1.25*(seg?seg.pm:1);}
+function marketVol(y){return itp(MARKET,y)*(SHOCK[Math.floor(y)]||1);}
+function segShares(y){const s=SEGS.map(g=>itp(g.share,y)),t=s.reduce((a,b)=>a+b,0);return s.map(v=>v/t);}
+function capOfFac(l){return FAC[l][1];}
+function facCost(l,y){return (FAC[l][1]-FAC[l-1][1])*.2*refPrice(y);}
+function facUpkeep(l,y){return FAC[l][1]*.06*refPrice(y);}
+function moneyF(x){const a=Math.abs(x),s=x<0?'−':'';if(a>=1e9) return s+nf(a/1e9,2)+' Md€';if(a>=1e6) return s+nf(a/1e6,a>=1e8?0:1)+' M€';if(a>=1e4) return s+nf(a/1e3)+' k€';return s+nf(a)+' €';}
+function devCost(met,y){let f=1;if(G.techs.includes('p_cao')) f*=.7;if(G.techs.includes('p_plateforme')) f*=.8;return (60000+met.cost*6)*devF(y)*f;}
+function devQ(y){return Math.round(itp([[1900,2],[1950,3],[1970,4]],y));}
+function resCost(t,y){return 150000*devF(t.y)*t.k*Math.max(.3,1-(y-t.y)/30);}
+function resQ(t,y){return Math.max(1,Math.round((1+t.k*1.5)*Math.max(.5,1-(y-t.y)/30)));}
+function loanLimit(){const fv=G.facInv||0;const lr=G.hist.length?G.hist[G.hist.length-1].rev:0;return Math.max(G.startCash*.5,fv*.5+lr*.3);}
+function syncEra(){ERA=G?{y:G.y,has:new Set(G.techs)}:null;}
+
+// mesures d'un projet (le projet actuel par défaut)
+function measure(E,C,s){
+  s=s||S;const defects=[];let dw=0;
+  for(const k of C.checks) if(k.lv==='crit'&&DEFECTS[k.t]!=null&&!(k.t==='Freinage'&&G&&G.y<1955)){defects.push(k.t);dw+=DEFECTS[k.t];}
+  const aero=G&&G.techs.includes('p_soufflerie')?1:0;
+  return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
+}
+function unitCost(m,annual){const vf=clamp(1.25-.075*Math.log10(Math.max(annual,10)),.8,1.25);return m.cost*prodF()*vf;}
+// attractivité d'un modèle pour un segment (1 = voiture moyenne de l'époque)
+function appeal(m,seg,y,price){
+  const w=seg.w,ln=Math.log,c=x=>clamp(x,.25,2.5);let L=0;
+  const q=(v,r)=>(v+15)/(r+15);
+  if(w.P) L+=w.P*ln(c(m.P/(itp(REF.P,y)*seg.sp)));
+  if(w.V) L+=w.V*ln(c(m.v/(itp(REF.V,y)*seg.sv)));
+  if(w.comf) L+=w.comf*ln(c(q(m.comf,itp(REF.comf,y))));
+  if(w.rel) L+=w.rel*ln(c(q(m.rel,85)));
+  if(w.saf) L+=w.saf*itp(SAF_IMP,y)*ln(c(q(m.saf,itp(REF.saf,y))));
+  if(w.eco) L+=w.eco*itp(ECO_IMP,y)*ln(c(itp(REF.cons,y)/m.mix));
+  if(w.hand) L+=w.hand*ln(c(q(m.hand,itp(REF.hand,y))));
+  if(w.prest) L+=w.prest*ln(c(q(m.prest,itp(REF.prest,y)*(seg.k==='Grand tourisme'?1.7:1))));
+  if(w.pract) L+=w.pract*ln(c(q(m.pract,55)));
+  if(w.off) L+=w.off*ln(c(q(m.off,50)));
+  L+=seg.el*ln(clamp(refPrice(y,seg)/price,.25,seg.pmax));
+  L-=.12*m.dw;
+  return Math.exp(L);
+}
+function fitOf(seg,body,y){let f=FIT[seg.k][body]||0;if(y<1945&&body==='roadster') f=seg.k==='Citadine'?.8:seg.k==='Familiale'?.5:f;return f;}
+function repF(){return .7+.6*G.rep/100;}
+function ageF(m){const a=yq()-(m.ly||m.y);return a<1?1.1:Math.max(.6,1.1-.06*a);}
+function regBan(m,y){for(const [ry,n,ok,need] of REGS) if(y>=ry&&!ok(m)) return {n,need,ry};return null;}
+// demande annuelle de chaque modèle (tableau de {tot, seg:{…}})
+function demand(models,y){
+  const vol=marketVol(y),sh=segShares(y),N=itp(NCOMP,y)*(G.diff==='dur'?1.3:G.diff==='fac'?.8:1),K=2;
+  const out=models.map(()=>({tot:0,seg:{}}));
+  SEGS.forEach((seg,i)=>{
+    const A=models.map(m=>regBan(m.met,y)?0:appeal(m.met,seg,y,m.price)*repF()*(m.age!=null?m.age:ageF(m)));
+    const sum=A.reduce((a,x)=>a+Math.pow(x,K),0)+N;
+    models.forEach((m,j)=>{const d=vol*sh[i]*fitOf(seg,m.met.body,y)*Math.pow(A[j],K)/sum;out[j].seg[seg.k]=d;out[j].tot+=d;});
+  });
+  return out;
+}
+function news(t,d,k){G.news.unshift({y:G.y,q:G.q,t,d,k:k||'info'});if(G.news.length>80) G.news.length=80;}
+function techsNewIn(y){return TECHS.filter(t=>t[3]===y).map(t=>t[2]);}
+
+const START={
+  1900:{cash:6e5,fac:0,n:'Les pionniers',d:'Quelques artisans construisent des voitures pour une clientèle fortunée. Tout reste à inventer.'},
+  1920:{cash:2.5e6,fac:1,n:'Les années folles',d:'La chaîne de montage existe, le marché s\'ouvre aux classes moyennes.'},
+  1950:{cash:3e7,fac:2,n:'L\'après-guerre',d:'Reconstruction, puis les Trente Glorieuses : la voiture pour tous.'},
+  1980:{cash:3e8,fac:3,n:'L\'électronique',d:'Chocs pétroliers, injection, turbo et premières aides à la conduite.'},
+  2000:{cash:1.2e9,fac:3,n:'Le XXIe siècle',d:'Normes antipollution, sécurité, mondialisation.'},
+};
+const FIRST_CAR={name:'Type A',config:'I4',bore:80,stroke:110,limiter:1900,cr:7,cam:10,body:'roadster',seats:2,gears:4,first:3.6,top:1,final:4.2,rim:17,tireW:145,profile:80,stagger:0,stiff:30,gc:200,brakeFd:260,brakeRd:260,trim:'basic',media:'none',wing:'none',gbxCap:300,arbF:20,arbR:20,paint:'#2f3b2c'};
+
+function newGame(o){
+  const st=START[o.y]||START[1900],m=o.diff==='fac'?1.8:o.diff==='dur'?.6:1;
+  G={v:1,co:o.co||'Automobiles Nouvelles',y:o.y,q:0,start:o.y,diff:o.diff||'nor',cash:st.cash*m,startCash:st.cash*m,debt:0,rep:o.diff==='fac'?40:30,fac:st.fac,facInv:0,build:null,
+     techs:TECHS.filter(t=>t[3]<=o.y-4).map(t=>t[0]),res:null,models:[],hist:[],news:[],acc:{rev:0,cost:0,units:0,profit:0},negQ:0,over:false,mid:1};
+  for(let l=1;l<=G.fac;l++) G.facInv+=facCost(l,o.y);
+  syncEra();
+  // premier projet : base d'époque
+  for(const k of Object.keys(S)) delete S[k];
+  Object.assign(S,DEF,ERA_BASE,FIRST_CAR,{preset:'',name:'Type A'});
+  if(o.y>=1950){Object.assign(S,DEF,PRESETS.berline.s,{name:'Type A',preset:''});}
+  if(false){Object.assign(S,{body:'berline',seats:4,bore:76,stroke:80,limiter:5000,cr:8,rim:15,tireW:165,profile:80,gears:4,first:3.6,top:1,final:4.1,stiff:40,gc:150,gbxCap:300,cam:25});}
+  S.injSize=0;S.ecuIdle=0;S.oilInt=0;
+  eraFix();
+  news(`Fondation de ${G.co}`,`${st.n} · ${st.d} Concevez votre premier modèle dans le bureau d'études, puis lancez-le en production depuis l'onglet Direction.`,'good');
+  saveGame();
+}
+function saveGame(){if(!G) return;try{G.design=Object.assign({},S);localStorage.setItem('bea.career.v1',JSON.stringify(G));}catch(e){}}
+function loadGame(){try{const raw=localStorage.getItem('bea.career.v1');if(!raw) return null;const g=JSON.parse(raw);return g&&g.v===1?g:null;}catch(e){return null;}}
+
+function launchModel(name,price){
+  const met=measure(M.E,M.C),y=yq(),dc=devCost(met,y);
+  if(!met.fit) return 'Le moteur ne rentre pas dans la caisse.';
+  const ban=regBan(met,G.y);if(ban) return `Homologation refusée : ${ban.n}.`;
+  if(G.cash+loanLimit()-G.debt<dc) return 'Trésorerie insuffisante pour développer ce modèle.';
+  G.cash-=dc;
+  const m={id:G.mid++,name:name||S.name||'Modèle',y:G.y,q:G.q,price:Math.round(price/10)*10,snap:Object.assign({},S),met,st:'dev',devLeft:devQ(y),dev:dc,sold:0,rev:0,profit:0,last:null};
+  G.models.push(m);
+  news(`Développement lancé : ${m.name}`,`Coût d'étude et d'outillage ${moneyF(dc)}. Sortie prévue dans ${m.devLeft} trimestre${m.devLeft>1?'s':''}.`);
+  coverCash();saveGame();return null;
+}
+function coverCash(){if(G.cash<0){const room=loanLimit()-G.debt,b=Math.min(room,-G.cash);if(b>0){G.debt+=b;G.cash+=b;news('Découvert couvert par la banque',`Emprunt automatique de ${moneyF(b)}.`,'warn');}}}
+
+function nextQuarter(){
+  if(!G||G.over) return;
+  const y=yq();
+  // recherche
+  if(G.res){G.res.left--;if(G.res.left<=0){const t=TECH[G.res.id];G.techs.push(t.id);news(`Recherche terminée : ${t.n}`,t.d,'good');G.res=null;}}
+  // usine
+  if(G.build){G.build.left--;if(G.build.left<=0){G.fac=G.build.l;news(`${FAC[G.fac][0]} en service`,`Capacité : ${nf(FAC[G.fac][1])} voitures par an.`,'good');G.build=null;}}
+  // modèles en développement
+  for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');}}
+  // réglementation
+  for(const m of G.models) if(m.st==='prod'){const b=regBan(m.met,G.y);if(b){m.st='stop';news(`${m.name} retiré du marché`,`${b.n}. Il faudrait : ${b.need}.`,'crit');}}
+  // ventes
+  const prod=G.models.filter(m=>m.st==='prod');
+  const cap=capOfFac(G.fac)/4;let rev=0,cost=0,units=0;
+  if(prod.length){
+    const d=demand(prod,y).map(x=>x.tot/4),tot=d.reduce((a,b)=>a+b,0),k=tot>cap?cap/tot:1;
+    prod.forEach((m,i)=>{
+      const u=Math.floor(d[i]*k+Math.random()*.999),uc=unitCost(m.met,Math.max(u*4,1)),war=uc*.04*m.met.dw;
+      const r=u*m.price,c=u*(uc+war);
+      m.last={u,dem:d[i],uc,war,r,c,lim:k<1};m.sold+=u;m.rev+=r;m.profit+=r-c;rev+=r;cost+=c;units+=u;
+      // réputation : qualité perçue et défauts
+      const ql=Math.log(clamp((m.met.rel+15)/100,.3,2))*40+Math.log(clamp((m.met.comf+15)/(itp(REF.comf,y)+15),.3,2))*30-14*m.met.dw;
+      const tgt=clamp(50+ql+(m.last.u>0?Math.min(15,Math.log10(1+m.sold)*3):0),0,100),wgt=clamp(u/Math.max(cap,1),0,1)*.12+.02;
+      G.rep=clamp(G.rep+(tgt-G.rep)*wgt,0,100);
+    });
+  }
+  for(const m of G.models) if(m.st!=='prod') m.last=null;
+  const upk=facUpkeep(G.fac,y)/4,int=G.debt*.06/4;
+  const profit=rev-cost-upk-int;
+  G.cash+=profit;
+  G.acc.rev+=rev;G.acc.cost+=cost+upk+int;G.acc.units+=units;G.acc.profit+=profit;
+  G.lastQ={rev,cost,upk,int,profit,units,cap:cap*4};
+  coverCash();
+  if(G.cash<0){G.negQ++;if(G.negQ>=2){G.over=true;news('Faillite',`${G.co} ne peut plus payer ses fournisseurs. La société est liquidée.`,'crit');saveGame();return;}news('Trésorerie négative','La banque refuse d\'avancer plus. Sans redressement le trimestre prochain, c\'est la faillite.','crit');}
+  else G.negQ=0;
+  // fin d'année
+  G.q++;
+  if(G.q>3){
+    G.hist.push({y:G.y,rev:G.acc.rev,profit:G.acc.profit,units:G.acc.units,cash:G.cash,rep:G.rep});
+    G.acc={rev:0,cost:0,units:0,profit:0};G.q=0;G.y++;
+    for(const h of HIST) if(h[0]===G.y) news(h[1],h[2],'hist');
+    const nt=techsNewIn(G.y);if(nt.length) news(`Nouveauté${nt.length>1?'s':''} technique${nt.length>1?'s':''} ${G.y}`,`Désormais possible à rechercher : ${nt.join(', ')}.`,'tech');
+    for(const r of REGS) if(r[0]===G.y+1) news('Réglementation l\'an prochain',`${r[1]} à partir de ${r[0]}. Les modèles non conformes seront retirés.`,'warn');
+  }
+  syncEra();saveGame();
+}
+function startResearch(id){const t=TECH[id];if(!t||G.res||G.techs.includes(id)||t.y>G.y) return;const c=resCost(t,yq());if(G.cash+loanLimit()-G.debt<c) return 'Trésorerie insuffisante.';G.cash-=c;G.res={id,left:resQ(t,yq()),tot:resQ(t,yq()),cost:c};coverCash();saveGame();return null;}
+function buildFactory(){const l=G.fac+1;if(l>=FAC.length||G.build) return;const c=facCost(l,yq());if(G.cash+loanLimit()-G.debt<c) return 'Trésorerie insuffisante.';G.cash-=c;G.facInv+=c;G.build={l,left:3};news(`Construction : ${FAC[l][0]}`,`Investissement ${moneyF(c)}, mise en service dans 3 trimestres.`);coverCash();saveGame();return null;}
+
+/* ───────────── Carrière : écran d'accueil et interface ───────────── */
+const BASE_TABS=TABS.slice();
+const CTABS=[['direction','Direction'],['recherche','Recherche'],['marche','Marché']];
+const isCTab=t=>CTABS.some(x=>x[0]===t);
+ui.resAll=false;ui.newPrice=0;ui.newName='';ui.msg='';
+
+function loadDesign(obj){for(const k of Object.keys(S)) delete S[k];Object.assign(S,DEF);if(obj) for(const k of Object.keys(DEF)) if(typeof obj[k]===typeof DEF[k]) S[k]=obj[k];ui.broken=null;ui.dmg={};ui.faults={};}
+function renderTabs(){$('#tabs').innerHTML=TABS.map(([k,n])=>`<button class="tab${isCTab(k)?' tab-c':''}" role="tab" type="button" data-tab="${k}" id="tab_${k}" aria-selected="false">${n}</button>`).join('');}
+function setMode(mode,g){
+  if(mode==='carriere'){
+    if(!G){try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}}
+    G=g;syncEra();loadDesign(G.design||S);
+    TABS.splice(0,TABS.length,...CTABS,...BASE_TABS);
+  }else{
+    if(G) saveGame();
+    G=null;syncEra();
+    let d=null;try{d=JSON.parse(localStorage.getItem('bea.design.v1')||'null');}catch(e){}
+    loadDesign(d||DEF);
+    TABS.splice(0,TABS.length,...BASE_TABS);
+  }
+  document.body.classList.toggle('mode-c',!!G);
+  $('#cbar').hidden=!G;$('#presetCell').hidden=!!G;
+  $('#projName').value=S.name||'';
+  renderTabs();renderCbar();hideHome();
+  setTab(G?'direction':'moteur');
+}
+
+/* ── écran d'accueil ── */
+function showHome(){
+  if(G) saveGame();
+  run=null;cruise=null;ui.sweep=null;if(AU) audioSet({rpm:900,ld:0,pr:1},false);
+  const sv=loadGame(),h=$('#home');
+  $('#hContinue').hidden=!sv;
+  if(sv) $('#homeContSub').textContent=`${sv.co} · ${Q[sv.q]} ${sv.y} · trésorerie ${moneyF(sv.cash)}${sv.over?' · faillite':''}`;
+  $('#homeMenu').hidden=false;$('#homeNew').hidden=true;
+  h.hidden=false;document.body.classList.add('home-on');
+  const b=$('#homeMenu button');if(b) b.focus({preventScroll:true});
+}
+function hideHome(){$('#home').hidden=true;document.body.classList.remove('home-on');}
+function homeCars(){
+  const ks=['roadster','berline','citadine','supercar'],ys=['1900','1950','1975','2000'];
+  return ks.map((k,i)=>`<figure><div>${miniCar(k)}</div><figcaption>${ys[i]}</figcaption></figure>`).join('');
+}
+function initHome(){
+  $('#homeCars').innerHTML=homeCars();
+  $('#eraPick').innerHTML=Object.entries(START).map(([y,s],i)=>`<label class="era-card"><input type="radio" name="eraY" value="${y}"${i===0?' checked':''}><span><b>${y}</b><em>${s.n}</em><small>${s.d}</small></span></label>`).join('');
+  $('#home').addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b) return;
+    if(b.id==='hContinue'){const sv=loadGame();if(sv) setMode('carriere',sv);}
+    else if(b.id==='hNew'){$('#homeMenu').hidden=true;$('#homeNew').hidden=false;$('#coName').focus();$('#newWarn').hidden=!loadGame();}
+    else if(b.id==='hFree') setMode('libre');
+    else if(b.id==='hBack'){$('#homeMenu').hidden=false;$('#homeNew').hidden=true;}
+    else if(b.id==='hFound'){
+      const y=+($('input[name=eraY]:checked')||{value:1900}).value,diff=($('input[name=diff]:checked')||{value:'nor'}).value,co=$('#coName').value.trim()||'Automobiles Nouvelles';
+      if(!G){try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}}else saveGame();
+      G=null;syncEra();newGame({y,diff,co});setMode('carriere',G);
+    }
+  });
+}
+
+/* ── barre de l'entreprise ── */
+function renderCbar(){
+  const c=$('#cbar');if(!G){c.innerHTML='';return;}
+  const cap=FAC[G.fac][1];
+  c.innerHTML=`<div class="cb-id"><span class="eyebrow">Entreprise</span><b>${G.co}</b></div>
+   <div class="cb-date"><span class="eyebrow">Date</span><b>${Q[G.q]} ${G.y}</b></div>
+   <div><span class="eyebrow">Trésorerie</span><b class="${G.cash<0?'neg':''}">${moneyF(G.cash)}</b></div>
+   <div><span class="eyebrow">Dette</span><b>${moneyF(G.debt)}</b></div>
+   <div><span class="eyebrow">Réputation</span><b>${nf(G.rep)}<small>/100</small></b></div>
+   <div><span class="eyebrow">${FAC[G.fac][0]}</span><b>${nf(cap)}<small> voit./an</small></b></div>
+   <div class="cb-act"><button class="btn sm" type="button" id="nextQ"${G.over?' disabled':''}>Trimestre suivant</button><button class="btn sm ghost" type="button" id="nextY"${G.over?' disabled':''}>+1 an</button></div>`;
+}
+function advance(n){
+  for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
+  renderCbar();
+  if(isCTab(ui.tab)){render();}else{buildControls();render();}
+  const nb=$('#tab_direction');if(nb&&ui.tab!=='direction'&&G.news[0]&&G.news[0].y===G.y) nb.classList.add('ping');
+}
+
+/* ── pages ── */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function tile(l,v,sub){return `<div class="tile"><span class="eyebrow">${l}</span><b>${v}</b>${sub?`<small>${sub}</small>`:''}</div>`;}
+function stBadge(m){return m.st==='dev'?`<span class="pill">Développement · ${m.devLeft} trim.</span>`:m.st==='prod'?'<span class="pill ok">En production</span>':'<span class="pill off">Arrêté</span>';}
+function careerHTML(t){
+  if(t==='direction') return dirHTML();
+  if(t==='recherche') return resHTML();
+  return mktHTML();
+}
+function dirHTML(){
+  const y=yq(),lq=G.lastQ||{rev:0,profit:0,units:0},cap=FAC[G.fac][1];
+  let h='';
+  if(G.over) h+=`<div class="brk"><b>Faillite de ${esc(G.co)}</b><p>La trésorerie est restée négative deux trimestres de suite. Vous pouvez fonder une nouvelle entreprise depuis l'accueil.</p><button class="btn sm" type="button" id="goHome">Retour à l'accueil</button></div>`;
+  h+=`<section class="cgrp"><h3>Le trimestre écoulé</h3><div class="tiles">${tile('Voitures vendues',nf(lq.units),`capacité ${nf(cap/4)} par trimestre`)}${tile('Chiffre d\'affaires',moneyF(lq.rev))}${tile('Résultat',moneyF(lq.profit),lq.upk?`dont usine ${moneyF(-lq.upk)}${lq.int?` · intérêts ${moneyF(-lq.int)}`:''}`:'')}${tile('Réputation',nf(G.rep)+' / 100',G.rep>=60?'Marque recherchée':G.rep>=40?'Marque connue':'Marque peu connue')}</div></section>`;
+  // gamme
+  const ms=G.models.slice().reverse();
+  h+=`<section class="cgrp"><h3>Gamme</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" value="${Math.round(m.price)}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="act"><button class="chip-btn" type="button" data-open="${m.id}">Reprendre au bureau</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div>`:'<p class="grp-note">Aucun modèle pour l\'instant. Concevez une voiture dans les onglets Moteur, Carrosserie, Transmission… puis lancez son développement ci-dessous.</p>'}</section>`;
+  h+=newModelHTML();
+  // usine
+  const nl=G.fac+1,uti=lq.cap?lq.units*4/lq.cap:0;
+  h+=`<section class="cgrp"><h3>Usine</h3><div class="row2"><div><p><b>${FAC[G.fac][0]}</b> · ${nf(cap)} voitures par an · charges fixes ${moneyF(facUpkeep(G.fac,y))} par an.</p><div class="gmeter" role="img" aria-label="Utilisation de l'usine ${nf(uti*100)} %"><i style="width:${clamp(uti*100,0,100).toFixed(1)}%"></i></div><p class="grp-note">Utilisation ${nf(uti*100)} % au dernier trimestre.</p></div><div>${G.build?`<p>Construction en cours : <b>${FAC[G.build.l][0]}</b>, mise en service dans ${G.build.left} trimestre${G.build.left>1?'s':''}.</p>`:nl<FAC.length?`<p>Agrandir : <b>${FAC[nl][0]}</b> (${nf(FAC[nl][1])} voitures par an) · ${moneyF(facCost(nl,y))} · 3 trimestres · charges ${moneyF(facUpkeep(nl,y))} par an.</p><button class="btn sm" type="button" id="facUp"${G.over?' disabled':''}>Construire</button>`:'<p>Capacité maximale atteinte.</p>'}</div></div></section>`;
+  // finances
+  const lim=loanLimit(),step=Math.max(1e4,Math.pow(10,Math.floor(Math.log10(Math.max(lim,1e4))))/2);
+  h+=`<section class="cgrp"><h3>Banque</h3><p>Dette ${moneyF(G.debt)} sur un plafond de ${moneyF(lim)} · intérêts 6 % par an. Si la trésorerie passe sous zéro, la banque comble automatiquement dans la limite du plafond.</p><div class="btns"><button class="chip-btn" type="button" id="borrow"${G.debt+step>lim||G.over?' disabled':''}>Emprunter ${moneyF(step)}</button><button class="chip-btn" type="button" id="repay"${G.debt<=0||G.cash<Math.min(step,G.debt)?' disabled':''}>Rembourser ${moneyF(Math.min(step,G.debt))}</button></div></section>`;
+  h+=histHTML();
+  h+=`<section class="cgrp"><h3>Actualités</h3><ul class="news">${G.news.slice(0,14).map(n=>`<li class="nw-${n.k}"><span class="eyebrow">${Q[n.q]} ${n.y}</span><b>${esc(n.t)}</b><p>${esc(n.d)}</p></li>`).join('')}</ul></section>`;
+  return `<div class="career">${h}</div>`;
+}
+function newModelHTML(){
+  const y=yq(),met=measure(M.E,M.C),uc=unitCost(met,Math.min(FAC[G.fac][1],2000)),sug=Math.round(uc*1.35/100)*100;
+  if(!ui.newPrice) ui.newPrice=sug;
+  const price=ui.newPrice,d=demand([{met,price,age:1.1,y:G.y}],y)[0],dc=devCost(met,y),ban=regBan(met,G.y);
+  const segs=SEGS.map(s=>[s,d.seg[s.k]||0]),mx=Math.max(1,...segs.map(x=>x[1]));
+  const issues=[];if(!met.fit) issues.push('Le moteur ne rentre pas dans la caisse : impossible à produire.');if(ban) issues.push(`Non homologable : ${ban.n} (il faut : ${ban.need}).`);
+  for(const r of REGS) if(r[0]>G.y&&r[0]<=G.y+6&&!r[2](met)) issues.push(`Sera interdit en ${r[0]} : ${r[1]}.`);
+  if(met.defects.length) issues.push(`Défauts techniques (${met.defects.join(', ')}) : frais de garantie et réputation en baisse. Voir l'onglet Essais.`);
+  return `<section class="cgrp" id="newModel"><h3>Lancer un nouveau modèle</h3><p class="grp-note">Projet actuel du bureau d'études : <b>${esc(S.name||'Sans nom')}</b> · ${BODY[met.body].n} · ${met.cfg} ${nf(met.L,1)} l · ${nf(met.P)} ch · ${nf(met.v)} km/h · ${nf(met.mix,1)} l/100 km. Modifiez-le dans les onglets de conception.</p>
+  <div class="row2"><div><div class="f"><div class="f-top"><label for="nmName">Nom commercial</label></div><input class="txt" type="text" id="nmName" maxlength="30" value="${esc(ui.newName||S.name||'')}"></div>
+  <div class="f"><div class="f-top"><label for="nmPrice">Prix de vente</label><output id="nmMarg">marge ${nf((price-uc)/price*100)} %</output></div><input class="num wide" type="number" inputmode="numeric" id="nmPrice" min="100" step="100" value="${price}"><p class="hint">Coût de fabrication estimé ${moneyF(uc)} par voiture · prix conseillé ${moneyF(sug)}. Prix moyen d'une voiture populaire en ${G.y} : ${moneyF(refPrice(y))}.</p></div>
+  <p>Étude et outillage : <b>${moneyF(dc)}</b> · sortie dans ${devQ(y)} trimestres.</p>
+  ${issues.length?`<ul class="iss">${issues.map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`:''}
+  <button class="btn" type="button" id="launch"${!met.fit||ban||G.over?' disabled':''}>Lancer le développement</button><p class="grp-note" id="launchMsg" role="status">${esc(ui.msg)}</p></div>
+  <div><p class="eyebrow">Demande estimée à ce prix : ${nf(d.tot,-1)} voitures par an</p><ul class="sbars">${segs.map(([s,v])=>`<li><span>${s.n}</span><i><b style="width:${(v/mx*100).toFixed(1)}%"></b></i><em>${nf(v,v>=100?-1:0)}</em></li>`).join('')}</ul><p class="hint">Estimation pour un modèle neuf face à la concurrence de ${G.y}, avec votre réputation actuelle. La capacité de l'usine limite ensuite les ventes.</p></div></div></section>`;
+}
+function histHTML(){
+  const H=G.hist.slice(-24);if(!H.length) return '';
+  const w=Math.max(320,Math.min(760,($('#stage').clientWidth||700)-40)),h=190,m={l:56,r:12,t:14,b:26},pw=w-m.l-m.r,ph=h-m.t-m.b;
+  const mx=Math.max(1,...H.map(x=>x.units)),ax=niceAxis(mx,4),bw=Math.min(24,pw/H.length-2);
+  const X=i=>m.l+(i+.5)*pw/H.length,Yv=v=>m.t+ph-v/ax.top*ph;
+  let s=`<svg class="ch" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Voitures vendues par an">`;
+  for(const t of ax.t) s+=`<line class="ch-g" x1="${m.l}" x2="${w-m.r}" y1="${Yv(t)}" y2="${Yv(t)}"/><text class="ch-t" x="${m.l-7}" y="${Yv(t)+3.5}" text-anchor="end">${t>=1e4?nf(t/1e3)+' k':nf(t)}</text>`;
+  H.forEach((x,i)=>{const y0=Yv(0),y1=Yv(x.units),hh=y0-y1;s+=`<path d="M${(X(i)-bw/2).toFixed(1)} ${y0}V${(y1+Math.min(4,hh)).toFixed(1)}q0 -${Math.min(4,hh).toFixed(1)} ${Math.min(4,bw/2).toFixed(1)} -${Math.min(4,hh).toFixed(1)}H${(X(i)+bw/2-Math.min(4,bw/2)).toFixed(1)}q${Math.min(4,bw/2).toFixed(1)} 0 ${Math.min(4,bw/2).toFixed(1)} ${Math.min(4,hh).toFixed(1)}V${y0}Z" fill="var(--s1)"><title>${x.y} : ${nf(x.units)} voitures</title></path>`;if(H.length<=12||i%Math.ceil(H.length/8)===0) s+=`<text class="ch-t" x="${X(i)}" y="${h-8}" text-anchor="middle">${x.y}</text>`;});
+  s+=`<line class="ch-a" x1="${m.l}" x2="${w-m.r}" y1="${Yv(0)}" y2="${Yv(0)}"/></svg>`;
+  const rows=G.hist.slice(-8).reverse();
+  return `<section class="cgrp"><h3>Historique</h3><p class="eyebrow">Voitures vendues par an</p><div class="ch-w">${s}</div><div class="tbl-w"><table class="ctbl"><thead><tr><th>Année</th><th class="n">Ventes</th><th class="n">Chiffre d'affaires</th><th class="n">Résultat</th><th class="n">Trésorerie</th><th class="n">Réputation</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.y}</td><td class="n">${nf(x.units)}</td><td class="n">${moneyF(x.rev)}</td><td class="n${x.profit<0?' neg':''}">${moneyF(x.profit)}</td><td class="n">${moneyF(x.cash)}</td><td class="n">${nf(x.rep)}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+function resHTML(){
+  const y=yq();let h='';
+  if(G.res){const t=TECH[G.res.id],p=1-G.res.left/G.res.tot;h+=`<section class="cgrp"><h3>Recherche en cours</h3><p><b>${t.n}</b> · encore ${G.res.left} trimestre${G.res.left>1?'s':''}.</p><div class="gmeter" role="img" aria-label="Avancement ${nf(p*100)} %"><i style="width:${(p*100).toFixed(1)}%"></i></div><p class="grp-note">${esc(t.d)}</p></section>`;}
+  else h+=`<section class="cgrp"><h3>Recherche</h3><p class="grp-note">Aucune recherche en cours. Une technologie ne peut être étudiée qu'à partir de son année d'invention ; plus on attend, moins elle coûte. Les pièces qu'elle débloque deviennent disponibles dans le bureau d'études.</p></section>`;
+  const own=new Set(G.techs);
+  h+=`<div class="res-tools"><div class="seg" role="radiogroup" aria-label="Filtre"><button type="button" role="radio" data-rf="0" aria-checked="${!ui.resAll}">Disponibles et à venir</button><button type="button" role="radio" data-rf="1" aria-checked="${ui.resAll}">Toutes</button></div><span class="grp-note">${own.size} technologies acquises sur ${TECHS.length}</span></div>`;
+  for(const [dk,dn] of DOMS){
+    const ts=TECHS.map(t=>TECH[t[0]]).filter(t=>t.dom===dk).filter(t=>ui.resAll||(!own.has(t.id)&&t.y<=G.y+12)).sort((a,b)=>a.y-b.y);
+    if(!ts.length) continue;
+    h+=`<section class="cgrp"><h3>${dn}</h3><ul class="techs">${ts.map(t=>{
+      const has=own.has(t.id),cur=G.res&&G.res.id===t.id,fut=t.y>G.y;
+      const unl=t.u.map(([k,v])=>uLabel(k,v)).filter(Boolean).join(', ');
+      let st;if(has) st='<span class="pill ok">Acquise</span>';else if(cur) st='<span class="pill">En cours</span>';else if(fut) st=`<span class="pill off">Inventée en ${t.y}</span>`;
+      else st=`<button class="chip-btn" type="button" data-res="${t.id}"${G.res||G.over?' disabled':''}>Rechercher · ${moneyF(resCost(t,y))} · ${resQ(t,y)} trim.</button>`;
+      return `<li class="${has?'is-has':fut?'is-fut':''}"><div><b>${t.n}</b><span class="eyebrow">${t.y}</span><p>${esc(t.d)}${unl?` <em>Débloque : ${esc(unl)}.</em>`:''}</p></div><div>${st}</div></li>`;}).join('')}</ul></section>`;
+  }
+  return `<div class="career">${h}</div>`;
+}
+const U_TAB={config:CFG,valvetrain:VT,fuelSys:FS,timing:TIMING,blockMat:BLOCK,liner:LINER,sump:SUMP,valveMat:VALVE,springs:SPRING,intake:INTAKE,turboStage:STAGE,turboType:TURBO,turboBearing:BEAR,scType:SCT,oilGrade:OIL,fuel:FUEL,body:BODY,enginePos:POS,chassis:CHAS,panels:PANEL,gearbox:GBX,suspF:SUSP,suspR:SUSP,compound:TYRE,brakeF:BRK,brakeR:BRK,trim:TRIM,media:MEDIA,passive:PASS,steering:STEER,manifold:EXH.man,cat:EXH.cat,muffler:EXH.muf};
+function uLabel(k,v){
+  if(k==='ecuFuel'||k==='brakeR'||k==='suspR'||k==='splitter') return '';
+  if(typeof v==='boolean') return {vvt:'calage variable',vvl:'levée variable',cda:'désactivation de cylindres',flex:'capteur d\'éthanol',launchCtl:'launch control',pops:'cartographies',startStop:'stop & start',ecuVmax:'bridage électronique',flatFloor:'fond plat',abs:'ABS',tc:'antipatinage',esp:'ESP'}[k]||'';
+  if(k==='config') return CFG[v].full||CFG[v].lab;
+  if(k==='aspiration') return {sc:'compresseur',turbo:'turbo',biturbo:'biturbo',tri:'triturbo',quad:'quadriturbo'}[v];
+  if(k==='drive') return DRV[v];if(k==='headMat') return 'culasse alu';if(k==='internals') return v==='ti'?'bielles titane':'équipage forgé';if(k==='diff') return v==='lsd'?'autobloquant':'différentiel piloté';
+  if(k==='intercooler') return v==='air'?'échangeur air/air':'échangeur air/eau';if(k==='rimType') return v==='alloy'?'jantes alliage':'jantes forgées';if(k==='wing') return v==='lip'?'becquet':'aileron';
+  const T=U_TAB[k];return T&&T[v]?String(T[v].n||'').toLocaleLowerCase():'';
+}
+function mktHTML(){
+  const y=yq(),vol=marketVol(y),sh=segShares(y);
+  let h=`<section class="cgrp"><h3>Le marché en ${G.y}</h3><div class="tiles">${tile('Voitures neuves par an',nf(vol,-2),SHOCK[G.y]?'marché perturbé cette année':'')}${tile('Concurrents',nf(itp(NCOMP,y)),'marques en activité')}${tile('Voiture populaire',moneyF(refPrice(y)),'prix moyen')}${tile('Votre part',G.lastQ&&vol?nf(G.lastQ.units*4/vol*100,2)+' %':'—','au dernier trimestre')}</div></section>`;
+  h+=`<section class="cgrp"><h3>Ce que les clients attendent</h3><p class="grp-note">Voiture moyenne de chaque clientèle en ${G.y}. Faire mieux attire les acheteurs ; les attentes montent chaque année.</p><div class="tbl-w"><table class="ctbl"><thead><tr><th>Clientèle</th><th class="n">Part du marché</th><th class="n">Puissance</th><th class="n">Vitesse maxi</th><th class="n">Prix moyen</th><th>Ce qui compte</th></tr></thead><tbody>${SEGS.map((s,i)=>`<tr><td><b>${s.n}</b></td><td class="n">${nf(sh[i]*100)} %</td><td class="n">${nf(itp(REF.P,y)*s.sp)} ch</td><td class="n">${nf(itp(REF.V,y)*s.sv,-1)} km/h</td><td class="n">${moneyF(refPrice(y,s))}</td><td>${segWhat(s,y)}</td></tr>`).join('')}</tbody></table></div></section>`;
+  const up=REGS.filter(r=>r[0]>=G.y);
+  h+=`<section class="cgrp"><h3>Réglementation</h3>${up.length?`<ul class="news">${up.map(r=>`<li class="nw-warn"><span class="eyebrow">${r[0]}</span><b>${r[1]}</b><p>Exigé : ${r[3]}.</p></li>`).join('')}</ul>`:'<p class="grp-note">Toutes les normes connues sont en vigueur.</p>'}</section>`;
+  const nx=TECHS.filter(t=>t[3]>G.y&&t[3]<=G.y+10).slice(0,12);
+  h+=`<section class="cgrp"><h3>Inventions à venir</h3>${nx.length?`<ul class="techs">${nx.map(t=>`<li class="is-fut"><div><b>${t[2]}</b><span class="eyebrow">${t[3]}</span></div></li>`).join('')}</ul>`:'<p class="grp-note">Rien de prévu dans les dix ans.</p>'}</section>`;
+  return `<div class="career">${h}</div>`;
+}
+function segWhat(s,y){
+  const w=Object.assign({},s.w);if(w.eco) w.eco*=itp(ECO_IMP,y);if(w.saf) w.saf*=itp(SAF_IMP,y);w.prix=s.el*.35;
+  const L={P:'puissance',V:'vitesse',comf:'confort',rel:'fiabilité',eco:'sobriété',saf:'sécurité',pract:'habitabilité',hand:'tenue de route',prest:'prestige',off:'franchissement',prix:'prix'};
+  return Object.entries(w).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>L[x[0]]).join(', ');
+}
+
+/* ── interactions ── */
+function careerClick(e){
+  if(!G) return false;
+  const b=e.target.closest('button');if(!b) return false;
+  const id=b.id;let msg=null;
+  if(id==='launch'){const nm=($('#nmName').value||'').trim()||S.name;msg=launchModel(nm,ui.newPrice);ui.msg=msg||'';if(!msg){ui.newPrice=0;ui.newName='';}}
+  else if(id==='facUp') msg=buildFactory();
+  else if(id==='borrow'){const lim=loanLimit(),st=Math.max(1e4,Math.pow(10,Math.floor(Math.log10(Math.max(lim,1e4))))/2);if(G.debt+st<=lim){G.debt+=st;G.cash+=st;}}
+  else if(id==='repay'){const lim=loanLimit(),st=Math.min(G.debt,Math.max(1e4,Math.pow(10,Math.floor(Math.log10(Math.max(lim,1e4))))/2));if(G.cash>=st){G.debt-=st;G.cash-=st;}}
+  else if(id==='goHome'){showHome();return true;}
+  else if(b.dataset.res){msg=startResearch(b.dataset.res);}
+  else if(b.dataset.rf){ui.resAll=b.dataset.rf==='1';}
+  else if(b.dataset.stop){const m=G.models.find(x=>x.id==b.dataset.stop);if(m&&confirm(`Arrêter définitivement la production de ${m.name} ?`)){m.st='stop';news(`Fin de production : ${m.name}`,`${nf(m.sold)} exemplaires vendus.`);}}
+  else if(b.dataset.open){const m=G.models.find(x=>x.id==b.dataset.open);if(m){loadDesign(m.snap);S.name=m.name+' II';$('#projName').value=S.name;saveGame();setTab('moteur');return true;}}
+  else return false;
+  if(msg) ui.msg=msg;
+  saveGame();renderCbar();render();
+  return true;
+}
+function careerInput(e){
+  if(!G) return;
+  const t=e.target;
+  if(t.id==='nmPrice'){const v=+t.value;if(v>0){ui.newPrice=v;const card=$('#newModel');if(card&&e.type==='change'){const f=document.activeElement===t;card.outerHTML=newModelHTML();if(f){const n=$('#nmPrice');n.focus();}}}}
+  else if(t.id==='nmName') ui.newName=t.value;
+  else if(t.dataset.price&&e.type==='change'){const m=G.models.find(x=>x.id==t.dataset.price),v=+t.value;if(m&&v>0){m.price=Math.round(v/10)*10;saveGame();}}
+}
+$('#stage').addEventListener('click',e=>{if(careerClick(e)) e.stopImmediatePropagation();},true);
+$('#stage').addEventListener('input',careerInput);
+$('#stage').addEventListener('change',careerInput);
+$('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!G) return;if(b.id==='nextQ') advance(1);else if(b.id==='nextY') advance(4);});
+$('#homeBtn').addEventListener('click',showHome);
+initHome();
+
 /* ───────────── Rendu ───────────── */
 function renderKeys(){
   const E=M.E,C=M.C;
@@ -2375,6 +3172,12 @@ function renderKeys(){
 }
 function renderStage(){
   const draw=$('#stageDraw'),data=$('#stageData');
+  if(isCTab(ui.tab)){
+    if(!G){setTab('moteur');return;}
+    const f=document.activeElement,fid=f&&f.tagName==='INPUT'?f.id:'';draw.innerHTML='';data.innerHTML=careerHTML(ui.tab);
+    if(fid&&$('#'+fid)) $('#'+fid).focus({preventScroll:true});
+    return;
+  }
   if(ui.tab==='moteur'){
     if(!$('#engCv')){
       draw.innerHTML=`<figure class="draw eng"><div class="draw-tools"><div class="seg" role="radiogroup" aria-label="Vue du moteur"><button type="button" role="radio" data-ev="3d" id="ev_3d">3D habillé</button><button type="button" role="radio" data-ev="cut" id="ev_cut">3D écorché</button><button type="button" role="radio" data-ev="2d" id="ev_2d">Coupe 2D</button><button type="button" role="radio" data-ev="cyc" id="ev_cyc">Chambre de combustion</button></div><label class="chip-btn" id="pinLab"><input type="checkbox" id="pinTog"${ui.pins?' checked':''}>Repères</label><button class="chip-btn" id="zoomOut" type="button" aria-label="Dézoomer">−</button><button class="chip-btn" id="zoomIn" type="button" aria-label="Zoomer">+</button></div><div class="eng-view"><canvas id="eng3d" role="img" aria-label="Vue 3D du moteur et de ses périphériques"></canvas><div id="engPins" aria-hidden="true"></div><canvas id="engCv" role="img" aria-label="Coupe animée du moteur"></canvas></div><div id="cycBar" hidden><div class="seg" role="group" aria-label="Temps du cycle">${CYC_N.map((n,i)=>`<button type="button" data-ph="${i}">${i+1}. ${n}</button>`).join('')}<button type="button" id="cycPlay">Pause</button></div><p class="leg-desc" id="cycDesc"></p></div><figcaption id="engCap"></figcaption>${benchHTML()}<div id="engLegend"></div></figure>`;
@@ -2402,17 +3205,19 @@ function renderStage(){
 }
 let saveT=0;
 function render(){
-  sanitize();
+  sanitize();if(ERA){eraFix();sanitize();}
   if(!S.injSize||!S.ecuIdle){const fresh=!S.injSize;if(fresh&&!FUEL[S.fuel].diesel) S.ecuFuel=S.fuel;const E0=computeEngine(Object.assign({},S,{injSize:1e6,ecuIdle:0,fuelPress:3}));if(fresh) S.injSize=clamp(Math.round(E0.injNeed*1.25/10)*10,60,3000);if(!S.ecuIdle) S.ecuIdle=E0.idle0;}
   M.E=computeEngine(S);if(!S.oilInt){S.oilInt=M.E.oilRec;M.E=computeEngine(S);}M.C=computeCar(S,M.E);
   renderKeys();renderStage();for(const f of ctlUpd) f();
-  clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}},400);
+  clearTimeout(saveT);saveT=setTimeout(saveDesign,400);
 }
+function saveDesign(){if(G){saveGame();return;}try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(e){}}
 function setTab(t,fromHash){
   if(!TABS.some(x=>x[0]===t)) t='moteur';
   ui.tab=t;run=null;cruise=null;ui.sweep=null;dispose3D();if(AU) audioSet({rpm:M.E?M.E.idle:900,ld:0,pr:1},false);
-  for(const b of $$('#tabs .tab')) b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false');
-  $('#board').classList.toggle('full',t==='essais');$('#controls').hidden=t==='essais';
+  for(const b of $$('#tabs .tab')){b.setAttribute('aria-selected',b.dataset.tab===t?'true':'false');if(b.dataset.tab===t) b.classList.remove('ping');}
+  const full=t==='essais'||isCTab(t);
+  $('#board').classList.toggle('full',full);$('#controls').hidden=full;$('#keys').hidden=isCTab(t);
   $('#stageDraw').innerHTML='';$('#stageData').innerHTML='';
   buildControls();render();
   if(!fromHash){try{history.replaceState(null,'','#'+t);}catch(e){try{location.hash=t;}catch(e2){}}}
@@ -2426,13 +3231,13 @@ function applyPreset(k){
 }
 function init(){
   readTheme();
-  $('#tabs').innerHTML=TABS.map(([k,n])=>`<button class="tab" role="tab" type="button" data-tab="${k}" id="tab_${k}" aria-selected="false">${n}</button>`).join('');
+  renderTabs();
   $('#preset').innerHTML=Object.entries(PRESETS).map(([k,p])=>`<option value="${k}">${p.label}</option>`).join('');
   $('#preset').value=PRESETS[S.preset]?S.preset:'coupe';
   $('#projName').value=S.name||'';
   $('#tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(b) setTab(b.dataset.tab);});
   $('#preset').addEventListener('change',e=>applyPreset(e.target.value));
-  $('#projName').addEventListener('input',e=>{S.name=e.target.value;if(ui.tab==='essais'&&$('#fiche')) $('#fiche').textContent=fiche();clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem('bea.design.v1',JSON.stringify(S));}catch(err){}},400);});
+  $('#projName').addEventListener('input',e=>{S.name=e.target.value;if(ui.tab==='essais'&&$('#fiche')) $('#fiche').textContent=fiche();clearTimeout(saveT);saveT=setTimeout(saveDesign,400);});
   $('#stage').addEventListener('change',e=>{if(e.target.id==='cutTog'){ui.cut=e.target.checked;renderStage();}else if(e.target.id==='pinTog'){ui.pins=e.target.checked;setEngView();engFrame();}else if(e.target.id==='animTog'){ui.noAnim=!e.target.checked;if(ui.tab==='moteur') kickEngine();}else if(e.target.id==='sndTog'){if(!setSound(e.target.checked)) e.target.checked=false;if(ui.tab==='moteur') kickEngine();else audioSet({rpm:M.E.idle,ld:0,pr:1},ui.snd);}else if(e.target.id==='thermTog'){ui.therm=e.target.checked;benchUpdate();engFrame();}});
   $('#stage').addEventListener('input',e=>{if(e.target.id==='cruiseV'){ui.cruiseV=+e.target.value;cruiseUI();return;}if(e.target.id==='benchRpm'){ui.sweep=null;ui.rpm=+e.target.value;benchUpdate();kickEngine();}else if(e.target.id==='benchLoad'){ui.sweep=null;ui.load=+e.target.value;benchUpdate();kickEngine();}});
   const hov=e=>{const b=e.target.closest&&e.target.closest('#engLegend [data-pi]');if(E3&&b) mark3D(e.type==='mouseout'||e.type==='focusout'?null:E3.shown[+b.dataset.pi]);};
@@ -2463,7 +3268,7 @@ function init(){
       try{navigator.clipboard.writeText(txt).then(()=>{msg.textContent='Fiche copiée.';},sel);}catch(err){sel();}
     }
   });
-  window.addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t&&t!==ui.tab) setTab(t,true);});
+  window.addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(t&&t!==ui.tab&&TABS.some(x=>x[0]===t)) setTab(t,true);});
   const mq=matchMedia('(prefers-color-scheme: dark)'),th=()=>{readTheme();engFrame();};
   if(mq.addEventListener) mq.addEventListener('change',th);
   new MutationObserver(th).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
@@ -2474,9 +3279,9 @@ function init(){
   let lastW=0;
   const setKeysH=()=>document.documentElement.style.setProperty('--keys-h',$('#keys').offsetHeight+'px');
   if(window.ResizeObserver) new ResizeObserver(()=>{const w=$('#stage').clientWidth;setKeysH();if(Math.abs(w-lastW)>6){lastW=w;if(M.E&&!run) renderStage();}}).observe($('#stage'));
-  const h=location.hash.slice(1);
-  setTab(TABS.some(x=>x[0]===h)?h:ui.tab,true);
+  setTab('moteur',true);
   lastW=$('#stage').clientWidth;setKeysH();
+  showHome();
 }
 function start(d){
   try{const raw=localStorage.getItem('bea.design.v1');if(raw){const sv=JSON.parse(raw);for(const k of Object.keys(DEF)) if(typeof sv[k]===typeof DEF[k]) S[k]=sv[k];}}catch(e){}
@@ -2484,7 +3289,7 @@ function start(d){
   if(d&&d.tab) ui.tab=d.tab;
   init();
 }
-window.__bea={S,M,applyPreset,setTab,render:()=>render(),get au(){return AU;},get e3(){return E3;}};
+window.__bea={S,M,applyPreset,setTab,render:()=>render(),get G(){return G;},advance,get au(){return AU;},get e3(){return E3;}};
 window.claude?.hot?.snapshot?.(()=>({S:Object.assign({},S),tab:ui.tab}));
 window.claude?.hot?.ready?window.claude.hot.ready(start):start(window.claude?.hot?.data??{});
 

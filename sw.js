@@ -1,5 +1,5 @@
 /* Service hors connexion : fichier généré par outils/build.py, ne pas modifier sw.js à la main. */
-const VERSION='bea-15c70e76ac';
+const VERSION='bea-c9a4681640';
 const FICHIERS=[
   './',
   'index.html',
@@ -25,6 +25,9 @@ const FICHIERS=[
   'js/16-planche.js',
   'js/17-essais.js',
   'js/18-reglages.js',
+  'js/20-epoques.js',
+  'js/21-carriere.js',
+  'js/22-carriere-ui.js',
   'js/19-rendu.js',
   'js/pwa.js',
   'icons/apple-touch-icon.png',
