@@ -76,7 +76,7 @@ const TECHS=[
  ['a_clapets','ali','Échappement actif à clapets',2005,[['muffler','valve']],.6,'Discret en ville, sonore à fond.'],
  ['a_0w20','ali','Huile 0W-20 basse friction',2005,[['oilGrade','0w20']],.5,'Moins de frottements, moins de consommation.'],
  ['a_ss','ali','Stop & start',2006,[['startStop',true]],.6,'Coupe le moteur à l\'arrêt.'],
- ['a_gpf','ali','Filtre à particules essence',2017,[['cat','gpf']],.8,'Requis pour les injections directes récentes.'],
+ ['a_gpf','ali','Filtre à particules',2000,[['cat','gpf']],.9,'Piège les suies : indispensable aux diesels à partir de la norme Euro 5, puis aux injections directes essence.'],
 
  ['s_roots','sur','Compresseur Roots',1921,[['aspiration','sc'],['scType','roots']],1.3,'Entraîné par le moteur, il souffle dès le ralenti.'],
  ['s_centri','sur','Compresseur centrifuge',1929,[['scType','centri']],1,'Sa pression monte avec le régime.'],

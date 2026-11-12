@@ -38,7 +38,26 @@ const FIT={
   'Tout-terrain':{citadine:.03,compacte:.05,berline:.1,break:.35,coupe:.02,roadster:.02,suv:1,pickup:1,supercar:0},
 };
 const FAC=[['Atelier',60],['Fabrique',600],['Usine',6000],['Grande usine',50000],['Complexe industriel',250000],['Groupe mondial',1000000]];
-const REGS=[[1979,'Ceintures et structure déformable obligatoires',m=>m.passive!=='min','Sécurité passive « Standard » au minimum'],[1993,'Norme Euro 1 : pot catalytique obligatoire',m=>m.emis,'Injection et catalyseur'],[2004,'ABS obligatoire',m=>m.abs,'ABS'],[2014,'Contrôle de stabilité (ESP) obligatoire',m=>m.esp,'ESP']];
+// normes : y = nouveaux modèles, ya = toutes les voitures vendues
+const REGS=[
+  {y:1970,ya:1971,n:'Ceintures de sécurité avant obligatoires',ok:m=>m.passive!=='min',need:'sécurité passive « Standard » (ceintures, zones déformables)'},
+  {y:1992,ya:1993,n:'Norme Euro 1 : pot catalytique et injection pour les moteurs à essence',ok:m=>m.diesel||m.emis,need:'injection et catalyseur 3 voies'},
+  {y:1996,ya:1997,n:'Norme Euro 2 : catalyseur d\'oxydation pour les diesels',ok:m=>!m.diesel||(m.cat?m.cat!=='none':m.emis),need:'un catalyseur'},
+  {y:2004,ya:2004,n:'ABS sur toutes les voitures neuves (engagement des constructeurs européens)',ok:m=>m.abs,need:'ABS'},
+  {y:2009,ya:2011,n:'Norme Euro 5 : filtre à particules pour les diesels',ok:m=>!m.diesel||m.cat==='gpf',need:'filtre à particules'},
+  {y:2011,ya:2014,n:'Contrôle de stabilité (ESP) obligatoire',ok:m=>m.esp,need:'ESP'},
+  {y:2017,ya:2018,n:'Norme Euro 6c : filtre à particules pour l\'injection directe essence',ok:m=>m.diesel||!m.di||m.cat==='gpf',need:'filtre à particules'},
+];
+// monnaie de l'époque : unités par euro de 2020 (francs germinal, anciens francs, nouveaux francs, euros)
+const FX=[[1900,.254],[1914,.28],[1919,.6],[1920,.85],[1926,1.4],[1930,1.5],[1936,1.6],[1938,2.3],[1941,3.3],[1945,9.5],[1946,14],[1948,27],[1950,33],[1955,40],[1959,51]];
+const FX2=[[1960,.535],[1965,.62],[1970,.75],[1974,1],[1980,1.82],[1985,2.6],[1990,3.2],[1995,3.6],[2001,4]];
+const FX3=[[2002,.77],[2010,.9],[2020,1],[2030,1.2]];
+function fxOf(y){y=Math.floor(y);return y<1960?{k:itp(FX,y),u:'F',old:true}:y<2002?{k:itp(FX2,y),u:'F'}:{k:itp(FX3,y),u:'€'};}
+const POP=[[1900,30000],[1910,26000],[1915,22000],[1920,16000],[1930,14000],[1945,13000],[1950,11000],[1960,11000],[1970,13000],[1980,17000],[1990,17000],[2000,15500],[2010,16000],[2020,17500]];
+// presse automobile (titres imaginaires) : [nom, début, fin, sensibilité]
+const MAGS=[['La Gazette du Chauffeur',1900,1945,'tech'],['Mécanique & Locomotion',1900,1965,'perf'],['L\'Écho des Routes',1900,1960,'famille'],['Le Volant Français',1920,2100,'famille'],['Route Libre',1950,2100,'perf'],['L\'Essai Auto',1960,2100,'tech'],['Moteur Mag',1975,2100,'perf'],['Auto Critique',1990,2100,'famille'],['Chrono & Conso',2005,2100,'tech']];
+const MAG_W={perf:{P:.3,V:.2,hand:.2,rel:.1,prix:.2},famille:{comf:.2,pract:.15,eco:.15,saf:.15,rel:.15,prix:.2},tech:{rel:.2,P:.15,eco:.15,comf:.15,saf:.1,hand:.1,prix:.15}};
+const LAB=[['Bureau des méthodes',1],['Laboratoire',2],['Centre de recherche',3],['Centre technique',4]];
 const HIST=[
  [1903,'Les grandes courses','Paris-Madrid est arrêtée à Bordeaux après une série d\'accidents. Les clients aisés veulent toujours plus de vitesse.'],
  [1908,'Une voiture pour tous','Aux États-Unis, un constructeur lance une voiture simple et robuste, bientôt fabriquée à la chaîne. Les prix vont chuter.'],
@@ -66,16 +85,23 @@ const Q=['T1','T2','T3','T4'];
 const yq=()=>G.y+G.q/4;
 const devF=y=>itp(DEVF,y);
 function prodF(){let f=2.4;const h=k=>G.techs.includes(k);if(h('p_chaine')) f*=2/3;if(h('p_presses')) f*=.85;if(h('p_robots')) f*=.85;if(h('p_lean')) f*=.9;if(h('p_plateforme')) f*=.9;return f;}
-function refPrice(y,seg){return itp(BASECOST,y)*itp(PROD_EXP,y)*1.25*(seg?seg.pm:1);}
+function oldRef(y){return itp(BASECOST,y)*itp(PROD_EXP,y)*1.25;}
+function eraK(y){return itp(POP,y)/oldRef(y);}
+function refPrice(y,seg){return itp(POP,y)*(seg?seg.pm:1);}
 function marketVol(y){return itp(MARKET,y)*(SHOCK[Math.floor(y)]||1);}
 function segShares(y){const s=SEGS.map(g=>itp(g.share,y)),t=s.reduce((a,b)=>a+b,0);return s.map(v=>v/t);}
 function capOfFac(l){return FAC[l][1];}
 function facCost(l,y){return (FAC[l][1]-FAC[l-1][1])*.2*refPrice(y);}
 function facUpkeep(l,y){return FAC[l][1]*.06*refPrice(y);}
-function moneyF(x){const a=Math.abs(x),s=x<0?'−':'';if(a>=1e9) return s+nf(a/1e9,2)+' Md€';if(a>=1e6) return s+nf(a/1e6,a>=1e8?0:1)+' M€';if(a>=1e4) return s+nf(a/1e3)+' k€';return s+nf(a)+' €';}
-function devCost(met,y){let f=1;if(G.techs.includes('p_cao')) f*=.7;if(G.techs.includes('p_plateforme')) f*=.8;return (60000+met.cost*6)*devF(y)*f;}
+function moneyF(x,y){const c=fxOf(y!=null?y:(G?G.y:2020)),v=x*c.k,a=Math.abs(v),s=v<0?'−':'',u=c.u;if(a<.5) return '0 '+u;if(a>=1e9) return s+nf(a/1e9,2)+' Md'+u;if(a>=1e6) return s+nf(a/1e6,a>=1e8?0:1)+' M'+u;if(a>=1e4) return s+nf(a/1e3)+' k'+u;return s+nf(a,a<100?2:a>=1000?-1:0)+' '+u;}
+function toCur(x,y){return x*fxOf(y!=null?y:G.y).k;}
+function fromCur(v,y){return v/fxOf(y!=null?y:G.y).k;}
+function curName(y){const c=fxOf(y);return c.u==='€'?'euros':c.old?'francs':'nouveaux francs';}
+function devCost(met,y){let f=eraK(y);if(G.techs.includes('p_cao')) f*=.7;if(G.techs.includes('p_plateforme')) f*=.8;return (60000+met.cost*6)*devF(y)*f;}
 function devQ(y){return Math.round(itp([[1900,2],[1950,3],[1970,4]],y));}
-function resCost(t,y){return 150000*devF(t.y)*t.k*Math.max(.3,1-(y-t.y)/30);}
+function resCost(t,y){return 150000*devF(t.y)*t.k*Math.max(.3,1-(y-t.y)/30)*eraK(y);}
+function labCost(l,y){return 300000*devF(y)*l*eraK(y);}
+function resSlots(){return LAB[G.lab||0][1];}
 function resQ(t,y){return Math.max(1,Math.round((1+t.k*1.5)*Math.max(.5,1-(y-t.y)/30)));}
 function loanLimit(){const fv=G.facInv||0;const lr=G.hist.length?G.hist[G.hist.length-1].rev:0;return Math.max(G.startCash*.5,fv*.5+lr*.3);}
 function syncEra(){ERA=G?{y:G.y,has:new Set(G.techs)}:null;}
@@ -85,9 +111,9 @@ function measure(E,C,s){
   s=s||S;const defects=[];let dw=0;
   for(const k of C.checks) if(k.lv==='crit'&&DEFECTS[k.t]!=null&&!(k.t==='Freinage'&&G&&G.y<1955)){defects.push(k.t);dw+=DEFECTS[k.t];}
   const aero=G&&G.techs.includes('p_soufflerie')?1:0;
-  return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
+  return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,cat:s.cat,di:s.fuelSys==='di'||s.fuelSys==='dual',abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
 }
-function unitCost(m,annual){const vf=clamp(1.25-.075*Math.log10(Math.max(annual,10)),.8,1.25);return m.cost*prodF()*vf;}
+function unitCost(m,annual){const vf=clamp(1.25-.075*Math.log10(Math.max(annual,10)),.8,1.25);return m.cost*prodF()*vf*eraK(G?yq():2020);}
 // attractivité d'un modèle pour un segment (1 = voiture moyenne de l'époque)
 function appeal(m,seg,y,price){
   const w=seg.w,ln=Math.log,c=x=>clamp(x,.25,2.5);let L=0;
@@ -109,13 +135,52 @@ function appeal(m,seg,y,price){
 function fitOf(seg,body,y){let f=FIT[seg.k][body]||0;if(y<1945&&body==='roadster') f=seg.k==='Citadine'?.8:seg.k==='Familiale'?.5:f;return f;}
 function repF(){return .7+.6*G.rep/100;}
 function ageF(m){const a=yq()-(m.ly||m.y);return a<1?1.1:Math.max(.6,1.1-.06*a);}
-function regBan(m,y){for(const [ry,n,ok,need] of REGS) if(y>=ry&&!ok(m)) return {n,need,ry};return null;}
+function regBan(m,y,neuf){for(const r of REGS) if(y>=(neuf?r.y:r.ya)&&!r.ok(m)) return {n:r.n,need:r.need,ry:neuf?r.y:r.ya};return null;}
+function pressF(m){if(!m.press) return 1;const a=yq()-(m.ly||m.y);return 1+clamp((m.press.avg-12)/8,-1,1)*.25*Math.max(0,1-a/3);}
+// essais de la presse au lancement
+function bestSeg(m,y){let b=SEGS[0],bv=-1;for(const s of SEGS){const v=appeal(m.met,s,y,m.price)*fitOf(s,m.met.body,y);if(v>bv){bv=v;b=s;}}return b;}
+function reviewModel(m){
+  const y=yq(),mt=m.met,seg=bestSeg(m,y),ln=Math.log,c=x=>clamp(x,-1,1),q=(v,r)=>ln((v+15)/(r+15));
+  const sc={P:c(ln(mt.P/(itp(REF.P,y)*seg.sp))*1.4),V:c(ln(mt.v/(itp(REF.V,y)*seg.sv))*2),comf:c(q(mt.comf,itp(REF.comf,y))*2),rel:c(q(mt.rel,85)*3),
+    saf:c(q(mt.saf,itp(REF.saf,y))*2)*Math.min(1,itp(SAF_IMP,y)),eco:c(ln(itp(REF.cons,y)/mt.mix)*2)*Math.min(1,itp(ECO_IMP,y)),hand:c(q(mt.hand,itp(REF.hand,y))*2),
+    pract:c(q(mt.pract,55)*1.5),prest:c(q(mt.prest,itp(REF.prest,y))*1.5),prix:c(ln(refPrice(y,seg)/m.price)*1.6)};
+  const pr=moneyF(m.price),Y=G.y;
+  const PH={
+    P:[`un moteur vigoureux : ${nf(mt.P)} ch, c'est beaucoup en ${Y}`,`un moteur poussif : ${nf(mt.P)} ch, c'est peu pour l'époque`],
+    V:[`elle file à ${nf(mt.v)} km/h, une vitesse remarquable`,`plafonnant à ${nf(mt.v)} km/h, elle se fait dépasser`],
+    comf:['un confort de premier ordre','un confort spartiate'],
+    rel:['une mécanique qui inspire confiance','une fiabilité qui inquiète'],
+    saf:['une sécurité au meilleur niveau','une protection des occupants en retard'],
+    eco:[`une sobriété appréciable (${nf(mt.mix,1)} l/100 km)`,`un appétit d'ogre (${nf(mt.mix,1)} l/100 km)`],
+    hand:['une tenue de route précise','un comportement routier approximatif'],
+    pract:['un habitacle et un coffre bien pensés','une habitabilité comptée'],
+    prest:['une présentation flatteuse','une finition qui manque d\'éclat'],
+    prix:[`un prix de ${pr} très bien placé`,`${pr}, c'est cher pour ce qu'elle offre`],
+  };
+  const mags=MAGS.filter(g=>Y>=g[1]&&Y<=g[2]);
+  for(let i=mags.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mags[i],mags[j]]=[mags[j],mags[i]];}
+  const list=mags.slice(0,3).map(([mag,,,bias])=>{
+    const w=MAG_W[bias];let S0=0,wt=0;for(const k in w){S0+=w[k]*sc[k];wt+=w[k];}S0/=wt;
+    const note=clamp(Math.round((12+16*S0-2.5*mt.dw+(Math.random()*2-1))*2)/2,3,19.5);
+    const r=Object.keys(w).map(k=>[k,w[k]*sc[k]]).sort((a,b)=>b[1]-a[1]);
+    const plus=r[0][1]>.01?PH[r[0][0]][0]:'',minus=r[r.length-1][1]<-.01?PH[r[r.length-1][0]][1]:'';
+    let txt=plus&&minus?`${plus.replace(/^./,ch=>ch.toUpperCase())}, mais ${minus}.`:plus?`${plus.replace(/^./,ch=>ch.toUpperCase())}, et rien de vraiment fâcheux.`:minus?`Peu d'arguments, et ${minus}.`:'Dans la moyenne de sa catégorie sur tous les points.';
+    if(mt.dw>0) txt+=` Notre voiture d'essai a connu des ennuis (${mt.defects.join(', ').toLocaleLowerCase()}).`;
+    txt+=' '+(note>=16?'Une référence.':note>=13?'Un bon achat.':note>=10?'Correcte, sans plus.':'À éviter.');
+    return {mag,note,txt};
+  });
+  const avg=list.reduce((a,x)=>a+x.note,0)/Math.max(1,list.length);
+  m.press={avg,list,y:G.y,q:G.q,seg:seg.n};
+  G.rep=clamp(G.rep+(avg-12)*.6,0,100);
+  const best=list.slice().sort((a,b)=>b.note-a.note)[0];
+  news(`La presse essaie « ${m.name} » : ${nf(avg,1)}/20`,best?`${best.mag} (${nf(best.note,1)}/20) : « ${best.txt} »`:'',avg>=13?'good':avg>=10?'info':'warn');
+}
 // demande annuelle de chaque modèle (tableau de {tot, seg:{…}})
 function demand(models,y){
   const vol=marketVol(y),sh=segShares(y),N=itp(NCOMP,y)*(G.diff==='dur'?1.3:G.diff==='fac'?.8:1),K=2;
   const out=models.map(()=>({tot:0,seg:{}}));
   SEGS.forEach((seg,i)=>{
-    const A=models.map(m=>regBan(m.met,y)?0:appeal(m.met,seg,y,m.price)*repF()*(m.age!=null?m.age:ageF(m)));
+    const A=models.map(m=>regBan(m.met,y,!m.st)?0:appeal(m.met,seg,y,m.price)*repF()*(m.age!=null?m.age:ageF(m))*pressF(m));
     const sum=A.reduce((a,x)=>a+Math.pow(x,K),0)+N;
     models.forEach((m,j)=>{const d=vol*sh[i]*fitOf(seg,m.met.body,y)*Math.pow(A[j],K)/sum;out[j].seg[seg.k]=d;out[j].tot+=d;});
   });
@@ -135,8 +200,8 @@ const FIRST_CAR={name:'Type A',config:'I4',bore:80,stroke:110,limiter:1900,cr:7,
 
 function newGame(o){
   const st=START[o.y]||START[1900],m=o.diff==='fac'?1.8:o.diff==='dur'?.6:1;
-  G={v:1,co:o.co||'Automobiles Nouvelles',y:o.y,q:0,start:o.y,diff:o.diff||'nor',cash:st.cash*m,startCash:st.cash*m,debt:0,rep:o.diff==='fac'?40:30,fac:st.fac,facInv:0,build:null,
-     techs:TECHS.filter(t=>t[3]<=o.y-4).map(t=>t[0]),res:null,models:[],hist:[],news:[],acc:{rev:0,cost:0,units:0,profit:0},negQ:0,over:false,mid:1};
+  G={v:1,co:o.co||'Automobiles Nouvelles',y:o.y,q:0,start:o.y,diff:o.diff||'nor',cash:st.cash*m*eraK(o.y),startCash:st.cash*m*eraK(o.y),lab:0,resL:[],debt:0,rep:o.diff==='fac'?40:30,fac:st.fac,facInv:0,build:null,
+     techs:TECHS.filter(t=>t[3]<=o.y-4).map(t=>t[0]),models:[],hist:[],news:[],acc:{rev:0,cost:0,units:0,profit:0},negQ:0,over:false,mid:1};
   for(let l=1;l<=G.fac;l++) G.facInv+=facCost(l,o.y);
   syncEra();
   // premier projet : base d'époque
@@ -150,12 +215,12 @@ function newGame(o){
   saveGame();
 }
 function saveGame(){if(!G) return;try{G.design=Object.assign({},S);localStorage.setItem('bea.career.v1',JSON.stringify(G));}catch(e){}}
-function loadGame(){try{const raw=localStorage.getItem('bea.career.v1');if(!raw) return null;const g=JSON.parse(raw);return g&&g.v===1?g:null;}catch(e){return null;}}
+function loadGame(){try{const raw=localStorage.getItem('bea.career.v1');if(!raw) return null;const g=JSON.parse(raw);if(!g||g.v!==1) return null;if(!g.resL){g.resL=g.res?[g.res]:[];}delete g.res;g.lab=g.lab||0;return g;}catch(e){return null;}}
 
 function launchModel(name,price){
   const met=measure(M.E,M.C),y=yq(),dc=devCost(met,y);
   if(!met.fit) return 'Le moteur ne rentre pas dans la caisse.';
-  const ban=regBan(met,G.y);if(ban) return `Homologation refusée : ${ban.n}.`;
+  const ban=regBan(met,G.y,true);if(ban) return `Homologation refusée : ${ban.n}.`;
   if(G.cash+loanLimit()-G.debt<dc) return 'Trésorerie insuffisante pour développer ce modèle.';
   G.cash-=dc;
   const m={id:G.mid++,name:name||S.name||'Modèle',y:G.y,q:G.q,price:Math.round(price/10)*10,snap:Object.assign({},S),met,st:'dev',devLeft:devQ(y),dev:dc,sold:0,rev:0,profit:0,last:null};
@@ -169,13 +234,15 @@ function nextQuarter(){
   if(!G||G.over) return;
   const y=yq();
   // recherche
-  if(G.res){G.res.left--;if(G.res.left<=0){const t=TECH[G.res.id];G.techs.push(t.id);news(`Recherche terminée : ${t.n}`,t.d,'good');G.res=null;}}
+  for(const r of G.resL){r.left--;if(r.left<=0){const t=TECH[r.id];G.techs.push(t.id);news(`Recherche terminée : ${t.n}`,t.d,'good');}}
+  G.resL=G.resL.filter(r=>r.left>0);
+  if(G.labBuild){G.labBuild.left--;if(G.labBuild.left<=0){G.lab=G.labBuild.l;news(`${LAB[G.lab][0]} ouvert`,`${LAB[G.lab][1]} recherches peuvent maintenant avancer en même temps.`,'good');G.labBuild=null;}}
   // usine
   if(G.build){G.build.left--;if(G.build.left<=0){G.fac=G.build.l;news(`${FAC[G.fac][0]} en service`,`Capacité : ${nf(FAC[G.fac][1])} voitures par an.`,'good');G.build=null;}}
   // modèles en développement
-  for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');}}
+  for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');reviewModel(m);}}
   // réglementation
-  for(const m of G.models) if(m.st==='prod'){const b=regBan(m.met,G.y);if(b){m.st='stop';news(`${m.name} retiré du marché`,`${b.n}. Il faudrait : ${b.need}.`,'crit');}}
+  for(const m of G.models) if(m.st==='prod'){const b=regBan(m.met,G.y,false);if(b){m.st='stop';news(`${m.name} retiré du marché`,`${b.n}. Il faudrait : ${b.need}.`,'crit');}}
   // ventes
   const prod=G.models.filter(m=>m.st==='prod');
   const cap=capOfFac(G.fac)/4;let rev=0,cost=0,units=0;
@@ -207,9 +274,10 @@ function nextQuarter(){
     G.acc={rev:0,cost:0,units:0,profit:0};G.q=0;G.y++;
     for(const h of HIST) if(h[0]===G.y) news(h[1],h[2],'hist');
     const nt=techsNewIn(G.y);if(nt.length) news(`Nouveauté${nt.length>1?'s':''} technique${nt.length>1?'s':''} ${G.y}`,`Désormais possible à rechercher : ${nt.join(', ')}.`,'tech');
-    for(const r of REGS) if(r[0]===G.y+1) news('Réglementation l\'an prochain',`${r[1]} à partir de ${r[0]}. Les modèles non conformes seront retirés.`,'warn');
+    for(const r of REGS){if(r.y===G.y+1) news('Nouvelle norme l\'an prochain',`${r.n} : obligatoire pour les nouveaux modèles à partir de ${r.y}, pour toutes les voitures vendues à partir de ${r.ya}. Il faudra : ${r.need}.`,'warn');if(r.ya===G.y+1&&r.ya!==r.y) news('Norme : dernière année de tolérance',`${r.n}. À partir de ${r.ya}, les modèles non conformes seront retirés de la vente.`,'warn');}
   }
   syncEra();saveGame();
 }
-function startResearch(id){const t=TECH[id];if(!t||G.res||G.techs.includes(id)||t.y>G.y) return;const c=resCost(t,yq());if(G.cash+loanLimit()-G.debt<c) return 'Trésorerie insuffisante.';G.cash-=c;G.res={id,left:resQ(t,yq()),tot:resQ(t,yq()),cost:c};coverCash();saveGame();return null;}
+function buildLab(){const l=(G.lab||0)+1;if(l>=LAB.length||G.labBuild) return;const c=labCost(l,yq());if(G.cash+loanLimit()-G.debt<c) return 'Trésorerie insuffisante.';G.cash-=c;G.labBuild={l,left:2};news(`Construction : ${LAB[l][0]}`,`Investissement ${moneyF(c)}, ouverture dans 2 trimestres.`);coverCash();saveGame();return null;}
+function startResearch(id){const t=TECH[id];if(!t||G.resL.length>=resSlots()||G.resL.some(r=>r.id===id)||G.techs.includes(id)||t.y>G.y) return;const c=resCost(t,yq());if(G.cash+loanLimit()-G.debt<c) return 'Trésorerie insuffisante.';G.cash-=c;G.resL.push({id,left:resQ(t,yq()),tot:resQ(t,yq()),cost:c});coverCash();saveGame();return null;}
 function buildFactory(){const l=G.fac+1;if(l>=FAC.length||G.build) return;const c=facCost(l,yq());if(G.cash+loanLimit()-G.debt<c) return 'Trésorerie insuffisante.';G.cash-=c;G.facInv+=c;G.build={l,left:3};news(`Construction : ${FAC[l][0]}`,`Investissement ${moneyF(c)}, mise en service dans 3 trimestres.`);coverCash();saveGame();return null;}

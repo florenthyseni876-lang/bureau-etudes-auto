@@ -2,7 +2,7 @@
 /* ───────────── Rendu ───────────── */
 function renderKeys(){
   const E=M.E,C=M.C;
-  $('#keys').innerHTML=[['Puissance',nf(E.peakP),'ch'],['Couple',nf(E.peakT),'Nm'],['Masse à vide',nf(C.mass),'kg'],['0–100 km/h',C.t100?nf(C.t100,1):'—','s'],['Vitesse maxi',nf(C.vmax),'km/h'],['Conso mixte',nf(C.conso.mix,1),'l/100'],(G?['Coût de fabrication',nf(Math.round(unitCost({cost:C.cost},Math.min(FAC[G.fac][1],2000))/100)*100),'€']:['Prix estimé',nf(Math.round(C.price/100)*100),'€']),['Durée de vie moteur',nf(E.life),'km']]
+  $('#keys').innerHTML=[['Puissance',nf(E.peakP),'ch'],['Couple',nf(E.peakT),'Nm'],['Masse à vide',nf(C.mass),'kg'],['0–100 km/h',C.t100?nf(C.t100,1):'—','s'],['Vitesse maxi',nf(C.vmax),'km/h'],['Conso mixte',nf(C.conso.mix,1),'l/100'],(G?['Coût de fabrication',moneyF(unitCost({cost:C.cost},Math.min(FAC[G.fac][1],2000))),'']:['Prix estimé',nf(Math.round(C.price/100)*100),'€']),['Durée de vie moteur',nf(E.life),'km']]
     .map(c=>`<div class="key"><dt>${c[0]}</dt><dd>${c[1]}<small>${c[2]}</small></dd></div>`).join('');
   const b=$('#tabs [data-tab="essais"]');if(b) b.innerHTML='Essais'+(C.issues?`<span class="badge" title="${C.issues} point(s) à voir dans les contrôles">${C.issues}</span>`:'');
 }
