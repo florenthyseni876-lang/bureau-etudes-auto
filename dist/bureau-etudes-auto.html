@@ -1782,7 +1782,7 @@ function kickEngine(){if(!engRaf){engLast=0;benchLast=0;engRaf=requestAnimationF
 /* ───────────── Moteur 3D ───────────── */
 let E3=null;
 function dispose3D(){if(!E3) return;try{E3.scene.traverse(o=>{if(o.geometry) o.geometry.dispose();});E3.renderer.dispose();E3.renderer.forceContextLoss();}catch(e){}E3=null;}
-const engSig=()=>['config','bore','stroke','blockMat','headMat','valvetrain','timing','turboType','sump','liner','intake','scType','fuelSys','fuel','aspiration','intercooler','manifold','cat'].map(k=>S[k]).join('|');
+const engSig=()=>['config','vAngle','bore','stroke','blockMat','headMat','valvetrain','timing','turboType','sump','liner','intake','scType','fuelSys','fuel','aspiration','intercooler','manifold','cat'].map(k=>S[k]).join('|');
 function init3D(cv){
   if(!window.THREE) return false;
   try{
