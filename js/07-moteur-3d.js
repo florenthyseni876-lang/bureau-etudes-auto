@@ -204,7 +204,7 @@ function build3D(){
     if(ecu){const pMap=P("Capteur de pression d'admission",'Mesure la charge du moteur dans le plénum');{const mx=plTop.x+Lx*(E.sc?.36:.2);cyl(V(mx,plTop.y-4,plTop.z),V(mx,plTop.y+26,plTop.z),11,mSens,pMap);pMap.pin=V(mx,plTop.y+26,plTop.z);}}
     if(S.fuelSys==='mono'){const pM=P('Injecteur monopoint','Un seul injecteur, monté sur le boîtier papillon');cyl(V(tb.x-10,tb.y+30,tb.z-14),V(tb.x-10,tb.y+62,tb.z-22),9,mSteel,pM);}
     if(E.turbo){
-      const pCh=P("Tuyau d'air comprimé",'Du compresseur au papillon'),pIc=S.intercooler!=='none'?P(S.intercooler==='air'?'Échangeur air/air':'Échangeur air/eau',"Refroidit l'air comprimé : plus dense, moins de cliquetis"):null,icP=V(-300,deck*.3,0);
+      const pCh=P("Tuyau d'air comprimé",dz?"Du compresseur au collecteur d'admission":'Du compresseur au papillon'),pIc=S.intercooler!=='none'?P(S.intercooler==='air'?'Échangeur air/air':'Échangeur air/eau',"Refroidit l'air comprimé : plus dense, moins de cliquetis"):null,icP=V(-300,deck*.3,0);
       if(pIc) box(0,icP.x,icP.y,icP.z,60,190,400,mAlu,pIc);
       compOut.forEach(co=>{const rear=co.x>Lx,zo=rear?0:flat?co.z*.5:(co.z||1)*1.22+Math.sign(co.z||1)*14,yo=flat?-32:10;
         const via=rear?[V(co.x,tb.y+140,0),V(Lx*.5,tb.y+150,0),V(-110,tb.y+125,0)]:[V(co.x-45,co.y+yo,zo),V(-150,co.y+yo,zo)];

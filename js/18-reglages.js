@@ -34,7 +34,7 @@ const UI={
   {t:'Alimentation',items:[
    {k:'fuel',type:'seg',l:'Carburant',wide:1,opts:o(FUEL),dis:(S,v)=>CFG[S.config].rot&&FUEL[v].diesel&&'Pas de diesel rotatif',hint:'Le gazole s\'enflamme par compression : pas de bougies, taux élevé, régime limité, mais beaucoup de couple et un meilleur rendement.'},
    {k:'fuelSys',type:'seg',l:'Système',wide:1,opts:o(FS),dis:(S,v)=>!!FS[v].d!==!!FUEL[S.fuel].diesel&&(FS[v].d?'Réservé au gazole':'Réservé à l\'essence')},
-   {k:'intake',type:'seg',l:'Admission',wide:1,opts:o(INTAKE),hint:'Longueur variable : du couple en bas et de l\'allonge en haut. Papillons individuels : réponse immédiate, réservés aux moteurs sportifs.'},
+   {k:'intake',type:'seg',l:'Admission',wide:1,opts:o(INTAKE),dis:(S,v)=>v==='itb'&&FUEL[S.fuel].diesel&&'Un diesel n\'a pas de papillon : il règle sa puissance par la quantité de gazole injectée',hint:'Essence : un papillon dose l\'air. Diesel : aucun papillon. Longueur variable : du couple en bas et de l\'allonge en haut. Papillons individuels : réponse immédiate, réservés aux moteurs sportifs.'},
    {k:'cr',type:'range',l:'Taux de compression',min:7,max:22,step:.1,d:1,f:v=>nf(v,1)+' : 1',hint:"Essence : plus de rendement jusqu'au cliquetis (9 à 13). Gazole : 15 à 20."},
    {k:'lambda',type:'range',l:'Richesse à pleine charge (λ)',min:.8,max:1.05,step:.01,d:2,dis:S=>!!FUEL[S.fuel].diesel,hint:'0,88 pour la puissance, 1,00 pour la consommation.'},
   ]},

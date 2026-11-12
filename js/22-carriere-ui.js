@@ -39,8 +39,8 @@ function showHome(){
 }
 function hideHome(){$('#home').hidden=true;document.body.classList.remove('home-on');}
 function homeCars(){
-  const ks=['roadster','berline','citadine','supercar'],ys=['1900','1950','1975','2000'];
-  return ks.map((k,i)=>`<figure><div>${miniCar(k)}</div><figcaption>${ys[i]}</figcaption></figure>`).join('');
+  const cs=[['roadster','hippo','none','acet','none','1900'],['berline','classique','chrome','elec','aile','1925'],['coupe','ailerons','massif','rond','porte','1957'],['compacte','tendu','caout','halo','porte','1975'],['berline','bio','bouclier','xenon','elec','1995'],['supercar','moderne','bouclier','led','elec','2020']];
+  return cs.map(([k,st,bu,li,mi,y])=>`<figure><div>${miniCar(k,{style:st,bumper:bu,lights:li,mirrors:mi})}</div><figcaption>${y}</figcaption></figure>`).join('');
 }
 function initHome(){
   $('#homeCars').innerHTML=homeCars();

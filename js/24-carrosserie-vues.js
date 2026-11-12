@@ -35,66 +35,135 @@ function mirrorsFront(W,y){
   const c=m==='elec'?`fill="${S.paint}" class="k-paint"`:m==='camera'?'class="k-dark"':'class="k-chrome"',w=m==='camera'?70:120,h=m==='camera'?40:80;
   return `<rect x="${-W/2-w+10}" y="${-(y+h)}" width="${w}" height="${h}" rx="18" ${c}/><rect x="${W/2-10}" y="${-(y+h)}" width="${w}" height="${h}" rx="18" ${c}/>`;
 }
+// caractère de chaque style vu de face et de dessus : gw = largeur du pavillon, rc = rayon des angles, plan = forme en plan
+const STY_FACE={
+  hippo:{gw:.92,rc:20,hood:.5},classique:{gw:.86,rc:40,hood:.42},profile:{gw:.6,rc:150,hood:.8},ponton:{gw:.72,rc:110,hood:1},
+  ailerons:{gw:.7,rc:50,hood:1},tendu:{gw:.76,rc:22,hood:1},aero:{gw:.68,rc:90,hood:1},bio:{gw:.6,rc:190,hood:1},moderne:{gw:.64,rc:60,hood:1},
+};
+const styFace=()=>STY_FACE[S.style]||STY_FACE.moderne;
+// demi-largeur relative de la caisse le long de la voiture (t = 0 à l'avant, 1 à l'arrière)
+function planHalf(t,cowlT){
+  const st=S.style,sm=(a,b,x)=>{const u=clamp((x-a)/(b-a),0,1);return u*u*(3-2*u);},round=(r)=>Math.pow(clamp(Math.min(t,1-t)/r,0,1),.5);
+  if(st==='hippo') return t<cowlT?.5:(.5+.42*sm(cowlT,cowlT+.03,t))*(t>.97?.9:1);
+  if(st==='classique') return t<cowlT?lerp(.36,.6,t/cowlT):(.6+.3*sm(cowlT,cowlT+.06,t))*(.8+.2*round(.08));
+  if(st==='profile') return (.55+.45*sm(0,.2,t))*(1-.5*sm(.5,1,t))*(.75+.25*round(.1));
+  if(st==='ponton') return .82+.18*round(.14);
+  if(st==='ailerons') return .9+.1*round(.04);
+  if(st==='tendu') return (.8+.2*sm(0,.3,t))*(.94+.06*round(.03));
+  if(st==='aero') return (.86+.14*sm(0,.25,t))*(1-.1*sm(.75,1,t))*(.72+.28*round(.12));
+  if(st==='bio') return Math.pow(Math.max(0,1-Math.pow(Math.abs(2*t-1),3.2)),.42);
+  return (.9+.06*sm(0,.25,t)+.04*sm(.55,.8,t))*(.78+.22*round(.09));
+}
 // vue de face (rear=true : vue arrière)
 function frontSVG(rear,pxw){
-  const d=carDims(),{B,R,tw,W,track,H,s0,bodyW}=d,nY=rear?d.tY:d.nY,belt=d.belt,top=H,gw=bodyW*.72,id=rear?'cr':'cf';
+  const d=carDims(),{B,R,tw,W,track,H,s0,bodyW}=d,nY=rear?d.tY:d.nY,belt=d.belt,top=H,F=styFace(),st=S.style,old=oldStyle(),id=rear?'cr':'cf';
   const pad=420,fs0=clamp(11.5*(W+2*pad)/(pxw||600),60,240),vb=`${-W/2-pad} ${-(H+260)} ${W+2*pad} ${H+260+190+fs0*1.6}`;
-  let s=`<svg class="car" viewBox="${vb}" role="img" aria-label="Vue ${rear?'arrière':'de face'} : ${B.n}"><defs><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient></defs>`;
+  const chrome=st==='ailerons'||st==='ponton'||st==='classique'||st==='profile';
+  let s=`<svg class="car" viewBox="${vb}" role="img" aria-label="Vue ${rear?'arrière':'de face'} : ${B.n}, style ${STYLE[st].n}"><defs><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient></defs>`;
   s+=`<ellipse cx="0" cy="8" rx="${W*.6}" ry="40" class="c-shadow"/><line x1="${-W/2-pad+40}" x2="${W/2+pad-40}" y1="0" y2="0" class="c-ground"/>`;
-  // roues
   for(const sx of [-1,1]) s+=`<rect x="${sx*track/2-tw/2}" y="${-2*R}" width="${tw}" height="${2*R}" rx="${tw*.3}" class="c-tire"/>`;
-  // caisse : partie basse puis pavillon avec rentrée de caisse
-  const lo=s0+40,bw=bodyW/2,gw2=gw/2;
-  const body=[[-bw,lo],[-bw-10,belt-60],[-bw+40,belt],[bw-40,belt],[bw+10,belt-60],[bw,lo]];
-  s+=`<path d="${rpath(body.map(p=>[p[0],p[1],60]))}" fill="${S.paint}" class="c-body"/><path d="${rpath(body.map(p=>[p[0],p[1],60]))}" fill="url(#${id}s)"/>`;
-  if(B.kind!=='roadster'){const gh=[[-bw+60,belt],[-gw2,top-30],[gw2,top-30],[bw-60,belt]];s+=`<path d="${rpath(gh.map(p=>[p[0],p[1],80]))}" fill="${S.paint}" class="c-body"/><path d="${rpath([[-bw+120,belt+20,40],[-gw2+50,top-90,60],[gw2-50,top-90,60],[bw-120,belt+20,40]])}" class="c-glass"/>`;}
+  const lo=s0+40,bw=bodyW/2,hw=rear?bw:bw*(old?F.hood+.25:1),gw2=bodyW*F.gw/2,rc=F.rc;
+  // caisse basse : forme propre à chaque style
+  let body;
+  if(st==='bio'||st==='profile') body=[[-hw,lo,rc],[-hw-20,(lo+belt)/2,rc*2],[-hw+60,belt,rc],[hw-60,belt,rc],[hw+20,(lo+belt)/2,rc*2],[hw,lo,rc]];
+  else if(st==='tendu') body=[[-hw,lo,rc],[-hw,belt-30,rc],[-hw+50,belt,rc],[hw-50,belt,rc],[hw,belt-30,rc],[hw,lo,rc]];
+  else if(st==='moderne') body=[[-hw+30,lo,rc],[-hw-15,lo+(belt-lo)*.55,rc],[-hw+70,belt,rc],[hw-70,belt,rc],[hw+15,lo+(belt-lo)*.55,rc],[hw-30,lo,rc]];
+  else if(st==='ailerons') body=[[-hw,lo,rc],[-hw-10,belt-40,rc],[-hw+30,belt,rc],[hw-30,belt,rc],[hw+10,belt-40,rc],[hw,lo,rc]];
+  else body=[[-hw,lo,rc],[-hw-10,belt-60,rc],[-hw+40,belt,rc],[hw-40,belt,rc],[hw+10,belt-60,rc],[hw,lo,rc]];
+  const bp=rpath(body);
+  // pavillon derrière la caisse basse
+  if(B.kind!=='roadster'){const gb=old?bw*.9:hw-60,gh=[[-gb,belt-20,rc*.5],[-gw2,top-30,Math.max(30,rc)],[gw2,top-30,Math.max(30,rc)],[gb,belt-20,rc*.5]];
+    s+=`<path d="${rpath(gh)}" fill="${S.paint}" class="c-body"/><path d="${rpath([[-gb+70,belt+16,30],[-gw2+50,top-90,Math.max(30,rc*.7)],[gw2-50,top-90,Math.max(30,rc*.7)],[gb-70,belt+16,30]])}" class="c-glass"/>`;
+    if(st==='profile'||(st==='classique'&&!rear)) s+=`<path d="M0 ${-(belt+16)}V${-(top-90)}" stroke="${S.paint}" stroke-width="26"/>`;
+    if(rear&&st==='profile') s+=`<path d="M0 ${-(belt+16)}V${-(top-90)}" stroke="${S.paint}" stroke-width="60"/>`;}
   else s+=`<path d="${rpath([[-bw+140,belt,20],[-gw2,belt+300,30],[gw2,belt+300,30],[bw-140,belt,20]])}" class="c-glass"/>`;
+  if(old&&!rear) s+=`<path d="${rpath([[-bw*.92,lo+60,30],[-bw*.92,belt+10,30],[bw*.92,belt+10,30],[bw*.92,lo+60,30]])}" fill="${S.paint}" class="c-body"/>`;
+  s+=`<path d="${bp}" fill="${S.paint}" class="c-body"/><path d="${bp}" fill="url(#${id}s)"/>`;
   // ailes séparées
-  if(oldStyle()) for(const sx of [-1,1]) s+=`<path d="M${sx*track/2-tw/2-50} ${-(s0+10)}V${-(2*R+40)}Q${sx*track/2} ${-(2*R+120)} ${sx*track/2+tw/2+50} ${-(2*R+40)}V${-(s0+10)}" ${S.style==='hippo'?'class="k-dark"':`fill="${S.paint}" class="k-paint"`}/>`;
-  // face avant / arrière
+  if(old) for(const sx of [-1,1]) s+=`<path d="M${sx*track/2-tw/2-50} ${-(s0+10)}V${-(2*R+40)}Q${sx*track/2} ${-(2*R+120)} ${sx*track/2+tw/2+50} ${-(2*R+40)}V${-(s0+10)}" ${st==='hippo'?'class="k-dark"':`fill="${S.paint}" class="k-paint"`}/>`;
+  // galbe d'aile intégré (profilé, ponton)
+  if(st==='profile'||st==='ponton') for(const sx of [-1,1]) s+=`<path d="M${sx*(hw-30)} ${-(lo+40)}Q${sx*(hw+ (st==='profile'?60:25))} ${-(nY+40)} ${sx*(hw-160)} ${-(nY+ (st==='profile'?70:30))}" class="k-seam"/>`;
+  const gy0=lo+30,gH=Math.max(80,nY-lo-90);
   if(!rear){
-    if(oldStyle()) s+=`<rect x="-170" y="${-(nY+60)}" width="340" height="${nY+60-lo}" rx="30" class="k-chrome"/><path d="M-130 ${-(nY+20)}V${-(lo+30)}M-65 ${-(nY+20)}V${-(lo+30)}M0 ${-(nY+20)}V${-(lo+30)}M65 ${-(nY+20)}V${-(lo+30)}M130 ${-(nY+20)}V${-(lo+30)}" class="k-seam"/>`;
-    else s+=`<rect x="${-bw*.45}" y="${-(nY-40)}" width="${bw*.9}" height="${Math.max(60,nY-lo-140)}" rx="30" class="${S.style==='ailerons'||S.style==='ponton'?'k-chrome':'k-dark'}"/>`;
-    const lx=oldStyle()?track/2-60:bw*.68,ly=oldStyle()?nY+90:nY-60;
+    // calandre selon le style
+    if(st==='hippo') s+=`<rect x="-150" y="${-(nY+40)}" width="300" height="${nY+40-lo+10}" rx="26" class="k-lampcase"/><rect x="-118" y="${-(nY+10)}" width="236" height="${nY-lo-40}" rx="10" class="k-dark"/>`;
+    else if(st==='classique') {s+=`<path d="M-170 ${-lo}V${-(nY+10)}Q0 ${-(nY+120)} 170 ${-(nY+10)}V${-lo}Z" class="k-chrome"/>`;for(let i=-3;i<=3;i++) s+=`<path d="M${i*44} ${-(lo+20)}V${-(nY+20)}" class="k-seam"/>`;s+=`<circle cx="0" cy="${-(nY+105)}" r="24" class="k-chrome"/>`;}
+    else if(st==='profile') {s+=`<path d="M-110 ${-(lo+20)}Q-150 ${-(nY-20)} 0 ${-(nY+10)}Q150 ${-(nY-20)} 110 ${-(lo+20)}Z" class="k-chrome"/>`;for(let i=1;i<6;i++) s+=`<path d="M${-120+i*4} ${-(lo+20+i*gH/6)}H${120-i*4}" class="k-seam"/>`;}
+    else if(st==='ponton') {s+=`<ellipse cx="0" cy="${-(gy0+gH*.45)}" rx="${hw*.52}" ry="${gH*.42}" class="k-chrome"/><ellipse cx="0" cy="${-(gy0+gH*.45)}" rx="${hw*.44}" ry="${gH*.3}" class="k-dark"/>`;for(let i=-1;i<=1;i++) s+=`<path d="M${-hw*.42} ${-(gy0+gH*.45+i*gH*.14)}H${hw*.42}" stroke="#d9dee4" stroke-width="14"/>`;}
+    else if(st==='ailerons') {s+=`<rect x="${-hw*.86}" y="${-(gy0+gH*.95)}" width="${hw*1.72}" height="${gH*.75}" rx="26" class="k-chrome"/><rect x="${-hw*.8}" y="${-(gy0+gH*.87)}" width="${hw*1.6}" height="${gH*.58}" rx="14" class="k-dark"/>`;for(let i=1;i<10;i++) s+=`<path d="M${-hw*.8+i*hw*.16} ${-(gy0+gH*.87)}v${gH*.58}" stroke="#d9dee4" stroke-width="7"/>`;s+=`<path d="M${-hw*.8} ${-(gy0+gH*.58)}H${hw*.8}" stroke="#d9dee4" stroke-width="12"/>`;}
+    else if(st==='tendu') {s+=`<rect x="${-hw*.5}" y="${-(nY-18)}" width="${hw}" height="${Math.min(gH*.5,110)}" rx="4" class="k-dark"/>`;for(let i=1;i<5;i++) s+=`<path d="M${-hw*.5} ${-(nY-18-i*Math.min(gH*.5,110)/5)}H${hw*.5}" stroke="#8b949e" stroke-width="5"/>`;s+=`<rect x="${-hw*.86}" y="${-(lo+70)}" width="${hw*1.72}" height="50" rx="4" class="k-dark"/>`;}
+    else if(st==='aero') {s+=`<rect x="${-hw*.4}" y="${-(nY-40)}" width="${hw*.8}" height="26" rx="13" class="k-dark"/><path d="${rpath([[-hw*.62,lo+30,20],[-hw*.55,lo+110,30],[hw*.55,lo+110,30],[hw*.62,lo+30,20]])}" class="k-dark"/>`;}
+    else if(st==='bio') {s+=`<ellipse cx="0" cy="${-(gy0+gH*.5)}" rx="${hw*.3}" ry="${gH*.24}" class="k-dark"/><ellipse cx="0" cy="${-(gy0+gH*.5)}" rx="46" ry="30" class="k-chrome"/><ellipse cx="${-hw*.55}" cy="${-(lo+70)}" rx="70" ry="34" class="k-dark"/><ellipse cx="${hw*.55}" cy="${-(lo+70)}" rx="70" ry="34" class="k-dark"/>`;}
+    else {const gt=nY-30,gb2=lo+40;s+=`<path d="M${-hw*.42} ${-gt}H${hw*.42}L${hw*.52} ${-(gt+gb2)/2}L${hw*.36} ${-gb2}H${-hw*.36}L${-hw*.52} ${-(gt+gb2)/2}Z" class="k-dark"/>`;for(let i=1;i<6;i++) s+=`<path d="M${-hw*.46} ${-(gb2+i*(gt-gb2)/6)}H${hw*.46}" stroke="#3a4048" stroke-width="8"/>`;
+      for(const sx of [-1,1]) s+=`<path d="M${sx*hw*.62} ${-(lo+50)}L${sx*hw*.9} ${-(lo+70)}L${sx*hw*.86} ${-(lo+200)}L${sx*hw*.64} ${-(lo+150)}Z" class="k-dark"/>`;}
+    // phares : emplacement selon le style
+    const lx=old?track/2-60:st==='ailerons'?hw*.78:st==='tendu'?hw*.74:hw*.7,ly=old?nY+100:st==='profile'?nY+10:st==='ponton'?nY-40:st==='bio'?nY-10:st==='moderne'?nY+10:nY-55;
     s+=lampFront(-lx,ly)+lampFront(lx,ly);
+    if(st==='ailerons'&&(S.lights==='rond'||S.lights==='halo')) s+=lampFront(-lx+190,ly)+lampFront(lx-190,ly);
   }else{
-    s+=`<rect x="-260" y="${-(lo+260)}" width="520" height="110" rx="8" fill="#f4f6f8" stroke="#111" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
-    const lx=bw*.7,ly=nY-60;for(const sx of [-1,1]) s+=`<rect x="${sx*lx-(oldStyle()?60:150)}" y="${-(ly+50)}" width="${oldStyle()?120:300}" height="${oldStyle()?100:100}" rx="${oldStyle()?50:10}" class="k-tail"/>`;
-    s+=`<ellipse cx="${-bw*.55}" cy="${-(s0+20)}" rx="45" ry="30" class="k-dark"/>`;
+    // face arrière selon le style
+    const ly=nY-70,T=(x,y,w,h,r)=>`<rect x="${x-w/2}" y="${-(y+h/2)}" width="${w}" height="${h}" rx="${r}" class="k-tail"/>`;
+    if(st==='hippo') s+=`<circle cx="${-bw*.6}" cy="${-(lo+160)}" r="42" class="k-lampcase"/><circle cx="${-bw*.6}" cy="${-(lo+160)}" r="24" class="k-tail"/>`;
+    else if(st==='classique') {s+=`<circle cx="0" cy="${-(lo+(belt-lo)*.5)}" r="${Math.min(R*.95,(belt-lo)*.46)}" class="c-tire"/><circle cx="0" cy="${-(lo+(belt-lo)*.5)}" r="${Math.min(R*.5,(belt-lo)*.24)}" class="k-chrome"/>`;for(const sx of [-1,1]) s+=`<circle cx="${sx*(track/2)}" cy="${-(2*R+60)}" r="34" class="k-tail"/>`;}
+    else if(st==='profile') for(const sx of [-1,1]) s+=`<ellipse cx="${sx*hw*.7}" cy="${-(lo+110)}" rx="44" ry="60" class="k-tail"/>`;
+    else if(st==='ponton') for(const sx of [-1,1]) s+=T(sx*hw*.86,ly,70,170,30);
+    else if(st==='ailerons') for(const sx of [-1,1]) s+=`<path d="M${sx*(hw-10)} ${-(belt-30)}L${sx*(hw+40)} ${-(belt+170)}L${sx*(hw-150)} ${-(belt+10)}Z" fill="${S.paint}" class="k-paint"/><circle cx="${sx*(hw-80)}" cy="${-(belt-70)}" r="58" class="k-chrome"/><circle cx="${sx*(hw-80)}" cy="${-(belt-70)}" r="42" class="k-tail"/><circle cx="${sx*(hw-220)}" cy="${-(belt-70)}" r="42" class="k-tail"/>`;
+    else if(st==='tendu') {s+=`<rect x="${-hw*.9}" y="${-(ly+55)}" width="${hw*1.8}" height="110" rx="6" class="k-dark"/>`;for(const sx of [-1,1]) s+=T(sx*hw*.62,ly,hw*.5,90,4);}
+    else if(st==='aero') {s+=`<rect x="${-hw*.92}" y="${-(ly+45)}" width="${hw*1.84}" height="90" rx="30" class="k-tail"/><rect x="-270" y="${-(ly+38)}" width="540" height="76" rx="8" fill="#5c1010"/>`;}
+    else if(st==='bio') for(const sx of [-1,1]) s+=`<ellipse cx="${sx*hw*.68}" cy="${-ly}" rx="130" ry="70" class="k-tail"/>`;
+    else {s+=`<rect x="${-hw*.9}" y="${-(ly+14)}" width="${hw*1.8}" height="28" rx="14" class="k-tail"/>`;for(const sx of [-1,1]) s+=`<path d="M${sx*hw*.9} ${-(ly+50)}L${sx*hw*.5} ${-(ly+24)}L${sx*hw*.5} ${-(ly-10)}L${sx*hw*.92} ${-(ly-30)}Z" class="k-tail"/>`;s+=`<path d="${rpath([[-hw*.6,lo-10,10],[-hw*.5,lo+90,20],[hw*.5,lo+90,20],[hw*.6,lo-10,10]])}" class="k-dark"/>`;}
+    // plaque et échappement
+    if(st!=='classique') s+=`<rect x="-260" y="${-(lo+(st==='moderne'||st==='aero'?250:220))}" width="520" height="110" rx="8" fill="#f4f6f8" stroke="#111" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    const dual=typeof E3dual==='function'&&E3dual();for(const sx of dual?[-1,1]:[-1]) s+=`<ellipse cx="${sx*bw*.55}" cy="${-(s0+20)}" rx="${st==='moderne'?70:45}" ry="30" class="k-chrome"/><ellipse cx="${sx*bw*.55}" cy="${-(s0+20)}" rx="${st==='moderne'?54:32}" ry="20" class="k-dark"/>`;
   }
-  s+=bumperFront(oldStyle()?track+tw:bodyW,s0+.32*(nY-s0),46);
-  s+=mirrorsFront(bodyW,belt+60);
-  // cotes
-  const fs=clamp(11.5*(W+2*pad)/(pxw||600),60,240);
-  s+=`<path d="M${-W/2} 150V190M${W/2} 150V190M${-W/2} 170H${W/2}" class="c-dim"/><text x="0" y="${170+fs*1.15}" text-anchor="middle" font-size="${fs}" class="c-dimt">Largeur ${nf(W)}</text>`;
+  s+=bumperFront(old?track+tw:bodyW,s0+.32*(nY-s0),46);
+  if(S.bumper==='massif'&&st==='ailerons'&&!rear) for(const sx of [-1,1]) s+=`<ellipse cx="${sx*bw*.3}" cy="${-(s0+.32*(nY-s0))}" rx="46" ry="60" class="k-chrome"/>`;
+  s+=mirrorsFront(old?bw*1.8:bodyW,belt+60);
+  s+=`<path d="M${-W/2} 150V190M${W/2} 150V190M${-W/2} 170H${W/2}" class="c-dim"/><text x="0" y="${170+fs0*1.15}" text-anchor="middle" font-size="${fs0}" class="c-dimt">Largeur ${nf(W)}</text>`;
   return s+'</svg>';
 }
 // vue de dessus
 function topSVG(pxw){
-  const d=carDims(),{B,ol,R,tw,W,L,track,bodyW}=d,fx=B.FO,rx=B.FO+B.WB,pad=300;
-  const sh={hippo:.25,classique:.3,profile:.55,ponton:.45,ailerons:.4,tendu:.3,aero:.55,bio:.65,moderne:.45}[S.style]||.45;
-  const rN=bodyW*sh*.7,rT=bodyW*sh*.5,bw=bodyW/2;
-  const fs0=clamp(11.5*(L+2*pad)/(pxw||600),60,260);let s=`<svg class="car" viewBox="${-pad} ${-W/2-pad} ${L+2*pad} ${W+pad+170+fs0*1.6}" role="img" aria-label="Vue de dessus : ${B.n}">`;
+  const d=carDims(),{B,ol,R,tw,W,L,track,bodyW}=d,fx=B.FO,rx=B.FO+B.WB,pad=300,st=S.style,old=oldStyle(),bw=bodyW/2,cowlT=ol.cowlX/L;
+  const fs0=clamp(11.5*(L+2*pad)/(pxw||600),60,260);
+  let s=`<svg class="car" viewBox="${-pad} ${-W/2-pad} ${L+2*pad} ${W+pad+170+fs0*1.6}" role="img" aria-label="Vue de dessus : ${B.n}, style ${STYLE[st].n}">`;
   for(const x of [fx,rx]) for(const sy of [-1,1]) s+=`<rect x="${x-R}" y="${sy*track/2-tw/2}" width="${2*R}" height="${tw}" rx="40" class="c-tire"/>`;
-  const plan=[[0,-bw*.86,rN],[0,bw*.86,rN],[L*.5,bw,600],[L,bw*.9,rT],[L,-bw*.9,rT],[L*.5,-bw,600]];
-  const pp=pts=>'M'+pts.map(p=>p[0].toFixed(0)+' '+p[1].toFixed(0)).join('L')+'Z';
-  const rr=pts=>{let dd='';const n=pts.length;for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],v1=[p0[0]-p1[0],p0[1]-p1[1]],v2=[p2[0]-p1[0],p2[1]-p1[1]],l1=Math.hypot(...v1)||1,l2=Math.hypot(...v2)||1,r=Math.min(p1[2]||0,l1/2,l2/2),a=[p1[0]+v1[0]/l1*r,p1[1]+v1[1]/l1*r],b=[p1[0]+v2[0]/l2*r,p1[1]+v2[1]/l2*r];dd+=(i?'L':'M')+a[0].toFixed(0)+' '+a[1].toFixed(0)+'Q'+p1[0].toFixed(0)+' '+p1[1].toFixed(0)+' '+b[0].toFixed(0)+' '+b[1].toFixed(0);}return dd+'Z';};
-  s+=`<path d="${rr(plan)}" fill="${S.paint}" class="c-body"/>`;
-  if(oldStyle()) for(const x of [fx,rx]) for(const sy of [-1,1]) s+=`<rect x="${x-R-60}" y="${sy*track/2-tw/2-40}" width="${2*R+120}" height="${tw+80}" rx="${tw*.5}" ${S.style==='hippo'?'class="k-dark"':`fill="${S.paint}" class="k-paint"`}/>`;
+  // ailes séparées et marchepieds sous la caisse
+  if(old){for(const x of [fx,rx]) for(const sy of [-1,1]) s+=`<rect x="${x-R-70}" y="${sy*track/2-tw/2-45}" width="${2*R+140}" height="${tw+90}" rx="${tw*.6}" ${st==='hippo'?'class="k-dark"':`fill="${S.paint}" class="k-paint"`}/>`;
+    for(const sy of [-1,1]) s+=`<rect x="${fx+R+60}" y="${sy*track/2-tw/2-10}" width="${rx-fx-2*R-120}" height="${tw+20}" rx="14" class="k-dark"/>`;}
+  // contour de la caisse échantillonné
+  const N=60,up=[],dn=[];for(let i=0;i<=N;i++){const t=i/N,h=bw*planHalf(t,cowlT);up.push([t*L,-h]);dn.push([t*L,h]);}
+  const pth='M'+up.concat(dn.reverse()).map(p=>p[0].toFixed(0)+' '+p[1].toFixed(0)).join('L')+'Z';
+  s+=`<path d="${pth}" fill="${S.paint}" class="c-body"/>`;
+  const hAt=x=>bw*planHalf(clamp(x/L,0,1),cowlT),pp=pts=>'M'+pts.map(p=>p[0].toFixed(0)+' '+p[1].toFixed(0)).join('L')+'Z';
+  // capot : nervures ou charnière centrale selon le style
+  if(old) s+=`<path d="M40 0H${ol.cowlX}" class="k-seam"/>`+[.25,.5,.75].map(f=>`<path d="M${ol.cowlX*f} ${-hAt(ol.cowlX*f)*.8}V${hAt(ol.cowlX*f)*.8}" class="k-seam"/>`).join('');
+  else if(st==='moderne'||st==='tendu') for(const sy of [-1,1]) s+=`<path d="M120 ${sy*hAt(120)*.5}L${ol.cowlX-40} ${sy*hAt(ol.cowlX)*.72}" class="k-crease"/>`;
+  else if(st==='ailerons') s+=`<path d="M60 0H${ol.cowlX-60}" stroke="#d9dee4" stroke-width="20"/>`;
   // vitrage et toit
-  const g=ol.glass;
-  if(g){const x0=g[0][0],x1=g[1][0],x2=g[2][0],x3=g[3][0],gw=bw*.78,rw=bw*.66;
-    s+=`<path d="${pp([[x0,-gw],[x1,-rw],[x1,rw],[x0,gw]])}" class="c-glass"/><path d="${pp([[x2,-rw],[x3,-gw*.92],[x3,gw*.92],[x2,rw]])}" class="c-glass"/>`;
-    s+=`<rect x="${x1}" y="${-rw}" width="${x2-x1}" height="${2*rw}" rx="60" fill="${S.paint}" class="c-body"/><rect x="${x1}" y="${-rw}" width="${x2-x1}" height="${2*rw}" rx="60" fill="#fff" opacity=".12"/>`;}
-  else{s+=`<path d="${pp([[ol.cowlX+40,-bw*.8],[ol.cowlX+200,-bw*.75],[ol.cowlX+200,bw*.75],[ol.cowlX+40,bw*.8]])}" class="c-glass"/><rect x="${ol.cowlX+260}" y="${-bw*.7}" width="${1100}" height="${bw*1.4}" rx="80" class="k-dark" opacity=".55"/>`;}
-  if(S.style==='ailerons') for(const sy of [-1,1]) s+=`<path d="M${L-700} ${sy*bw*.86}L${L-10} ${sy*bw*.92}" stroke="#fff" stroke-opacity=".5" stroke-width="30"/>`;
+  const g=ol.glass,F=styFace();
+  if(g){const x0=g[0][0],x1=g[1][0],x2=g[2][0],x3=g[3][0],gw=Math.min(hAt(x0),hAt(x3))*.9,rw=bw*F.gw*.92;
+    s+=`<path d="${pp([[x0,-hAt(x0)*.88],[x1,-rw],[x1,rw],[x0,hAt(x0)*.88]])}" class="c-glass"/><path d="${pp([[x2,-rw],[x3,-hAt(x3)*.84],[x3,hAt(x3)*.84],[x2,rw]])}" class="c-glass"/>`;
+    for(const sy of [-1,1]) s+=`<path d="${pp([[x0+40,sy*hAt(x0)*.9],[x1,sy*rw],[x2,sy*rw],[x3-40,sy*hAt(x3)*.86],[x3-40,sy*(hAt(x3)*.86+ (gw>rw?0:0))]])}" class="c-glass" opacity=".55"/>`;
+    s+=`<rect x="${x1}" y="${-rw}" width="${x2-x1}" height="${2*rw}" rx="${Math.min(160,F.rc+20)}" fill="${S.paint}" class="c-body"/><rect x="${x1}" y="${-rw}" width="${x2-x1}" height="${2*rw}" rx="${Math.min(160,F.rc+20)}" fill="#fff" opacity=".12"/>`;
+    if(st==='profile') s+=`<path d="M${x2} 0H${x3}" stroke="${S.paint}" stroke-width="60"/>`;}
+  else{s+=`<path d="${pp([[ol.cowlX+40,-hAt(ol.cowlX)*.8],[ol.cowlX+200,-hAt(ol.cowlX)*.75],[ol.cowlX+200,hAt(ol.cowlX)*.75],[ol.cowlX+40,hAt(ol.cowlX)*.8]])}" class="c-glass"/><rect x="${ol.cowlX+260}" y="${-bw*.66}" width="1100" height="${bw*1.32}" rx="80" class="k-dark" opacity=".55"/>`;}
+  // détails propres au style
+  if(st==='ailerons') for(const sy of [-1,1]) s+=`<path d="M${L-760} ${sy*hAt(L-760)*.9}L${L-10} ${sy*hAt(L-10)*.98}L${L-10} ${sy*hAt(L-10)*.8}Z" fill="#fff" opacity=".35"/>`;
+  if(st==='classique') s+=`<circle cx="${L+40}" cy="0" r="${R*.9}" class="c-tire"/><rect x="${L-330}" y="${-bw*.5}" width="300" height="${bw}" rx="40" class="k-dark" opacity=".5"/>`;
+  if(st==='hippo') s+=`<rect x="-30" y="-150" width="60" height="300" rx="12" class="k-lampcase"/>`;
+  if(st==='classique') s+=`<rect x="-30" y="-170" width="70" height="340" rx="20" class="k-chrome"/>`;
   if(S.wing==='wing') s+=`<rect x="${L-330}" y="${-bw*.9}" width="160" height="${bw*1.8}" rx="20" class="c-trim"/>`;
+  // pare-chocs
+  const bc={chrome:'k-chrome',massif:'k-chrome',caout:'k-rubber',carbone:'k-carbon'}[S.bumper];
+  if(bc){const bwid=old?track+tw:2*hAt(60)*1.04,bw2=old?track+tw:2*hAt(L-60)*1.04,th=S.bumper==='massif'||S.bumper==='caout'?90:50;s+=`<rect x="${-60-th/2}" y="${-bwid/2}" width="${th}" height="${bwid}" rx="${th/2}" class="${bc}"/><rect x="${L+60-th/2}" y="${-bw2/2}" width="${th}" height="${bw2}" rx="${th/2}" class="${bc}"/>`;}
   // rétroviseurs
-  if(S.mirrors!=='none'){const mx=S.mirrors==='aile'?fx+60:(g?g[0][0]:ol.cowlX)+40;for(const sy of [-1,1]) s+=`<rect x="${mx}" y="${sy>0?bw-10:-bw-110}" width="${S.mirrors==='camera'?70:100}" height="120" rx="25" ${S.mirrors==='elec'?`fill="${S.paint}" class="k-paint"`:S.mirrors==='camera'?'class="k-dark"':'class="k-chrome"'}/>`;}
-  // phares (vus du dessus)
-  if(S.lights==='acet'||S.lights==='elec') for(const sy of [-1,1]) s+=`<circle cx="120" cy="${sy*bw*.6}" r="70" class="k-lampcase"/>`;
-  const fs=clamp(11.5*(L+2*pad)/(pxw||600),60,260);
-  s+=`<path d="M0 ${W/2+130}V${W/2+170}M${L} ${W/2+130}V${W/2+170}M0 ${W/2+150}H${L}" class="c-dim"/><text x="${L/2}" y="${W/2+150+fs*1.15}" text-anchor="middle" font-size="${fs}" class="c-dimt">Longueur ${nf(L)} · largeur ${nf(W)}</text>`;
+  if(S.mirrors!=='none'){const mx=S.mirrors==='aile'?fx+60:(g?g[0][0]:ol.cowlX)+40,hh=S.mirrors==='aile'&&old?track/2:hAt(mx);for(const sy of [-1,1]) s+=`<rect x="${mx}" y="${sy>0?hh-10:-hh-110}" width="${S.mirrors==='camera'?70:100}" height="120" rx="25" ${S.mirrors==='elec'?`fill="${S.paint}" class="k-paint"`:S.mirrors==='camera'?'class="k-dark"':'class="k-chrome"'}/>`;}
+  // phares et feux vus du dessus
+  if(S.lights==='acet'||S.lights==='elec') for(const sy of [-1,1]) s+=`<circle cx="130" cy="${sy*(old?track/2-60:bw*.6)}" r="70" class="k-lampcase"/>`;
+  else for(const sy of [-1,1]) s+=`<path d="M${30} ${sy*hAt(40)*.5}Q${60} ${sy*hAt(120)*.95} ${200} ${sy*hAt(200)*.96}L${190} ${sy*hAt(200)*.8}Z" class="k-lamp" opacity=".9"/>`;
+  for(const sy of [-1,1]) s+=`<path d="M${L-30} ${sy*hAt(L-40)*.5}Q${L-50} ${sy*hAt(L-100)*.95} ${L-180} ${sy*hAt(L-180)*.96}L${L-170} ${sy*hAt(L-180)*.82}Z" class="k-tail"/>`;
+  s+=`<path d="M0 ${W/2+130}V${W/2+170}M${L} ${W/2+130}V${W/2+170}M0 ${W/2+150}H${L}" class="c-dim"/><text x="${L/2}" y="${W/2+150+fs0*1.15}" text-anchor="middle" font-size="${fs0}" class="c-dimt">Longueur ${nf(L)} · largeur ${nf(W)}</text>`;
   return s+'</svg>';
 }
 // ── 3D
@@ -201,7 +270,7 @@ function buildCar3D(){
   const body=ol.body.map(p=>p.slice()),arch=[];
   for(const wx of [rx,fx]){arch.push([wx+aR,s0,0]);for(let i=0;i<=12;i++){const a=i/12*Math.PI;arch.push([wx+Math.cos(a)*aR,R+Math.sin(a)*(aR)*.92,0]);}arch.push([wx-aR,s0,0]);}
   const iTail=body.length-1;body.splice(iTail+1,0,...arch.filter(p=>p[1]>=s0-1||true));
-  const fac=(x,y)=>{let f=1;if(y>belt) f*=1-.24*clamp((y-belt)/(H-belt),0,1);const e=Math.min(x,L-x),pr={hippo:.12,classique:.15,profile:.35,ponton:.25,ailerons:.22,tendu:.18,aero:.32,bio:.4,moderne:.25}[S.style]||.25;f*=1-pr*Math.pow(clamp(1-e/700,0,1),2);if(y<s0+120) f*=1-.05*clamp((s0+120-y)/120,0,1);return f;};
+  const F3=styFace(),cowlT=ol.cowlX/L,fac=(x,y)=>{let f=planHalf(clamp(x/L,0,1),cowlT)/.94;if(y>belt) f*=1-(1-F3.gw)*.9*clamp((y-belt)/(H-belt),0,1);if(y<s0+120) f*=1-.05*clamp((s0+120-y)/120,0,1);return Math.max(.05,f);};
   const shapeV=(geo,k)=>{const p=geo.attributes.position;for(let i=0;i<p.count;i++){p.setZ(i,p.getZ(i)*fac(p.getX(i)+cx,p.getY(i))*k);}p.needsUpdate=true;geo.computeVertexNormals();};
   const ext=(pts,depth,mat,k,part)=>tag(loftMesh(pts,cx,depth/2*(k||1),fac,mat),part);
   const halfW=bodyW/2*.94,zAt=(x,y)=>halfW*fac(x,y);
@@ -252,14 +321,14 @@ function buildCar3D(){
   const lt=S.lights;
   for(const sz of [-1,1]){
     if(lt==='acet'||lt==='elec'){const r=lt==='acet'?70:90,l=new T.Mesh(new T.CylinderGeometry(r,r*.8,140,24),lt==='acet'?new T.MeshStandardMaterial({color:0xb38a3c,metalness:.9,roughness:.25}):chrome);l.rotation.z=Math.PI/2;l.position.set(120-cx,(old?d.nY+r+20:d.nY+r),sz*bw*.62);tag(l,'phares');const g=new T.Mesh(new T.CircleGeometry(r*.85,24),lampM);g.rotation.y=-Math.PI/2;g.position.set(120-cx-71,l.position.y,l.position.z);tag(g,'phares');}
-    else if(lt==='rond'){const l=new T.Mesh(new T.SphereGeometry(85,20,14,0,Math.PI*2,0,Math.PI/2),lampM);l.rotation.z=Math.PI/2;l.position.set(40-cx,d.nY-80,sz*(bw-150));tag(l,'phares');const ring=new T.Mesh(new T.TorusGeometry(85,12,8,24),chrome);ring.rotation.y=Math.PI/2;ring.position.copy(l.position);tag(ring,'phares');}
+    else if(lt==='rond'){const l=new T.Mesh(new T.SphereGeometry(85,20,14,0,Math.PI*2,0,Math.PI/2),lampM);l.rotation.z=Math.PI/2;l.position.set(40-cx,d.nY-80,sz*Math.max(100,zAt(80,d.nY-80)-95));tag(l,'phares');const ring=new T.Mesh(new T.TorusGeometry(85,12,8,24),chrome);ring.rotation.y=Math.PI/2;ring.position.copy(l.position);tag(ring,'phares');}
     else if(lt==='escam'){const l=new T.Mesh(new T.BoxGeometry(220,24,260),paint);l.position.set(220-cx,d.nY+6,sz*(bw-200));tag(l,'phares');const s=new T.Mesh(new T.BoxGeometry(222,4,262),dark);s.position.set(220-cx,d.nY+19,sz*(bw-200));tag(s,'phares');}
     else{const wl=lt==='halo'?95:lt==='xenon'?80:55,ln=lt==='halo'?260:330;
-      const hs=new T.Mesh(new T.BoxGeometry(70,wl,ln),dark);hs.position.set(26-cx,d.nY-45,sz*(bw-ln/2-70));tag(hs,'phares');
+      const hs=new T.Mesh(new T.BoxGeometry(70,wl,ln),dark);hs.position.set(26-cx,d.nY-45,sz*Math.max(ln/2+20,zAt(70,d.nY-45)-ln/2-10));tag(hs,'phares');
       const lens=new T.Mesh(new T.BoxGeometry(74,wl-8,ln-10),lensM);lens.position.copy(hs.position);lens.position.x-=3;tag(lens,'phares');
       const nb=lt==='halo'?1:2;for(let i=0;i<nb;i++){const pr=new T.Mesh(new T.CylinderGeometry(wl*.32,wl*.32,10,16),lampM);pr.rotation.z=Math.PI/2;pr.position.set(hs.position.x-34,hs.position.y,hs.position.z+(i-(nb-1)/2)*ln*.4);tag(pr,'phares');}
       if(lt==='led'||lt==='laser'){const drl=new T.Mesh(new T.BoxGeometry(76,10,ln*.9),new T.MeshStandardMaterial({color:lt==='laser'?0x8fd0ff:0xffffff,emissive:lt==='laser'?0x4aa8ff:0xffffff,emissiveIntensity:1.2}));drl.position.set(hs.position.x-4,hs.position.y-wl/2+6,hs.position.z);tag(drl,'phares');}}
-    const t=new T.Mesh(new T.BoxGeometry(50,old?90:110,old?100:S.style==='moderne'?420:320),tailM);t.position.set(L-12-cx,d.tY-70,sz*(bw-(old?150:S.style==='moderne'?230:200)));tag(t,'feux');
+    const t=new T.Mesh(new T.BoxGeometry(50,old?90:110,old?100:S.style==='moderne'?420:320),tailM);t.position.set(L-12-cx,d.tY-70,sz*Math.max(80,zAt(L-70,d.tY-70)-(old?60:S.style==='moderne'?215:165)));tag(t,'feux');
   }
   // rétroviseurs
   if(S.mirrors!=='none'){const mm=S.mirrors==='elec'?paint:S.mirrors==='camera'?dark:chrome;for(const sz of [-1,1]){const mx=S.mirrors==='aile'?fx+60:(ol.glass?ol.glass[0][0]:ol.cowlX)+30,my=S.mirrors==='aile'?d.nY+100:belt+60;

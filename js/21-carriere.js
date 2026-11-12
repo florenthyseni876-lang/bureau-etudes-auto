@@ -146,7 +146,7 @@ function styleF(st,y){
 }
 const STY_W={Citadine:.8,Familiale:.8,Sportive:1.1,'Grand tourisme':1.5,'Tout-terrain':.5};
 function repF(){return .7+.6*G.rep/100;}
-function ageF(m){const a=yq()-(m.ly||m.y);return a<1?1.1:Math.max(.6,1.1-.06*a);}
+function ageF(m){const a=yq()-(m.ly||m.y);return a<1?1.1:a<8?1.1-.06*a:Math.max(.1,.62-.045*(a-8));}
 function regBan(m,y,neuf){for(const r of REGS) if(y>=(neuf?r.y:r.ya)&&!r.ok(m)) return {n:r.n,need:r.need,ry:neuf?r.y:r.ya};return null;}
 function pressF(m){if(!m.press) return 1;const a=yq()-(m.ly||m.y);return 1+clamp((m.press.avg-12)/8,-1,1)*.25*Math.max(0,1-a/3);}
 // essais de la presse au lancement
@@ -257,6 +257,7 @@ function nextQuarter(){
   for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');reviewModel(m);(G.pendingNews=G.pendingNews||[]).push(m.id);}}
   // réglementation
   for(const m of G.models) if(m.st==='prod'){const b=regBan(m.met,G.y,false);if(b){m.st='stop';news(`${m.name} retiré du marché`,`${b.n}. Il faudrait : ${b.need}.`,'crit');}}
+  for(const m of G.models) if(m.st==='prod'&&!m.oldWarn&&yq()-(m.ly||m.y)>=10){m.oldWarn=1;news(`${m.name} accuse son âge`,'Dix ans après sa sortie, ce modèle se démode : ses ventes vont chuter d\'année en année. Il est temps de préparer son remplaçant.','warn');}
   // ventes
   const prod=G.models.filter(m=>m.st==='prod');
   const cap=capOfFac(G.fac)/4;let rev=0,cost=0,units=0;

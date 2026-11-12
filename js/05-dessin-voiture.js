@@ -12,10 +12,31 @@ function rpath(pts){
   return d+'Z';
 }
 const poly=pts=>'M'+pts.map(p=>p[0].toFixed(1)+' '+(-p[1]).toFixed(1)).join('L')+'Z';
-const STY_SHAPE={hippo:{nose:1.3,H:170,r:.5,sill:170},classique:{nose:1.2,H:90,r:.7,sill:110},profile:{nose:1.04,H:20,r:1.7,sill:30},ponton:{nose:1.02,H:0,r:1.1},ailerons:{nose:.98,H:-20,r:.9},tendu:{nose:.84,H:-10,r:.55},aero:{nose:.9,H:0,r:1.3},bio:{nose:.95,H:10,r:1.8},moderne:{nose:1.04,H:0,r:.85}};
+// silhouette de chaque style : nez, capot, inclinaison du pare-brise (ws), arrière (rk : >0 droit, <0 fuyant), coffre (dk, tk), hauteur, rayons
+const STY_SHAPE={
+  hippo:{nose:1.12,cowl:-160,ch:1.1,ws:.12,rk:.9,dk:1.22,tk:1.2,H:200,r:.35,sill:170},
+  classique:{nose:1.2,cowl:170,ch:1.08,ws:.28,rk:.55,dk:1.04,tk:.95,H:90,r:.7,sill:110},
+  profile:{nose:1,cowl:0,ch:1,ws:.9,rk:-.55,dk:.78,tk:.58,H:20,r:1.9,sill:30},
+  ponton:{nose:1.04,cowl:0,ch:1,ws:.75,rk:.18,dk:1,tk:1,H:0,r:1.2},
+  ailerons:{nose:.98,cowl:90,ch:.98,ws:.55,rk:0,dk:.96,tk:1.05,H:-35,r:.8},
+  tendu:{nose:.8,cowl:0,ch:.96,ws:1.15,rk:.12,dk:1.06,tk:1.1,H:-15,r:.35},
+  aero:{nose:.9,cowl:0,ch:1,ws:1.3,rk:-.15,dk:1.02,tk:1.02,H:0,r:1.4},
+  bio:{nose:.97,cowl:0,ch:1,ws:1.2,rk:-.22,dk:.98,tk:.9,H:15,r:2.2},
+  moderne:{nose:1.06,cowl:0,ch:1.05,ws:1.35,rk:-.1,dk:1.1,tk:1.12,H:-10,r:.8},
+};
 function outline(B,dz,gc,sty){
-  const sh=STY_SHAPE[sty]||STY_SHAPE.moderne,p0=B.p,p=Object.assign({},p0,{noseH:Math.min(p0.cowlH-20,p0.noseH*sh.nose)});
+  const sh=STY_SHAPE[sty]||STY_SHAPE.moderne,p0=B.p,p=Object.assign({},p0);
   const L=B.L,H=B.H+dz+(B.kind==='roadster'?Math.min(sh.H,0):sh.H),Y=v=>v+dz,sill0=gc+25,sill=sill0+(sh.sill||0);
+  if(sty&&STY_SHAPE[sty]){
+    p.cowlH=p0.cowlH*sh.ch;p.noseH=Math.min(p.cowlH-20,p0.noseH*sh.nose);
+    if(B.kind!=='roadster'&&B.kind!=='super'){
+      p.cowlX=clamp(p0.cowlX+sh.cowl,p0.cowlX-200,p0.roofX1-120);
+      p.roofX1=Math.max(p.cowlX+70,p.cowlX+(p0.roofX1-p0.cowlX)*sh.ws);
+      const pk=B.kind==='pickup';
+      if(!pk){p.roofX2=clamp(sh.rk>=0?lerp(p0.roofX2,p0.deckX-60,sh.rk):lerp(p0.roofX2,p.roofX1+350,-sh.rk),p.roofX1+300,p0.deckX-50);
+        p.deckH=Math.min(p0.deckH*sh.dk,H-dz-p.drop-140);p.tailH=Math.min(p0.tailH*sh.tk,p.deckH+10);}
+    }else if(B.kind==='super'){p.tailH=p0.tailH*Math.min(1.06,sh.tk);}
+  }
   const pt=[[30,sill,45],[0,sill+.45*(Y(p.noseH)-sill),80],[45,Y(p.noseH),120],[p.cowlX*.5,Y(p.noseH+(p.cowlH-p.noseH)*.7),500],[p.cowlX,Y(p.cowlH),170]];
   let glass=null,ws=null;
   if(B.kind==='roadster'){

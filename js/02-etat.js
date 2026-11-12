@@ -25,4 +25,5 @@ function sanitize(){
   if(FUEL[S.fuel].diesel&&!FS[S.fuelSys].d) S.fuelSys='cr';
   if(!FUEL[S.fuel].diesel&&FS[S.fuelSys].d) S.fuelSys='mpi';
   if(S.gearbox==='man'&&S.gears>7) S.gears=7;
+  if(FUEL[S.fuel].diesel&&S.intake==='itb') S.intake='std';
 }

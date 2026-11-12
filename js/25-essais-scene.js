@@ -35,6 +35,7 @@ function sceneDraw(x,v,rpm){
   if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr;}
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
   const P=SC[ui.scene]||SC.campagne;
+  if(ui.camv!=='cote'){const ce=$('#sceneCar');if(ce) ce.style.transform='';}
   if(ui.camv==='helico') drawTop(g,W,H,P);
   else if(ui.camv==='cote') drawSide(g,W,H,P);
   else drawPersp(g,W,H,P,ui.camv==='cockpit');
@@ -62,7 +63,10 @@ function tree(g,x,y,s,P){g.fillStyle='#5b4632';g.fillRect(x-1.5*s,y-10*s,3*s,10*
   if(ui.scene==='montagne'){g.beginPath();g.moveTo(x-9*s,y-8*s);g.lineTo(x,y-34*s);g.lineTo(x+9*s,y-8*s);g.fill();}else{g.beginPath();g.arc(x,y-18*s,10*s,0,7);g.fill();}}
 function drawSide(g,W,H,P){
   const road=$('#road'),car=$('#sceneCar svg'),ppm=car?car.getBoundingClientRect().width/(car.viewBox.baseVal.width/1000):30;
-  const gy=H-26,x=SCN.x*ppm;
+  const gy=H-26,carEl=$('#sceneCar'),carW=carEl?carEl.getBoundingClientRect().width:0,travel=Math.max(0,W-carW-W*.06);
+  const uu=clamp(SCN.x/70,0,1),tx=travel*(1-uu*uu*(3-2*uu));if(carEl) carEl.style.transform=`translateX(${tx.toFixed(1)}px)`;
+  const x=Math.max(0,SCN.x*ppm-(travel-tx));
+  g.save();g.translate(W,0);g.scale(-1,1);
   skyGrad(g,W,H,gy-30,P);
   farLayer(g,W,gy-30,x*.05,P,1);
   // couche intermédiaire
@@ -90,6 +94,7 @@ function drawSide(g,W,H,P){
   for(let px=-od;px<W;px+=dl+dg) g.fillRect(px,gy+12,dl,3);
   // traînées de vitesse
   if(SCN.v>90&&!reduced()){g.strokeStyle='rgba(255,255,255,'+clamp((SCN.v-90)/250,0,.35)+')';g.lineWidth=1;for(let i=0;i<14;i++){const yy=gy-80+hsh(i)*70,len=20+SCN.v*.3,xx=((hsh(i+5)*W-(x*1.4))%W+W)%W;g.beginPath();g.moveTo(xx,yy);g.lineTo(xx+len,yy);g.stroke();}}
+  g.restore();
   if(road) road.style.setProperty('--gy',(H-gy)+'px');
 }
 // perspective (poursuite et cockpit)

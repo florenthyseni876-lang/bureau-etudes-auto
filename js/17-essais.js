@@ -32,6 +32,7 @@ function essaisHTML(){
     <div class="run-ctl"><button class="btn ghost" id="cruiseGo" type="button">Rouler à vitesse stabilisée</button><div class="f cruise-f"><div class="f-top"><label for="cruiseV">Vitesse visée</label><output id="cruiseVO" for="cruiseV"></output></div><input type="range" id="cruiseV" min="30" max="300" step="5"></div></div>
     <div><div class="chart-h"><h4><i style="background:var(--s1)"></i>Vitesse (km/h) selon le temps (s)</h4><p class="ch-read" id="runRead"></p></div><div class="charts" id="runCh"></div></div>
   </div>
+  ${enduHTML()}
   <div class="card"><h3>Mesures</h3><div class="tbl-wrap"><table><tbody>${perf.map(p=>`<tr><td>${p[0]}</td><td>${p[1]}</td></tr>`).join('')}</tbody></table></div></div>
   <div class="card"><h3>À quel usage convient-elle ?</h3>
     <p class="verdict">${crit?`${crit} point${crit>1?'s':''} bloquant${crit>1?'s':''} empêche${crit>1?'nt':''} la mise en production : voyez les contrôles ci-dessous.`:`Ce véhicule se place le mieux en <b>${C.best[0].replace(/^./,c=>c.toLocaleLowerCase())}</b>, avec ${nf(C.best[1])} points sur 100.`}</p>
