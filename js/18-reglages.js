@@ -75,6 +75,14 @@ const UI={
  ],
  carrosserie:[
   {t:'Silhouette',items:[{k:'body',type:'bodies'}]},
+  {t:'Style',note:()=>{const st=STYLE[S.style];let t=`${st.n} (apparu en ${st.y}) : ${st.d}`;if(typeof G!=='undefined'&&G){const f=styleF(S.style,G.y);t+=f>=1.08?` En ${G.y}, c'est la dernière mode : les clients adorent.`:f>=1?` En ${G.y}, ce style reste dans l'air du temps.`:` En ${G.y}, ce style fait vieillot : les ventes en souffrent.`;}return t;},items:[
+   {k:'style',type:'seg',l:'Style de carrosserie',wide:1,opts:o(STYLE),hint:'Chaque époque a sa mode. Un style démodé fait fuir les clients, surtout dans le luxe et le sport. Il change aussi la traînée.'},
+  ]},
+  {t:'Équipements de carrosserie',items:[
+   {k:'bumper',type:'seg',l:'Pare-chocs',wide:1,opts:o(BUMPER),hint:'Les pare-chocs à absorption puis les boucliers protègent mieux les occupants et les piétons. Le chrome massif pèse lourd mais impressionne.'},
+   {k:'lights',type:'seg',l:'Phares',wide:1,opts:o(LIGHTS),hint:'Mieux on voit la nuit, plus la voiture est sûre. Les phares escamotables affinent le nez des sportives.'},
+   {k:'mirrors',type:'seg',l:'Rétroviseurs',wide:1,opts:o(MIRROR),hint:'Sans rétroviseur extérieur, le conducteur ne voit pas ce qui arrive : la sécurité en pâtit.'},
+  ]},
   {t:'Implantation du moteur',note:()=>{const f=M.C.fit;return f.ok?`Moteur ${nf(f.len)} × ${nf(f.wid)} mm · compartiment ${nf(f.max)} × ${nf(f.maxW)} mm : il rentre.`:`Moteur ${nf(f.len)} × ${nf(f.wid)} mm · compartiment ${nf(f.max)} × ${nf(f.maxW)} mm : il ne rentre pas.`;},items:[
    {k:'enginePos',type:'seg',l:'Position',wide:1,opts:o(POS),dis:(S,v)=>!BODY[S.body].bay[v]&&'Impossible sur cette carrosserie'},
   ]},

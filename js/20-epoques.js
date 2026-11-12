@@ -165,12 +165,15 @@ const TECH={};for(const t of TECHS) TECH[t[0]]={id:t[0],dom:t[1],n:t[2],y:t[3],u
 // verrou : LOCK['clé|valeur'] = technologie qui débloque cette valeur
 const LOCK={};for(const t of TECHS) for(const [k,v] of t[4]) LOCK[k+'|'+v]=t[0];
 
+// styles et équipements : se débloquent tout seuls avec l'année
+const YEAR_LOCK={};
+for(const [k,T] of [['style',STYLE],['bumper',BUMPER],['lights',LIGHTS],['mirrors',MIRROR]]) for(const [v,o] of Object.entries(T)) if(o.y>1900) YEAR_LOCK[k+'|'+v]={n:o.n,y:o.y,yl:1};
 // valeur de repli d'époque (toujours disponible) pour chaque clé verrouillable
-const ERA_BASE={gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
+const ERA_BASE={style:'hippo',bumper:'none',lights:'acet',mirrors:'none',gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
   vvt:false,vvl:false,cda:false,flex:false,launchCtl:false,pops:false,startStop:false,ecuVmax:false,splitter:false,flatFloor:false,abs:false,tc:false,esp:false};
 
 // repli vers l'option d'époque la plus proche quand une valeur est verrouillée
-const ERA_FB={gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
+const ERA_FB={style:{moderne:'bio',bio:'aero',aero:'tendu',tendu:'ponton',ailerons:'ponton',ponton:'profile',profile:'classique',classique:'hippo'},bumper:{carbone:'bouclier',bouclier:'caout',caout:'chrome',massif:'chrome',chrome:'none'},lights:{laser:'led',led:'xenon',xenon:'halo',halo:'rond',escam:'rond',rond:'elec',elec:'acet'},mirrors:{camera:'elec',elec:'porte',porte:'aile',aile:'none'},gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
   valveMat:{ti:'sodium',sodium:'steel'},internals:{ti:'forged',forged:'cast'},aspiration:{tri:'biturbo',quad:'biturbo',biturbo:'turbo',turbo:'na',sc:'na'},turboStage:{comp:'seq',seq:'par'},turboType:{et:'vgt',vgt:'wg',ts:'wg'},
   intercooler:{water:'air',air:'none'},oilGrade:{'0w20':'5w30','5w30':'10w40','5w40':'10w40','10w60':'20w50','10w40':'20w50'},manifold:{race:'tub',tub:'cast'},cat:{gpf:'tri',sport:'tri',tri:'none'},muffler:{valve:'sport',sport:'std',comf:'std'},
   body:{suv:'break',break:'berline',compacte:'berline',citadine:'compacte',supercar:'coupe',coupe:'roadster',pickup:'berline'},enginePos:{MR:'FL',RR:'FL',FT:'FL'},drive:{awd:'rwd',fwd:'rwd'},chassis:{carbon:'alu',alu:'steel',steel:'ladder',tube:'ladder'},panels:{carbon:'alu',alu:'steel',grp:'steel'},
@@ -194,13 +197,13 @@ const GEAR_Y={gm4l60:1992,zf6hp:2000,aisin6:2003,mb7g:2003,dq250:2003,smart5:199
 let ERA=null; // {y, has:Set}
 function capOf(k,y){const c=ERA_CAP[k];if(!c) return null;const r={};if(c.max){let m=itp(c.max,y);if(c.step) m=Math.floor(m/c.step+1e-6)*c.step;r.max=m;}if(c.min){let m=itp(c.min,y);if(c.step) m=Math.ceil(m/c.step-1e-6)*c.step;r.min=m;}return r;}
 function eraRange(k){if(!ERA) return null;const c=ERA_CAP[k];if(!c||(c.skip&&c.skip(S))) return null;return capOf(k,ERA.y);}
-function lockOf(k,v){const id=LOCK[k+'|'+v];return id&&!ERA.has.has(id)?TECH[id]:null;}
+function lockOf(k,v){const yl=YEAR_LOCK[k+'|'+v];if(yl) return yl.y>ERA.y?yl:null;const id=LOCK[k+'|'+v];return id&&!ERA.has.has(id)?TECH[id]:null;}
 // raison du verrou (chaîne) ou false
 function eraDis(k,v){
   if(!ERA) return false;
   if(v===undefined) v=true;
   const t=lockOf(k,v);
-  if(t) return t.y>ERA.y?`Pas encore inventé : ${t.n} (${t.y})`:`À rechercher : ${t.n}`;
+  if(t) return t.yl?`Apparaît en ${t.y}`:t.y>ERA.y?`Pas encore inventé : ${t.n} (${t.y})`:`À rechercher : ${t.n}`;
   return false;
 }
 // un ensemble de valeurs (moteur tout prêt, boîte réelle) est-il accessible ?

@@ -11,7 +11,7 @@ function computeCar(S,E){
   const mRim=w=>(.7*S.rim-2)*{steel:1.15,alloy:1,forged:.74}[S.rimType]*(.7+.3*w/205),mTire=w=>.03*w+.2*S.rim;
   const mBrk=(t,d)=>t==='drum'?2*(7+Math.pow(d/250,2)*4):2*(Math.pow(d/300,2)*7*BRK[t].m+4.5);
   const parts={
-    caisse:B.m*(.72*ch.mf+.28*pn.mf)+{none:0,lip:2,wing:9}[S.wing]+(S.splitter?4:0)+(S.flatFloor?11:0),
+    caisse:bodyKit(S).m+B.m*(.72*ch.mf+.28*pn.mf)+{none:0,lip:2,wing:9}[S.wing]+(S.splitter?4:0)+(S.flatFloor?11:0),
     moteur:E.mass,
     transmission:36+.085*E.peakT+4*(S.gears-5)+gb.m+{fwd:18,rwd:front?46:20,awd:84}[S.drive]+{open:0,lsd:6,active:14}[S.diff],
     trains:(SUSP[S.suspF].m+SUSP[S.suspR].m)*sz+2*(mRim(S.tireW)+mTire(S.tireW))+2*(mRim(wR)+mTire(wR))+mBrk(S.brakeF,S.brakeFd)+mBrk(S.brakeR,S.brakeRd),
@@ -24,7 +24,8 @@ function computeCar(S,E){
   fw=clamp(fw,34,68)/100;
   const h=(.37*B.H+(S.gc-B.gc0)*.8+(E.hgt-640)*.03)/1000,track=(B.W-240)/1000,hL=h/(B.WB/1000);
   // aéro
-  const cd=B.cd+{none:0,lip:.008,wing:.04}[S.wing]+(S.splitter?.008:0)-(S.flatFloor?.014:0)+(S.gc-B.gc0)*.00018+(S.tireW-205)*.00011;
+  const kit=bodyKit(S);
+  const cd=kit.cd*B.cd+{none:0,lip:.008,wing:.04}[S.wing]+(S.splitter?.008:0)-(S.flatFloor?.014:0)+(S.gc-B.gc0)*.00018+(S.tireW-205)*.00011;
   const A=B.A+(S.gc-B.gc0)*B.W/1e6*.6,CdA=cd*A;
   const cl=.12-{none:0,lip:.07,wing:.28}[S.wing]-(S.splitter?.09:0)-(S.flatFloor?.16+clamp((140-S.gc)*.002,-.08,.08):0);
   const down=v=>-cl*.5*rho*A*v*v;
@@ -94,12 +95,12 @@ function computeCar(S,E){
   const handling=clamp((100-Math.abs(bal-1)*2.6)*.45+gripSc*.35+agility*.2,0,100);
   // confort, sécurité, usages
   const comfort=clamp(68+(sF.comf+sR.comf-150)*.28-(st-.35)*30+clamp((S.profile-50)*.45,-12,9)+TRIM[S.trim].comf+ch.comf+ty.comf+(B.WB-2600)*.012
-    -Math.max(0,E.noise-55)*.28+(E.smooth-70)*.12+(gb.comf-60)*.08+(S.steering==='mech'?-5:0)+(B.kind==='roadster'?-5:0)+(S.media!=='none'?2:0)-Math.max(0,130-S.gc)*.08,0,100);
-  const safety=clamp(ch.saf+PASS[S.passive].s+(S.abs?5:0)+(S.esp?7:0)+(S.tc?2:0)+clamp((mass-1200)*.006,-4,6)+clamp((40-brake100)*.5,-5,4)+(B.kind==='roadster'?-4:0),0,100);
+    -Math.max(0,E.noise-55)*.28+(E.smooth-70)*.12+(gb.comf-60)*.08+(S.steering==='mech'?-5:0)+(B.kind==='roadster'?-5:0)+(S.media!=='none'?2:0)+kit.comf-Math.max(0,130-S.gc)*.08,0,100);
+  const safety=clamp(ch.saf+PASS[S.passive].s+(S.abs?5:0)+(S.esp?7:0)+(S.tc?2:0)+clamp((mass-1200)*.006,-4,6)+clamp((40-brake100)*.5,-5,4)+(B.kind==='roadster'?-4:0)+kit.saf,0,100);
   const cargo=B.cargo*(S.enginePos==='MR'?.6:S.enginePos==='RR'?.75:1)*(S.seats===7?.55:1)*(S.drive==='awd'?.93:1);
   const pract=clamp(S.seats*9+cargo*.07+(B.pill.length>=2?12:0)+clamp((S.gc-120)*.05,0,6),0,100);
   const off=clamp(clamp((S.gc-130)*.28,0,42)+(S.drive==='awd'?22:S.drive==='rwd'?4:2)+(S.diff!=='open'?5:0)+ty.off*.14+(sF.off+sR.off)*.07+(S.chassis==='ladder'?6:0)+clamp((E.tq(2000)/mass-.12)*60,0,8),0,100);
-  const prest=clamp(TRIM[S.trim].pres*.42+MEDIA[S.media].p*.5+E.smooth*.14+clamp(E.peakP/6,0,22)+(E.n>=8?8:E.n>=6?4:0)+(S.chassis==='carbon'?6:S.chassis==='alu'?3:0)+(S.panels==='carbon'?4:0),0,100);
+  const prest=clamp(TRIM[S.trim].pres*.42+MEDIA[S.media].p*.5+E.smooth*.14+clamp(E.peakP/6,0,22)+(E.n>=8?8:E.n>=6?4:0)+(S.chassis==='carbon'?6:S.chassis==='alu'?3:0)+(S.panels==='carbon'?4:0)+kit.pr,0,100);
   // consommation
   const fu=FUEL[S.fuel],pAv=rpm=>E.tq(rpm)*rpm*Math.PI/30;
   const fuelW=vv=>{
@@ -117,7 +118,7 @@ function computeCar(S,E){
   // coûts
   const rimC=w=>({steel:40+4*S.rim,alloy:90+9*S.rim,forged:3*(90+9*S.rim)}[S.rimType])+ty.cost*(w/205)*(S.rim/16);
   const costs={
-    'Caisse et structure':B.m*5+(ch.cost+pn.cost)*sz+{none:0,lip:120,wing:900}[S.wing]+(S.splitter?350:0)+(S.flatFloor?1400:0),
+    'Caisse et structure':kit.cost+B.m*5+(ch.cost+pn.cost)*sz+{none:0,lip:120,wing:900}[S.wing]+(S.splitter?350:0)+(S.flatFloor?1400:0),
     'Moteur':E.cost,
     'Transmission':gb.cost+120*(S.gears-5)+1.8*E.peakT+{fwd:300,rwd:650,awd:1900}[S.drive]+{open:0,lsd:700,active:2200}[S.diff],
     'Trains roulants':SUSP[S.suspF].cost+SUSP[S.suspR].cost+2*rimC(S.tireW)+2*rimC(wR)+BRK[S.brakeF].cost*S.brakeFd/300+BRK[S.brakeR].cost*S.brakeRd/300,

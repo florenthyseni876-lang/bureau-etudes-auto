@@ -127,7 +127,7 @@ function noteCls(n){return n>=14?'n-ok':n>=10?'n-mid':'n-bad';}
 function pressHTML(m){const p=m.press;return `<p class="grp-note">Moyenne ${nf(p.avg,1)}/20 · jugée comme une voiture ${p.seg.toLocaleLowerCase()} · ${Q[p.q]} ${p.y}. ${p.avg>=12?'Cette bonne presse attire des clients pendant les premières années.':'Ces critiques freinent les ventes pendant les premières années.'}</p><ul class="press">${p.list.map(r=>`<li><div class="press-h"><b>${esc(r.mag)}</b><span class="note ${noteCls(r.note)}">${nf(r.note,1)}/20</span></div><p>« ${esc(r.txt)} »</p></li>`).join('')}</ul>`;}
 function gammeHTML(){
   const ms=G.models.slice().reverse();
-  let h=`<section class="cgrp"><h3>Modèles</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th class="n">Presse</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" step="1" value="${Math.round(toCur(m.price))}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="n">${m.press?`<span class="note ${noteCls(m.press.avg)}">${nf(m.press.avg,1)}/20</span>`:'—'}</td><td class="act"><button class="chip-btn" type="button" data-evol="${m.id}">Créer une évolution</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div><p class="hint">Le prix se modifie directement dans le tableau, en ${curName(G.y)} de ${G.y}. « Créer une évolution » ouvre la conception à partir de ce modèle.</p>${ms.filter(m=>m.press).map(m=>`<details class="press-d"><summary>Revue de presse : ${esc(m.name)} · ${nf(m.press.avg,1)}/20</summary>${pressHTML(m)}<button class="chip-btn" type="button" data-journal="${m.id}">Ouvrir le journal</button></details>`).join('')}`:'<p class="grp-note">Aucun modèle pour l\'instant.</p>'}<div class="btns"><button class="btn sm" type="button" data-newcar="1"${G.over?' disabled':''}>Concevoir une nouvelle voiture</button></div></section>`;
+  let h=`<section class="cgrp"><h3>Modèles</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th class="n">Presse</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body,m.snap)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" step="1" value="${Math.round(toCur(m.price))}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="n">${m.press?`<span class="note ${noteCls(m.press.avg)}">${nf(m.press.avg,1)}/20</span>`:'—'}</td><td class="act"><button class="chip-btn" type="button" data-evol="${m.id}">Créer une évolution</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div><p class="hint">Le prix se modifie directement dans le tableau, en ${curName(G.y)} de ${G.y}. « Créer une évolution » ouvre la conception à partir de ce modèle.</p>${ms.filter(m=>m.press).map(m=>`<details class="press-d"><summary>Revue de presse : ${esc(m.name)} · ${nf(m.press.avg,1)}/20</summary>${pressHTML(m)}<button class="chip-btn" type="button" data-journal="${m.id}">Ouvrir le journal</button></details>`).join('')}`:'<p class="grp-note">Aucun modèle pour l\'instant.</p>'}<div class="btns"><button class="btn sm" type="button" data-newcar="1"${G.over?' disabled':''}>Concevoir une nouvelle voiture</button></div></section>`;
   if(G.models.length) h=lastQHTML()+h;
   return `<div class="career">${h}</div>`;
 }
@@ -156,7 +156,7 @@ const STEP_CHK={
 const STEP_BLOCK=['Implantation du moteur','Auto-allumage','Disques et jantes','Passages de roue'];
 const STEP_HELP={
   moteur:'Choisissez l\'architecture, la cylindrée, l\'alimentation et le réglage du moteur. Les pièces grisées ne sont pas encore inventées ou pas encore recherchées.',
-  carrosserie:'Choisissez la silhouette, la position du moteur, la structure et la peinture. La silhouette détermine les clientèles visées.',
+  carrosserie:'Choisissez la silhouette, le style d\'époque, les pare-chocs, les phares et les rétroviseurs, puis la structure et la peinture. La silhouette détermine les clientèles visées, le style suit la mode.',
   transmission:'Choisissez la boîte de vitesses et son étagement, puis concevez-la : acier et largeur des pignons, denture, synchroniseurs, embrayage. Elle doit encaisser le couple du moteur.',
   trains:'Réglez les suspensions, les roues, les pneus et les freins.',
   habitacle:'Choisissez le nombre de places, la finition, les équipements et la sécurité.',
@@ -328,20 +328,22 @@ $('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 $('#homeBtn').addEventListener('click',showHome);
 
 /* ── lancement : animation puis journal en double page ── */
-const LFX=el('div','lfx');LFX.hidden=true;LFX.setAttribute('role','dialog');LFX.setAttribute('aria-modal','true');LFX.setAttribute('aria-label','Lancement du modèle');document.body.appendChild(LFX);
+const LFX=el('div','lfx');
+LFX.addEventListener('click',e=>{const b=e.target.closest('.lfx-snd');if(!b) return;fxSetOn(!SFX.on);b.setAttribute('aria-pressed',SFX.on);b.textContent=SFX.on?'Son activé':'Son coupé';if(SFX.on&&$('.jr',LFX)) fxPaper();});LFX.hidden=true;LFX.setAttribute('role','dialog');LFX.setAttribute('aria-modal','true');LFX.setAttribute('aria-label','Lancement du modèle');document.body.appendChild(LFX);
 let lfxT=[];
 const noMotion=()=>ui.noAnim||matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ART={citadine:'une citadine',compacte:'une compacte',berline:'une berline',break:'un break',coupe:'un coupé',roadster:'un roadster',suv:'un SUV',pickup:'un pick-up',supercar:'une supercar'};
-function carArt(m,cls){return `<div class="${cls}" style="--paint:${esc(m.snap&&m.snap.paint||'#1f5fa8')}">${miniCar(m.met.body)}</div>`;}
+function carArt(m,cls){return `<div class="${cls}" style="--paint:${esc(m.snap&&m.snap.paint||'#1f5fa8')}">${miniCar(m.met.body,m.snap)}</div>`;}
 function showLaunch(m){
   for(const t of lfxT) clearTimeout(t);lfxT=[];
   if(noMotion()){showJournal(m);return;}
   LFX.className='lfx lfx-show';LFX.hidden=false;document.body.classList.add('lfx-on');
-  LFX.innerHTML=`<div class="lfx-stage"><div class="lfx-spot"></div><p class="lfx-k">${esc(G.co)} présente</p>${carArt(m,'lfx-car')}<h2 class="lfx-n">${esc(m.name)}</h2><p class="lfx-s">${BODY[m.met.body].n} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · ${moneyF(m.price)}</p><div class="lfx-flash"></div><p class="lfx-next">Le lendemain, la presse publie ses essais…</p></div><button class="chip-btn lfx-skip" type="button">Passer</button>`;
+  LFX.innerHTML=`<div class="lfx-stage"><div class="lfx-spot"></div><p class="lfx-k">${esc(G.co)} présente</p>${carArt(m,'lfx-car')}<h2 class="lfx-n">${esc(m.name)}</h2><p class="lfx-s">${BODY[m.met.body].n} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · ${moneyF(m.price)}</p><div class="lfx-flash"></div><p class="lfx-next">Le lendemain, la presse publie ses essais…</p></div><button class="chip-btn lfx-snd" type="button" aria-pressed="${SFX.on}">${SFX.on?'Son activé':'Son coupé'}</button><button class="chip-btn lfx-skip" type="button">Passer</button>`;
+  fxLaunch();
   $('.lfx-skip',LFX).addEventListener('click',()=>showJournal(m));$('.lfx-skip',LFX).focus({preventScroll:true});
   lfxT.push(setTimeout(()=>showJournal(m),5200));
 }
-function closeLfx(){for(const t of lfxT) clearTimeout(t);lfxT=[];LFX.hidden=true;LFX.innerHTML='';document.body.classList.remove('lfx-on');}
+function closeLfx(){fxStop();for(const t of lfxT) clearTimeout(t);lfxT=[];LFX.hidden=true;LFX.innerHTML='';document.body.classList.remove('lfx-on');}
 function longReview(r,m,first){
   const p=r.pros||[],c=r.cons||[],B=BODY[m.met.body].n.toLocaleLowerCase(),up=s=>s.replace(/^./,ch=>ch.toUpperCase());
   const a=[];
@@ -376,6 +378,8 @@ function showJournal(m){
      <p>${eff>=0?`Cette presse va attirer des clients : environ +${eff} % d'intérêt pour la ${esc(m.name)} pendant les premières années.`:`Ces critiques vont freiner les ventes : environ ${eff} % d'intérêt pour la ${esc(m.name)} pendant les premières années.`}</p></section>
    </article>
   </div></div><button class="btn lfx-close" type="button">Refermer le journal</button>`;
+  LFX.insertAdjacentHTML('beforeend',`<button class="chip-btn lfx-snd" type="button" aria-pressed="${SFX.on}">${SFX.on?'Son activé':'Son coupé'}</button>`);
+  fxPaper();
   LFX.scrollTop=0;
   const cb=$('.lfx-close',LFX);cb.addEventListener('click',()=>{closeLfx();render();});cb.focus({preventScroll:true});
 }

@@ -629,6 +629,29 @@ body.lfx-on{overflow:hidden}
 .jr-fig .jr-note{top:-14px;right:-10px}
 @media (max-width:820px){.jr-fig .jr-note{top:-12px;right:-6px}}
 .lfx-close{white-space:nowrap}@media (max-width:600px){.lfx-close{font-size:15px;padding:8px 16px}}
+
+/* éléments de carrosserie */
+.car .k-dark,.m-k.k-dark{fill:#1b1e23;stroke:var(--ink);stroke-width:.8;vector-effect:non-scaling-stroke}
+.car .k-paint{stroke:var(--ink);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.m-k.k-paint{fill:currentColor}
+.car .k-chrome,.m-k.k-chrome{fill:#d9dee4;stroke:#5d6773;stroke-width:1;vector-effect:non-scaling-stroke}
+.car .k-rubber,.m-k.k-rubber{fill:#24272c;stroke:#000;stroke-width:.8;vector-effect:non-scaling-stroke}
+.car .k-carbon,.m-k.k-carbon{fill:#2e3238;stroke:#000;stroke-width:.8;vector-effect:non-scaling-stroke}
+.car .k-seam,.car .k-line{stroke:#000;stroke-opacity:.35;stroke-width:1.2;fill:none;vector-effect:non-scaling-stroke}
+.m-k.k-seam,.m-k.k-line,.m-k.k-crease,.m-k.k-sill{display:none}
+.car .k-strip,.m-k.k-strip{stroke:#e3e7ec;stroke-width:22;stroke-linecap:round;fill:none}
+.car .k-crease{stroke:#000;stroke-opacity:.3;stroke-width:1.6;fill:none;vector-effect:non-scaling-stroke}
+.car .k-sill{stroke:#111;stroke-width:40;stroke-linecap:round;opacity:.65}
+.car .k-stalk,.m-k.k-stalk{stroke:#5d6773;stroke-width:16;fill:none}
+.car .k-lampcase,.m-k.k-lampcase{fill:#b38a3c;stroke:#4d3a17;stroke-width:1;vector-effect:non-scaling-stroke}
+.car .k-lamp,.m-k.k-lamp{fill:#ffe38a;stroke:var(--ink);stroke-width:.8;vector-effect:non-scaling-stroke}
+.car .k-xenon,.m-k.k-xenon{fill:#e3f1ff;stroke:var(--ink);stroke-width:.8;vector-effect:non-scaling-stroke}
+.car .k-drl,.m-k.k-drl{stroke:#f4fbff;stroke-width:16;stroke-linecap:round}
+.car .k-laser,.m-k.k-laser{stroke:#5fb4ff;stroke-width:16;stroke-linecap:round}
+.car .k-tail,.m-k.k-tail{fill:#c22a2a;stroke:var(--ink);stroke-width:.8;vector-effect:non-scaling-stroke}
+.home-cars .m-k,.body-card .m-k{display:none}
+.lfx-snd{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:3;background:rgba(10,20,30,.6);color:#e8f0f8;border-color:#5b6d82}
+.lfx-paper .lfx-snd{top:max(12px,env(safe-area-inset-top,0px));bottom:auto}
 </style>
 <div class="app">
   <header class="cartouche">
@@ -810,6 +833,25 @@ function gbxSpec(S){
     shift:usesSync(t)?sy.shift:1,eta:th.eta,
     comf:th.comf*(t==='seq'?.5:1)+(usesSync(t)?sy.comf:0)+(usesClutch(t)?cl.comf:0)};
 }
+// carrosserie : style d'époque et équipements (y = année d'apparition)
+const STYLE={
+  hippo:{n:'Voiture sans chevaux',y:1900,cd:2,m:15,c:0,pr:-4,d:'Caisse haute et droite héritée des calèches, ailes en cuir verni, marchepieds, lanternes.'},
+  classique:{n:'Classique à ailes',y:1915,cd:1.7,m:10,c:200,pr:0,d:'Long capot, calandre verticale chromée, ailes galbées et marchepieds.'},
+  profile:{n:'Profilé',y:1934,cd:1.3,m:5,c:400,pr:3,d:'Formes arrondies étudiées pour l\'air, roues arrière carénées.'},
+  ponton:{n:'Ponton',y:1949,cd:1.2,m:0,c:300,pr:2,d:'Ailes intégrées à la caisse : flancs lisses et habitacle plus large.'},
+  ailerons:{n:'Ailerons américains',y:1955,cd:1.22,m:8,c:700,pr:6,d:'Chromes à profusion et ailerons arrière : le rêve américain.'},
+  tendu:{n:'Lignes tendues',y:1968,cd:1.1,m:0,c:300,pr:3,d:'Profil en coin, arêtes vives, capot plongeant.'},
+  aero:{n:'Aérodynamique',y:1983,cd:.95,m:0,c:500,pr:3,d:'Surfaces affleurantes et vitres collées : traînée réduite.'},
+  bio:{n:'Bio-design',y:1993,cd:.97,m:0,c:400,pr:2,d:'Courbes douces et formes arrondies.'},
+  moderne:{n:'Moderne',y:2005,cd:1,m:5,c:600,pr:5,d:'Nervures marquées, ligne de caisse haute, faces avant expressives.'},
+};
+const BUMPER={none:{n:'Aucun',y:1900,m:0,c:0,saf:-3,pr:0,cd:1},chrome:{n:'Lame chromée',y:1925,m:18,c:150,saf:0,pr:2,cd:1.01},massif:{n:'Chromé massif',y:1950,m:40,c:450,saf:1,pr:5,cd:1.03},caout:{n:'À absorption',y:1974,m:35,c:350,saf:4,pr:-2,cd:1.02},bouclier:{n:'Boucliers intégrés',y:1982,m:14,c:300,saf:5,pr:2,cd:.98},carbone:{n:'Boucliers carbone',y:1995,m:6,c:2500,saf:3,pr:4,cd:.97}};
+const LIGHTS={acet:{n:'Lanternes à acétylène',y:1900,m:6,c:0,saf:-6,pr:0,cd:1.02},elec:{n:'Phares électriques',y:1912,m:5,c:80,saf:-2,pr:1,cd:1.01},rond:{n:'Ronds intégrés',y:1938,m:3,c:100,saf:0,pr:1,cd:1},escam:{n:'Escamotables',y:1963,m:9,c:450,saf:1,pr:5,cd:.985},halo:{n:'Halogènes',y:1971,m:3,c:160,saf:2,pr:2,cd:1},xenon:{n:'Xénon',y:1991,m:3,c:700,saf:4,pr:5,cd:1},led:{n:'LED',y:2008,m:2,c:900,saf:6,pr:6,cd:1},laser:{n:'Laser matriciel',y:2014,m:2,c:3000,saf:8,pr:9,cd:1}};
+const MIRROR={none:{n:'Aucun',y:1900,m:0,c:0,saf:-4,comf:0,cd:1},aile:{n:'Sur les ailes',y:1925,m:1,c:40,saf:-1,comf:0,cd:1.01},porte:{n:'Sur les portières',y:1960,m:1.5,c:60,saf:1,comf:1,cd:1.015},elec:{n:'Électriques dégivrants',y:1985,m:3,c:220,saf:2,comf:3,cd:1.015},camera:{n:'Caméras',y:2019,m:1,c:1200,saf:3,comf:2,cd:.99}};
+function bodyKit(S){
+  const st=STYLE[S.style]||STYLE.moderne,b=BUMPER[S.bumper]||BUMPER.bouclier,l=LIGHTS[S.lights]||LIGHTS.led,mi=MIRROR[S.mirrors]||MIRROR.elec;
+  return {cd:st.cd*b.cd*l.cd*mi.cd,m:st.m+2*b.m+l.m+mi.m,cost:st.c+2*b.c+l.c+mi.c,pr:st.pr+b.pr+l.pr,saf:b.saf+l.saf+mi.saf,comf:mi.comf};
+}
 const GBX={man:{n:'Manuelle',eta:.935,shift:.28,cut:0,m:0,cost:900,sport:85,comf:55},auto:{n:'Automatique à convertisseur',eta:.885,shift:.35,cut:.55,m:32,cost:2300,sport:45,comf:95},amt:{n:'Robotisée simple embrayage',eta:.93,shift:.5,cut:0,m:8,cost:1400,sport:55,comf:50},cvt:{n:'Variation continue (CVT)',eta:.87,shift:0,cut:1,m:20,cost:2100,sport:25,comf:92},dct:{n:'Double embrayage',eta:.925,shift:.07,cut:.6,m:22,cost:3300,sport:92,comf:85},seq:{n:'Séquentielle',eta:.945,shift:.08,cut:0,m:-6,cost:6800,sport:100,comf:20}};
 const SUSP={torsion:{n:'Essieu de torsion',grip:.93,comf:62,m:34,cost:300,off:35},mac:{n:'MacPherson',grip:.96,comf:72,m:38,cost:450,off:45},dw:{n:'Double triangulation',grip:1,comf:74,m:46,cost:950,off:55},multi:{n:'Multibras',grip:.99,comf:86,m:52,cost:1100,off:50},push:{n:'Poussoirs',grip:1.03,comf:45,m:40,cost:4200,off:10},rigid:{n:'Essieu rigide',grip:.90,comf:48,m:72,cost:380,off:95}};
 const TYRE={eco:{n:'Éco',mu:.90,crr:.0075,cost:60,comf:4,off:20},road:{n:'Route',mu:.97,crr:.0095,cost:80,comf:2,off:25},sport:{n:'Sport',mu:1.05,crr:.011,cost:140,comf:0,off:10},semi:{n:'Semi-slick',mu:1.20,crr:.014,cost:260,comf:-6,off:0},at:{n:'Tout-terrain',mu:.82,crr:.015,cost:130,comf:-3,off:100}};
@@ -905,7 +947,7 @@ const DEF={
  fuelSys:'mpi',fuel:'sp98',cr:10.5,lambda:.90,
  aspiration:'na',boost:.8,turboSize:40,intercooler:'air',
  manifold:'tub',cat:'tri',muffler:'sport',oilGrade:'5w40',oilFill:100,
- liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,gMat:'case',gWidth:55,gTeeth:'helical',gSync:'multi',clutch:'single',gCool:false,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
+ liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,style:'moderne',bumper:'bouclier',lights:'led',mirrors:'elec',gMat:'case',gWidth:55,gTeeth:'helical',gSync:'multi',clutch:'single',gCool:false,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
  body:'coupe',enginePos:'FL',chassis:'steel',panels:'steel',paint:'#1f5fa8',wing:'lip',splitter:false,flatFloor:false,
  gearbox:'man',gears:6,first:3.6,top:.82,final:3.45,drive:'rwd',diff:'lsd',
  suspF:'mac',suspR:'multi',stiff:60,gc:125,arbF:55,arbR:50,
@@ -1143,7 +1185,7 @@ function computeCar(S,E){
   const mRim=w=>(.7*S.rim-2)*{steel:1.15,alloy:1,forged:.74}[S.rimType]*(.7+.3*w/205),mTire=w=>.03*w+.2*S.rim;
   const mBrk=(t,d)=>t==='drum'?2*(7+Math.pow(d/250,2)*4):2*(Math.pow(d/300,2)*7*BRK[t].m+4.5);
   const parts={
-    caisse:B.m*(.72*ch.mf+.28*pn.mf)+{none:0,lip:2,wing:9}[S.wing]+(S.splitter?4:0)+(S.flatFloor?11:0),
+    caisse:bodyKit(S).m+B.m*(.72*ch.mf+.28*pn.mf)+{none:0,lip:2,wing:9}[S.wing]+(S.splitter?4:0)+(S.flatFloor?11:0),
     moteur:E.mass,
     transmission:36+.085*E.peakT+4*(S.gears-5)+gb.m+{fwd:18,rwd:front?46:20,awd:84}[S.drive]+{open:0,lsd:6,active:14}[S.diff],
     trains:(SUSP[S.suspF].m+SUSP[S.suspR].m)*sz+2*(mRim(S.tireW)+mTire(S.tireW))+2*(mRim(wR)+mTire(wR))+mBrk(S.brakeF,S.brakeFd)+mBrk(S.brakeR,S.brakeRd),
@@ -1156,7 +1198,8 @@ function computeCar(S,E){
   fw=clamp(fw,34,68)/100;
   const h=(.37*B.H+(S.gc-B.gc0)*.8+(E.hgt-640)*.03)/1000,track=(B.W-240)/1000,hL=h/(B.WB/1000);
   // aéro
-  const cd=B.cd+{none:0,lip:.008,wing:.04}[S.wing]+(S.splitter?.008:0)-(S.flatFloor?.014:0)+(S.gc-B.gc0)*.00018+(S.tireW-205)*.00011;
+  const kit=bodyKit(S);
+  const cd=kit.cd*B.cd+{none:0,lip:.008,wing:.04}[S.wing]+(S.splitter?.008:0)-(S.flatFloor?.014:0)+(S.gc-B.gc0)*.00018+(S.tireW-205)*.00011;
   const A=B.A+(S.gc-B.gc0)*B.W/1e6*.6,CdA=cd*A;
   const cl=.12-{none:0,lip:.07,wing:.28}[S.wing]-(S.splitter?.09:0)-(S.flatFloor?.16+clamp((140-S.gc)*.002,-.08,.08):0);
   const down=v=>-cl*.5*rho*A*v*v;
@@ -1226,12 +1269,12 @@ function computeCar(S,E){
   const handling=clamp((100-Math.abs(bal-1)*2.6)*.45+gripSc*.35+agility*.2,0,100);
   // confort, sécurité, usages
   const comfort=clamp(68+(sF.comf+sR.comf-150)*.28-(st-.35)*30+clamp((S.profile-50)*.45,-12,9)+TRIM[S.trim].comf+ch.comf+ty.comf+(B.WB-2600)*.012
-    -Math.max(0,E.noise-55)*.28+(E.smooth-70)*.12+(gb.comf-60)*.08+(S.steering==='mech'?-5:0)+(B.kind==='roadster'?-5:0)+(S.media!=='none'?2:0)-Math.max(0,130-S.gc)*.08,0,100);
-  const safety=clamp(ch.saf+PASS[S.passive].s+(S.abs?5:0)+(S.esp?7:0)+(S.tc?2:0)+clamp((mass-1200)*.006,-4,6)+clamp((40-brake100)*.5,-5,4)+(B.kind==='roadster'?-4:0),0,100);
+    -Math.max(0,E.noise-55)*.28+(E.smooth-70)*.12+(gb.comf-60)*.08+(S.steering==='mech'?-5:0)+(B.kind==='roadster'?-5:0)+(S.media!=='none'?2:0)+kit.comf-Math.max(0,130-S.gc)*.08,0,100);
+  const safety=clamp(ch.saf+PASS[S.passive].s+(S.abs?5:0)+(S.esp?7:0)+(S.tc?2:0)+clamp((mass-1200)*.006,-4,6)+clamp((40-brake100)*.5,-5,4)+(B.kind==='roadster'?-4:0)+kit.saf,0,100);
   const cargo=B.cargo*(S.enginePos==='MR'?.6:S.enginePos==='RR'?.75:1)*(S.seats===7?.55:1)*(S.drive==='awd'?.93:1);
   const pract=clamp(S.seats*9+cargo*.07+(B.pill.length>=2?12:0)+clamp((S.gc-120)*.05,0,6),0,100);
   const off=clamp(clamp((S.gc-130)*.28,0,42)+(S.drive==='awd'?22:S.drive==='rwd'?4:2)+(S.diff!=='open'?5:0)+ty.off*.14+(sF.off+sR.off)*.07+(S.chassis==='ladder'?6:0)+clamp((E.tq(2000)/mass-.12)*60,0,8),0,100);
-  const prest=clamp(TRIM[S.trim].pres*.42+MEDIA[S.media].p*.5+E.smooth*.14+clamp(E.peakP/6,0,22)+(E.n>=8?8:E.n>=6?4:0)+(S.chassis==='carbon'?6:S.chassis==='alu'?3:0)+(S.panels==='carbon'?4:0),0,100);
+  const prest=clamp(TRIM[S.trim].pres*.42+MEDIA[S.media].p*.5+E.smooth*.14+clamp(E.peakP/6,0,22)+(E.n>=8?8:E.n>=6?4:0)+(S.chassis==='carbon'?6:S.chassis==='alu'?3:0)+(S.panels==='carbon'?4:0)+kit.pr,0,100);
   // consommation
   const fu=FUEL[S.fuel],pAv=rpm=>E.tq(rpm)*rpm*Math.PI/30;
   const fuelW=vv=>{
@@ -1249,7 +1292,7 @@ function computeCar(S,E){
   // coûts
   const rimC=w=>({steel:40+4*S.rim,alloy:90+9*S.rim,forged:3*(90+9*S.rim)}[S.rimType])+ty.cost*(w/205)*(S.rim/16);
   const costs={
-    'Caisse et structure':B.m*5+(ch.cost+pn.cost)*sz+{none:0,lip:120,wing:900}[S.wing]+(S.splitter?350:0)+(S.flatFloor?1400:0),
+    'Caisse et structure':kit.cost+B.m*5+(ch.cost+pn.cost)*sz+{none:0,lip:120,wing:900}[S.wing]+(S.splitter?350:0)+(S.flatFloor?1400:0),
     'Moteur':E.cost,
     'Transmission':gb.cost+120*(S.gears-5)+1.8*E.peakT+{fwd:300,rwd:650,awd:1900}[S.drive]+{open:0,lsd:700,active:2200}[S.diff],
     'Trains roulants':SUSP[S.suspF].cost+SUSP[S.suspR].cost+2*rimC(S.tireW)+2*rimC(wR)+BRK[S.brakeF].cost*S.brakeFd/300+BRK[S.brakeR].cost*S.brakeRd/300,
@@ -1332,8 +1375,10 @@ function rpath(pts){
   return d+'Z';
 }
 const poly=pts=>'M'+pts.map(p=>p[0].toFixed(1)+' '+(-p[1]).toFixed(1)).join('L')+'Z';
-function outline(B,dz,gc){
-  const p=B.p,L=B.L,H=B.H+dz,Y=v=>v+dz,sill=gc+25;
+const STY_SHAPE={hippo:{nose:1.3,H:170,r:.5,sill:170},classique:{nose:1.2,H:90,r:.7,sill:110},profile:{nose:1.04,H:20,r:1.7,sill:30},ponton:{nose:1.02,H:0,r:1.1},ailerons:{nose:.98,H:-20,r:.9},tendu:{nose:.84,H:-10,r:.55},aero:{nose:.9,H:0,r:1.3},bio:{nose:.95,H:10,r:1.8},moderne:{nose:1.04,H:0,r:.85}};
+function outline(B,dz,gc,sty){
+  const sh=STY_SHAPE[sty]||STY_SHAPE.moderne,p0=B.p,p=Object.assign({},p0,{noseH:Math.min(p0.cowlH-20,p0.noseH*sh.nose)});
+  const L=B.L,H=B.H+dz+(B.kind==='roadster'?Math.min(sh.H,0):sh.H),Y=v=>v+dz,sill0=gc+25,sill=sill0+(sh.sill||0);
   const pt=[[30,sill,45],[0,sill+.45*(Y(p.noseH)-sill),80],[45,Y(p.noseH),120],[p.cowlX*.5,Y(p.noseH+(p.cowlH-p.noseH)*.7),500],[p.cowlX,Y(p.cowlH),170]];
   let glass=null,ws=null;
   if(B.kind==='roadster'){
@@ -1348,17 +1393,65 @@ function outline(B,dz,gc){
     glass=[gA,gB,gC,gD];
   }
   pt.push([L-20,Y(p.tailH),70],[L,sill+.5*(Y(p.tailH)-sill),70],[L-35,sill,45]);
-  return {body:pt,glass,ws,H,sill};
+  for(const q of pt) if(q[2]) q[2]*=sh.r;
+  return {body:pt,glass,ws,H,sill,sill0,noseY:Y(p.noseH),tailY:Y(p.tailH),cowlX:p.cowlX,cowlY:Y(p.cowlH)};
 }
-function miniCar(id){
-  const B=BODY[id],o=outline(B,0,B.gc0),R=B.tireMax/2*.93,fx=B.FO,rx=B.FO+B.WB;
-  return `<svg viewBox="${(B.L-5500)/2} -1960 5500 2020" aria-hidden="true"><path d="${rpath(o.body)}" class="m-b"/>${o.glass?`<path d="${rpath(o.glass)}" class="m-g"/>`:`<path d="${rpath(o.ws)}" class="m-b"/>`}<circle cx="${fx}" cy="${-R}" r="${R+45}" class="m-w"/><circle cx="${rx}" cy="${-R}" r="${R+45}" class="m-w"/><circle cx="${fx}" cy="${-R}" r="${R}" class="m-t"/><circle cx="${rx}" cy="${-R}" r="${R}" class="m-t"/></svg>`;
+// éléments de carrosserie : ailes, chromes, pare-chocs, phares, rétroviseurs
+function kitSVG(B,ol,o){
+  const L=B.L,sill=ol.sill,s0=ol.sill0,nY=ol.noseY,tY=ol.tailY,fx=o.fx,rx=o.rx,R=o.R,aR=o.aR,sty=o.style,pf=o.paint,mini=!!o.mini;
+  const cls=c=>mini?`class="k-${c} m-k"`:`class="k-${c}"`;
+  let s='';
+  // ailes séparées et marchepieds
+  if(sty==='hippo'||sty==='classique'){
+    const fen=(cx)=>{const r1=aR+38,r2=aR-12,yb=Math.min(R,s0+40);return `<path d="M${cx-r1-90} ${-(s0+5)}Q${cx-r1} ${-(s0+10)} ${cx-r1} ${-yb}A${r1} ${r1} 0 0 1 ${cx+r1} ${-yb}L${cx+r1+40} ${-(s0+5)}L${cx+r2} ${-(s0+5)}L${cx+r2} ${-yb}A${r2} ${r2} 0 0 0 ${cx-r2} ${-yb}L${cx-r2} ${-(s0+5)}Z" ${sty==='hippo'?cls('dark'):cls('paint')} ${!mini&&sty!=='hippo'?`fill="${pf}"`:''}/>`;};
+    s+=fen(fx)+fen(rx);
+    s+=`<rect x="${fx+R+60}" y="${-(s0+22)}" width="${rx-fx-2*R-120}" height="34" rx="10" ${cls('dark')}/>`;
+    s+=`<rect x="-20" y="${-(nY+30)}" width="70" height="${Math.max(80,nY+30-sill+20)}" rx="18" ${cls('chrome')}/>`;
+  }
+  if(sty==='profile') s+=`<path d="M${rx-aR-10} ${-R}A${aR+10} ${aR+10} 0 0 1 ${rx+aR+10} ${-R}Z" ${cls('paint')} ${mini?'':`fill="${pf}"`}/><path d="M${rx-aR-10} ${-R}H${rx+aR+10}" ${cls('line')}/>`;
+  if(sty==='ponton'||sty==='ailerons'){const y=sill+.55*(nY-sill);s+=`<path d="M${fx+aR+40} ${-y}L${L-260} ${-(y+30)}" ${cls('strip')}/>`;}
+  if(sty==='ailerons') s+=`<path d="M${L-760} ${-tY}Q${L-200} ${-(tY+40)} ${L-30} ${-(tY+190)}L${L-10} ${-tY}Z" ${cls('paint')} ${mini?'':`fill="${pf}"`}/>`;
+  if(sty==='tendu'||sty==='moderne'){const y=sill+.72*(nY-sill);s+=`<path d="M${180} ${-(y+10)}L${L-180} ${-(y+60)}" ${cls('crease')}/>`;}
+  if(sty==='moderne') s+=`<path d="M${fx+aR+30} ${-(sill+30)}L${rx-aR-30} ${-(sill+30)}" ${cls('sill')}/>`;
+  // pare-chocs
+  const by=sill+.32*(nY-sill),bty=sill+.32*(tY-sill),bp=o.bumper;
+  const bump=(x0,x1,y,h)=>{
+    if(bp==='chrome') return `<rect x="${x0}" y="${-(y+h/2)}" width="${x1-x0}" height="${h}" rx="${h/2}" ${cls('chrome')}/>`;
+    if(bp==='massif') return `<rect x="${x0-20}" y="${-(y+h*.8)}" width="${x1-x0+40}" height="${h*1.6}" rx="${h*.6}" ${cls('chrome')}/>`;
+    if(bp==='caout') return `<rect x="${x0-30}" y="${-(y+h*.75)}" width="${x1-x0+60}" height="${h*1.5}" rx="14" ${cls('rubber')}/>`;
+    if(bp==='carbone') return `<rect x="${x0}" y="${-(y+h*.35)}" width="${x1-x0}" height="${h*.7}" rx="8" ${cls('carbon')}/>`;
+    if(bp==='bouclier') return `<path d="M${x0+40} ${-(y+h*.6)}H${x1-20}" ${cls('seam')}/>`;
+    return '';
+  };
+  s+=bump(-45,240,by,46)+bump(L-240,L+45,bty,46);
+  // phares
+  const lt=o.lights,hx=sty==='hippo'||sty==='classique'?150:120;
+  if(lt==='acet'||lt==='elec'){const r=lt==='acet'?62:80,cy=nY+(sty==='hippo'||sty==='classique'?r+20:-r-10);s+=`<path d="M${hx} ${-(cy-r)}V${-(nY-10)}" ${cls('stalk')}/><circle cx="${hx}" cy="${-cy}" r="${r}" ${cls('lampcase')}/><circle cx="${hx-r*.55}" cy="${-cy}" r="${r*.62}" ${cls('lamp')}/>`;}
+  else if(lt==='rond') s+=`<circle cx="95" cy="${-(nY-75)}" r="64" ${cls('lamp')}/>`;
+  else if(lt==='escam') s+=`<path d="M60 ${-(nY+4)}L300 ${-(nY+14)}L300 ${-(nY-6)}L70 ${-(nY-14)}Z" ${cls('dark')}/>`;
+  else if(lt==='halo') s+=`<rect x="10" y="${-(nY-30)}" width="200" height="78" rx="6" ${cls('lamp')}/>`;
+  else if(lt==='xenon') s+=`<path d="M8 ${-(nY-120)}L40 ${-(nY-22)}L260 ${-(nY+2)}L240 ${-(nY-70)}Z" ${cls('xenon')}/>`;
+  else if(lt==='led'||lt==='laser') s+=`<path d="M10 ${-(nY-60)}L40 ${-(nY-18)}L300 ${-(nY+4)}L285 ${-(nY-30)}Z" ${cls('dark')}/><path d="M40 ${-(nY-30)}L290 ${-(nY-10)}" ${cls(lt==='laser'?'laser':'drl')}/>`;
+  // feu arrière
+  s+=`<path d="M${L-10} ${-(tY-110)}L${L-30} ${-(tY-26)}L${L-200} ${-(tY-20)}L${L-190} ${-(tY-84)}Z" ${cls('tail')}/>`;
+  // rétroviseurs
+  const mi=o.mirrors;
+  if(mi==='aile') s+=`<path d="M${fx+40} ${-(nY+10)}V${-(nY+90)}" ${cls('stalk')}/><ellipse cx="${fx+40}" cy="${-(nY+105)}" rx="34" ry="24" ${cls('chrome')}/>`;
+  else if(mi==='porte'||mi==='elec'||mi==='camera'){const mx=o.mx,my=o.my;s+=mi==='camera'?`<path d="M${mx} ${-my}l60 -10l0 -26l-60 6z" ${cls('dark')}/>`:`<path d="M${mx-10} ${-my}q-20 -70 50 -78q70 -4 66 46q-4 34 -50 40z" ${mi==='elec'?cls('paint')+(mini?'':` fill="${pf}"`):cls('chrome')}/>`;}
+  return s;
+}
+function miniCar(id,s0){
+  const B=BODY[id],st=s0&&s0.style||'',o=outline(B,0,B.gc0,st),R=B.tireMax/2*.93,fx=B.FO,rx=B.FO+B.WB;
+  const kit=s0&&s0.style?kitSVG(B,o,{fx,rx,R,aR:R+45,style:s0.style,bumper:s0.bumper,lights:s0.lights,mirrors:s0.mirrors,mini:true,mx:(o.glass?o.glass[0][0]:o.cowlX+60)-20,my:(o.glass?o.glass[0][1]:o.cowlY)+10}):'';
+  const H=o.H+60;
+  return `<svg viewBox="${(B.L-5500)/2} ${-Math.max(1960,H+200)} 5500 ${Math.max(2020,H+260)}" aria-hidden="true"><path d="${rpath(o.body)}" class="m-b"/>${o.glass?`<path d="${rpath(o.glass)}" class="m-g"/>`:`<path d="${rpath(o.ws)}" class="m-b"/>`}<circle cx="${fx}" cy="${-R}" r="${R+45}" class="m-w"/><circle cx="${rx}" cy="${-R}" r="${R+45}" class="m-w"/><circle cx="${fx}" cy="${-R}" r="${R}" class="m-t"/><circle cx="${rx}" cy="${-R}" r="${R}" class="m-t"/>${kit}</svg>`;
 }
 function carSVG(o){
-  const B=BODY[S.body],p=B.p,C=M.C,E=M.E,L=B.L,dz=S.gc-B.gc0,Y=v=>v+dz;
-  const ol=outline(B,dz,S.gc),H=ol.H,sill=ol.sill,id=o.id||'c';
+  const B=BODY[S.body],C=M.C,E=M.E,L=B.L,dz=S.gc-B.gc0,Y=v=>v+dz;let p=B.p;
+  const ol=outline(B,dz,S.gc,S.style),H=ol.H,sill=ol.sill,id=o.id||'c';
+  p=Object.assign({},p,{noseH:ol.noseY-dz});
   const R=Math.min(C.od,B.tireMax)/2,rimR=Math.min(S.rim*12.7,R-28);
-  const aR=R+clamp(48+dz*.5,30,130),fx=B.FO,rx=B.FO+B.WB;
+  const aR=R+clamp(48+dz*.5,30,130)+({hippo:110,classique:80}[S.style]||0),fx=B.FO,rx=B.FO+B.WB;
   const vx=-300,vw=L+300+(o.dims?540:200),fs=clamp(11.5*vw/(o.pxw||600),70,270);
   const vy=-(H+340),vh=H+340+(o.dims?170+fs*3.7:110);
   const bd=rpath(ol.body),front=S.enginePos==='FT'||S.enginePos==='FL';
@@ -1371,7 +1464,7 @@ function carSVG(o){
   if(S.splitter) s+=`<path d="${poly([[-80,sill-10],[300,sill-10],[300,sill+16],[-80,sill+6]])}" class="c-trim"/>`;
   s+=`<path d="${bd}" fill="${S.paint}" class="c-body"/><path d="${bd}" fill="url(#${id}s)"/>`;
   // feux, bas de caisse
-  s+=`<g clip-path="url(#${id}b)"><path d="${poly([[8,Y(p.noseH)-120],[40,Y(p.noseH)-22],[250,Y(p.noseH)+2],[235,Y(p.noseH)-72]])}" class="c-head"/><path d="${poly([[L-8,Y(p.tailH)-128],[L-28,Y(p.tailH)-28],[L-235,Y(p.tailH)-22],[L-218,Y(p.tailH)-94]])}" class="c-tail"/>`;
+  s+=`<g clip-path="url(#${id}b)">`;
   if(S.flatFloor) s+=`<path d="${poly([[L-580,sill-4],[L-4,sill+108],[L-4,sill-4]])}" class="c-trim"/>`;
   s+=`<circle cx="${fx}" cy="${-R}" r="${aR}" class="c-well"/><circle cx="${rx}" cy="${-R}" r="${aR}" class="c-well"/></g>`;
   // vitrage, montants, portes
@@ -1413,6 +1506,7 @@ function carSVG(o){
     return w+'</g>';
   };
   s+=wheel(fx,S.drive!=='rwd',S.brakeF,S.brakeFd)+wheel(rx,S.drive!=='fwd',S.brakeR,S.brakeRd);
+  s+=kitSVG(B,ol,{fx,rx,R,aR,style:S.style,bumper:S.bumper,lights:S.lights,mirrors:S.mirrors,paint:S.paint,mx:(ol.glass?ol.glass[0][0]:ol.cowlX+60)-20,my:(ol.glass?ol.glass[0][1]:ol.cowlY)+10});
   // écorché
   if(o.cut){
     const eLen=S.enginePos==='FT'?E.wid:E.len;
@@ -2582,6 +2676,14 @@ const UI={
  ],
  carrosserie:[
   {t:'Silhouette',items:[{k:'body',type:'bodies'}]},
+  {t:'Style',note:()=>{const st=STYLE[S.style];let t=`${st.n} (apparu en ${st.y}) : ${st.d}`;if(typeof G!=='undefined'&&G){const f=styleF(S.style,G.y);t+=f>=1.08?` En ${G.y}, c'est la dernière mode : les clients adorent.`:f>=1?` En ${G.y}, ce style reste dans l'air du temps.`:` En ${G.y}, ce style fait vieillot : les ventes en souffrent.`;}return t;},items:[
+   {k:'style',type:'seg',l:'Style de carrosserie',wide:1,opts:o(STYLE),hint:'Chaque époque a sa mode. Un style démodé fait fuir les clients, surtout dans le luxe et le sport. Il change aussi la traînée.'},
+  ]},
+  {t:'Équipements de carrosserie',items:[
+   {k:'bumper',type:'seg',l:'Pare-chocs',wide:1,opts:o(BUMPER),hint:'Les pare-chocs à absorption puis les boucliers protègent mieux les occupants et les piétons. Le chrome massif pèse lourd mais impressionne.'},
+   {k:'lights',type:'seg',l:'Phares',wide:1,opts:o(LIGHTS),hint:'Mieux on voit la nuit, plus la voiture est sûre. Les phares escamotables affinent le nez des sportives.'},
+   {k:'mirrors',type:'seg',l:'Rétroviseurs',wide:1,opts:o(MIRROR),hint:'Sans rétroviseur extérieur, le conducteur ne voit pas ce qui arrive : la sécurité en pâtit.'},
+  ]},
   {t:'Implantation du moteur',note:()=>{const f=M.C.fit;return f.ok?`Moteur ${nf(f.len)} × ${nf(f.wid)} mm · compartiment ${nf(f.max)} × ${nf(f.maxW)} mm : il rentre.`:`Moteur ${nf(f.len)} × ${nf(f.wid)} mm · compartiment ${nf(f.max)} × ${nf(f.maxW)} mm : il ne rentre pas.`;},items:[
    {k:'enginePos',type:'seg',l:'Position',wide:1,opts:o(POS),dis:(S,v)=>!BODY[S.body].bay[v]&&'Impossible sur cette carrosserie'},
   ]},
@@ -2879,12 +2981,15 @@ const TECH={};for(const t of TECHS) TECH[t[0]]={id:t[0],dom:t[1],n:t[2],y:t[3],u
 // verrou : LOCK['clé|valeur'] = technologie qui débloque cette valeur
 const LOCK={};for(const t of TECHS) for(const [k,v] of t[4]) LOCK[k+'|'+v]=t[0];
 
+// styles et équipements : se débloquent tout seuls avec l'année
+const YEAR_LOCK={};
+for(const [k,T] of [['style',STYLE],['bumper',BUMPER],['lights',LIGHTS],['mirrors',MIRROR]]) for(const [v,o] of Object.entries(T)) if(o.y>1900) YEAR_LOCK[k+'|'+v]={n:o.n,y:o.y,yl:1};
 // valeur de repli d'époque (toujours disponible) pour chaque clé verrouillable
-const ERA_BASE={gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
+const ERA_BASE={style:'hippo',bumper:'none',lights:'acet',mirrors:'none',gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
   vvt:false,vvl:false,cda:false,flex:false,launchCtl:false,pops:false,startStop:false,ecuVmax:false,splitter:false,flatFloor:false,abs:false,tc:false,esp:false};
 
 // repli vers l'option d'époque la plus proche quand une valeur est verrouillée
-const ERA_FB={gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
+const ERA_FB={style:{moderne:'bio',bio:'aero',aero:'tendu',tendu:'ponton',ailerons:'ponton',ponton:'profile',profile:'classique',classique:'hippo'},bumper:{carbone:'bouclier',bouclier:'caout',caout:'chrome',massif:'chrome',chrome:'none'},lights:{laser:'led',led:'xenon',xenon:'halo',halo:'rond',escam:'rond',rond:'elec',elec:'acet'},mirrors:{camera:'elec',elec:'porte',porte:'aile',aile:'none'},gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
   valveMat:{ti:'sodium',sodium:'steel'},internals:{ti:'forged',forged:'cast'},aspiration:{tri:'biturbo',quad:'biturbo',biturbo:'turbo',turbo:'na',sc:'na'},turboStage:{comp:'seq',seq:'par'},turboType:{et:'vgt',vgt:'wg',ts:'wg'},
   intercooler:{water:'air',air:'none'},oilGrade:{'0w20':'5w30','5w30':'10w40','5w40':'10w40','10w60':'20w50','10w40':'20w50'},manifold:{race:'tub',tub:'cast'},cat:{gpf:'tri',sport:'tri',tri:'none'},muffler:{valve:'sport',sport:'std',comf:'std'},
   body:{suv:'break',break:'berline',compacte:'berline',citadine:'compacte',supercar:'coupe',coupe:'roadster',pickup:'berline'},enginePos:{MR:'FL',RR:'FL',FT:'FL'},drive:{awd:'rwd',fwd:'rwd'},chassis:{carbon:'alu',alu:'steel',steel:'ladder',tube:'ladder'},panels:{carbon:'alu',alu:'steel',grp:'steel'},
@@ -2908,13 +3013,13 @@ const GEAR_Y={gm4l60:1992,zf6hp:2000,aisin6:2003,mb7g:2003,dq250:2003,smart5:199
 let ERA=null; // {y, has:Set}
 function capOf(k,y){const c=ERA_CAP[k];if(!c) return null;const r={};if(c.max){let m=itp(c.max,y);if(c.step) m=Math.floor(m/c.step+1e-6)*c.step;r.max=m;}if(c.min){let m=itp(c.min,y);if(c.step) m=Math.ceil(m/c.step-1e-6)*c.step;r.min=m;}return r;}
 function eraRange(k){if(!ERA) return null;const c=ERA_CAP[k];if(!c||(c.skip&&c.skip(S))) return null;return capOf(k,ERA.y);}
-function lockOf(k,v){const id=LOCK[k+'|'+v];return id&&!ERA.has.has(id)?TECH[id]:null;}
+function lockOf(k,v){const yl=YEAR_LOCK[k+'|'+v];if(yl) return yl.y>ERA.y?yl:null;const id=LOCK[k+'|'+v];return id&&!ERA.has.has(id)?TECH[id]:null;}
 // raison du verrou (chaîne) ou false
 function eraDis(k,v){
   if(!ERA) return false;
   if(v===undefined) v=true;
   const t=lockOf(k,v);
-  if(t) return t.y>ERA.y?`Pas encore inventé : ${t.n} (${t.y})`:`À rechercher : ${t.n}`;
+  if(t) return t.yl?`Apparaît en ${t.y}`:t.y>ERA.y?`Pas encore inventé : ${t.n} (${t.y})`:`À rechercher : ${t.n}`;
   return false;
 }
 // un ensemble de valeurs (moteur tout prêt, boîte réelle) est-il accessible ?
@@ -3001,7 +3106,7 @@ function fxOf(y){y=Math.floor(y);return y<1960?{k:itp(FX,y),u:'F',old:true}:y<20
 const POP=[[1900,30000],[1910,26000],[1915,22000],[1920,16000],[1930,14000],[1945,13000],[1950,11000],[1960,11000],[1970,13000],[1980,17000],[1990,17000],[2000,15500],[2010,16000],[2020,17500]];
 // presse automobile (titres imaginaires) : [nom, début, fin, sensibilité]
 const MAGS=[['La Gazette du Chauffeur',1900,1945,'tech'],['Mécanique & Locomotion',1900,1965,'perf'],['L\'Écho des Routes',1900,1960,'famille'],['Le Volant Français',1920,2100,'famille'],['Route Libre',1950,2100,'perf'],['L\'Essai Auto',1960,2100,'tech'],['Moteur Mag',1975,2100,'perf'],['Auto Critique',1990,2100,'famille'],['Chrono & Conso',2005,2100,'tech']];
-const MAG_W={perf:{P:.3,V:.2,hand:.2,rel:.1,prix:.2},famille:{comf:.2,pract:.15,eco:.15,saf:.15,rel:.15,prix:.2},tech:{rel:.2,P:.15,eco:.15,comf:.15,saf:.1,hand:.1,prix:.15}};
+const MAG_W={perf:{P:.3,V:.2,hand:.2,rel:.1,prix:.2,style:.12},famille:{comf:.2,pract:.15,eco:.15,saf:.15,rel:.15,prix:.2,style:.1},tech:{rel:.2,P:.15,eco:.15,comf:.15,saf:.1,hand:.1,prix:.15,style:.08}};
 const LAB=[['Bureau des méthodes',1],['Laboratoire',2],['Centre de recherche',3],['Centre technique',4]];
 const HIST=[
  [1903,'Les grandes courses','Paris-Madrid est arrêtée à Bordeaux après une série d\'accidents. Les clients aisés veulent toujours plus de vitesse.'],
@@ -3056,7 +3161,7 @@ function measure(E,C,s){
   s=s||S;const defects=[];let dw=0;
   for(const k of C.checks) if(k.lv==='crit'&&DEFECTS[k.t]!=null&&!(k.t==='Freinage'&&G&&G.y<1955)){defects.push(k.t);dw+=DEFECTS[k.t];}
   const aero=G&&G.techs.includes('p_soufflerie')?1:0;
-  return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,cat:s.cat,di:s.fuelSys==='di'||s.fuelSys==='dual',abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
+  return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,style:s.style,cat:s.cat,di:s.fuelSys==='di'||s.fuelSys==='dual',abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
 }
 function unitCost(m,annual){const vf=clamp(1.25-.075*Math.log10(Math.max(annual,10)),.8,1.25);return m.cost*prodF()*vf*eraK(G?yq():2020);}
 // attractivité d'un modèle pour un segment (1 = voiture moyenne de l'époque)
@@ -3075,9 +3180,21 @@ function appeal(m,seg,y,price){
   if(w.off) L+=w.off*ln(c(q(m.off,50)));
   L+=seg.el*ln(clamp(refPrice(y,seg)/price,.25,seg.pmax));
   L-=.12*m.dw;
+  if(m.style) L+=(STY_W[seg.k]||1)*Math.log(styleF(m.style,y));
   return Math.exp(L);
 }
 function fitOf(seg,body,y){let f=FIT[seg.k][body]||0;if(y<1945&&body==='roadster') f=seg.k==='Citadine'?.8:seg.k==='Familiale'?.5:f;return f;}
+// mode : le style le plus récent plaît, les anciens se démodent
+const STY_ORDER=Object.entries(STYLE).sort((a,b)=>a[1].y-b[1].y).map(x=>x[0]);
+function styleF(st,y){
+  if(!st||!STYLE[st]) return 1;
+  const av=STY_ORDER.filter(k=>STYLE[k].y<=y),last=av[av.length-1],steps=av.length-1-av.indexOf(st);
+  if(av.indexOf(st)<0) return 1;
+  if(steps===0) return y-STYLE[st].y<4?1.14:1.08;
+  if(steps===1) return 1;
+  return Math.max(.65,1-.12*(steps-1));
+}
+const STY_W={Citadine:.8,Familiale:.8,Sportive:1.1,'Grand tourisme':1.5,'Tout-terrain':.5};
 function repF(){return .7+.6*G.rep/100;}
 function ageF(m){const a=yq()-(m.ly||m.y);return a<1?1.1:Math.max(.6,1.1-.06*a);}
 function regBan(m,y,neuf){for(const r of REGS) if(y>=(neuf?r.y:r.ya)&&!r.ok(m)) return {n:r.n,need:r.need,ry:neuf?r.y:r.ya};return null;}
@@ -3088,7 +3205,7 @@ function reviewModel(m){
   const y=yq(),mt=m.met,seg=bestSeg(m,y),ln=Math.log,c=x=>clamp(x,-1,1),q=(v,r)=>ln((v+15)/(r+15));
   const sc={P:c(ln(mt.P/(itp(REF.P,y)*seg.sp))*1.4),V:c(ln(mt.v/(itp(REF.V,y)*seg.sv))*2),comf:c(q(mt.comf,itp(REF.comf,y))*2),rel:c(q(mt.rel,85)*3),
     saf:c(q(mt.saf,itp(REF.saf,y))*2)*Math.min(1,itp(SAF_IMP,y)),eco:c(ln(itp(REF.cons,y)/mt.mix)*2)*Math.min(1,itp(ECO_IMP,y)),hand:c(q(mt.hand,itp(REF.hand,y))*2),
-    pract:c(q(mt.pract,55)*1.5),prest:c(q(mt.prest,itp(REF.prest,y))*1.5),prix:c(ln(refPrice(y,seg)/m.price)*1.6)};
+    pract:c(q(mt.pract,55)*1.5),prest:c(q(mt.prest,itp(REF.prest,y))*1.5),prix:c(ln(refPrice(y,seg)/m.price)*1.6),style:c(ln(styleF(mt.style,y))*5)};
   const pr=moneyF(m.price),Y=G.y;
   const PH={
     P:[`un moteur vigoureux : ${nf(mt.P)} ch, c'est beaucoup en ${Y}`,`un moteur poussif : ${nf(mt.P)} ch, c'est peu pour l'époque`],
@@ -3101,6 +3218,7 @@ function reviewModel(m){
     pract:['un habitacle et un coffre bien pensés','une habitabilité comptée'],
     prest:['une présentation flatteuse','une finition qui manque d\'éclat'],
     prix:[`un prix de ${pr} très bien placé`,`${pr}, c'est cher pour ce qu'elle offre`],
+    style:[`une ligne ${mt.style&&STYLE[mt.style]?STYLE[mt.style].n.toLocaleLowerCase()+' ':''}dans l'air du temps`,`un style ${mt.style&&STYLE[mt.style]?'« '+STYLE[mt.style].n.toLocaleLowerCase()+' » ':''}déjà démodé`],
   };
   const mags=MAGS.filter(g=>Y>=g[1]&&Y<=g[2]);
   for(let i=mags.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mags[i],mags[j]]=[mags[j],mags[i]];}
@@ -3219,6 +3337,8 @@ function nextQuarter(){
     G.hist.push({y:G.y,rev:G.acc.rev,profit:G.acc.profit,units:G.acc.units,cash:G.cash,rep:G.rep});
     G.acc={rev:0,cost:0,units:0,profit:0};G.q=0;G.y++;
     for(const h of HIST) if(h[0]===G.y) news(h[1],h[2],'hist');
+    for(const [k,st] of Object.entries(STYLE)) if(st.y===G.y) news(`Nouvelle mode : ${st.n}`,`${st.d} Les modèles au style le plus récent séduisent davantage ; les plus anciens se démodent.`,'tech');
+    {const eq=[...Object.values(BUMPER),...Object.values(LIGHTS),...Object.values(MIRROR)].filter(x=>x.y===G.y).map(x=>x.n.toLocaleLowerCase());if(eq.length) news(`Nouveaux équipements de carrosserie`,`Disponibles dès maintenant : ${eq.join(', ')}.`,'tech');}
     const nt=techsNewIn(G.y);if(nt.length) news(`Nouveauté${nt.length>1?'s':''} technique${nt.length>1?'s':''} ${G.y}`,`Désormais possible à rechercher : ${nt.join(', ')}.`,'tech');
     for(const r of REGS){if(r.y===G.y+1) news('Nouvelle norme l\'an prochain',`${r.n} : obligatoire pour les nouveaux modèles à partir de ${r.y}, pour toutes les voitures vendues à partir de ${r.ya}. Il faudra : ${r.need}.`,'warn');if(r.ya===G.y+1&&r.ya!==r.y) news('Norme : dernière année de tolérance',`${r.n}. À partir de ${r.ya}, les modèles non conformes seront retirés de la vente.`,'warn');}
   }
@@ -3356,7 +3476,7 @@ function noteCls(n){return n>=14?'n-ok':n>=10?'n-mid':'n-bad';}
 function pressHTML(m){const p=m.press;return `<p class="grp-note">Moyenne ${nf(p.avg,1)}/20 · jugée comme une voiture ${p.seg.toLocaleLowerCase()} · ${Q[p.q]} ${p.y}. ${p.avg>=12?'Cette bonne presse attire des clients pendant les premières années.':'Ces critiques freinent les ventes pendant les premières années.'}</p><ul class="press">${p.list.map(r=>`<li><div class="press-h"><b>${esc(r.mag)}</b><span class="note ${noteCls(r.note)}">${nf(r.note,1)}/20</span></div><p>« ${esc(r.txt)} »</p></li>`).join('')}</ul>`;}
 function gammeHTML(){
   const ms=G.models.slice().reverse();
-  let h=`<section class="cgrp"><h3>Modèles</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th class="n">Presse</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" step="1" value="${Math.round(toCur(m.price))}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="n">${m.press?`<span class="note ${noteCls(m.press.avg)}">${nf(m.press.avg,1)}/20</span>`:'—'}</td><td class="act"><button class="chip-btn" type="button" data-evol="${m.id}">Créer une évolution</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div><p class="hint">Le prix se modifie directement dans le tableau, en ${curName(G.y)} de ${G.y}. « Créer une évolution » ouvre la conception à partir de ce modèle.</p>${ms.filter(m=>m.press).map(m=>`<details class="press-d"><summary>Revue de presse : ${esc(m.name)} · ${nf(m.press.avg,1)}/20</summary>${pressHTML(m)}<button class="chip-btn" type="button" data-journal="${m.id}">Ouvrir le journal</button></details>`).join('')}`:'<p class="grp-note">Aucun modèle pour l\'instant.</p>'}<div class="btns"><button class="btn sm" type="button" data-newcar="1"${G.over?' disabled':''}>Concevoir une nouvelle voiture</button></div></section>`;
+  let h=`<section class="cgrp"><h3>Modèles</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th class="n">Presse</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body,m.snap)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" step="1" value="${Math.round(toCur(m.price))}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="n">${m.press?`<span class="note ${noteCls(m.press.avg)}">${nf(m.press.avg,1)}/20</span>`:'—'}</td><td class="act"><button class="chip-btn" type="button" data-evol="${m.id}">Créer une évolution</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div><p class="hint">Le prix se modifie directement dans le tableau, en ${curName(G.y)} de ${G.y}. « Créer une évolution » ouvre la conception à partir de ce modèle.</p>${ms.filter(m=>m.press).map(m=>`<details class="press-d"><summary>Revue de presse : ${esc(m.name)} · ${nf(m.press.avg,1)}/20</summary>${pressHTML(m)}<button class="chip-btn" type="button" data-journal="${m.id}">Ouvrir le journal</button></details>`).join('')}`:'<p class="grp-note">Aucun modèle pour l\'instant.</p>'}<div class="btns"><button class="btn sm" type="button" data-newcar="1"${G.over?' disabled':''}>Concevoir une nouvelle voiture</button></div></section>`;
   if(G.models.length) h=lastQHTML()+h;
   return `<div class="career">${h}</div>`;
 }
@@ -3385,7 +3505,7 @@ const STEP_CHK={
 const STEP_BLOCK=['Implantation du moteur','Auto-allumage','Disques et jantes','Passages de roue'];
 const STEP_HELP={
   moteur:'Choisissez l\'architecture, la cylindrée, l\'alimentation et le réglage du moteur. Les pièces grisées ne sont pas encore inventées ou pas encore recherchées.',
-  carrosserie:'Choisissez la silhouette, la position du moteur, la structure et la peinture. La silhouette détermine les clientèles visées.',
+  carrosserie:'Choisissez la silhouette, le style d\'époque, les pare-chocs, les phares et les rétroviseurs, puis la structure et la peinture. La silhouette détermine les clientèles visées, le style suit la mode.',
   transmission:'Choisissez la boîte de vitesses et son étagement, puis concevez-la : acier et largeur des pignons, denture, synchroniseurs, embrayage. Elle doit encaisser le couple du moteur.',
   trains:'Réglez les suspensions, les roues, les pneus et les freins.',
   habitacle:'Choisissez le nombre de places, la finition, les équipements et la sécurité.',
@@ -3557,20 +3677,22 @@ $('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 $('#homeBtn').addEventListener('click',showHome);
 
 /* ── lancement : animation puis journal en double page ── */
-const LFX=el('div','lfx');LFX.hidden=true;LFX.setAttribute('role','dialog');LFX.setAttribute('aria-modal','true');LFX.setAttribute('aria-label','Lancement du modèle');document.body.appendChild(LFX);
+const LFX=el('div','lfx');
+LFX.addEventListener('click',e=>{const b=e.target.closest('.lfx-snd');if(!b) return;fxSetOn(!SFX.on);b.setAttribute('aria-pressed',SFX.on);b.textContent=SFX.on?'Son activé':'Son coupé';if(SFX.on&&$('.jr',LFX)) fxPaper();});LFX.hidden=true;LFX.setAttribute('role','dialog');LFX.setAttribute('aria-modal','true');LFX.setAttribute('aria-label','Lancement du modèle');document.body.appendChild(LFX);
 let lfxT=[];
 const noMotion=()=>ui.noAnim||matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ART={citadine:'une citadine',compacte:'une compacte',berline:'une berline',break:'un break',coupe:'un coupé',roadster:'un roadster',suv:'un SUV',pickup:'un pick-up',supercar:'une supercar'};
-function carArt(m,cls){return `<div class="${cls}" style="--paint:${esc(m.snap&&m.snap.paint||'#1f5fa8')}">${miniCar(m.met.body)}</div>`;}
+function carArt(m,cls){return `<div class="${cls}" style="--paint:${esc(m.snap&&m.snap.paint||'#1f5fa8')}">${miniCar(m.met.body,m.snap)}</div>`;}
 function showLaunch(m){
   for(const t of lfxT) clearTimeout(t);lfxT=[];
   if(noMotion()){showJournal(m);return;}
   LFX.className='lfx lfx-show';LFX.hidden=false;document.body.classList.add('lfx-on');
-  LFX.innerHTML=`<div class="lfx-stage"><div class="lfx-spot"></div><p class="lfx-k">${esc(G.co)} présente</p>${carArt(m,'lfx-car')}<h2 class="lfx-n">${esc(m.name)}</h2><p class="lfx-s">${BODY[m.met.body].n} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · ${moneyF(m.price)}</p><div class="lfx-flash"></div><p class="lfx-next">Le lendemain, la presse publie ses essais…</p></div><button class="chip-btn lfx-skip" type="button">Passer</button>`;
+  LFX.innerHTML=`<div class="lfx-stage"><div class="lfx-spot"></div><p class="lfx-k">${esc(G.co)} présente</p>${carArt(m,'lfx-car')}<h2 class="lfx-n">${esc(m.name)}</h2><p class="lfx-s">${BODY[m.met.body].n} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · ${moneyF(m.price)}</p><div class="lfx-flash"></div><p class="lfx-next">Le lendemain, la presse publie ses essais…</p></div><button class="chip-btn lfx-snd" type="button" aria-pressed="${SFX.on}">${SFX.on?'Son activé':'Son coupé'}</button><button class="chip-btn lfx-skip" type="button">Passer</button>`;
+  fxLaunch();
   $('.lfx-skip',LFX).addEventListener('click',()=>showJournal(m));$('.lfx-skip',LFX).focus({preventScroll:true});
   lfxT.push(setTimeout(()=>showJournal(m),5200));
 }
-function closeLfx(){for(const t of lfxT) clearTimeout(t);lfxT=[];LFX.hidden=true;LFX.innerHTML='';document.body.classList.remove('lfx-on');}
+function closeLfx(){fxStop();for(const t of lfxT) clearTimeout(t);lfxT=[];LFX.hidden=true;LFX.innerHTML='';document.body.classList.remove('lfx-on');}
 function longReview(r,m,first){
   const p=r.pros||[],c=r.cons||[],B=BODY[m.met.body].n.toLocaleLowerCase(),up=s=>s.replace(/^./,ch=>ch.toUpperCase());
   const a=[];
@@ -3605,6 +3727,8 @@ function showJournal(m){
      <p>${eff>=0?`Cette presse va attirer des clients : environ +${eff} % d'intérêt pour la ${esc(m.name)} pendant les premières années.`:`Ces critiques vont freiner les ventes : environ ${eff} % d'intérêt pour la ${esc(m.name)} pendant les premières années.`}</p></section>
    </article>
   </div></div><button class="btn lfx-close" type="button">Refermer le journal</button>`;
+  LFX.insertAdjacentHTML('beforeend',`<button class="chip-btn lfx-snd" type="button" aria-pressed="${SFX.on}">${SFX.on?'Son activé':'Son coupé'}</button>`);
+  fxPaper();
   LFX.scrollTop=0;
   const cb=$('.lfx-close',LFX);cb.addEventListener('click',()=>{closeLfx();render();});cb.focus({preventScroll:true});
 }
@@ -3625,6 +3749,62 @@ function navClick(e){
 $('#cnav').addEventListener('click',navClick);
 $('#wizFoot').addEventListener('click',navClick);
 initHome();
+
+/* ───────────── Sons du lancement et du journal ─────────────
+   Tout est synthétisé avec WebAudio : roulement de tambour, moteur qui arrive,
+   cymbale et fanfare, déclencheurs d'appareils photo, applaudissements, papier. */
+const SFX={ctx:null,on:true,bus:null,nb:null};
+try{SFX.on=localStorage.getItem('bea.fx')!=='0';}catch(e){}
+function fxCtx(){
+  if(!SFX.on) return null;
+  if(!SFX.ctx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC) return null;try{SFX.ctx=new AC();}catch(e){return null;}}
+  if(SFX.ctx.state==='suspended'){try{SFX.ctx.resume();}catch(e){}}
+  if(!SFX.nb){const c=SFX.ctx,n=c.sampleRate*2,b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++) d[i]=Math.random()*2-1;SFX.nb=b;}
+  return SFX.ctx;
+}
+function fxBus(){const c=fxCtx();if(!c) return null;fxStop();const g=c.createGain();g.gain.value=.9;const comp=c.createDynamicsCompressor();g.connect(comp);comp.connect(c.destination);SFX.bus=g;return g;}
+function fxStop(){if(SFX.bus&&SFX.ctx){const g=SFX.bus,t=SFX.ctx.currentTime;try{g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+.15);}catch(e){}setTimeout(()=>{try{g.disconnect();}catch(e){}},400);SFX.bus=null;}}
+function fxSetOn(v){SFX.on=v;try{localStorage.setItem('bea.fx',v?'1':'0');}catch(e){}if(!v) fxStop();}
+// bruit filtré avec enveloppe
+function nz(out,t,dur,o){
+  const c=SFX.ctx,s=c.createBufferSource();s.buffer=SFX.nb;s.loop=true;
+  const f=c.createBiquadFilter();f.type=o.type||'bandpass';f.frequency.setValueAtTime(o.f||1000,t);if(o.f2) f.frequency.exponentialRampToValueAtTime(o.f2,t+dur);f.Q.value=o.q||1;
+  const g=c.createGain(),a=o.a||.005,pk=o.g||.3;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pk,t+a);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  s.connect(f);f.connect(g);g.connect(out);s.start(t,Math.random()*1.5);s.stop(t+dur+.05);
+}
+function tone(out,t,dur,o){
+  const c=SFX.ctx,os=c.createOscillator();os.type=o.type||'sine';os.frequency.setValueAtTime(o.f,t);if(o.f2) os.frequency.exponentialRampToValueAtTime(o.f2,t+(o.glide||dur));
+  const g=c.createGain(),a=o.a||.01,pk=o.g||.2;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pk,t+a);if(o.hold) g.gain.setValueAtTime(pk,t+a+o.hold);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  let n=os;if(o.lp){const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=o.lp;f.Q.value=o.lq||.7;os.connect(f);n=f;}
+  n.connect(g);g.connect(out);os.start(t);os.stop(t+dur+.05);return os;
+}
+function fxShutter(out,t){nz(out,t,.025,{type:'highpass',f:3500,g:.5,a:.001});nz(out,t+.045,.03,{type:'bandpass',f:2200,q:2,g:.35,a:.001});tone(out,t+.08,.9,{f:2400,f2:7200,g:.025,a:.05});}
+function fxLaunch(){
+  const out=fxBus();if(!out) return;const c=SFX.ctx,t0=c.currentTime+.05;
+  // roulement de tambour en crescendo
+  for(let t=.2,i=0;t<2.25;t+=.045,i++) nz(out,t0+t,.06,{type:'bandpass',f:1800+Math.random()*400,q:.9,g:.04+.22*(t/2.25)**2,a:.002});
+  // moteur qui arrive : deux dents de scie graves qui montent puis redescendent
+  for(const [k,dt] of [[1,0],[1.5,.004]]){const os=tone(out,t0+.6+dt,2.2,{type:'sawtooth',f:34*k,f2:78*k,glide:1.2,g:.16,a:.25,hold:.9,lp:420,lq:3});os.frequency.exponentialRampToValueAtTime(42*k,t0+2.7);}
+  nz(out,t0+.6,2.1,{type:'lowpass',f:220,f2:500,g:.18,a:.4});
+  // cymbale + fanfare au moment où le nom apparaît
+  nz(out,t0+2.3,2.4,{type:'highpass',f:5200,g:.32,a:.004});
+  nz(out,t0+2.3,.25,{type:'lowpass',f:160,g:.5,a:.002});
+  const brass=(f,t,d,g)=>{for(const det of [-4,4]) {const os=tone(out,t0+t,d,{type:'sawtooth',f,g:g/2,a:.04,hold:d*.6,lp:2400,lq:1});os.detune.value=det;}};
+  brass(392,2.3,.16,.14);brass(392,2.48,.16,.14);
+  for(const f of [261.6,329.6,392,523.3]) brass(f,2.66,1.9,.11);
+  // déclencheurs d'appareils photo sur les flashs
+  for(const t of [2.4,2.82,3.27,3.5,3.9,4.3]) fxShutter(out,t0+t+(Math.random()*.05));
+  // applaudissements
+  for(let i=0;i<260;i++){const t=2.55+Math.random()*2.6,env=Math.min(1,(t-2.55)/.5)*Math.min(1,(5.2-t)/.8);nz(out,t0+t,.03,{type:'bandpass',f:1200+Math.random()*2200,q:1.4,g:.09*env+.01,a:.001});}
+  nz(out,t0+2.6,2.6,{type:'lowpass',f:700,g:.05,a:.6});
+}
+function fxPaper(){
+  const out=fxBus();if(!out) return;const t0=SFX.ctx.currentTime+.03;
+  nz(out,t0,.55,{type:'bandpass',f:600,f2:3800,q:.7,g:.22,a:.08});
+  for(let i=0;i<26;i++) nz(out,t0+.05+Math.random()*.6,.05+Math.random()*.06,{type:'bandpass',f:2500+Math.random()*3500,q:1.5,g:.07+Math.random()*.08,a:.003});
+  tone(out,t0+.62,.25,{f:95,f2:60,g:.22,a:.004});
+  nz(out,t0+.62,.12,{type:'lowpass',f:400,g:.12,a:.002});
+}
 
 /* ───────────── Rendu ───────────── */
 function renderKeys(){

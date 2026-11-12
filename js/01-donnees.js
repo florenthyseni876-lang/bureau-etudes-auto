@@ -114,6 +114,25 @@ function gbxSpec(S){
     shift:usesSync(t)?sy.shift:1,eta:th.eta,
     comf:th.comf*(t==='seq'?.5:1)+(usesSync(t)?sy.comf:0)+(usesClutch(t)?cl.comf:0)};
 }
+// carrosserie : style d'époque et équipements (y = année d'apparition)
+const STYLE={
+  hippo:{n:'Voiture sans chevaux',y:1900,cd:2,m:15,c:0,pr:-4,d:'Caisse haute et droite héritée des calèches, ailes en cuir verni, marchepieds, lanternes.'},
+  classique:{n:'Classique à ailes',y:1915,cd:1.7,m:10,c:200,pr:0,d:'Long capot, calandre verticale chromée, ailes galbées et marchepieds.'},
+  profile:{n:'Profilé',y:1934,cd:1.3,m:5,c:400,pr:3,d:'Formes arrondies étudiées pour l\'air, roues arrière carénées.'},
+  ponton:{n:'Ponton',y:1949,cd:1.2,m:0,c:300,pr:2,d:'Ailes intégrées à la caisse : flancs lisses et habitacle plus large.'},
+  ailerons:{n:'Ailerons américains',y:1955,cd:1.22,m:8,c:700,pr:6,d:'Chromes à profusion et ailerons arrière : le rêve américain.'},
+  tendu:{n:'Lignes tendues',y:1968,cd:1.1,m:0,c:300,pr:3,d:'Profil en coin, arêtes vives, capot plongeant.'},
+  aero:{n:'Aérodynamique',y:1983,cd:.95,m:0,c:500,pr:3,d:'Surfaces affleurantes et vitres collées : traînée réduite.'},
+  bio:{n:'Bio-design',y:1993,cd:.97,m:0,c:400,pr:2,d:'Courbes douces et formes arrondies.'},
+  moderne:{n:'Moderne',y:2005,cd:1,m:5,c:600,pr:5,d:'Nervures marquées, ligne de caisse haute, faces avant expressives.'},
+};
+const BUMPER={none:{n:'Aucun',y:1900,m:0,c:0,saf:-3,pr:0,cd:1},chrome:{n:'Lame chromée',y:1925,m:18,c:150,saf:0,pr:2,cd:1.01},massif:{n:'Chromé massif',y:1950,m:40,c:450,saf:1,pr:5,cd:1.03},caout:{n:'À absorption',y:1974,m:35,c:350,saf:4,pr:-2,cd:1.02},bouclier:{n:'Boucliers intégrés',y:1982,m:14,c:300,saf:5,pr:2,cd:.98},carbone:{n:'Boucliers carbone',y:1995,m:6,c:2500,saf:3,pr:4,cd:.97}};
+const LIGHTS={acet:{n:'Lanternes à acétylène',y:1900,m:6,c:0,saf:-6,pr:0,cd:1.02},elec:{n:'Phares électriques',y:1912,m:5,c:80,saf:-2,pr:1,cd:1.01},rond:{n:'Ronds intégrés',y:1938,m:3,c:100,saf:0,pr:1,cd:1},escam:{n:'Escamotables',y:1963,m:9,c:450,saf:1,pr:5,cd:.985},halo:{n:'Halogènes',y:1971,m:3,c:160,saf:2,pr:2,cd:1},xenon:{n:'Xénon',y:1991,m:3,c:700,saf:4,pr:5,cd:1},led:{n:'LED',y:2008,m:2,c:900,saf:6,pr:6,cd:1},laser:{n:'Laser matriciel',y:2014,m:2,c:3000,saf:8,pr:9,cd:1}};
+const MIRROR={none:{n:'Aucun',y:1900,m:0,c:0,saf:-4,comf:0,cd:1},aile:{n:'Sur les ailes',y:1925,m:1,c:40,saf:-1,comf:0,cd:1.01},porte:{n:'Sur les portières',y:1960,m:1.5,c:60,saf:1,comf:1,cd:1.015},elec:{n:'Électriques dégivrants',y:1985,m:3,c:220,saf:2,comf:3,cd:1.015},camera:{n:'Caméras',y:2019,m:1,c:1200,saf:3,comf:2,cd:.99}};
+function bodyKit(S){
+  const st=STYLE[S.style]||STYLE.moderne,b=BUMPER[S.bumper]||BUMPER.bouclier,l=LIGHTS[S.lights]||LIGHTS.led,mi=MIRROR[S.mirrors]||MIRROR.elec;
+  return {cd:st.cd*b.cd*l.cd*mi.cd,m:st.m+2*b.m+l.m+mi.m,cost:st.c+2*b.c+l.c+mi.c,pr:st.pr+b.pr+l.pr,saf:b.saf+l.saf+mi.saf,comf:mi.comf};
+}
 const GBX={man:{n:'Manuelle',eta:.935,shift:.28,cut:0,m:0,cost:900,sport:85,comf:55},auto:{n:'Automatique à convertisseur',eta:.885,shift:.35,cut:.55,m:32,cost:2300,sport:45,comf:95},amt:{n:'Robotisée simple embrayage',eta:.93,shift:.5,cut:0,m:8,cost:1400,sport:55,comf:50},cvt:{n:'Variation continue (CVT)',eta:.87,shift:0,cut:1,m:20,cost:2100,sport:25,comf:92},dct:{n:'Double embrayage',eta:.925,shift:.07,cut:.6,m:22,cost:3300,sport:92,comf:85},seq:{n:'Séquentielle',eta:.945,shift:.08,cut:0,m:-6,cost:6800,sport:100,comf:20}};
 const SUSP={torsion:{n:'Essieu de torsion',grip:.93,comf:62,m:34,cost:300,off:35},mac:{n:'MacPherson',grip:.96,comf:72,m:38,cost:450,off:45},dw:{n:'Double triangulation',grip:1,comf:74,m:46,cost:950,off:55},multi:{n:'Multibras',grip:.99,comf:86,m:52,cost:1100,off:50},push:{n:'Poussoirs',grip:1.03,comf:45,m:40,cost:4200,off:10},rigid:{n:'Essieu rigide',grip:.90,comf:48,m:72,cost:380,off:95}};
 const TYRE={eco:{n:'Éco',mu:.90,crr:.0075,cost:60,comf:4,off:20},road:{n:'Route',mu:.97,crr:.0095,cost:80,comf:2,off:25},sport:{n:'Sport',mu:1.05,crr:.011,cost:140,comf:0,off:10},semi:{n:'Semi-slick',mu:1.20,crr:.014,cost:260,comf:-6,off:0},at:{n:'Tout-terrain',mu:.82,crr:.015,cost:130,comf:-3,off:100}};
@@ -209,7 +228,7 @@ const DEF={
  fuelSys:'mpi',fuel:'sp98',cr:10.5,lambda:.90,
  aspiration:'na',boost:.8,turboSize:40,intercooler:'air',
  manifold:'tub',cat:'tri',muffler:'sport',oilGrade:'5w40',oilFill:100,
- liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,gMat:'case',gWidth:55,gTeeth:'helical',gSync:'multi',clutch:'single',gCool:false,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
+ liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,style:'moderne',bumper:'bouclier',lights:'led',mirrors:'elec',gMat:'case',gWidth:55,gTeeth:'helical',gSync:'multi',clutch:'single',gCool:false,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
  body:'coupe',enginePos:'FL',chassis:'steel',panels:'steel',paint:'#1f5fa8',wing:'lip',splitter:false,flatFloor:false,
  gearbox:'man',gears:6,first:3.6,top:.82,final:3.45,drive:'rwd',diff:'lsd',
  suspF:'mac',suspR:'multi',stiff:60,gc:125,arbF:55,arbR:50,

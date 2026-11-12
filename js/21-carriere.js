@@ -56,7 +56,7 @@ function fxOf(y){y=Math.floor(y);return y<1960?{k:itp(FX,y),u:'F',old:true}:y<20
 const POP=[[1900,30000],[1910,26000],[1915,22000],[1920,16000],[1930,14000],[1945,13000],[1950,11000],[1960,11000],[1970,13000],[1980,17000],[1990,17000],[2000,15500],[2010,16000],[2020,17500]];
 // presse automobile (titres imaginaires) : [nom, début, fin, sensibilité]
 const MAGS=[['La Gazette du Chauffeur',1900,1945,'tech'],['Mécanique & Locomotion',1900,1965,'perf'],['L\'Écho des Routes',1900,1960,'famille'],['Le Volant Français',1920,2100,'famille'],['Route Libre',1950,2100,'perf'],['L\'Essai Auto',1960,2100,'tech'],['Moteur Mag',1975,2100,'perf'],['Auto Critique',1990,2100,'famille'],['Chrono & Conso',2005,2100,'tech']];
-const MAG_W={perf:{P:.3,V:.2,hand:.2,rel:.1,prix:.2},famille:{comf:.2,pract:.15,eco:.15,saf:.15,rel:.15,prix:.2},tech:{rel:.2,P:.15,eco:.15,comf:.15,saf:.1,hand:.1,prix:.15}};
+const MAG_W={perf:{P:.3,V:.2,hand:.2,rel:.1,prix:.2,style:.12},famille:{comf:.2,pract:.15,eco:.15,saf:.15,rel:.15,prix:.2,style:.1},tech:{rel:.2,P:.15,eco:.15,comf:.15,saf:.1,hand:.1,prix:.15,style:.08}};
 const LAB=[['Bureau des méthodes',1],['Laboratoire',2],['Centre de recherche',3],['Centre technique',4]];
 const HIST=[
  [1903,'Les grandes courses','Paris-Madrid est arrêtée à Bordeaux après une série d\'accidents. Les clients aisés veulent toujours plus de vitesse.'],
@@ -111,7 +111,7 @@ function measure(E,C,s){
   s=s||S;const defects=[];let dw=0;
   for(const k of C.checks) if(k.lv==='crit'&&DEFECTS[k.t]!=null&&!(k.t==='Freinage'&&G&&G.y<1955)){defects.push(k.t);dw+=DEFECTS[k.t];}
   const aero=G&&G.techs.includes('p_soufflerie')?1:0;
-  return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,cat:s.cat,di:s.fuelSys==='di'||s.fuelSys==='dual',abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
+  return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,style:s.style,cat:s.cat,di:s.fuelSys==='di'||s.fuelSys==='dual',abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
 }
 function unitCost(m,annual){const vf=clamp(1.25-.075*Math.log10(Math.max(annual,10)),.8,1.25);return m.cost*prodF()*vf*eraK(G?yq():2020);}
 // attractivité d'un modèle pour un segment (1 = voiture moyenne de l'époque)
@@ -130,9 +130,21 @@ function appeal(m,seg,y,price){
   if(w.off) L+=w.off*ln(c(q(m.off,50)));
   L+=seg.el*ln(clamp(refPrice(y,seg)/price,.25,seg.pmax));
   L-=.12*m.dw;
+  if(m.style) L+=(STY_W[seg.k]||1)*Math.log(styleF(m.style,y));
   return Math.exp(L);
 }
 function fitOf(seg,body,y){let f=FIT[seg.k][body]||0;if(y<1945&&body==='roadster') f=seg.k==='Citadine'?.8:seg.k==='Familiale'?.5:f;return f;}
+// mode : le style le plus récent plaît, les anciens se démodent
+const STY_ORDER=Object.entries(STYLE).sort((a,b)=>a[1].y-b[1].y).map(x=>x[0]);
+function styleF(st,y){
+  if(!st||!STYLE[st]) return 1;
+  const av=STY_ORDER.filter(k=>STYLE[k].y<=y),last=av[av.length-1],steps=av.length-1-av.indexOf(st);
+  if(av.indexOf(st)<0) return 1;
+  if(steps===0) return y-STYLE[st].y<4?1.14:1.08;
+  if(steps===1) return 1;
+  return Math.max(.65,1-.12*(steps-1));
+}
+const STY_W={Citadine:.8,Familiale:.8,Sportive:1.1,'Grand tourisme':1.5,'Tout-terrain':.5};
 function repF(){return .7+.6*G.rep/100;}
 function ageF(m){const a=yq()-(m.ly||m.y);return a<1?1.1:Math.max(.6,1.1-.06*a);}
 function regBan(m,y,neuf){for(const r of REGS) if(y>=(neuf?r.y:r.ya)&&!r.ok(m)) return {n:r.n,need:r.need,ry:neuf?r.y:r.ya};return null;}
@@ -143,7 +155,7 @@ function reviewModel(m){
   const y=yq(),mt=m.met,seg=bestSeg(m,y),ln=Math.log,c=x=>clamp(x,-1,1),q=(v,r)=>ln((v+15)/(r+15));
   const sc={P:c(ln(mt.P/(itp(REF.P,y)*seg.sp))*1.4),V:c(ln(mt.v/(itp(REF.V,y)*seg.sv))*2),comf:c(q(mt.comf,itp(REF.comf,y))*2),rel:c(q(mt.rel,85)*3),
     saf:c(q(mt.saf,itp(REF.saf,y))*2)*Math.min(1,itp(SAF_IMP,y)),eco:c(ln(itp(REF.cons,y)/mt.mix)*2)*Math.min(1,itp(ECO_IMP,y)),hand:c(q(mt.hand,itp(REF.hand,y))*2),
-    pract:c(q(mt.pract,55)*1.5),prest:c(q(mt.prest,itp(REF.prest,y))*1.5),prix:c(ln(refPrice(y,seg)/m.price)*1.6)};
+    pract:c(q(mt.pract,55)*1.5),prest:c(q(mt.prest,itp(REF.prest,y))*1.5),prix:c(ln(refPrice(y,seg)/m.price)*1.6),style:c(ln(styleF(mt.style,y))*5)};
   const pr=moneyF(m.price),Y=G.y;
   const PH={
     P:[`un moteur vigoureux : ${nf(mt.P)} ch, c'est beaucoup en ${Y}`,`un moteur poussif : ${nf(mt.P)} ch, c'est peu pour l'époque`],
@@ -156,6 +168,7 @@ function reviewModel(m){
     pract:['un habitacle et un coffre bien pensés','une habitabilité comptée'],
     prest:['une présentation flatteuse','une finition qui manque d\'éclat'],
     prix:[`un prix de ${pr} très bien placé`,`${pr}, c'est cher pour ce qu'elle offre`],
+    style:[`une ligne ${mt.style&&STYLE[mt.style]?STYLE[mt.style].n.toLocaleLowerCase()+' ':''}dans l'air du temps`,`un style ${mt.style&&STYLE[mt.style]?'« '+STYLE[mt.style].n.toLocaleLowerCase()+' » ':''}déjà démodé`],
   };
   const mags=MAGS.filter(g=>Y>=g[1]&&Y<=g[2]);
   for(let i=mags.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[mags[i],mags[j]]=[mags[j],mags[i]];}
@@ -274,6 +287,8 @@ function nextQuarter(){
     G.hist.push({y:G.y,rev:G.acc.rev,profit:G.acc.profit,units:G.acc.units,cash:G.cash,rep:G.rep});
     G.acc={rev:0,cost:0,units:0,profit:0};G.q=0;G.y++;
     for(const h of HIST) if(h[0]===G.y) news(h[1],h[2],'hist');
+    for(const [k,st] of Object.entries(STYLE)) if(st.y===G.y) news(`Nouvelle mode : ${st.n}`,`${st.d} Les modèles au style le plus récent séduisent davantage ; les plus anciens se démodent.`,'tech');
+    {const eq=[...Object.values(BUMPER),...Object.values(LIGHTS),...Object.values(MIRROR)].filter(x=>x.y===G.y).map(x=>x.n.toLocaleLowerCase());if(eq.length) news(`Nouveaux équipements de carrosserie`,`Disponibles dès maintenant : ${eq.join(', ')}.`,'tech');}
     const nt=techsNewIn(G.y);if(nt.length) news(`Nouveauté${nt.length>1?'s':''} technique${nt.length>1?'s':''} ${G.y}`,`Désormais possible à rechercher : ${nt.join(', ')}.`,'tech');
     for(const r of REGS){if(r.y===G.y+1) news('Nouvelle norme l\'an prochain',`${r.n} : obligatoire pour les nouveaux modèles à partir de ${r.y}, pour toutes les voitures vendues à partir de ${r.ya}. Il faudra : ${r.need}.`,'warn');if(r.ya===G.y+1&&r.ya!==r.y) news('Norme : dernière année de tolérance',`${r.n}. À partir de ${r.ya}, les modèles non conformes seront retirés de la vente.`,'warn');}
   }
