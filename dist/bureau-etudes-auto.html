@@ -554,6 +554,81 @@ body.mode-c .keys{top:calc(env(safe-area-inset-top,0px) + var(--cbar-h,0px))}
 .rlist .f-top b{font-size:14.5px}
 .lab-up{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;border-top:1px solid var(--rule);padding-top:10px}
 .lab-up p{flex:1 1 300px;font-size:14px}
+
+/* lancement : animation */
+body.lfx-on{overflow:hidden}
+.lfx{position:fixed;inset:0;z-index:60;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.lfx-show{background:#05090f;color:#f4f6f8;display:grid;place-items:center}
+.lfx-stage{position:relative;width:min(900px,92vw);text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px 0}
+.lfx-spot{position:absolute;left:50%;top:44%;width:120vmax;height:120vmax;transform:translate(-50%,-50%) scale(.2);border-radius:50%;background:radial-gradient(closest-side,rgba(255,236,190,.34),rgba(255,236,190,.08) 45%,transparent 70%);animation:spot 1.6s .2s ease-out forwards;opacity:0;pointer-events:none}
+@keyframes spot{to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.lfx-k{font-family:var(--f-m);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:#ffc533;opacity:0;animation:fadeup .6s .3s forwards}
+.lfx-car{width:min(560px,80vw);color:var(--paint);transform:translateX(-120vw);animation:drive 1.7s .7s cubic-bezier(.2,.75,.25,1) forwards;filter:drop-shadow(0 18px 18px rgba(0,0,0,.6))}
+.lfx-car svg{display:block;width:100%;height:auto}
+.lfx-car .m-b,.jr-car .m-b{fill:var(--paint)}
+.lfx-car .m-g{fill:#cfd8e2;opacity:.8}.lfx-car .m-w{fill:#05090f}.lfx-car .m-t{fill:#1a1f27}
+@keyframes drive{60%{transform:translateX(3%)}80%{transform:translateX(-1%)}to{transform:none}}
+.lfx-n{font-family:var(--f-d);font-weight:700;font-size:clamp(44px,9vw,96px);line-height:.95;text-transform:uppercase;letter-spacing:.02em;margin:0;clip-path:inset(0 100% 0 0);animation:reveal .8s 2.3s ease-out forwards}
+@keyframes reveal{to{clip-path:inset(0 0 0 0)}}
+.lfx-s{font-family:var(--f-m);font-size:14px;color:#b5c7da;opacity:0;animation:fadeup .6s 2.9s forwards}
+.lfx-flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;animation:flash 1.4s 2.4s steps(1,end)}
+@keyframes flash{0%{opacity:.85}8%{opacity:0}30%{opacity:.6}36%{opacity:0}62%{opacity:.7}68%{opacity:0}100%{opacity:0}}
+.lfx-next{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-size:17px;color:#e8f0f8;opacity:0;animation:fadeup .7s 3.8s forwards;margin-top:14px}
+@keyframes fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.lfx-skip{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));background:transparent;color:#e8f0f8;border-color:#5b6d82}
+/* lancement : journal en double page */
+.lfx-paper{background:#2a2f36;padding:max(20px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 90px max(12px,env(safe-area-inset-left,0px))}
+.jr-wrap{max-width:1180px;margin:0 auto;animation:unfold .7s ease-out}
+@keyframes unfold{from{opacity:0;transform:perspective(1400px) rotateX(14deg) translateY(30px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.jr-wrap{animation:none}}
+.jr{display:grid;grid-template-columns:1fr 1fr;background:#f4eedc;color:#1d1a16;box-shadow:0 30px 60px rgba(0,0,0,.5);font-family:Georgia,"Times New Roman",serif;position:relative}
+.jr::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:46px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,rgba(0,0,0,.13) 45%,rgba(0,0,0,.2) 50%,rgba(0,0,0,.13) 55%,transparent);pointer-events:none}
+.jr-page{padding:30px 34px 34px;display:flex;flex-direction:column;gap:12px;min-width:0;position:relative}
+.jr-mast{border-bottom:3px double #1d1a16;padding-bottom:8px;text-align:center}
+.jr-mast h2{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:clamp(28px,4vw,46px);letter-spacing:.01em;line-height:1;font-variant:small-caps}
+.jr-mast p{display:flex;justify-content:space-between;font-size:12px;text-transform:uppercase;letter-spacing:.08em;border-top:1px solid #1d1a16;margin-top:8px;padding-top:4px}
+.jr-kick{font-family:var(--f-m);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#a12a1f}
+.jr-h{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:clamp(26px,3.2vw,38px);line-height:1.05}
+.jr-dek{font-style:italic;font-size:17px;color:#4a443b;border-bottom:1px solid #b9ad92;padding-bottom:10px}
+.jr-fig{margin:0;border:1px solid #b9ad92;background:#e9e1c8;padding:16px 16px 8px}
+.jr-car{color:var(--paint)}
+.jr-car svg{display:block;width:100%;height:auto;filter:grayscale(.35) sepia(.25)}
+.jr-car .m-g{fill:#d8d2bf}.jr-car .m-w{fill:#e9e1c8}.jr-car .m-t{fill:#26231e}
+.jr-fig figcaption{font-size:12px;font-style:italic;color:#5c554a;margin-top:6px}
+.jr-cols{columns:2 220px;column-gap:22px;column-rule:1px solid #cfc4a9;font-size:15px;line-height:1.5;text-align:justify;hyphens:auto}
+.jr-cols p{margin-bottom:8px}
+.jr-cols p:first-child::first-letter{float:left;font-size:3.1em;line-height:.85;padding:4px 6px 0 0;font-weight:700}
+.jr-note{position:absolute;top:150px;right:22px;width:88px;height:88px;border-radius:50%;background:#a12a1f;color:#fff;display:flex;align-items:center;justify-content:center;gap:1px;transform:rotate(-8deg);box-shadow:0 4px 10px rgba(0,0,0,.25)}
+.jr-note b{font-size:32px;font-family:Georgia,serif}
+.jr-note span{font-size:13px;align-self:flex-end;margin-bottom:24px}
+.jr-note.sm{position:static;width:64px;height:64px;float:right;margin:0 0 6px 10px}
+.jr-note.sm b{font-size:22px}.jr-note.sm span{margin-bottom:16px;font-size:11px}
+.jr-strip{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px double #1d1a16;padding-bottom:8px}
+.jr-strip h3{font-family:Georgia,serif;font-size:clamp(22px,2.6vw,30px);font-variant:small-caps}
+.jr-strip p{font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.jr-fiche{background:#1d1a16;color:#f4eedc;padding:12px 16px}
+.jr-fiche h4{font-family:var(--f-m);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#ffc533;margin-bottom:6px}
+.jr-fiche dl{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:14px}
+.jr-fiche dt{color:#cdbf9d}.jr-fiche dd{text-align:right;font-variant-numeric:tabular-nums}
+.jr-rev{border-bottom:1px solid #b9ad92;padding-bottom:10px;font-size:14.5px;line-height:1.5;text-align:justify;hyphens:auto}
+.jr-rev h4{font-family:Georgia,serif;font-size:20px;font-variant:small-caps;margin-bottom:6px}
+.jr-rev p{margin-bottom:6px}
+.jr-verdict h4{font-family:var(--f-m);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a12a1f;margin-bottom:6px}
+.jr-verdict table{font-family:Georgia,serif;font-size:15px;margin-bottom:8px}
+.jr-verdict td{border-bottom:1px solid #cfc4a9;padding:4px 0;color:#1d1a16}
+.jr-verdict tr.avg td{font-weight:700;border-bottom:2px solid #1d1a16}
+.jr-verdict p{font-style:italic;font-size:15px}
+.lfx-close{position:fixed;left:50%;transform:translateX(-50%);bottom:max(18px,env(safe-area-inset-bottom,0px));z-index:2;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+@media (max-width:820px){
+  .jr{grid-template-columns:1fr}.jr::after{display:none}
+  .jr-page{padding:22px 18px 26px}
+  .jr-page+.jr-page{border-top:2px dashed #b9ad92}
+  .jr-note{top:118px;right:12px;width:70px;height:70px}.jr-note b{font-size:25px}
+}
+.jr-fig{position:relative}
+.jr-fig .jr-note{top:-14px;right:-10px}
+@media (max-width:820px){.jr-fig .jr-note{top:-12px;right:-6px}}
+.lfx-close{white-space:nowrap}@media (max-width:600px){.lfx-close{font-size:15px;padding:8px 16px}}
 </style>
 <div class="app">
   <header class="cartouche">
@@ -716,6 +791,25 @@ const POS={FT:{n:'Avant transversal',fw:61,drv:['fwd','awd']},FL:{n:'Avant longi
 const DRV={fwd:'Traction',rwd:'Propulsion',awd:'Intégrale'};
 const CHAS={ladder:{n:'Châssis échelle',mf:1.16,rig:55,cost:1900,saf:34,comf:-4},steel:{n:'Monocoque acier',mf:1,rig:76,cost:2600,saf:44,comf:0},alu:{n:'Monocoque alu',mf:.80,rig:82,cost:7000,saf:46,comf:0},tube:{n:'Treillis tubulaire',mf:.74,rig:72,cost:9500,saf:30,comf:-8},carbon:{n:'Monocoque carbone',mf:.58,rig:98,cost:42000,saf:54,comf:-2}};
 const PANEL={steel:{n:'Acier',mf:1,cost:1200},alu:{n:'Aluminium',mf:.62,cost:3200},grp:{n:'Composite',mf:.55,cost:2200},carbon:{n:'Carbone',mf:.36,cost:14000}};
+// conception de la boîte (étagement libre) : pignons, denture, synchroniseurs, embrayage
+const GMAT={std:{n:'Acier standard',k:1,c:0,m:0},case:{n:'Acier cémenté',k:1.35,c:250,m:0},nitr:{n:'Acier nitruré',k:1.6,c:650,m:0},aero:{n:'Acier aéronautique',k:2,c:1900,m:-3}};
+const GTEETH={straight:{n:'Denture droite',k:1.15,eta:1.008,comf:-14,c:0},helical:{n:'Denture hélicoïdale',k:1,eta:1,comf:0,c:160}};
+const GSYNC={none:{n:'Sans synchros',shift:1.9,comf:-22,c:-150},brass:{n:'Synchros laiton',shift:1,comf:0,c:0},multi:{n:'Synchros multicônes',shift:.8,comf:4,c:320},carbon:{n:'Synchros carbone',shift:.62,comf:5,c:950}};
+const CLUTCH={single:{n:'Monodisque organique',k:1,comf:0,c:0,m:0},twin:{n:'Bidisque',k:1.75,comf:-4,c:550,m:4},ceram:{n:'Céramétallique',k:1.45,comf:-12,c:350,m:0},carbon:{n:'Multidisque carbone',k:2.6,comf:-14,c:4200,m:-4}};
+const GTYPE_K={man:1,auto:1.1,amt:1,cvt:.75,dct:1,seq:1.1};
+const usesClutch=g=>g==='man'||g==='amt'||g==='seq'||g==='dct';
+const usesSync=g=>g==='man'||g==='amt';
+function gbxSpec(S){
+  const t=S.gearbox,wf=.5+S.gWidth/100*1.9,mt=GMAT[S.gMat]||GMAT.case,th=GTEETH[S.gTeeth]||GTEETH.helical,sy=GSYNC[S.gSync]||GSYNC.brass,cl=CLUTCH[S.clutch]||CLUTCH.single;
+  const gearCap=220*mt.k*th.k*wf*(GTYPE_K[t]||1)*(S.gCool?1.1:1);
+  const clutchCap=usesClutch(t)?(t==='dct'?1.6:1)*400*cl.k:Infinity;
+  const cap=Math.min(gearCap,clutchCap);
+  return {gearCap,clutchCap,cap,lim:clutchCap<gearCap?'clutch':'gears',
+    m:(wf-1.45)*20+mt.m+(usesClutch(t)?cl.m:0)+(S.gCool?3.5:0),
+    cost:wf*320+mt.c+th.c+(usesSync(t)?sy.c:0)+(usesClutch(t)?cl.c:0)+(S.gCool?380:0),
+    shift:usesSync(t)?sy.shift:1,eta:th.eta,
+    comf:th.comf*(t==='seq'?.5:1)+(usesSync(t)?sy.comf:0)+(usesClutch(t)?cl.comf:0)};
+}
 const GBX={man:{n:'Manuelle',eta:.935,shift:.28,cut:0,m:0,cost:900,sport:85,comf:55},auto:{n:'Automatique à convertisseur',eta:.885,shift:.35,cut:.55,m:32,cost:2300,sport:45,comf:95},amt:{n:'Robotisée simple embrayage',eta:.93,shift:.5,cut:0,m:8,cost:1400,sport:55,comf:50},cvt:{n:'Variation continue (CVT)',eta:.87,shift:0,cut:1,m:20,cost:2100,sport:25,comf:92},dct:{n:'Double embrayage',eta:.925,shift:.07,cut:.6,m:22,cost:3300,sport:92,comf:85},seq:{n:'Séquentielle',eta:.945,shift:.08,cut:0,m:-6,cost:6800,sport:100,comf:20}};
 const SUSP={torsion:{n:'Essieu de torsion',grip:.93,comf:62,m:34,cost:300,off:35},mac:{n:'MacPherson',grip:.96,comf:72,m:38,cost:450,off:45},dw:{n:'Double triangulation',grip:1,comf:74,m:46,cost:950,off:55},multi:{n:'Multibras',grip:.99,comf:86,m:52,cost:1100,off:50},push:{n:'Poussoirs',grip:1.03,comf:45,m:40,cost:4200,off:10},rigid:{n:'Essieu rigide',grip:.90,comf:48,m:72,cost:380,off:95}};
 const TYRE={eco:{n:'Éco',mu:.90,crr:.0075,cost:60,comf:4,off:20},road:{n:'Route',mu:.97,crr:.0095,cost:80,comf:2,off:25},sport:{n:'Sport',mu:1.05,crr:.011,cost:140,comf:0,off:10},semi:{n:'Semi-slick',mu:1.20,crr:.014,cost:260,comf:-6,off:0},at:{n:'Tout-terrain',mu:.82,crr:.015,cost:130,comf:-3,off:100}};
@@ -811,7 +905,7 @@ const DEF={
  fuelSys:'mpi',fuel:'sp98',cr:10.5,lambda:.90,
  aspiration:'na',boost:.8,turboSize:40,intercooler:'air',
  manifold:'tub',cat:'tri',muffler:'sport',oilGrade:'5w40',oilFill:100,
- liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
+ liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,gMat:'case',gWidth:55,gTeeth:'helical',gSync:'multi',clutch:'single',gCool:false,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
  body:'coupe',enginePos:'FL',chassis:'steel',panels:'steel',paint:'#1f5fa8',wing:'lip',splitter:false,flatFloor:false,
  gearbox:'man',gears:6,first:3.6,top:.82,final:3.45,drive:'rwd',diff:'lsd',
  suspF:'mac',suspR:'multi',stiff:60,gc:125,arbF:55,arbR:50,
@@ -823,8 +917,8 @@ const PRESETS={
  coupe:{label:'Coupé 6 cylindres en ligne',s:{}},
  citadine:{label:'Citadine 3 cylindres',s:{name:'Prototype 02',config:'I3',bore:72,stroke:81.8,internals:'cast',cam:30,limiter:6400,fuel:'sp95',cr:10.5,lambda:.98,manifold:'cast',muffler:'std',body:'citadine',enginePos:'FT',paint:'#f2b705',wing:'none',gears:5,first:3.7,top:.78,final:4.2,drive:'fwd',diff:'open',suspR:'torsion',stiff:40,gc:150,arbF:45,arbR:35,rim:15,tireW:175,profile:65,stagger:0,compound:'eco',rimType:'steel',brakeF:'disc',brakeFd:250,brakeR:'drum',brakeRd:200,trim:'basic',media:'radio',tc:false}},
  berline:{label:'Berline 4 cylindres turbo',s:{name:'Prototype 03',config:'I4',bore:82.5,stroke:92.8,cam:32,limiter:6500,fuelSys:'di',cr:9.6,aspiration:'turbo',boost:.9,turboSize:30,manifold:'cast',muffler:'std',body:'berline',enginePos:'FT',paint:'#b9bec5',wing:'none',gearbox:'auto',gears:8,first:4.5,top:.66,final:3.1,drive:'fwd',diff:'open',stiff:35,gc:140,arbF:45,arbR:40,rim:17,tireW:225,profile:50,stagger:0,compound:'road',brakeFd:320,brakeR:'disc',brakeRd:300,seats:5,passive:'adv'}},
- supercar:{label:'Supercar V12 atmosphérique',s:{name:'Prototype 04',config:'V12',bore:92,stroke:76,internals:'ti',cam:78,vvl:true,limiter:8800,fuelSys:'di',cr:12.5,lambda:.88,manifold:'race',cat:'sport',body:'supercar',enginePos:'MR',gbxCap:750,chassis:'carbon',panels:'carbon',paint:'#b3261e',splitter:true,flatFloor:true,gearbox:'dct',gears:7,first:3.4,top:.72,final:3.6,diff:'active',suspF:'dw',suspR:'dw',stiff:78,gc:110,arbF:65,arbR:60,rim:20,tireW:255,profile:30,stagger:60,rimType:'forged',brakeF:'ccm',brakeFd:400,brakeR:'ccm',brakeRd:380,seats:2,passive:'adv'}},
- pickup:{label:'Pick-up V8 tout-terrain',s:{name:'Prototype 05',config:'V8',bore:94,stroke:90,blockMat:'iron',internals:'cast',valvetrain:'ohv',cam:35,vvt:false,limiter:5800,fuel:'sp95',cr:9.8,lambda:.92,manifold:'cast',muffler:'std',body:'pickup',chassis:'ladder',gbxCap:650,paint:'#1d4d3a',wing:'none',gearbox:'auto',first:4.2,top:.70,final:3.9,drive:'awd',suspF:'dw',suspR:'rigid',stiff:45,gc:240,arbF:40,arbR:30,rim:17,tireW:265,profile:70,stagger:0,compound:'at',brakeFd:330,brakeR:'disc',brakeRd:320,seats:5,trim:'std',media:'radio',esp:false,steering:'hyd'}},
+ supercar:{label:'Supercar V12 atmosphérique',s:{name:'Prototype 04',config:'V12',bore:92,stroke:76,internals:'ti',cam:78,vvl:true,limiter:8800,fuelSys:'di',cr:12.5,lambda:.88,manifold:'race',cat:'sport',body:'supercar',enginePos:'MR',gbxCap:750,gMat:'nitr',gWidth:80,clutch:'twin',gCool:true,chassis:'carbon',panels:'carbon',paint:'#b3261e',splitter:true,flatFloor:true,gearbox:'dct',gears:7,first:3.4,top:.72,final:3.6,diff:'active',suspF:'dw',suspR:'dw',stiff:78,gc:110,arbF:65,arbR:60,rim:20,tireW:255,profile:30,stagger:60,rimType:'forged',brakeF:'ccm',brakeFd:400,brakeR:'ccm',brakeRd:380,seats:2,passive:'adv'}},
+ pickup:{label:'Pick-up V8 tout-terrain',s:{name:'Prototype 05',config:'V8',bore:94,stroke:90,blockMat:'iron',internals:'cast',valvetrain:'ohv',cam:35,vvt:false,limiter:5800,fuel:'sp95',cr:9.8,lambda:.92,manifold:'cast',muffler:'std',body:'pickup',chassis:'ladder',gbxCap:650,gMat:'nitr',gWidth:72,paint:'#1d4d3a',wing:'none',gearbox:'auto',first:4.2,top:.70,final:3.9,drive:'awd',suspF:'dw',suspR:'rigid',stiff:45,gc:240,arbF:40,arbR:30,rim:17,tireW:265,profile:70,stagger:0,compound:'at',brakeFd:330,brakeR:'disc',brakeRd:320,seats:5,trim:'std',media:'radio',esp:false,steering:'hyd'}},
  roadster:{label:'Roadster léger 4 cylindres',s:{name:'Prototype 06',config:'I4',bore:83,stroke:85,cam:55,limiter:7600,cr:11.2,body:'roadster',chassis:'alu',panels:'grp',paint:'#1d4d3a',wing:'none',first:3.4,top:.84,final:4.1,suspF:'dw',suspR:'dw',stiff:62,gc:120,arbF:50,arbR:45,rim:16,tireW:205,profile:45,stagger:0,brakeFd:280,brakeR:'disc',brakeRd:270,seats:2,trim:'std',media:'radio',tc:false,esp:false,steering:'hyd'}},
 };
 
@@ -1039,7 +1133,9 @@ function computeEngine(S){
 
 /* ───────────── Modèle véhicule ───────────── */
 function computeCar(S,E){
-  const B=BODY[S.body],ch=CHAS[S.chassis],pn=PANEL[S.panels],gb=GBX[S.gearbox],ty=TYRE[S.compound];
+  const B=BODY[S.body],ch=CHAS[S.chassis],pn=PANEL[S.panels],ty=TYRE[S.compound];
+  const gb=Object.assign({},GBX[S.gearbox]),gsp=GEARSETS[S.gearSet]?null:gbxSpec(S);
+  if(gsp){gb.shift*=gsp.shift;gb.eta=Math.min(.97,gb.eta*gsp.eta);gb.comf+=gsp.comf;gb.m+=gsp.m;gb.cost+=gsp.cost;}
   const g0=9.81,rho=1.2,front=S.enginePos==='FT'||S.enginePos==='FL',sz=B.m/620;
   const od=S.rim*25.4+2*S.tireW*S.profile/100,r=Math.min(od,B.tireMax)/2000,wR=S.tireW+S.stagger;
   const tireStr=`${S.tireW}/${S.profile} R${S.rim}`+(S.stagger?` · ${wR}/${Math.max(20,Math.round(S.tireW*S.profile/wR/5)*5)} R${S.rim}`:'');
@@ -1049,7 +1145,7 @@ function computeCar(S,E){
   const parts={
     caisse:B.m*(.72*ch.mf+.28*pn.mf)+{none:0,lip:2,wing:9}[S.wing]+(S.splitter?4:0)+(S.flatFloor?11:0),
     moteur:E.mass,
-    transmission:36+.085*E.peakT+4*(S.gears-5)+gb.m+(GEARSETS[S.gearSet]?0:(S.gbxCap-450)*.035)+{fwd:18,rwd:front?46:20,awd:84}[S.drive]+{open:0,lsd:6,active:14}[S.diff],
+    transmission:36+.085*E.peakT+4*(S.gears-5)+gb.m+{fwd:18,rwd:front?46:20,awd:84}[S.drive]+{open:0,lsd:6,active:14}[S.diff],
     trains:(SUSP[S.suspF].m+SUSP[S.suspR].m)*sz+2*(mRim(S.tireW)+mTire(S.tireW))+2*(mRim(wR)+mTire(wR))+mBrk(S.brakeF,S.brakeFd)+mBrk(S.brakeR,S.brakeRd),
     habitacle:TRIM[S.trim].m*(.5+.1*S.seats)+MEDIA[S.media].m,
     securite:PASS[S.passive].m+(S.abs?6:0)+(S.tc?1:0)+(S.esp?3:0)+STEER[S.steering].m,
@@ -1155,7 +1251,7 @@ function computeCar(S,E){
   const costs={
     'Caisse et structure':B.m*5+(ch.cost+pn.cost)*sz+{none:0,lip:120,wing:900}[S.wing]+(S.splitter?350:0)+(S.flatFloor?1400:0),
     'Moteur':E.cost,
-    'Transmission':gb.cost+(GEARSETS[S.gearSet]?0:Math.max(-300,(S.gbxCap-450)*3))+120*(S.gears-5)+1.8*E.peakT+{fwd:300,rwd:650,awd:1900}[S.drive]+{open:0,lsd:700,active:2200}[S.diff],
+    'Transmission':gb.cost+120*(S.gears-5)+1.8*E.peakT+{fwd:300,rwd:650,awd:1900}[S.drive]+{open:0,lsd:700,active:2200}[S.diff],
     'Trains roulants':SUSP[S.suspF].cost+SUSP[S.suspR].cost+2*rimC(S.tireW)+2*rimC(wR)+BRK[S.brakeF].cost*S.brakeFd/300+BRK[S.brakeR].cost*S.brakeRd/300,
     'Habitacle':TRIM[S.trim].cost*(.6+.1*S.seats)+MEDIA[S.media].cost,
     'Sécurité et aides':PASS[S.passive].cost+(S.abs?350:0)+(S.tc?150:0)+(S.esp?300:0)+STEER[S.steering].cost,
@@ -1200,10 +1296,10 @@ function computeCar(S,E){
   if(od>B.tireMax) add('crit','Passages de roue',`La roue fait ${nf(od)} mm de diamètre pour ${nf(B.tireMax)} mm admis par cette caisse.`);
   else if(od<B.tireMax-150) add('warn','Passages de roue',`La roue de ${nf(od)} mm paraît petite pour cette caisse (jusqu'à ${nf(B.tireMax)} mm).`);
   if(spin) add('warn','Motricité','Les roues motrices patinent au démarrage : le couple dépasse ce que les pneus transmettent.');
-  const gbxCap=gset?gset.cap:S.gbxCap,gbxR=E.peakT/gbxCap;
+  const gbxCap=gset?gset.cap:gsp.cap,gbxR=E.peakT/gbxCap;
   {let wk=null,wr=0;for(const k in E.fails) if(E.fails[k].r>wr){wr=E.fails[k].r;wk=k;}
    const lv=wk?lvOf(wk,wr):'ok';if(wk) add(lv==='break'?'crit':lv==='crit'?'warn':'ok','Résistance du moteur',lv==='ok'||lv==='warn'?`Organe le plus sollicité : ${lc(FAILS[wk].n)} (${nf(wr*100)} % de sa limite).`:`${FAILS[wk].n} à ${nf(wr*100)} % de sa limite : ${lv==='break'?'le moteur cassera lors d\'un essai à fond.':'usure très rapide.'} ${FAILS[wk].fix}`);}
-  add(gbxR<.9?'ok':gbxR<1?'warn':'crit','Boîte et embrayage',`${nf(E.peakT)} Nm pour une boîte prévue pour ${nf(gbxCap)} Nm${gbxR>=1.25?' : elle cassera pendant un essai à fond.':gbxR>=1?' : l\'embrayage patine et s\'use vite.':'.'}`);
+  add(gbxR<.9?'ok':gbxR<1?'warn':'crit','Boîte et embrayage',`${nf(E.peakT)} Nm pour une boîte prévue pour ${nf(gbxCap)} Nm${gsp?` (pignons ${nf(gsp.gearCap)} Nm${isFinite(gsp.clutchCap)?`, embrayage ${nf(gsp.clutchCap)} Nm`:''})`:''}${gbxR>=1.25?' : elle cassera pendant un essai à fond.':gbxR>=1?' : l\'embrayage patine et s\'use vite.':'.'}${gbxR>=.9&&gsp?(gsp.lim==='clutch'?' Le point faible est l\'embrayage : passez à un embrayage plus solide.':' Le point faible, ce sont les pignons : élargissez la denture ou choisissez un acier plus résistant.'):''}`);
   if(S.sump==='wet'&&gLat>1.1) add('warn',"Déjaugeage de l'huile",`À ${nf(gLat,2)} g en virage, l'huile d'un carter humide se plaque d'un côté et la pompe aspire de l'air. Un carter sec règle le problème.`);
   if(E.ecuOn&&S.ecuVmax&&vmax>250){vmax=250;add('ok','Bridage électronique','Le calculateur coupe à 250 km/h : la voiture irait plus vite sans ce bridage.');}
   if(E.mism==='lean') add('crit','Calculateur',`La cartographie est prévue pour ${FUEL[S.ecuFuel].n} mais le réservoir contient ${FUEL[S.fuel].n}, qui demande ${nf((FNEED[S.fuel]/FNEED[S.ecuFuel]-1)*100)} % de carburant en plus. Les corrections automatiques sont à bout : mélange trop pauvre, ratés, perte de puissance. Recalibrez le calculateur ou montez un capteur d'éthanol.`);
@@ -1219,7 +1315,7 @@ function computeCar(S,E){
   if(S.gc<95) add('warn','Garde au sol',`${S.gc} mm : frottements probables sur ralentisseurs.`);
   for(const k of Object.keys(FAULTS)) if(ui.faults[k]&&(!FAULTS[k].ok||FAULTS[k].ok(E))) add('crit','Panne : '+FAULTS[k].n(E),FAULTS[k].d(E));
   const issues=K.filter(k=>k.lv!=='ok').length;
-  return Object.assign(out,{gbxCap,gbxR,dyn:{gears,r,etaD,mP,res,Ftr,shiftRpm,launch,wRpm,lim,isAuto,cut:gb.cut,shift:gb.shift,pAv},fuelW,lhv:fu.lhv,mass,mP,parts,fw,h,cd,A,CdA,cl,down200:down(55.56)/g0,od,r,wR,tireStr,gears,etaD,shiftRpm,launch,vAt,spin,trace,
+  return Object.assign(out,{gbxCap,gbxR,gsp,dyn:{gears,r,etaD,mP,res,Ftr,shiftRpm,launch,wRpm,lim,isAuto,cut:gb.cut,shift:gb.shift,pAv},fuelW,lhv:fu.lhv,mass,mP,parts,fw,h,cd,A,CdA,cl,down200:down(55.56)/g0,od,r,wR,tireStr,gears,etaD,shiftRpm,launch,vAt,spin,trace,
     vmax,vg,vlim,brake100,capFac,fade,discMax,cvt,gLat,gAero,bal,handling,comfort,safety,pract,off,prest,cargo,conso,co2,range,costs,cost,price,seg,best,fit,checks:K,issues,pwr});
 }
 
@@ -2504,11 +2600,18 @@ const UI={
   {t:'Boîte de vitesses',note:()=>{const g=GEARSETS[S.gearSet];return g?(g.r?`${g.n.split(' · ')[0]} : ${nf(g.cap)} Nm admissibles, rapports ${g.r.map(x=>nf(x,2)).join(' · ')}. Bouger un curseur de rapport repasse en étagement libre.`:`${g.n.split(' · ')[0]} : rapport variable de ${nf(g.first,2)} à ${nf(g.top,2)}.`):'Étagement libre : réglez le nombre de rapports, la première et le dernier rapport.';},items:[
    {k:'gearSet',type:'gearsel'},
    {k:'gearbox',type:'seg',l:'Type',wide:1,opts:o(GBX),on:()=>{const g=GEARSETS[S.gearSet];if(g&&g.type!==S.gearbox) S.gearSet='';},hint:'Convertisseur : douceur. Robotisée : une manuelle pilotée, lente au passage. Double embrayage : passages sans rupture. CVT : pas de rapports, le moteur reste au régime idéal.'},
-   {k:'gbxCap',type:'range',l:'Couple admissible de la boîte',min:200,max:1600,step:10,u:'Nm',wide:1,dis:S=>!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie',hint:"Au-delà, l'embrayage patine puis la boîte casse pendant les essais. Une boîte plus solide pèse et coûte plus cher."},
    {k:'gears',type:'range',l:'Nombre de rapports',min:4,max:10,step:1,on:()=>{S.gearSet='';},dis:S=>S.gearbox==='cvt'},
    {k:'final',type:'range',l:'Rapport de pont',min:2.4,max:5.6,step:.05,d:2,hint:'Court : accélérations vives. Long : vitesse de pointe et régime de croisière bas.'},
    {k:'first',type:'range',l:'Première',min:2.4,max:5.5,step:.01,d:2,on:()=>{S.gearSet='';}},
    {k:'top',type:'range',l:'Dernier rapport',min:.35,max:1.15,step:.01,d:2,on:()=>{S.gearSet='';}},
+  ]},
+  {t:'Conception de la boîte',note:()=>{if(GEARSETS[S.gearSet]) return `Boîte de série : ${nf(GEARSETS[S.gearSet].cap)} Nm admissibles. Passez en étagement libre pour la concevoir vous-même.`;const g=M.C.gsp;return `Pignons : ${nf(g.gearCap)} Nm${isFinite(g.clutchCap)?` · embrayage : ${nf(g.clutchCap)} Nm`:''} · le moteur donne ${nf(M.E.peakT)} Nm (${nf(M.E.peakT/g.cap*100)} % de la limite) · ${g.m>=0?'+':'−'}${nf(Math.abs(g.m),1)} kg · ${nf(g.cost,-1)} € de pièces.`;},items:[
+   {k:'gMat',type:'seg',l:'Acier des pignons',wide:1,opts:o(GMAT),dis:S=>!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie',hint:'Cémenté : surface durcie, cœur souple. Nitruré : encore plus dur en surface. Acier aéronautique : le plus résistant, et très cher.'},
+   {k:'gWidth',type:'range',l:'Largeur de denture',min:0,max:100,step:1,wide:1,f:v=>(v<30?'Étroite':v<65?'Moyenne':'Large')+' · '+v,dis:S=>!!GEARSETS[S.gearSet],hint:'Des dents plus larges encaissent plus de couple, mais la boîte devient plus lourde et plus chère.'},
+   {k:'gTeeth',type:'seg',l:'Taille des dents',opts:o(GTEETH),dis:S=>!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie',hint:'Droite : plus solide et meilleur rendement, mais elle siffle. Hélicoïdale : silencieuse.'},
+   {k:'gSync',type:'seg',l:'Synchroniseurs',wide:1,opts:o(GSYNC),dis:(S,v)=>(!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie')||(!usesSync(S.gearbox)&&'Sans objet sur ce type de boîte'),hint:'Sans synchros, il faut faire un double débrayage : passages lents et pénibles. Les synchros multicônes ou en carbone accélèrent les passages.'},
+   {k:'clutch',type:'seg',l:'Embrayage',wide:1,opts:o(CLUTCH),dis:(S,v)=>(!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie')||(!usesClutch(S.gearbox)&&'Pas d\'embrayage : convertisseur ou courroie'),hint:'Bidisque : deux fois plus de surface. Céramétallique : tient le couple mais attaque brutalement. Carbone : léger et très solide, réservé à la course.'},
+   {k:'gCool',type:'toggle',l:'Radiateur d\'huile de boîte',dis:S=>!!GEARSETS[S.gearSet],hint:'Garde l\'huile de boîte au frais : +10 % de couple admissible.'},
   ]},
   {t:'Transmission aux roues',items:[
    {k:'drive',type:'seg',l:'Roues motrices',wide:1,opts:Object.entries(DRV),dis:(S,v)=>!POS[S.enginePos].drv.includes(v)&&`Incompatible avec un moteur ${POS[S.enginePos].n.replace(/^./,c=>c.toLocaleLowerCase())}`},
@@ -2742,6 +2845,17 @@ const TECHS=[
  ['c_carbone','car','Fibre de carbone',1992,[['chassis','carbon'],['panels','carbon']],2,'Structure ultralégère.'],
  ['c_ccm','car','Freins carbone-céramique',2001,[['brakeF','ccm'],['brakeR','ccm']],1.2,'Inusables et légers.'],
 
+ ['t_synchro','tra','Boîte synchronisée',1929,[['gSync','brass']],1,'Plus besoin de double débrayage : les passages deviennent faciles.'],
+ ['t_cemente','tra','Pignons cémentés',1930,[['gMat','case']],.8,'Surface des dents durcie : la boîte tient beaucoup plus de couple.'],
+ ['t_helico','tra','Pignons hélicoïdaux',1932,[['gTeeth','helical']],.7,'Des dents inclinées : la boîte ne siffle plus.'],
+ ['t_bidisque','tra','Embrayage bidisque',1950,[['clutch','twin']],.8,'Deux disques : l\'embrayage tient presque deux fois plus de couple.'],
+ ['t_nitrure','tra','Pignons nitrurés',1960,[['gMat','nitr']],1,'Traitement de surface encore plus dur.'],
+ ['t_gcool','tra','Radiateur d\'huile de boîte',1960,[['gCool',true]],.6,'Refroidit la boîte des voitures puissantes.'],
+ ['t_ceram','tra','Embrayage céramétallique',1970,[['clutch','ceram']],.8,'Garnitures frittées qui encaissent la chaleur.'],
+ ['t_multicone','tra','Synchroniseurs multicônes',1985,[['gSync','multi']],.8,'Passages plus rapides et plus doux.'],
+ ['t_aero','tra','Acier aéronautique pour pignons',1985,[['gMat','aero']],1.3,'Le matériau des boîtes de compétition.'],
+ ['t_embcarbone','tra','Embrayage multidisque carbone',1990,[['clutch','carbon']],1.2,'Venu de la Formule 1 : léger et indestructible.'],
+ ['t_synccarbone','tra','Synchroniseurs carbone',2000,[['gSync','carbon']],.8,'Les passages manuels les plus rapides.'],
  ['t_auto','tra','Boîte automatique',1940,[['gearbox','auto']],1.3,'Plus besoin d\'embrayer.'],
  ['t_cvt','tra','Variateur continu',1958,[['gearbox','cvt']],1,'Une courroie et deux poulies.'],
  ['t_seq','tra','Boîte séquentielle',1990,[['gearbox','seq']],1,'Venue de la compétition.'],
@@ -2766,11 +2880,11 @@ const TECH={};for(const t of TECHS) TECH[t[0]]={id:t[0],dom:t[1],n:t[2],y:t[3],u
 const LOCK={};for(const t of TECHS) for(const [k,v] of t[4]) LOCK[k+'|'+v]=t[0];
 
 // valeur de repli d'époque (toujours disponible) pour chaque clé verrouillable
-const ERA_BASE={config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
+const ERA_BASE={gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
   vvt:false,vvl:false,cda:false,flex:false,launchCtl:false,pops:false,startStop:false,ecuVmax:false,splitter:false,flatFloor:false,abs:false,tc:false,esp:false};
 
 // repli vers l'option d'époque la plus proche quand une valeur est verrouillée
-const ERA_FB={valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
+const ERA_FB={gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
   valveMat:{ti:'sodium',sodium:'steel'},internals:{ti:'forged',forged:'cast'},aspiration:{tri:'biturbo',quad:'biturbo',biturbo:'turbo',turbo:'na',sc:'na'},turboStage:{comp:'seq',seq:'par'},turboType:{et:'vgt',vgt:'wg',ts:'wg'},
   intercooler:{water:'air',air:'none'},oilGrade:{'0w20':'5w30','5w30':'10w40','5w40':'10w40','10w60':'20w50','10w40':'20w50'},manifold:{race:'tub',tub:'cast'},cat:{gpf:'tri',sport:'tri',tri:'none'},muffler:{valve:'sport',sport:'std',comf:'std'},
   body:{suv:'break',break:'berline',compacte:'berline',citadine:'compacte',supercar:'coupe',coupe:'roadster',pickup:'berline'},enginePos:{MR:'FL',RR:'FL',FT:'FL'},drive:{awd:'rwd',fwd:'rwd'},chassis:{carbon:'alu',alu:'steel',steel:'ladder',tube:'ladder'},panels:{carbon:'alu',alu:'steel',grp:'steel'},
@@ -2924,7 +3038,7 @@ function segShares(y){const s=SEGS.map(g=>itp(g.share,y)),t=s.reduce((a,b)=>a+b,
 function capOfFac(l){return FAC[l][1];}
 function facCost(l,y){return (FAC[l][1]-FAC[l-1][1])*.2*refPrice(y);}
 function facUpkeep(l,y){return FAC[l][1]*.06*refPrice(y);}
-function moneyF(x,y){const c=fxOf(y!=null?y:(G?G.y:2020)),v=x*c.k,a=Math.abs(v),s=v<0?'−':'',u=c.u;if(a<.5) return '0 '+u;if(a>=1e9) return s+nf(a/1e9,2)+' Md'+u;if(a>=1e6) return s+nf(a/1e6,a>=1e8?0:1)+' M'+u;if(a>=1e4) return s+nf(a/1e3)+' k'+u;return s+nf(a,a<100?2:a>=1000?-1:0)+' '+u;}
+function moneyF(x,y){const c=fxOf(y!=null?y:(G?G.y:2020)),v=x*c.k,a=Math.abs(v),s=v<0?'−':'',u=c.u;if(a<.5) return '0 '+u;if(a>=1e9) return s+nf(a/1e9,2)+' Md'+u;if(a>=1e6) return s+nf(a/1e6,a>=1e8?0:1)+' M'+u;if(a>=1e4) return s+nf(a/1e3)+' k'+u;return s+nf(a,a<10?2:a>=1000?-1:0)+' '+u;}
 function toCur(x,y){return x*fxOf(y!=null?y:G.y).k;}
 function fromCur(v,y){return v/fxOf(y!=null?y:G.y).k;}
 function curName(y){const c=fxOf(y);return c.u==='€'?'euros':c.old?'francs':'nouveaux francs';}
@@ -2998,7 +3112,8 @@ function reviewModel(m){
     let txt=plus&&minus?`${plus.replace(/^./,ch=>ch.toUpperCase())}, mais ${minus}.`:plus?`${plus.replace(/^./,ch=>ch.toUpperCase())}, et rien de vraiment fâcheux.`:minus?`Peu d'arguments, et ${minus}.`:'Dans la moyenne de sa catégorie sur tous les points.';
     if(mt.dw>0) txt+=` Notre voiture d'essai a connu des ennuis (${mt.defects.join(', ').toLocaleLowerCase()}).`;
     txt+=' '+(note>=16?'Une référence.':note>=13?'Un bon achat.':note>=10?'Correcte, sans plus.':'À éviter.');
-    return {mag,note,txt};
+    const pros=r.filter(x=>x[1]>.01).slice(0,3).map(x=>PH[x[0]][0]),cons=r.filter(x=>x[1]<-.01).reverse().slice(0,3).map(x=>PH[x[0]][1]);
+    return {mag,note,txt,pros,cons,bias};
   });
   const avg=list.reduce((a,x)=>a+x.note,0)/Math.max(1,list.length);
   m.press={avg,list,y:G.y,q:G.q,seg:seg.n};
@@ -3071,7 +3186,7 @@ function nextQuarter(){
   // usine
   if(G.build){G.build.left--;if(G.build.left<=0){G.fac=G.build.l;news(`${FAC[G.fac][0]} en service`,`Capacité : ${nf(FAC[G.fac][1])} voitures par an.`,'good');G.build=null;}}
   // modèles en développement
-  for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');reviewModel(m);}}
+  for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');reviewModel(m);(G.pendingNews=G.pendingNews||[]).push(m.id);}}
   // réglementation
   for(const m of G.models) if(m.st==='prod'){const b=regBan(m.met,G.y,false);if(b){m.st='stop';news(`${m.name} retiré du marché`,`${b.n}. Il faudrait : ${b.need}.`,'crit');}}
   // ventes
@@ -3189,6 +3304,7 @@ function advance(n){
   for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
   renderCbar();
   if(isCTab(ui.tab)){render();}else{buildControls();render();}
+  if(G.pendingNews&&G.pendingNews.length){const id=G.pendingNews.shift();saveGame();const m=G.models.find(x=>x.id===id);if(m&&m.press) showLaunch(m);}
 }
 
 /* ── pages ── */
@@ -3221,7 +3337,7 @@ function qgHTML(){
   if(ui.flash){h+=`<div class="flash" role="status">${esc(ui.flash)}</div>`;ui.flash='';}
   const td=todo();
   h+=`<section class="cgrp todo"><h3>À faire maintenant</h3><ol class="todo-l">${td.map(x=>`<li><div><b>${x.t}</b><p>${x.d}</p></div>${x.b?`<div>${x.b}</div>`:''}</li>`).join('')}</ol></section>`;
-  {const rec=G.models.filter(m=>m.press&&(G.y*4+G.q)-(m.press.y*4+m.press.q)<=2);for(const m of rec) h+=`<section class="cgrp"><h3>La presse a essayé votre ${esc(m.name)}</h3>${pressHTML(m)}</section>`;}
+  {const rec=G.models.filter(m=>m.press&&(G.y*4+G.q)-(m.press.y*4+m.press.q)<=2);for(const m of rec) h+=`<section class="cgrp"><h3>La presse a essayé votre ${esc(m.name)}</h3>${pressHTML(m)}<div class="btns"><button class="chip-btn" type="button" data-journal="${m.id}">Ouvrir le journal</button></div></section>`;}
   if(G.models.length) h+=lastQHTML();
   const prod=G.models.filter(m=>m.st==='prod').length,dev=G.models.filter(m=>m.st==='dev').length,lq=G.lastQ,uti=lq&&lq.cap?lq.units*4/lq.cap:0;
   const card=(go,t,d,ico)=>`<button class="qg-card" type="button" ${go}><span class="qg-i" aria-hidden="true">${ico}</span><b>${t}</b><span>${d}</span></button>`;
@@ -3240,7 +3356,7 @@ function noteCls(n){return n>=14?'n-ok':n>=10?'n-mid':'n-bad';}
 function pressHTML(m){const p=m.press;return `<p class="grp-note">Moyenne ${nf(p.avg,1)}/20 · jugée comme une voiture ${p.seg.toLocaleLowerCase()} · ${Q[p.q]} ${p.y}. ${p.avg>=12?'Cette bonne presse attire des clients pendant les premières années.':'Ces critiques freinent les ventes pendant les premières années.'}</p><ul class="press">${p.list.map(r=>`<li><div class="press-h"><b>${esc(r.mag)}</b><span class="note ${noteCls(r.note)}">${nf(r.note,1)}/20</span></div><p>« ${esc(r.txt)} »</p></li>`).join('')}</ul>`;}
 function gammeHTML(){
   const ms=G.models.slice().reverse();
-  let h=`<section class="cgrp"><h3>Modèles</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th class="n">Presse</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" step="1" value="${Math.round(toCur(m.price))}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="n">${m.press?`<span class="note ${noteCls(m.press.avg)}">${nf(m.press.avg,1)}/20</span>`:'—'}</td><td class="act"><button class="chip-btn" type="button" data-evol="${m.id}">Créer une évolution</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div><p class="hint">Le prix se modifie directement dans le tableau, en ${curName(G.y)} de ${G.y}. « Créer une évolution » ouvre la conception à partir de ce modèle.</p>${ms.filter(m=>m.press).map(m=>`<details class="press-d"><summary>Revue de presse : ${esc(m.name)} · ${nf(m.press.avg,1)}/20</summary>${pressHTML(m)}</details>`).join('')}`:'<p class="grp-note">Aucun modèle pour l\'instant.</p>'}<div class="btns"><button class="btn sm" type="button" data-newcar="1"${G.over?' disabled':''}>Concevoir une nouvelle voiture</button></div></section>`;
+  let h=`<section class="cgrp"><h3>Modèles</h3>${ms.length?`<div class="tbl-w"><table class="ctbl"><thead><tr><th>Modèle</th><th>État</th><th class="n">Prix</th><th class="n">Demande / an</th><th class="n">Vendues (trim.)</th><th class="n">Coût unitaire</th><th class="n">Marge</th><th class="n">Presse</th><th></th></tr></thead><tbody>${ms.map(m=>{const l=m.last;const mar=l&&l.u?(m.price-l.uc-l.war)/m.price:null;return `<tr><td><span class="mini">${miniCar(m.met.body)}</span><b>${esc(m.name)}</b><small>${m.y} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · vendues ${nf(m.sold)}</small></td><td>${stBadge(m)}</td><td class="n">${m.st==='stop'?moneyF(m.price):`<input class="num" type="number" inputmode="numeric" min="100" step="100" data-price="${m.id}" step="1" value="${Math.round(toCur(m.price))}" aria-label="Prix de ${esc(m.name)}">`}</td><td class="n">${l?nf(l.dem*4,-1):'—'}</td><td class="n">${l?nf(l.u)+(l.lim?' <span class="pill warn" title="Usine saturée">usine pleine</span>':''):'—'}</td><td class="n">${l&&l.u?moneyF(l.uc+l.war):'—'}</td><td class="n">${mar==null?'—':nf(mar*100)+' %'}</td><td class="n">${m.press?`<span class="note ${noteCls(m.press.avg)}">${nf(m.press.avg,1)}/20</span>`:'—'}</td><td class="act"><button class="chip-btn" type="button" data-evol="${m.id}">Créer une évolution</button>${m.st!=='stop'?`<button class="chip-btn" type="button" data-stop="${m.id}">Arrêter</button>`:''}</td></tr>`;}).join('')}</tbody></table></div><p class="hint">Le prix se modifie directement dans le tableau, en ${curName(G.y)} de ${G.y}. « Créer une évolution » ouvre la conception à partir de ce modèle.</p>${ms.filter(m=>m.press).map(m=>`<details class="press-d"><summary>Revue de presse : ${esc(m.name)} · ${nf(m.press.avg,1)}/20</summary>${pressHTML(m)}<button class="chip-btn" type="button" data-journal="${m.id}">Ouvrir le journal</button></details>`).join('')}`:'<p class="grp-note">Aucun modèle pour l\'instant.</p>'}<div class="btns"><button class="btn sm" type="button" data-newcar="1"${G.over?' disabled':''}>Concevoir une nouvelle voiture</button></div></section>`;
   if(G.models.length) h=lastQHTML()+h;
   return `<div class="career">${h}</div>`;
 }
@@ -3270,7 +3386,7 @@ const STEP_BLOCK=['Implantation du moteur','Auto-allumage','Disques et jantes','
 const STEP_HELP={
   moteur:'Choisissez l\'architecture, la cylindrée, l\'alimentation et le réglage du moteur. Les pièces grisées ne sont pas encore inventées ou pas encore recherchées.',
   carrosserie:'Choisissez la silhouette, la position du moteur, la structure et la peinture. La silhouette détermine les clientèles visées.',
-  transmission:'Choisissez la boîte de vitesses, l\'étagement et les roues motrices.',
+  transmission:'Choisissez la boîte de vitesses et son étagement, puis concevez-la : acier et largeur des pignons, denture, synchroniseurs, embrayage. Elle doit encaisser le couple du moteur.',
   trains:'Réglez les suspensions, les roues, les pneus et les freins.',
   habitacle:'Choisissez le nombre de places, la finition, les équipements et la sécurité.',
   essais:'Faites rouler la voiture : accélération, vitesse maxi, consommation et liste des points à surveiller.',
@@ -3378,10 +3494,10 @@ function resHTML(){
   }
   return `<div class="career">${h}</div>`;
 }
-const U_TAB={config:CFG,valvetrain:VT,fuelSys:FS,timing:TIMING,blockMat:BLOCK,liner:LINER,sump:SUMP,valveMat:VALVE,springs:SPRING,intake:INTAKE,turboStage:STAGE,turboType:TURBO,turboBearing:BEAR,scType:SCT,oilGrade:OIL,fuel:FUEL,body:BODY,enginePos:POS,chassis:CHAS,panels:PANEL,gearbox:GBX,suspF:SUSP,suspR:SUSP,compound:TYRE,brakeF:BRK,brakeR:BRK,trim:TRIM,media:MEDIA,passive:PASS,steering:STEER,manifold:EXH.man,cat:EXH.cat,muffler:EXH.muf};
+const U_TAB={gMat:GMAT,gTeeth:GTEETH,gSync:GSYNC,clutch:CLUTCH,config:CFG,valvetrain:VT,fuelSys:FS,timing:TIMING,blockMat:BLOCK,liner:LINER,sump:SUMP,valveMat:VALVE,springs:SPRING,intake:INTAKE,turboStage:STAGE,turboType:TURBO,turboBearing:BEAR,scType:SCT,oilGrade:OIL,fuel:FUEL,body:BODY,enginePos:POS,chassis:CHAS,panels:PANEL,gearbox:GBX,suspF:SUSP,suspR:SUSP,compound:TYRE,brakeF:BRK,brakeR:BRK,trim:TRIM,media:MEDIA,passive:PASS,steering:STEER,manifold:EXH.man,cat:EXH.cat,muffler:EXH.muf};
 function uLabel(k,v){
   if(k==='ecuFuel'||k==='brakeR'||k==='suspR'||k==='splitter') return '';
-  if(typeof v==='boolean') return {vvt:'calage variable',vvl:'levée variable',cda:'désactivation de cylindres',flex:'capteur d\'éthanol',launchCtl:'launch control',pops:'cartographies',startStop:'stop & start',ecuVmax:'bridage électronique',flatFloor:'fond plat',abs:'ABS',tc:'antipatinage',esp:'ESP'}[k]||'';
+  if(typeof v==='boolean') return {vvt:'calage variable',vvl:'levée variable',cda:'désactivation de cylindres',flex:'capteur d\'éthanol',launchCtl:'launch control',pops:'cartographies',startStop:'stop & start',ecuVmax:'bridage électronique',gCool:'radiateur de boîte',flatFloor:'fond plat',abs:'ABS',tc:'antipatinage',esp:'ESP'}[k]||'';
   if(k==='config') return CFG[v].full||CFG[v].lab;
   if(k==='aspiration') return {sc:'compresseur',turbo:'turbo',biturbo:'biturbo',tri:'triturbo',quad:'quadriturbo'}[v];
   if(k==='drive') return DRV[v];if(k==='headMat') return 'culasse alu';if(k==='internals') return v==='ti'?'bielles titane':'équipage forgé';if(k==='diff') return v==='lsd'?'autobloquant':'différentiel piloté';
@@ -3421,6 +3537,7 @@ function careerClick(e){
   else if(b.dataset.evol){const m=G.models.find(x=>x.id==b.dataset.evol);if(m){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer ?')) return true;startWiz(m);}return true;}
   else if(b.dataset.newcar){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer par une nouvelle voiture ?')) return true;startWiz(null);return true;}
   else if(b.dataset.go){setTab(b.dataset.go);window.scrollTo({top:0});return true;}
+  else if(b.dataset.journal){const m=G.models.find(x=>x.id==b.dataset.journal);if(m) showJournal(m);return true;}
   else return false;
   if(msg) ui.msg=msg;
   saveGame();renderCbar();render();
@@ -3438,6 +3555,60 @@ $('#stage').addEventListener('input',careerInput);
 $('#stage').addEventListener('change',careerInput);
 $('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!G) return;if(b.id==='nextQ') advance(1);else if(b.id==='nextY') advance(4);});
 $('#homeBtn').addEventListener('click',showHome);
+
+/* ── lancement : animation puis journal en double page ── */
+const LFX=el('div','lfx');LFX.hidden=true;LFX.setAttribute('role','dialog');LFX.setAttribute('aria-modal','true');LFX.setAttribute('aria-label','Lancement du modèle');document.body.appendChild(LFX);
+let lfxT=[];
+const noMotion=()=>ui.noAnim||matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ART={citadine:'une citadine',compacte:'une compacte',berline:'une berline',break:'un break',coupe:'un coupé',roadster:'un roadster',suv:'un SUV',pickup:'un pick-up',supercar:'une supercar'};
+function carArt(m,cls){return `<div class="${cls}" style="--paint:${esc(m.snap&&m.snap.paint||'#1f5fa8')}">${miniCar(m.met.body)}</div>`;}
+function showLaunch(m){
+  for(const t of lfxT) clearTimeout(t);lfxT=[];
+  if(noMotion()){showJournal(m);return;}
+  LFX.className='lfx lfx-show';LFX.hidden=false;document.body.classList.add('lfx-on');
+  LFX.innerHTML=`<div class="lfx-stage"><div class="lfx-spot"></div><p class="lfx-k">${esc(G.co)} présente</p>${carArt(m,'lfx-car')}<h2 class="lfx-n">${esc(m.name)}</h2><p class="lfx-s">${BODY[m.met.body].n} · ${nf(m.met.P)} ch · ${nf(m.met.v)} km/h · ${moneyF(m.price)}</p><div class="lfx-flash"></div><p class="lfx-next">Le lendemain, la presse publie ses essais…</p></div><button class="chip-btn lfx-skip" type="button">Passer</button>`;
+  $('.lfx-skip',LFX).addEventListener('click',()=>showJournal(m));$('.lfx-skip',LFX).focus({preventScroll:true});
+  lfxT.push(setTimeout(()=>showJournal(m),5200));
+}
+function closeLfx(){for(const t of lfxT) clearTimeout(t);lfxT=[];LFX.hidden=true;LFX.innerHTML='';document.body.classList.remove('lfx-on');}
+function longReview(r,m,first){
+  const p=r.pros||[],c=r.cons||[],B=BODY[m.met.body].n.toLocaleLowerCase(),up=s=>s.replace(/^./,ch=>ch.toUpperCase());
+  const a=[];
+  a.push(first?`${esc(G.co)} lance la ${esc(m.name)} : ${ART[m.met.body]||B} de ${nf(m.met.P)} ch, au prix de ${moneyF(m.price)}. Nous l'avons essayée sur nos routes habituelles.`:`Nous avons pris le volant de la nouvelle ${esc(m.name)}.`);
+  if(p.length) a.push(`Côté qualités, on retient ${p.map((x,i)=>i===p.length-1&&i>0?'et '+x:x).join(', ')}.`);
+  if(c.length) a.push(`${up(c.length>1?'en revanche, ':'seul regret : ')}${c.map((x,i)=>i===c.length-1&&i>0?'et '+x:x).join(', ')}.`);
+  if(m.met.dw>0) a.push(`Plus ennuyeux, notre voiture d'essai a connu des pannes (${m.met.defects.join(', ').toLocaleLowerCase()}).`);
+  a.push(r.note>=16?'Notre verdict : une référence, à acheter les yeux fermés.':r.note>=13?'Notre verdict : un bon achat.':r.note>=10?'Notre verdict : correcte, sans plus.':'Notre verdict : à éviter.');
+  return a.map(x=>`<p>${x}</p>`).join('');
+}
+function showJournal(m){
+  for(const t of lfxT) clearTimeout(t);lfxT=[];
+  const P=m.press;if(!P) return;
+  const L=P.list,main=L[0],others=L.slice(1),eff=Math.round(clamp((P.avg-12)/8,-1,1)*25),mt=m.met;
+  const num=1000+((m.id*137+P.y)%8000),price=moneyF(itp([[1900,2.5],[1950,3],[2000,4],[2020,5.5]],P.y),P.y);
+  const fiche=[['Moteur',`${mt.cfg} ${nf(mt.L,1)} l`],['Puissance',`${nf(mt.P)} ch`],['Vitesse maxi',`${nf(mt.v)} km/h`],['0 à 100 km/h',mt.t100?nf(mt.t100,1)+' s':'—'],['Consommation',`${nf(mt.mix,1)} l/100 km`],['Masse',`${nf(mt.mass)} kg`],['Prix',moneyF(m.price)]];
+  LFX.className='lfx lfx-paper';LFX.hidden=false;document.body.classList.add('lfx-on');
+  LFX.innerHTML=`<div class="jr-wrap"><div class="jr">
+   <article class="jr-page">
+    <header class="jr-mast"><h2>${esc(main.mag)}</h2><p><span>N° ${num}</span><span>${Q[P.q]} ${P.y}</span><span>${price}</span></p></header>
+    <p class="jr-kick">Essai exclusif</p>
+    <h3 class="jr-h">${esc(m.name)} : ${main.note>=16?'la nouvelle référence':main.note>=13?'une belle réussite':main.note>=10?'peut mieux faire':'la déception'}</h3>
+    <p class="jr-dek">La nouveauté de ${esc(G.co)} : ${ART[mt.body]||''}. Est-elle à la hauteur des attentes de ${P.y} ?</p>
+    <figure class="jr-fig">${carArt(m,'jr-car')}<figcaption>La ${esc(m.name)} lors de notre essai.</figcaption><div class="jr-note"><b>${nf(main.note,1)}</b><span>/20</span></div></figure>
+    <div class="jr-cols">${longReview(main,m,true)}</div>
+   </article>
+   <article class="jr-page">
+    <header class="jr-strip"><h3>Ce qu'en pense la presse</h3><p>${Q[P.q]} ${P.y}</p></header>
+    <aside class="jr-fiche"><h4>Fiche technique</h4><dl>${fiche.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></aside>
+    ${others.map(r=>`<section class="jr-rev"><h4>${esc(r.mag)}</h4><div class="jr-note sm"><b>${nf(r.note,1)}</b><span>/20</span></div>${longReview(r,m,false)}</section>`).join('')}
+    <section class="jr-verdict"><h4>Le verdict</h4><table><tbody>${L.map(r=>`<tr><td>${esc(r.mag)}</td><td>${nf(r.note,1)}/20</td></tr>`).join('')}<tr class="avg"><td>Moyenne</td><td>${nf(P.avg,1)}/20</td></tr></tbody></table>
+     <p>${eff>=0?`Cette presse va attirer des clients : environ +${eff} % d'intérêt pour la ${esc(m.name)} pendant les premières années.`:`Ces critiques vont freiner les ventes : environ ${eff} % d'intérêt pour la ${esc(m.name)} pendant les premières années.`}</p></section>
+   </article>
+  </div></div><button class="btn lfx-close" type="button">Refermer le journal</button>`;
+  LFX.scrollTop=0;
+  const cb=$('.lfx-close',LFX);cb.addEventListener('click',()=>{closeLfx();render();});cb.focus({preventScroll:true});
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!LFX.hidden){closeLfx();render();}});
 {const cb=$('#cbar'),setH=()=>document.documentElement.style.setProperty('--cbar-h',(cb.hidden?0:cb.offsetHeight)+'px');if(window.ResizeObserver) new ResizeObserver(setH).observe(cb);window.addEventListener('resize',setH);}
 function navClick(e){
   const b=e.target.closest('button');if(!b||!G) return;

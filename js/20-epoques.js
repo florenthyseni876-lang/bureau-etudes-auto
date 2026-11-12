@@ -131,6 +131,17 @@ const TECHS=[
  ['c_carbone','car','Fibre de carbone',1992,[['chassis','carbon'],['panels','carbon']],2,'Structure ultralégère.'],
  ['c_ccm','car','Freins carbone-céramique',2001,[['brakeF','ccm'],['brakeR','ccm']],1.2,'Inusables et légers.'],
 
+ ['t_synchro','tra','Boîte synchronisée',1929,[['gSync','brass']],1,'Plus besoin de double débrayage : les passages deviennent faciles.'],
+ ['t_cemente','tra','Pignons cémentés',1930,[['gMat','case']],.8,'Surface des dents durcie : la boîte tient beaucoup plus de couple.'],
+ ['t_helico','tra','Pignons hélicoïdaux',1932,[['gTeeth','helical']],.7,'Des dents inclinées : la boîte ne siffle plus.'],
+ ['t_bidisque','tra','Embrayage bidisque',1950,[['clutch','twin']],.8,'Deux disques : l\'embrayage tient presque deux fois plus de couple.'],
+ ['t_nitrure','tra','Pignons nitrurés',1960,[['gMat','nitr']],1,'Traitement de surface encore plus dur.'],
+ ['t_gcool','tra','Radiateur d\'huile de boîte',1960,[['gCool',true]],.6,'Refroidit la boîte des voitures puissantes.'],
+ ['t_ceram','tra','Embrayage céramétallique',1970,[['clutch','ceram']],.8,'Garnitures frittées qui encaissent la chaleur.'],
+ ['t_multicone','tra','Synchroniseurs multicônes',1985,[['gSync','multi']],.8,'Passages plus rapides et plus doux.'],
+ ['t_aero','tra','Acier aéronautique pour pignons',1985,[['gMat','aero']],1.3,'Le matériau des boîtes de compétition.'],
+ ['t_embcarbone','tra','Embrayage multidisque carbone',1990,[['clutch','carbon']],1.2,'Venu de la Formule 1 : léger et indestructible.'],
+ ['t_synccarbone','tra','Synchroniseurs carbone',2000,[['gSync','carbon']],.8,'Les passages manuels les plus rapides.'],
  ['t_auto','tra','Boîte automatique',1940,[['gearbox','auto']],1.3,'Plus besoin d\'embrayer.'],
  ['t_cvt','tra','Variateur continu',1958,[['gearbox','cvt']],1,'Une courroie et deux poulies.'],
  ['t_seq','tra','Boîte séquentielle',1990,[['gearbox','seq']],1,'Venue de la compétition.'],
@@ -155,11 +166,11 @@ const TECH={};for(const t of TECHS) TECH[t[0]]={id:t[0],dom:t[1],n:t[2],y:t[3],u
 const LOCK={};for(const t of TECHS) for(const [k,v] of t[4]) LOCK[k+'|'+v]=t[0];
 
 // valeur de repli d'époque (toujours disponible) pour chaque clé verrouillable
-const ERA_BASE={config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
+const ERA_BASE={gMat:'std',gTeeth:'straight',gSync:'none',clutch:'single',gCool:false,config:'I4',valvetrain:'ohv',timing:'chain',fuelSys:'carb',fuel:'sp95',ecuFuel:'sp95',blockMat:'iron',liner:'cast',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',headMat:'iron',internals:'cast',aspiration:'na',turboStage:'par',turboType:'wg',turboBearing:'journal',scType:'roots',intercooler:'none',oilGrade:'20w50',manifold:'cast',cat:'none',muffler:'std',body:'roadster',enginePos:'FL',drive:'rwd',diff:'open',chassis:'ladder',panels:'steel',gearbox:'man',suspF:'rigid',suspR:'rigid',compound:'road',brakeF:'drum',brakeR:'drum',rimType:'steel',trim:'basic',media:'none',passive:'min',steering:'mech',wing:'none',
   vvt:false,vvl:false,cda:false,flex:false,launchCtl:false,pops:false,startStop:false,ecuVmax:false,splitter:false,flatFloor:false,abs:false,tc:false,esp:false};
 
 // repli vers l'option d'époque la plus proche quand une valeur est verrouillée
-const ERA_FB={valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
+const ERA_FB={gMat:{aero:'nitr',nitr:'case',case:'std'},gSync:{carbon:'multi',multi:'brass',brass:'none'},clutch:{carbon:'twin',ceram:'single',twin:'single'},gTeeth:{helical:'straight'},valvetrain:{dohc5:'dohc4',dohc4:'sohc',sohc:'ohv'},fuelSys:{dual:'di',di:'mpi',mpi:'mono',mono:'carb',cr:'idi',pd:'idi'},blockMat:{mg:'alu',alu:'iron',cgi:'iron'},liner:{plasma:'alusil',alusil:'cast',nikasil:'cast'},
   valveMat:{ti:'sodium',sodium:'steel'},internals:{ti:'forged',forged:'cast'},aspiration:{tri:'biturbo',quad:'biturbo',biturbo:'turbo',turbo:'na',sc:'na'},turboStage:{comp:'seq',seq:'par'},turboType:{et:'vgt',vgt:'wg',ts:'wg'},
   intercooler:{water:'air',air:'none'},oilGrade:{'0w20':'5w30','5w30':'10w40','5w40':'10w40','10w60':'20w50','10w40':'20w50'},manifold:{race:'tub',tub:'cast'},cat:{gpf:'tri',sport:'tri',tri:'none'},muffler:{valve:'sport',sport:'std',comf:'std'},
   body:{suv:'break',break:'berline',compacte:'berline',citadine:'compacte',supercar:'coupe',coupe:'roadster',pickup:'berline'},enginePos:{MR:'FL',RR:'FL',FT:'FL'},drive:{awd:'rwd',fwd:'rwd'},chassis:{carbon:'alu',alu:'steel',steel:'ladder',tube:'ladder'},panels:{carbon:'alu',alu:'steel',grp:'steel'},

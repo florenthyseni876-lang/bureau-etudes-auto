@@ -93,7 +93,7 @@ function segShares(y){const s=SEGS.map(g=>itp(g.share,y)),t=s.reduce((a,b)=>a+b,
 function capOfFac(l){return FAC[l][1];}
 function facCost(l,y){return (FAC[l][1]-FAC[l-1][1])*.2*refPrice(y);}
 function facUpkeep(l,y){return FAC[l][1]*.06*refPrice(y);}
-function moneyF(x,y){const c=fxOf(y!=null?y:(G?G.y:2020)),v=x*c.k,a=Math.abs(v),s=v<0?'−':'',u=c.u;if(a<.5) return '0 '+u;if(a>=1e9) return s+nf(a/1e9,2)+' Md'+u;if(a>=1e6) return s+nf(a/1e6,a>=1e8?0:1)+' M'+u;if(a>=1e4) return s+nf(a/1e3)+' k'+u;return s+nf(a,a<100?2:a>=1000?-1:0)+' '+u;}
+function moneyF(x,y){const c=fxOf(y!=null?y:(G?G.y:2020)),v=x*c.k,a=Math.abs(v),s=v<0?'−':'',u=c.u;if(a<.5) return '0 '+u;if(a>=1e9) return s+nf(a/1e9,2)+' Md'+u;if(a>=1e6) return s+nf(a/1e6,a>=1e8?0:1)+' M'+u;if(a>=1e4) return s+nf(a/1e3)+' k'+u;return s+nf(a,a<10?2:a>=1000?-1:0)+' '+u;}
 function toCur(x,y){return x*fxOf(y!=null?y:G.y).k;}
 function fromCur(v,y){return v/fxOf(y!=null?y:G.y).k;}
 function curName(y){const c=fxOf(y);return c.u==='€'?'euros':c.old?'francs':'nouveaux francs';}
@@ -167,7 +167,8 @@ function reviewModel(m){
     let txt=plus&&minus?`${plus.replace(/^./,ch=>ch.toUpperCase())}, mais ${minus}.`:plus?`${plus.replace(/^./,ch=>ch.toUpperCase())}, et rien de vraiment fâcheux.`:minus?`Peu d'arguments, et ${minus}.`:'Dans la moyenne de sa catégorie sur tous les points.';
     if(mt.dw>0) txt+=` Notre voiture d'essai a connu des ennuis (${mt.defects.join(', ').toLocaleLowerCase()}).`;
     txt+=' '+(note>=16?'Une référence.':note>=13?'Un bon achat.':note>=10?'Correcte, sans plus.':'À éviter.');
-    return {mag,note,txt};
+    const pros=r.filter(x=>x[1]>.01).slice(0,3).map(x=>PH[x[0]][0]),cons=r.filter(x=>x[1]<-.01).reverse().slice(0,3).map(x=>PH[x[0]][1]);
+    return {mag,note,txt,pros,cons,bias};
   });
   const avg=list.reduce((a,x)=>a+x.note,0)/Math.max(1,list.length);
   m.press={avg,list,y:G.y,q:G.q,seg:seg.n};
@@ -240,7 +241,7 @@ function nextQuarter(){
   // usine
   if(G.build){G.build.left--;if(G.build.left<=0){G.fac=G.build.l;news(`${FAC[G.fac][0]} en service`,`Capacité : ${nf(FAC[G.fac][1])} voitures par an.`,'good');G.build=null;}}
   // modèles en développement
-  for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');reviewModel(m);}}
+  for(const m of G.models) if(m.st==='dev'){m.devLeft--;if(m.devLeft<=0){m.st='prod';m.ly=yq();news(`Lancement commercial : ${m.name}`,`Prix de vente ${moneyF(m.price)}.`,'good');reviewModel(m);(G.pendingNews=G.pendingNews||[]).push(m.id);}}
   // réglementation
   for(const m of G.models) if(m.st==='prod'){const b=regBan(m.met,G.y,false);if(b){m.st='stop';news(`${m.name} retiré du marché`,`${b.n}. Il faudrait : ${b.need}.`,'crit');}}
   // ventes

@@ -95,6 +95,25 @@ const POS={FT:{n:'Avant transversal',fw:61,drv:['fwd','awd']},FL:{n:'Avant longi
 const DRV={fwd:'Traction',rwd:'Propulsion',awd:'Intégrale'};
 const CHAS={ladder:{n:'Châssis échelle',mf:1.16,rig:55,cost:1900,saf:34,comf:-4},steel:{n:'Monocoque acier',mf:1,rig:76,cost:2600,saf:44,comf:0},alu:{n:'Monocoque alu',mf:.80,rig:82,cost:7000,saf:46,comf:0},tube:{n:'Treillis tubulaire',mf:.74,rig:72,cost:9500,saf:30,comf:-8},carbon:{n:'Monocoque carbone',mf:.58,rig:98,cost:42000,saf:54,comf:-2}};
 const PANEL={steel:{n:'Acier',mf:1,cost:1200},alu:{n:'Aluminium',mf:.62,cost:3200},grp:{n:'Composite',mf:.55,cost:2200},carbon:{n:'Carbone',mf:.36,cost:14000}};
+// conception de la boîte (étagement libre) : pignons, denture, synchroniseurs, embrayage
+const GMAT={std:{n:'Acier standard',k:1,c:0,m:0},case:{n:'Acier cémenté',k:1.35,c:250,m:0},nitr:{n:'Acier nitruré',k:1.6,c:650,m:0},aero:{n:'Acier aéronautique',k:2,c:1900,m:-3}};
+const GTEETH={straight:{n:'Denture droite',k:1.15,eta:1.008,comf:-14,c:0},helical:{n:'Denture hélicoïdale',k:1,eta:1,comf:0,c:160}};
+const GSYNC={none:{n:'Sans synchros',shift:1.9,comf:-22,c:-150},brass:{n:'Synchros laiton',shift:1,comf:0,c:0},multi:{n:'Synchros multicônes',shift:.8,comf:4,c:320},carbon:{n:'Synchros carbone',shift:.62,comf:5,c:950}};
+const CLUTCH={single:{n:'Monodisque organique',k:1,comf:0,c:0,m:0},twin:{n:'Bidisque',k:1.75,comf:-4,c:550,m:4},ceram:{n:'Céramétallique',k:1.45,comf:-12,c:350,m:0},carbon:{n:'Multidisque carbone',k:2.6,comf:-14,c:4200,m:-4}};
+const GTYPE_K={man:1,auto:1.1,amt:1,cvt:.75,dct:1,seq:1.1};
+const usesClutch=g=>g==='man'||g==='amt'||g==='seq'||g==='dct';
+const usesSync=g=>g==='man'||g==='amt';
+function gbxSpec(S){
+  const t=S.gearbox,wf=.5+S.gWidth/100*1.9,mt=GMAT[S.gMat]||GMAT.case,th=GTEETH[S.gTeeth]||GTEETH.helical,sy=GSYNC[S.gSync]||GSYNC.brass,cl=CLUTCH[S.clutch]||CLUTCH.single;
+  const gearCap=220*mt.k*th.k*wf*(GTYPE_K[t]||1)*(S.gCool?1.1:1);
+  const clutchCap=usesClutch(t)?(t==='dct'?1.6:1)*400*cl.k:Infinity;
+  const cap=Math.min(gearCap,clutchCap);
+  return {gearCap,clutchCap,cap,lim:clutchCap<gearCap?'clutch':'gears',
+    m:(wf-1.45)*20+mt.m+(usesClutch(t)?cl.m:0)+(S.gCool?3.5:0),
+    cost:wf*320+mt.c+th.c+(usesSync(t)?sy.c:0)+(usesClutch(t)?cl.c:0)+(S.gCool?380:0),
+    shift:usesSync(t)?sy.shift:1,eta:th.eta,
+    comf:th.comf*(t==='seq'?.5:1)+(usesSync(t)?sy.comf:0)+(usesClutch(t)?cl.comf:0)};
+}
 const GBX={man:{n:'Manuelle',eta:.935,shift:.28,cut:0,m:0,cost:900,sport:85,comf:55},auto:{n:'Automatique à convertisseur',eta:.885,shift:.35,cut:.55,m:32,cost:2300,sport:45,comf:95},amt:{n:'Robotisée simple embrayage',eta:.93,shift:.5,cut:0,m:8,cost:1400,sport:55,comf:50},cvt:{n:'Variation continue (CVT)',eta:.87,shift:0,cut:1,m:20,cost:2100,sport:25,comf:92},dct:{n:'Double embrayage',eta:.925,shift:.07,cut:.6,m:22,cost:3300,sport:92,comf:85},seq:{n:'Séquentielle',eta:.945,shift:.08,cut:0,m:-6,cost:6800,sport:100,comf:20}};
 const SUSP={torsion:{n:'Essieu de torsion',grip:.93,comf:62,m:34,cost:300,off:35},mac:{n:'MacPherson',grip:.96,comf:72,m:38,cost:450,off:45},dw:{n:'Double triangulation',grip:1,comf:74,m:46,cost:950,off:55},multi:{n:'Multibras',grip:.99,comf:86,m:52,cost:1100,off:50},push:{n:'Poussoirs',grip:1.03,comf:45,m:40,cost:4200,off:10},rigid:{n:'Essieu rigide',grip:.90,comf:48,m:72,cost:380,off:95}};
 const TYRE={eco:{n:'Éco',mu:.90,crr:.0075,cost:60,comf:4,off:20},road:{n:'Route',mu:.97,crr:.0095,cost:80,comf:2,off:25},sport:{n:'Sport',mu:1.05,crr:.011,cost:140,comf:0,off:10},semi:{n:'Semi-slick',mu:1.20,crr:.014,cost:260,comf:-6,off:0},at:{n:'Tout-terrain',mu:.82,crr:.015,cost:130,comf:-3,off:100}};
@@ -190,7 +209,7 @@ const DEF={
  fuelSys:'mpi',fuel:'sp98',cr:10.5,lambda:.90,
  aspiration:'na',boost:.8,turboSize:40,intercooler:'air',
  manifold:'tub',cat:'tri',muffler:'sport',oilGrade:'5w40',oilFill:100,
- liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
+ liner:'alusil',sump:'wet',valveMat:'steel',springs:'coil',intake:'std',cda:false,oilInt:0,kmYear:15000,gbxCap:450,gMat:'case',gWidth:55,gTeeth:'helical',gSync:'multi',clutch:'single',gCool:false,ecuFuel:'sp98',flex:false,ecuAdv:0,ecuIdle:0,injSize:0,fuelPress:3,launchCtl:false,pops:false,startStop:false,ecuVmax:false,turboStage:'par',turboSize2:70,seqRpm:3500,boostLow:.6,turboType:'wg',turboBearing:'journal',scType:'roots',gearSet:'',
  body:'coupe',enginePos:'FL',chassis:'steel',panels:'steel',paint:'#1f5fa8',wing:'lip',splitter:false,flatFloor:false,
  gearbox:'man',gears:6,first:3.6,top:.82,final:3.45,drive:'rwd',diff:'lsd',
  suspF:'mac',suspR:'multi',stiff:60,gc:125,arbF:55,arbR:50,
@@ -202,7 +221,7 @@ const PRESETS={
  coupe:{label:'Coupé 6 cylindres en ligne',s:{}},
  citadine:{label:'Citadine 3 cylindres',s:{name:'Prototype 02',config:'I3',bore:72,stroke:81.8,internals:'cast',cam:30,limiter:6400,fuel:'sp95',cr:10.5,lambda:.98,manifold:'cast',muffler:'std',body:'citadine',enginePos:'FT',paint:'#f2b705',wing:'none',gears:5,first:3.7,top:.78,final:4.2,drive:'fwd',diff:'open',suspR:'torsion',stiff:40,gc:150,arbF:45,arbR:35,rim:15,tireW:175,profile:65,stagger:0,compound:'eco',rimType:'steel',brakeF:'disc',brakeFd:250,brakeR:'drum',brakeRd:200,trim:'basic',media:'radio',tc:false}},
  berline:{label:'Berline 4 cylindres turbo',s:{name:'Prototype 03',config:'I4',bore:82.5,stroke:92.8,cam:32,limiter:6500,fuelSys:'di',cr:9.6,aspiration:'turbo',boost:.9,turboSize:30,manifold:'cast',muffler:'std',body:'berline',enginePos:'FT',paint:'#b9bec5',wing:'none',gearbox:'auto',gears:8,first:4.5,top:.66,final:3.1,drive:'fwd',diff:'open',stiff:35,gc:140,arbF:45,arbR:40,rim:17,tireW:225,profile:50,stagger:0,compound:'road',brakeFd:320,brakeR:'disc',brakeRd:300,seats:5,passive:'adv'}},
- supercar:{label:'Supercar V12 atmosphérique',s:{name:'Prototype 04',config:'V12',bore:92,stroke:76,internals:'ti',cam:78,vvl:true,limiter:8800,fuelSys:'di',cr:12.5,lambda:.88,manifold:'race',cat:'sport',body:'supercar',enginePos:'MR',gbxCap:750,chassis:'carbon',panels:'carbon',paint:'#b3261e',splitter:true,flatFloor:true,gearbox:'dct',gears:7,first:3.4,top:.72,final:3.6,diff:'active',suspF:'dw',suspR:'dw',stiff:78,gc:110,arbF:65,arbR:60,rim:20,tireW:255,profile:30,stagger:60,rimType:'forged',brakeF:'ccm',brakeFd:400,brakeR:'ccm',brakeRd:380,seats:2,passive:'adv'}},
- pickup:{label:'Pick-up V8 tout-terrain',s:{name:'Prototype 05',config:'V8',bore:94,stroke:90,blockMat:'iron',internals:'cast',valvetrain:'ohv',cam:35,vvt:false,limiter:5800,fuel:'sp95',cr:9.8,lambda:.92,manifold:'cast',muffler:'std',body:'pickup',chassis:'ladder',gbxCap:650,paint:'#1d4d3a',wing:'none',gearbox:'auto',first:4.2,top:.70,final:3.9,drive:'awd',suspF:'dw',suspR:'rigid',stiff:45,gc:240,arbF:40,arbR:30,rim:17,tireW:265,profile:70,stagger:0,compound:'at',brakeFd:330,brakeR:'disc',brakeRd:320,seats:5,trim:'std',media:'radio',esp:false,steering:'hyd'}},
+ supercar:{label:'Supercar V12 atmosphérique',s:{name:'Prototype 04',config:'V12',bore:92,stroke:76,internals:'ti',cam:78,vvl:true,limiter:8800,fuelSys:'di',cr:12.5,lambda:.88,manifold:'race',cat:'sport',body:'supercar',enginePos:'MR',gbxCap:750,gMat:'nitr',gWidth:80,clutch:'twin',gCool:true,chassis:'carbon',panels:'carbon',paint:'#b3261e',splitter:true,flatFloor:true,gearbox:'dct',gears:7,first:3.4,top:.72,final:3.6,diff:'active',suspF:'dw',suspR:'dw',stiff:78,gc:110,arbF:65,arbR:60,rim:20,tireW:255,profile:30,stagger:60,rimType:'forged',brakeF:'ccm',brakeFd:400,brakeR:'ccm',brakeRd:380,seats:2,passive:'adv'}},
+ pickup:{label:'Pick-up V8 tout-terrain',s:{name:'Prototype 05',config:'V8',bore:94,stroke:90,blockMat:'iron',internals:'cast',valvetrain:'ohv',cam:35,vvt:false,limiter:5800,fuel:'sp95',cr:9.8,lambda:.92,manifold:'cast',muffler:'std',body:'pickup',chassis:'ladder',gbxCap:650,gMat:'nitr',gWidth:72,paint:'#1d4d3a',wing:'none',gearbox:'auto',first:4.2,top:.70,final:3.9,drive:'awd',suspF:'dw',suspR:'rigid',stiff:45,gc:240,arbF:40,arbR:30,rim:17,tireW:265,profile:70,stagger:0,compound:'at',brakeFd:330,brakeR:'disc',brakeRd:320,seats:5,trim:'std',media:'radio',esp:false,steering:'hyd'}},
  roadster:{label:'Roadster léger 4 cylindres',s:{name:'Prototype 06',config:'I4',bore:83,stroke:85,cam:55,limiter:7600,cr:11.2,body:'roadster',chassis:'alu',panels:'grp',paint:'#1d4d3a',wing:'none',first:3.4,top:.84,final:4.1,suspF:'dw',suspR:'dw',stiff:62,gc:120,arbF:50,arbR:45,rim:16,tireW:205,profile:45,stagger:0,brakeFd:280,brakeR:'disc',brakeRd:270,seats:2,trim:'std',media:'radio',tc:false,esp:false,steering:'hyd'}},
 };

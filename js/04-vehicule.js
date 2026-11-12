@@ -1,7 +1,9 @@
 'use strict';
 /* ───────────── Modèle véhicule ───────────── */
 function computeCar(S,E){
-  const B=BODY[S.body],ch=CHAS[S.chassis],pn=PANEL[S.panels],gb=GBX[S.gearbox],ty=TYRE[S.compound];
+  const B=BODY[S.body],ch=CHAS[S.chassis],pn=PANEL[S.panels],ty=TYRE[S.compound];
+  const gb=Object.assign({},GBX[S.gearbox]),gsp=GEARSETS[S.gearSet]?null:gbxSpec(S);
+  if(gsp){gb.shift*=gsp.shift;gb.eta=Math.min(.97,gb.eta*gsp.eta);gb.comf+=gsp.comf;gb.m+=gsp.m;gb.cost+=gsp.cost;}
   const g0=9.81,rho=1.2,front=S.enginePos==='FT'||S.enginePos==='FL',sz=B.m/620;
   const od=S.rim*25.4+2*S.tireW*S.profile/100,r=Math.min(od,B.tireMax)/2000,wR=S.tireW+S.stagger;
   const tireStr=`${S.tireW}/${S.profile} R${S.rim}`+(S.stagger?` · ${wR}/${Math.max(20,Math.round(S.tireW*S.profile/wR/5)*5)} R${S.rim}`:'');
@@ -11,7 +13,7 @@ function computeCar(S,E){
   const parts={
     caisse:B.m*(.72*ch.mf+.28*pn.mf)+{none:0,lip:2,wing:9}[S.wing]+(S.splitter?4:0)+(S.flatFloor?11:0),
     moteur:E.mass,
-    transmission:36+.085*E.peakT+4*(S.gears-5)+gb.m+(GEARSETS[S.gearSet]?0:(S.gbxCap-450)*.035)+{fwd:18,rwd:front?46:20,awd:84}[S.drive]+{open:0,lsd:6,active:14}[S.diff],
+    transmission:36+.085*E.peakT+4*(S.gears-5)+gb.m+{fwd:18,rwd:front?46:20,awd:84}[S.drive]+{open:0,lsd:6,active:14}[S.diff],
     trains:(SUSP[S.suspF].m+SUSP[S.suspR].m)*sz+2*(mRim(S.tireW)+mTire(S.tireW))+2*(mRim(wR)+mTire(wR))+mBrk(S.brakeF,S.brakeFd)+mBrk(S.brakeR,S.brakeRd),
     habitacle:TRIM[S.trim].m*(.5+.1*S.seats)+MEDIA[S.media].m,
     securite:PASS[S.passive].m+(S.abs?6:0)+(S.tc?1:0)+(S.esp?3:0)+STEER[S.steering].m,
@@ -117,7 +119,7 @@ function computeCar(S,E){
   const costs={
     'Caisse et structure':B.m*5+(ch.cost+pn.cost)*sz+{none:0,lip:120,wing:900}[S.wing]+(S.splitter?350:0)+(S.flatFloor?1400:0),
     'Moteur':E.cost,
-    'Transmission':gb.cost+(GEARSETS[S.gearSet]?0:Math.max(-300,(S.gbxCap-450)*3))+120*(S.gears-5)+1.8*E.peakT+{fwd:300,rwd:650,awd:1900}[S.drive]+{open:0,lsd:700,active:2200}[S.diff],
+    'Transmission':gb.cost+120*(S.gears-5)+1.8*E.peakT+{fwd:300,rwd:650,awd:1900}[S.drive]+{open:0,lsd:700,active:2200}[S.diff],
     'Trains roulants':SUSP[S.suspF].cost+SUSP[S.suspR].cost+2*rimC(S.tireW)+2*rimC(wR)+BRK[S.brakeF].cost*S.brakeFd/300+BRK[S.brakeR].cost*S.brakeRd/300,
     'Habitacle':TRIM[S.trim].cost*(.6+.1*S.seats)+MEDIA[S.media].cost,
     'Sécurité et aides':PASS[S.passive].cost+(S.abs?350:0)+(S.tc?150:0)+(S.esp?300:0)+STEER[S.steering].cost,
@@ -162,10 +164,10 @@ function computeCar(S,E){
   if(od>B.tireMax) add('crit','Passages de roue',`La roue fait ${nf(od)} mm de diamètre pour ${nf(B.tireMax)} mm admis par cette caisse.`);
   else if(od<B.tireMax-150) add('warn','Passages de roue',`La roue de ${nf(od)} mm paraît petite pour cette caisse (jusqu'à ${nf(B.tireMax)} mm).`);
   if(spin) add('warn','Motricité','Les roues motrices patinent au démarrage : le couple dépasse ce que les pneus transmettent.');
-  const gbxCap=gset?gset.cap:S.gbxCap,gbxR=E.peakT/gbxCap;
+  const gbxCap=gset?gset.cap:gsp.cap,gbxR=E.peakT/gbxCap;
   {let wk=null,wr=0;for(const k in E.fails) if(E.fails[k].r>wr){wr=E.fails[k].r;wk=k;}
    const lv=wk?lvOf(wk,wr):'ok';if(wk) add(lv==='break'?'crit':lv==='crit'?'warn':'ok','Résistance du moteur',lv==='ok'||lv==='warn'?`Organe le plus sollicité : ${lc(FAILS[wk].n)} (${nf(wr*100)} % de sa limite).`:`${FAILS[wk].n} à ${nf(wr*100)} % de sa limite : ${lv==='break'?'le moteur cassera lors d\'un essai à fond.':'usure très rapide.'} ${FAILS[wk].fix}`);}
-  add(gbxR<.9?'ok':gbxR<1?'warn':'crit','Boîte et embrayage',`${nf(E.peakT)} Nm pour une boîte prévue pour ${nf(gbxCap)} Nm${gbxR>=1.25?' : elle cassera pendant un essai à fond.':gbxR>=1?' : l\'embrayage patine et s\'use vite.':'.'}`);
+  add(gbxR<.9?'ok':gbxR<1?'warn':'crit','Boîte et embrayage',`${nf(E.peakT)} Nm pour une boîte prévue pour ${nf(gbxCap)} Nm${gsp?` (pignons ${nf(gsp.gearCap)} Nm${isFinite(gsp.clutchCap)?`, embrayage ${nf(gsp.clutchCap)} Nm`:''})`:''}${gbxR>=1.25?' : elle cassera pendant un essai à fond.':gbxR>=1?' : l\'embrayage patine et s\'use vite.':'.'}${gbxR>=.9&&gsp?(gsp.lim==='clutch'?' Le point faible est l\'embrayage : passez à un embrayage plus solide.':' Le point faible, ce sont les pignons : élargissez la denture ou choisissez un acier plus résistant.'):''}`);
   if(S.sump==='wet'&&gLat>1.1) add('warn',"Déjaugeage de l'huile",`À ${nf(gLat,2)} g en virage, l'huile d'un carter humide se plaque d'un côté et la pompe aspire de l'air. Un carter sec règle le problème.`);
   if(E.ecuOn&&S.ecuVmax&&vmax>250){vmax=250;add('ok','Bridage électronique','Le calculateur coupe à 250 km/h : la voiture irait plus vite sans ce bridage.');}
   if(E.mism==='lean') add('crit','Calculateur',`La cartographie est prévue pour ${FUEL[S.ecuFuel].n} mais le réservoir contient ${FUEL[S.fuel].n}, qui demande ${nf((FNEED[S.fuel]/FNEED[S.ecuFuel]-1)*100)} % de carburant en plus. Les corrections automatiques sont à bout : mélange trop pauvre, ratés, perte de puissance. Recalibrez le calculateur ou montez un capteur d'éthanol.`);
@@ -181,6 +183,6 @@ function computeCar(S,E){
   if(S.gc<95) add('warn','Garde au sol',`${S.gc} mm : frottements probables sur ralentisseurs.`);
   for(const k of Object.keys(FAULTS)) if(ui.faults[k]&&(!FAULTS[k].ok||FAULTS[k].ok(E))) add('crit','Panne : '+FAULTS[k].n(E),FAULTS[k].d(E));
   const issues=K.filter(k=>k.lv!=='ok').length;
-  return Object.assign(out,{gbxCap,gbxR,dyn:{gears,r,etaD,mP,res,Ftr,shiftRpm,launch,wRpm,lim,isAuto,cut:gb.cut,shift:gb.shift,pAv},fuelW,lhv:fu.lhv,mass,mP,parts,fw,h,cd,A,CdA,cl,down200:down(55.56)/g0,od,r,wR,tireStr,gears,etaD,shiftRpm,launch,vAt,spin,trace,
+  return Object.assign(out,{gbxCap,gbxR,gsp,dyn:{gears,r,etaD,mP,res,Ftr,shiftRpm,launch,wRpm,lim,isAuto,cut:gb.cut,shift:gb.shift,pAv},fuelW,lhv:fu.lhv,mass,mP,parts,fw,h,cd,A,CdA,cl,down200:down(55.56)/g0,od,r,wR,tireStr,gears,etaD,shiftRpm,launch,vAt,spin,trace,
     vmax,vg,vlim,brake100,capFac,fade,discMax,cvt,gLat,gAero,bal,handling,comfort,safety,pract,off,prest,cargo,conso,co2,range,costs,cost,price,seg,best,fit,checks:K,issues,pwr});
 }

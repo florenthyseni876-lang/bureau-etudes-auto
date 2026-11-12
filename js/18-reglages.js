@@ -93,11 +93,18 @@ const UI={
   {t:'Boîte de vitesses',note:()=>{const g=GEARSETS[S.gearSet];return g?(g.r?`${g.n.split(' · ')[0]} : ${nf(g.cap)} Nm admissibles, rapports ${g.r.map(x=>nf(x,2)).join(' · ')}. Bouger un curseur de rapport repasse en étagement libre.`:`${g.n.split(' · ')[0]} : rapport variable de ${nf(g.first,2)} à ${nf(g.top,2)}.`):'Étagement libre : réglez le nombre de rapports, la première et le dernier rapport.';},items:[
    {k:'gearSet',type:'gearsel'},
    {k:'gearbox',type:'seg',l:'Type',wide:1,opts:o(GBX),on:()=>{const g=GEARSETS[S.gearSet];if(g&&g.type!==S.gearbox) S.gearSet='';},hint:'Convertisseur : douceur. Robotisée : une manuelle pilotée, lente au passage. Double embrayage : passages sans rupture. CVT : pas de rapports, le moteur reste au régime idéal.'},
-   {k:'gbxCap',type:'range',l:'Couple admissible de la boîte',min:200,max:1600,step:10,u:'Nm',wide:1,dis:S=>!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie',hint:"Au-delà, l'embrayage patine puis la boîte casse pendant les essais. Une boîte plus solide pèse et coûte plus cher."},
    {k:'gears',type:'range',l:'Nombre de rapports',min:4,max:10,step:1,on:()=>{S.gearSet='';},dis:S=>S.gearbox==='cvt'},
    {k:'final',type:'range',l:'Rapport de pont',min:2.4,max:5.6,step:.05,d:2,hint:'Court : accélérations vives. Long : vitesse de pointe et régime de croisière bas.'},
    {k:'first',type:'range',l:'Première',min:2.4,max:5.5,step:.01,d:2,on:()=>{S.gearSet='';}},
    {k:'top',type:'range',l:'Dernier rapport',min:.35,max:1.15,step:.01,d:2,on:()=>{S.gearSet='';}},
+  ]},
+  {t:'Conception de la boîte',note:()=>{if(GEARSETS[S.gearSet]) return `Boîte de série : ${nf(GEARSETS[S.gearSet].cap)} Nm admissibles. Passez en étagement libre pour la concevoir vous-même.`;const g=M.C.gsp;return `Pignons : ${nf(g.gearCap)} Nm${isFinite(g.clutchCap)?` · embrayage : ${nf(g.clutchCap)} Nm`:''} · le moteur donne ${nf(M.E.peakT)} Nm (${nf(M.E.peakT/g.cap*100)} % de la limite) · ${g.m>=0?'+':'−'}${nf(Math.abs(g.m),1)} kg · ${nf(g.cost,-1)} € de pièces.`;},items:[
+   {k:'gMat',type:'seg',l:'Acier des pignons',wide:1,opts:o(GMAT),dis:S=>!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie',hint:'Cémenté : surface durcie, cœur souple. Nitruré : encore plus dur en surface. Acier aéronautique : le plus résistant, et très cher.'},
+   {k:'gWidth',type:'range',l:'Largeur de denture',min:0,max:100,step:1,wide:1,f:v=>(v<30?'Étroite':v<65?'Moyenne':'Large')+' · '+v,dis:S=>!!GEARSETS[S.gearSet],hint:'Des dents plus larges encaissent plus de couple, mais la boîte devient plus lourde et plus chère.'},
+   {k:'gTeeth',type:'seg',l:'Taille des dents',opts:o(GTEETH),dis:S=>!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie',hint:'Droite : plus solide et meilleur rendement, mais elle siffle. Hélicoïdale : silencieuse.'},
+   {k:'gSync',type:'seg',l:'Synchroniseurs',wide:1,opts:o(GSYNC),dis:(S,v)=>(!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie')||(!usesSync(S.gearbox)&&'Sans objet sur ce type de boîte'),hint:'Sans synchros, il faut faire un double débrayage : passages lents et pénibles. Les synchros multicônes ou en carbone accélèrent les passages.'},
+   {k:'clutch',type:'seg',l:'Embrayage',wide:1,opts:o(CLUTCH),dis:(S,v)=>(!!GEARSETS[S.gearSet]&&'Fixé par la boîte choisie')||(!usesClutch(S.gearbox)&&'Pas d\'embrayage : convertisseur ou courroie'),hint:'Bidisque : deux fois plus de surface. Céramétallique : tient le couple mais attaque brutalement. Carbone : léger et très solide, réservé à la course.'},
+   {k:'gCool',type:'toggle',l:'Radiateur d\'huile de boîte',dis:S=>!!GEARSETS[S.gearSet],hint:'Garde l\'huile de boîte au frais : +10 % de couple admissible.'},
   ]},
   {t:'Transmission aux roues',items:[
    {k:'drive',type:'seg',l:'Roues motrices',wide:1,opts:Object.entries(DRV),dis:(S,v)=>!POS[S.enginePos].drv.includes(v)&&`Incompatible avec un moteur ${POS[S.enginePos].n.replace(/^./,c=>c.toLocaleLowerCase())}`},
