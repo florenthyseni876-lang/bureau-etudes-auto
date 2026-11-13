@@ -36,7 +36,7 @@
                                        'c', 'i', 'tab'…). Réservées : z q s d w a flèches, e f m, maj, espace, échap.
                           'tab'        touche Tab (inventaire / carnet), hors pause
    MW.emit(evt,...a)    émet un événement (les modules peuvent émettre les leurs : 'jobDone'…)
-   MW.timeScale         minutes de jeu par seconde réelle (1 par défaut)
+   MW.timeScale         minutes de jeu par seconde réelle (1,6 par défaut : 24 h de jeu = 15 min réelles ; les gestes de réparation avancent l'horloge sans temps réel)
    MW.paused            vrai quand un panneau, la carte ou le sommeil bloquent le jeu (l'horloge s'arrête aussi)
 
    ── Monde ──
@@ -81,12 +81,12 @@
    MW.addButton(id,libelle,fn)  bouton dans la barre en haut à droite (utile au tactile : Carnet, Carrière…) ; MW.removeButton(id)
    MW.timeStr()         « Jour 3 · 14:25 »   MW.hourF() heure décimale   MW.isNight()
    MW.addMin(n)         fait avancer l'horloge de n minutes (émet 'minute', 'hour', 'day' au passage)
-   MW.sleep()           dort jusqu'à 6 h (jour suivant), sauvegarde
+   MW.sleep()           dort jusqu'à 7 h 30 (jour suivant ; le nouveau jour commence à 6 h au passage), sauvegarde
    MW.homeInfo()        (interne) met à jour le bouton de l'accueil
    Raccourci de test : window.__mw = MW. */
 const MW=(()=>{
 const T=THREE,PI=Math.PI,SAVE_KEY='bea.meca.v1';
-const api={THREE:T,paused:false,timeScale:1,S:null};
+const api={THREE:T,paused:false,timeScale:1.6,S:null};
 let S=null;
 const sceneObj=new T.Scene(),cam=new T.PerspectiveCamera(70,1.6,.1,520);
 cam.rotation.order='YXZ';
@@ -347,8 +347,9 @@ api.money=(dx,motif)=>{S.money=Math.round((S.money+dx)*100)/100;
 let acc=0;
 function stepMin(){S.min++;if(S.min>=1440) S.min=0;emit('minute');if(S.min%60===0) emit('hour',S.min/60);if(S.min===360){S.day++;emit('day',S.day);}}
 api.addMin=n=>{n=Math.max(0,Math.min(3000,Math.round(n)));for(let i=0;i<n;i++) stepMin();};
+const WAKE=450,SLEEP_FROM=1140; /* réveil à 7 h 30 ; on peut dormir dès 19 h */
 api.sleep=()=>{if(sleeping) return;ensureUI();sleeping=true;setPaused();ui.fade.classList.add('on');
- setTimeout(()=>{const n=((360-S.min)+1440)%1440||1440;api.addMin(n);api.save();ui.fade.classList.remove('on');sleeping=false;setPaused();api.toast(`Une bonne nuit de sommeil. ${api.timeStr()}.`,'good');},650);};
+ setTimeout(()=>{const n=((WAKE-S.min)+1440)%1440||1440;api.addMin(n);api.save();ui.fade.classList.remove('on');sleeping=false;setPaused();api.toast(`Une bonne nuit de sommeil. ${api.timeStr()}.`,'good');},650);};
 
 /* ── interactions ── */
 let curI=null,nid=1;
@@ -359,8 +360,8 @@ function defaultDoor(z){
  const desc={garage:'Garage ouvert de 8 h à 19 h.',magasin:'Pièces détachées et outillage.',ecole:'Formations et examens de mécanique.',bureau:'Bureau d\'études d\'un constructeur.',banque:'Prêts et comptes professionnels.',terrain:'Un terrain pour bâtir votre propre usine.',occasion:'Voitures d\'occasion.'}[z.type]||'';
  api.panel(z.nom,`<p>${esc(desc)}</p><p class="mw-soon">Bientôt : cet endroit ouvrira ses portes dans une prochaine mise à jour.</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Fermer</button></div>`);}
 function studioDoor(){
- api.panel('Votre studio',`<p>Un petit studio, le temps de faire vos preuves. ${esc(api.timeStr())}.</p><div class="mw-btns"><button type="button" class="btn" data-mw="sleep">Dormir jusqu'à 6 h</button><button type="button" class="btn ghost" data-mw="save">Sauvegarder</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,
-  {onClick:a=>{if(a==='sleep'){api.closePanel();api.sleep();}else if(a==='save'){api.save();api.toast('Partie sauvegardée.','good');}}});}
+ api.panel('Votre studio',`<p>Un petit studio, le temps de faire vos preuves. ${esc(api.timeStr())}.</p><div class="mw-btns">${S&&S.min>=SLEEP_FROM||S&&S.min<360?'<button type="button" class="btn" data-mw="sleep">Dormir jusqu\'à 7 h 30</button>':'<span class="mw-soon">Il est trop tôt pour dormir : revenez à partir de 19 h.</span>'}<button type="button" class="btn ghost" data-mw="save">Sauvegarder</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,
+  {onClick:a=>{if(a==='sleep'){if(!(S.min>=SLEEP_FROM||S.min<360)) return;api.closePanel();api.sleep();}else if(a==='save'){api.save();api.toast('Partie sauvegardée.','good');}}});}
 function zoneUse(z){const f=doorFns[z.id];if(f) return f(z);if(z.id==='appart') return studioDoor();return defaultDoor(z);}
 function regZoneInteracts(){
  for(const z of zones){
@@ -595,5 +596,6 @@ api.suspend=()=>{if(!active) return;api.save();exitLock();deactivate();if(panelS
  mapOpen=false;ui.map.hidden=true;sleeping=false;ui.fade.classList.remove('on');setPaused();keys={};
  ui.r.hidden=true;document.body.classList.remove('mw-on');emit('close');};
 api.close=()=>{const was=active;api.suspend();if(was&&typeof showHome==='function') showHome();};
+api.useDoor=id=>{const z=api.zone(id);if(z) zoneUse(z);};/* outil de test : déclenche l'action de la porte (ou du comptoir) d'une zone */
 window.__mw=api;
 return api;})();

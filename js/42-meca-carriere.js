@@ -4,17 +4,20 @@
    Données sauvegardées : MW.S.career (créé à 'start'), plus MW.S.xp[comp] et MW.S.rep (gérés par 41 / le socle).
 
    ═══ Objet global `MWC` ═══
-   MWC.employer()        → {id, nom, lieu, zone ('garage1'…'garage4' ou null), salaire, paie:'tache'|'mois', part, mois, niveauxAutorises, loyer}
-                           salaire = montant mensuel pour la paie au mois, sinon la part de main-d'œuvre (0..1) ; id parmi
+   MWC.employer()        → {id, nom, lieu, zone ('garage1'…'garage4' ou null), salaire, paie:'tache'|'mois', part, sem, mois, niveauxAutorises, loyer}
+                           paie:'mois' = salaire fixe (nom historique), versé CHAQUE SEMAINE de jeu : `sem` (= `salaire`) est le montant
+                           hebdomadaire, `mois` son équivalent sur 30 jours ; `part` = part de la main-d'œuvre de chaque voiture rendue
+                           (paie à la tâche, ou prime de rendement en plus du salaire fixe) ; id parmi
                            aucun, apprenti, meca, patron, ventoux, aurele, brivio, ing, fondateur.
    MWC.canDo(partId)     → vrai si le poste ET le niveau de compétence permettent de poser cette pièce (vrai si inconnu)
-   MWC.payFor(job)       → montant pour le joueur à la remise d'une voiture (0 si paie au mois)
+   MWC.payFor(job)       → montant pour le joueur à la remise d'une voiture (part de la main-d'œuvre ; salariés : prime de rendement)
    MWC.post()            → texte du poste (« Apprenti · Garage du Coin »)
    MWC.level(comp)       → niveau 1..10 ; MWC.COMPS = liste [id, libellé]
    MWC.hire(id)          → embauche directe (outil de test) ; MWC.panel() ouvre le panneau Carrière (touche C)
    MWC.qcm()             → {index de la bonne réponse affichée, n° de question} (outil de test pendant un QCM)
    Événements émis : 'employerChanged'(id), 'missionDone'(mission, note), 'founded'(nom).
-   Point d'entrée « fondation » : MWC.startConstructor({co, y, cash, debt}) démarre une carrière constructeur. */
+   Point d'entrée « fondation » : MWC.startConstructor({co, y, cash, debt, fac, rep}) démarre une carrière constructeur
+   (fac = niveau d'usine de départ, rep = réputation de l'entreprise). MWC.investors() = apport des investisseurs à la fondation. */
 const MWC=(()=>{
 const COMPS=[['entretien','Entretien'],['freinage','Freinage'],['liaison','Liaison au sol'],['moteur','Moteur'],['transmission','Transmission'],['electricite','Électricité et électronique'],['diagnostic','Diagnostic']];
 const CN={};for(const [k,n] of COMPS) CN[k]=n;
@@ -32,23 +35,31 @@ const day=()=>MW.S?MW.S.day:1;
 /* ── employeurs ── */
 const DIPL={
  cap:{nom:'CAP maintenance des véhicules',cout:600,jours:2,req:{},n:6,min:4},
- bts:{nom:'BTS maintenance des véhicules',cout:2400,jours:5,req:{dipl:'cap',niv:{diagnostic:3,moteur:3}},n:8,min:6},
- ing:{nom:"Diplôme d'ingénieur automobile",cout:9000,jours:10,req:{dipl:'bts',niv:{moteur:5,diagnostic:4}},n:10,min:7}};
-const GRADES=[{n:'Ingénieur',mois:3600,need:2},{n:'Ingénieur confirmé',mois:5200,need:3},{n:'Chef de projet',mois:7400,need:3},{n:'Directeur technique',mois:11000,need:0}];
+ bts:{nom:'BTS maintenance des véhicules',cout:1800,jours:5,req:{dipl:'cap',niv:{diagnostic:3,moteur:3}},n:8,min:6},
+ ing:{nom:"Diplôme d'ingénieur automobile",cout:3500,jours:6,req:{dipl:'bts',niv:{moteur:5,diagnostic:4}},n:10,min:7}};
+/* ═══ RÉGLAGES D'ÉQUILIBRAGE (voir aussi MW.timeScale dans 40 et TAUX dans 41) ═══
+   Les salaires fixes (`sem`) sont versés chaque semaine de jeu (7 jours). */
+const PAYDAYS=7;
+const GRADES=[{n:'Ingénieur',sem:4800,need:3},{n:'Ingénieur confirmé',sem:7600,need:4},{n:'Chef de projet',sem:11500,need:5},{n:'Directeur technique',sem:16000,need:0}];
 const EMP={
- aucun:{nom:'Sans emploi',lieu:'',zone:null,paie:'tache',part:0,mois:0,niv:0,rang:0},
- apprenti:{nom:'Apprenti',lieu:'Garage du Coin',zone:'garage1',paie:'tache',part:.3,mois:0,niv:2,rang:0},
- meca:{nom:'Mécanicien',lieu:'Garage du Coin',zone:'garage1',paie:'tache',part:.45,mois:0,niv:4,rang:1},
- patron:{nom:'Patron du Garage du Coin',lieu:'Garage du Coin',zone:'garage1',paie:'tache',part:1,net:true,mois:0,niv:10,rang:2,loyer:45},
- ventoux:{nom:'Mécanicien',lieu:'Ventoux Automobiles',zone:'garage2',paie:'mois',part:0,mois:2300,niv:6,rang:2,req:{niv:{entretien:4,freinage:3},rep:25,dipl:'cap'}},
- aurele:{nom:'Mécanicien',lieu:'Maison Aurèle',zone:'garage3',paie:'mois',part:0,mois:3400,niv:8,rang:3,req:{niv:{moteur:5,diagnostic:4,electricite:3},rep:40,dipl:'bts'}},
- brivio:{nom:'Mécanicien',lieu:'Scuderia Brivio',zone:'garage4',paie:'mois',part:0,mois:4600,niv:10,rang:3,req:{niv:{moteur:7,transmission:5,diagnostic:6},rep:60,dipl:'bts'}},
- ing:{nom:'Ingénieur',lieu:'Centre technique',zone:null,paie:'mois',part:0,mois:3600,niv:10,rang:3},
- fondateur:{nom:'Fondateur',lieu:'',zone:null,paie:'tache',part:0,mois:0,niv:10,rang:4}};
+ aucun:{nom:'Sans emploi',lieu:'',zone:null,paie:'tache',part:0,sem:0,niv:0,rang:0},
+ apprenti:{nom:'Apprenti',lieu:'Garage du Coin',zone:'garage1',paie:'tache',part:.35,sem:0,niv:2,rang:0},
+ meca:{nom:'Mécanicien',lieu:'Garage du Coin',zone:'garage1',paie:'tache',part:.55,sem:0,niv:4,rang:1},
+ patron:{nom:'Patron du Garage du Coin',lieu:'Garage du Coin',zone:'garage1',paie:'tache',part:1,net:true,sem:0,niv:10,rang:2,loyer:200},
+ ventoux:{nom:'Mécanicien',lieu:'Ventoux Automobiles',zone:'garage2',paie:'mois',part:.1,sem:1750,niv:6,rang:2,req:{niv:{entretien:5,freinage:5},rep:35,dipl:'cap'}},
+ aurele:{nom:'Mécanicien',lieu:'Maison Aurèle',zone:'garage3',paie:'mois',part:.1,sem:2600,niv:8,rang:3,req:{niv:{moteur:5,diagnostic:5,electricite:4},rep:40,dipl:'bts'}},
+ brivio:{nom:'Mécanicien',lieu:'Scuderia Brivio',zone:'garage4',paie:'mois',part:.1,sem:3400,niv:10,rang:3,req:{niv:{moteur:7,transmission:5,diagnostic:6},rep:60,dipl:'bts'}},
+ ing:{nom:'Ingénieur',lieu:'Centre technique',zone:null,paie:'mois',part:0,sem:4800,niv:10,rang:3},
+ fondateur:{nom:'Fondateur',lieu:'',zone:null,paie:'tache',part:0,sem:0,niv:10,rang:4}};
 const ING_REQ={dipl:'ing',rep:30,niv:{moteur:4}};
-const OWN={prix:18000,req:{rep:25,niv:{entretien:4,moteur:3}}};
+const PROMO={jobs:6,niv:4}; /* apprenti → mécanicien */
+const OWN={prix:1300,reserve:500,req:{rep:25,niv:{entretien:4,moteur:3}}}; /* reserve = de quoi acheter les premières pièces */
 const ZONE_EMP={garage2:'ventoux',garage3:'aurele',garage4:'brivio'};
-const FOUND={capital:2e6,rep:60,niv:{moteur:7}};
+/* Fondation : apport personnel net de dettes (`capital`), réputation, poste. Les investisseurs complètent : leur apport est proportionnel
+   à la réputation et au grade (voir investors()). Développer un premier modèle à l'époque actuelle coûte plusieurs dizaines de millions
+   (voir devCost, js/21) : un capital personnel seul ne suffirait jamais, d'où cet apport. La marque démarre avec une usine de niveau `fac`. */
+const FOUND={capital:48000,rep:60,niv:{moteur:7},investBase:3e6,fac:2};
+const INV_COEF={ing1:1,ing2:1.5,ing3:2.2,patron:.8};
 
 function newC(){return {emp:'aucun',grade:0,hired:0,payFrom:0,dipl:{},loans:[],refus:{},form:null,mission:null,qual:0,missions:0,notes:[],
  stats:{jobs:0,paid:0,vid:0,earn:0},lv:{},car:null,founded:null,everMeca:false,t:{}};}
@@ -57,10 +68,10 @@ function C(){const s=MW.S;if(!s) return newC();if(!s.career||typeof s.career!=='
 api.state=C;
 
 function employer(){
- const c=C(),id=EMP[c.emp]?c.emp:'aucun',e=EMP[id];let nom=e.nom+(e.lieu?' · '+e.lieu:''),mois=e.mois,niv=e.niv;
- if(id==='ing'){const g=GRADES[clamp(c.grade,0,3)];nom=g.n+' · Centre technique';mois=g.mois;}
+ const c=C(),id=EMP[c.emp]?c.emp:'aucun',e=EMP[id];let nom=e.nom+(e.lieu?' · '+e.lieu:''),sem=e.sem,niv=e.niv;
+ if(id==='ing'){const g=GRADES[clamp(c.grade,0,3)];nom=g.n+' · Centre technique';sem=g.sem;}
  if(id==='fondateur') nom='Fondateur de '+(c.founded||'votre marque');
- return {id,nom,lieu:e.lieu,zone:e.zone,salaire:e.paie==='mois'?mois:e.part,paie:e.paie,part:e.part,mois,niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,compte:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
+ return {id,nom,lieu:e.lieu,zone:e.zone,salaire:e.paie==='mois'?sem:e.part,paie:e.paie,part:e.part,sem,mois:Math.round(sem*30/PAYDAYS),niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,compte:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
 api.employer=employer;
 api.post=()=>{const e=employer();return e.nom;};
 
@@ -82,8 +93,8 @@ function netOf(job){
  for(const k of ['coutPieces','coutP','coutAchat','coutAchats']) if(typeof job[k]==='number') return Math.max(0,f-job[k]);
  return Math.max(0,f-.7*Math.max(0,f-mo));}
 api.payFor=job=>{
- const e=employer();if(!job||e.paie==='mois') return 0;
- if(e.id==='aucun'||e.id==='fondateur') return 0;
+ const e=employer();if(!job) return 0;
+ if(e.id==='aucun'||e.id==='fondateur'||e.id==='ing') return 0;
  if(e.net) return Math.round(+job.facture||0); /* pièces déjà payées au magasin */
  const mo=job.mainOeuvre!=null?+job.mainOeuvre:(+job.facture||0)*.4;
  return Math.round(Math.max(0,mo)*e.part);};
@@ -113,13 +124,13 @@ function hire(id){
 api.hire=hire;
 function resign(){const c=C();c.emp='aucun';c.mission=null;MW.emit('employerChanged','aucun');refresh();}
 function promoCheck(){const c=C();
- if(c.emp==='apprenti'&&c.stats.jobs>=4&&level('entretien')>=3){hire('meca');say('Le patron vous nomme mécanicien : vous êtes payé davantage et on vous confie des travaux plus délicats.','good');}}
+ if(c.emp==='apprenti'&&c.stats.jobs>=PROMO.jobs&&level('entretien')>=PROMO.niv){hire('meca');say('Le patron vous nomme mécanicien : vous êtes payé davantage et on vous confie des travaux plus délicats.','good');}}
 
 /* ── objectifs ── */
 function longGoals(){const c=C(),e=employer(),g=[];if(c.emp==='fondateur') return g;
  const sat=id=>c.emp===id;
  if(e.id==='aucun'&&!c.everMeca) g.push({id:'g_emb',titre:'Se faire embaucher au Garage du Coin',manque:['Présentez-vous au comptoir d\'accueil'],zone:'garage1'});
- if(c.emp==='apprenti') g.push({id:'g_meca',titre:'Devenir mécanicien au Garage du Coin',manque:[c.stats.jobs<4?`Rendre ${4-c.stats.jobs} voiture${4-c.stats.jobs>1?'s':''} de plus`:null,level('entretien')<3?'Entretien : niveau 3':null].filter(Boolean),zone:'garage1'});
+ if(c.emp==='apprenti') g.push({id:'g_meca',titre:'Devenir mécanicien au Garage du Coin',manque:[c.stats.jobs<PROMO.jobs?`Rendre ${PROMO.jobs-c.stats.jobs} voiture${PROMO.jobs-c.stats.jobs>1?'s':''} de plus`:null,level('entretien')<PROMO.niv?'Entretien : niveau '+PROMO.niv:null].filter(Boolean),zone:'garage1'});
  if(!c.dipl.cap) g.push({id:'g_cap',titre:'Passer le CAP de maintenance',manque:c.form&&c.form.id==='cap'?[day()>=c.form.fin?'Passer l\'examen au centre de formation':`Formation en cours, fin au jour ${c.form.fin}`]:['S\'inscrire au centre de formation'],zone:'ecole'});
  if(!sat('ventoux')&&!sat('aurele')&&!sat('brivio')&&!sat('ing')) g.push({id:'g_vent',titre:'Être embauché chez Ventoux Automobiles',manque:missing(EMP.ventoux.req),zone:'garage2',ok:!!(c.emp==='ventoux'||c.emp==='aurele'||c.emp==='brivio')});
  if(!c.dipl.bts) g.push({id:'g_bts',titre:'Obtenir le BTS de maintenance',manque:missing(DIPL.bts.req),zone:'ecole'});
@@ -128,7 +139,7 @@ function longGoals(){const c=C(),e=employer(),g=[];if(c.emp==='fondateur') retur
  if(!c.dipl.ing) g.push({id:'g_ding',titre:"Obtenir le diplôme d'ingénieur",manque:missing(DIPL.ing.req),zone:'ecole'});
  else if(c.emp!=='ing'&&c.emp!=='fondateur') g.push({id:'g_ing',titre:'Rejoindre le centre technique comme ingénieur',manque:missing(ING_REQ),zone:'bureau'});
  if(c.emp==='ing'&&c.grade<3) g.push({id:'g_prom',titre:'Devenir '+GRADES[c.grade+1].n.toLocaleLowerCase(),manque:[`Valider ${Math.max(0,GRADES[c.grade].need-c.qual)} mission${GRADES[c.grade].need-c.qual>1?'s':''} avec une note d'au moins ${12+c.grade}/20`],zone:'bureau'});
- if(c.emp!=='fondateur'){const m=[];if(MW.S.money<FOUND.capital) m.push(`Capital de ${fmt(FOUND.capital)} (vous : ${fmt(MW.S.money)})`);if(rep()<FOUND.rep) m.push(`Réputation : ${FOUND.rep}`);
+ if(c.emp!=='fondateur'){const m=[];if(MW.S.money-owed()<FOUND.capital) m.push(`Apport personnel de ${fmt(FOUND.capital)} (vous : ${fmt(MW.S.money-owed())})`);if(rep()<FOUND.rep) m.push(`Réputation : ${FOUND.rep}`);
   if(!(c.emp==='ing'&&c.grade>=1)&&!(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur)) m.push('Ingénieur confirmé, ou patron de garage avec moteur niveau '+FOUND.niv.moteur);
   g.push({id:'g_marque',titre:'Fonder votre marque',manque:m,zone:'terrain'});}
  return g.filter(x=>!x.ok);}
@@ -142,7 +153,7 @@ function currentGoal(){const t=tutorial();if(t) return t;const g=longGoals()[0];
 let lastGoal='',lastCareer='';
 function refresh(){
  if(!MW.S) return;const e=employer();
- const ch=`<b>${esc(e.nom)}</b><br><small>${e.paie==='mois'?esc(fmt(e.mois))+' par mois':e.id==='aucun'?'Sans salaire':e.id==='fondateur'?'':e.net?'Factures moins pièces et loyer':Math.round(e.part*100)+' % de la main-d\'œuvre'}</small>`;
+ const ch=`<b>${esc(e.nom)}</b><br><small>${e.paie==='mois'?esc(fmt(e.sem))+' par semaine'+(e.part?' + '+Math.round(e.part*100)+' % de la main-d\'œuvre':''):e.id==='aucun'?'Sans salaire':e.id==='fondateur'?'':e.net?'Factures moins pièces et loyer':Math.round(e.part*100)+' % de la main-d\'œuvre'}</small>`;
  if(ch!==lastCareer){lastCareer=ch;MW.hud('career',ch);}
  const g=currentGoal();
  const html=g?`Objectif : <b>${esc(g.titre)}</b>${g.aide?`<br><small>${esc(g.aide)}</small>`:''}`:'';
@@ -226,16 +237,16 @@ function counter(z){
  if(id==='garage1') return counterCoin(z);
  const eid=ZONE_EMP[id],E=EMP[eid];
  if(c.emp===eid){
-  MW.panel(z.nom,`<p>Vous travaillez ici : <b>${esc(e.nom)}</b>. ${esc(fmt(e.mois))} par mois, versés le 1er de chaque mois de jeu (tous les 30 jours).</p><p class="hint">Les voitures confiées vont jusqu'au niveau ${e.niveauxAutorises} de difficulté.</p><div class="mw-btns">${btn('resign','Démissionner','ghost')}${btn('close','Fermer','ghost')}</div>`,
+  MW.panel(z.nom,`<p>Vous travaillez ici : <b>${esc(e.nom)}</b>. ${esc(fmt(e.sem))} de paie à la semaine (versée tous les ${PAYDAYS} jours de jeu), plus ${Math.round(e.part*100)} % de la main-d'œuvre de chaque voiture rendue.</p><p class="hint">Les voitures confiées vont jusqu'au niveau ${e.niveauxAutorises} de difficulté.</p><div class="mw-btns">${btn('resign','Démissionner','ghost')}${btn('close','Fermer','ghost')}</div>`,
    {onClick:a=>{if(a==='resign'){resign();MW.closePanel();say('Vous avez quitté votre poste.','warn');}}});return;}
  const wait=(c.refus[eid]||0)-day(),can=okAll(E.req);
- MW.panel(z.nom,`<p>${esc(z.nom)} recrute des mécaniciens. Salaire : <b>${esc(fmt(E.mois))} par mois</b>. Voici ce qu'on attend d'un candidat :</p>${condHTML(E.req)}${wait>0?`<p class="mw-soon">Votre dernière candidature a été refusée : revenez dans ${wait} jour${wait>1?'s':''}.</p>`:''}<p class="hint">L'entretien d'embauche est un questionnaire de 5 questions de mécanique : il faut au moins 4 bonnes réponses.</p><div class="mw-btns">${btn('interview','Passer l\'entretien d\'embauche','',!can||wait>0)}${btn('close','Fermer','ghost')}</div>`,
+ MW.panel(z.nom,`<p>${esc(z.nom)} recrute des mécaniciens. Paie à la semaine : <b>${esc(fmt(E.sem))}</b>, plus ${Math.round(E.part*100)} % de la main-d'œuvre. Voici ce qu'on attend d'un candidat :</p>${condHTML(E.req)}${wait>0?`<p class="mw-soon">Votre dernière candidature a été refusée : revenez dans ${wait} jour${wait>1?'s':''}.</p>`:''}<p class="hint">L'entretien d'embauche est un questionnaire de 5 questions de mécanique : il faut au moins 4 bonnes réponses.</p><div class="mw-btns">${btn('interview','Passer l\'entretien d\'embauche','',!can||wait>0)}${btn('close','Fermer','ghost')}</div>`,
   {onClick:a=>{if(a==='interview') interview(eid,z);}});}
 function interview(eid,z){
  const E=EMP[eid],c=C();
  quiz({titre:'Entretien d\'embauche · '+E.lieu,n:5,min:4,intro:`Le responsable de l'atelier vous pose quelques questions techniques.`,
   onEnd:(ok,s,n,miss)=>{
-   if(ok){hire(eid);MW.panel('Embauché !',`<p>Bravo, ${s} bonnes réponses sur ${n}. Vous êtes engagé chez <b>${esc(E.lieu)}</b> : ${esc(fmt(E.mois))} par mois.</p><p class="hint">Les clients de cet atelier vous attendent désormais sur les ponts.</p><div class="mw-btns">${btn('close','Au travail')}</div>`);}
+   if(ok){hire(eid);MW.panel('Embauché !',`<p>Bravo, ${s} bonnes réponses sur ${n}. Vous êtes engagé chez <b>${esc(E.lieu)}</b> : ${esc(fmt(E.sem))} de paie à la semaine.</p><p class="hint">Les clients de cet atelier vous attendent désormais sur les ponts.</p><div class="mw-btns">${btn('close','Au travail')}</div>`);}
    else{c.refus[eid]=day()+3;MW.panel('Candidature refusée',`<p>${s} bonne${s>1?'s':''} réponse${s>1?'s':''} sur ${n} : ce n'est pas suffisant. Revenez dans 3 jours.</p>${missHTML(miss)}<div class="mw-btns">${btn('close','Fermer','ghost')}</div>`);}}});}
 function counterCoin(z){
  const c=C(),e=employer();
@@ -244,17 +255,17 @@ function counterCoin(z){
   MW.panel(z.nom,`<p>${back?'Le patron se souvient de vous.':'Le patron du Garage du Coin cherche un apprenti.'} Pas d'entretien : on vous prend à l'essai.</p><p class="hint">${back?'Vous reprenez votre place de mécanicien (45 % de la main-d\'œuvre).':'Vous toucherez 30 % de la main-d\'œuvre sur chaque voiture rendue, et vous apprendrez l\'entretien de base.'}</p><div class="mw-btns">${btn('join',back?'Reprendre mon poste de mécanicien':'Devenir apprenti')}${btn('close','Fermer','ghost')}</div>`,
    {onClick:a=>{if(a==='join'){hire(back?'meca':'apprenti');MW.closePanel();say(back?'Bon retour au Garage du Coin.':'Vous voilà apprenti au Garage du Coin. Un client ne devrait pas tarder.','good');}}});return;}
  let extra='';
- if(c.emp==='apprenti') extra=`<p>Pour devenir mécanicien : rendre au moins 4 voitures (vous : ${c.stats.jobs}) et atteindre le niveau 3 en entretien (vous : ${level('entretien')}).</p>`;
- if(c.emp==='meca') extra=`<p>Le patron songe à prendre sa retraite. Reprendre le fonds de commerce : <b>${esc(fmt(OWN.prix))}</b> et un loyer de ${esc(fmt(EMP.patron.loyer))} par jour. Vous encaisseriez toutes les factures, mais paieriez vous-même les pièces.</p>${condHTML(OWN.req)}`;
- if(c.emp==='patron') extra=`<p>Vous êtes propriétaire du garage. Loyer : ${esc(fmt(EMP.patron.loyer))} par jour de jeu.</p>`;
- MW.panel(z.nom,`<p>Vous travaillez ici : <b>${esc(e.nom)}</b>.</p>${extra}<div class="mw-btns">${c.emp==='meca'?btn('buy','Reprendre le garage ('+esc(fmt(OWN.prix))+')','',!okAll(OWN.req)||MW.S.money<OWN.prix):''}${c.emp==='patron'?btn('sell','Revendre le fonds ('+esc(fmt(OWN.prix*.6))+')','ghost'):''}${btn('resign','Démissionner','ghost')}${btn('close','Fermer','ghost')}</div>`,
+ if(c.emp==='apprenti') extra=`<p>Pour devenir mécanicien : rendre au moins ${PROMO.jobs} voitures (vous : ${c.stats.jobs}) et atteindre le niveau ${PROMO.niv} en entretien (vous : ${level('entretien')}).</p>`;
+ if(c.emp==='meca') extra=`<p>Le patron songe à prendre sa retraite. Reprendre le fonds de commerce : <b>${esc(fmt(OWN.prix))}</b>, plus de quoi acheter vos premières pièces (gardez ${esc(fmt(OWN.reserve))} en poche). Loyer et charges : ${esc(fmt(EMP.patron.loyer))} par jour de jeu. Vous encaisseriez toutes les factures, mais paieriez vous-même les pièces : un client mécontent ou une pièce changée pour rien, et c'est vous qui perdez.</p>${condHTML(OWN.req)}`;
+ if(c.emp==='patron') extra=`<p>Vous êtes propriétaire du garage. Loyer et charges : ${esc(fmt(EMP.patron.loyer))} par jour de jeu.</p>`;
+ MW.panel(z.nom,`<p>Vous travaillez ici : <b>${esc(e.nom)}</b>.</p>${extra}<div class="mw-btns">${c.emp==='meca'?btn('buy','Reprendre le garage ('+esc(fmt(OWN.prix))+')','',!okAll(OWN.req)||MW.S.money<OWN.prix+OWN.reserve):''}${c.emp==='patron'?btn('sell','Revendre le fonds ('+esc(fmt(OWN.prix*.6))+')','ghost'):''}${btn('resign','Démissionner','ghost')}${btn('close','Fermer','ghost')}</div>`,
   {onClick:a=>{
    if(a==='buy'){MW.money(-OWN.prix,'Reprise du Garage du Coin');hire('patron');MW.closePanel();say('Le Garage du Coin est à vous ! Vous gardez la main-d\'œuvre, mais payez les pièces et le loyer.','good');}
    else if(a==='sell'){MW.money(OWN.prix*.6,'Revente du fonds de commerce');hire('meca');MW.closePanel();}
    else if(a==='resign'){resign();MW.closePanel();say('Vous avez quitté votre poste.','warn');}}});}
 
 /* ── Centre de formation ── */
-const STAGES=COMPS.map(([k,n])=>({id:'stage_'+k,comp:k,nom:'Stage : '+n.toLocaleLowerCase(),cout:350,jours:2,xp:90}));
+const STAGES=COMPS.map(([k,n])=>({id:'stage_'+k,comp:k,nom:'Stage : '+n.toLocaleLowerCase(),cout:250,jours:2,xp:120}));
 function school(z){
  const c=C(),d=day();
  let h=`<p>Le centre de formation prépare aux diplômes et propose des stages courts. Une formation dure des jours de jeu : vous continuez à travailler en attendant.</p>`;
@@ -332,10 +343,10 @@ function bureau(z){
  if(c.emp==='fondateur'){MW.panel(z.nom,`<p>Vous avez fondé votre propre marque : ce centre technique n'a plus besoin de vous.</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`);return;}
  if(c.emp!=='ing'){
   const can=okAll(ING_REQ);
-  MW.panel(z.nom,`<p>Le centre technique conçoit les moteurs et les voitures de la marque. On y recrute des ingénieurs diplômés, qui reçoivent des missions chiffrées et un salaire mensuel (${esc(fmt(GRADES[0].mois))} pour débuter).</p>${condHTML(ING_REQ)}<div class="mw-btns">${btn('apply','Postuler comme ingénieur','',!can)}${btn('close','Fermer','ghost')}</div>`,
+  MW.panel(z.nom,`<p>Le centre technique conçoit les moteurs et les voitures de la marque. On y recrute des ingénieurs diplômés, qui reçoivent des missions chiffrées et une paie à la semaine (${esc(fmt(GRADES[0].sem))} pour débuter).</p>${condHTML(ING_REQ)}<div class="mw-btns">${btn('apply','Postuler comme ingénieur','',!can)}${btn('close','Fermer','ghost')}</div>`,
    {onClick:a=>{if(a==='apply'){c.grade=0;c.qual=0;hire('ing');say('Bienvenue au centre technique, ingénieur !','good');bureau(z);}}});return;}
  const g=GRADES[c.grade],m=c.mission;
- let h=`<p><b>${esc(g.n)}</b> · ${esc(fmt(g.mois))} par mois (versés le 1er de chaque mois de jeu). Missions réussies : ${c.missions}.</p>`;
+ let h=`<p><b>${esc(g.n)}</b> · ${esc(fmt(g.sem))} de paie à la semaine (versée tous les ${PAYDAYS} jours de jeu). Missions réussies : ${c.missions}.</p>`;
  if(c.grade<3) h+=`<p class="hint">Prochaine promotion (${esc(GRADES[c.grade+1].n.toLocaleLowerCase())}) : valider ${Math.max(0,g.need-c.qual)} mission${g.need-c.qual>1?'s':''} avec au moins ${12+c.grade}/20.</p>`;
  if(m) h+=`<h3 class="mw-h3">Mission en cours : ${esc(m.titre)}</h3><p>Le chef de projet attend un projet qui respecte ce cahier des charges :</p>${cahierHTML(m)}<p class="hint">Concevez le moteur et la voiture dans le bureau d'études, puis soumettez-les au chef de projet. Note minimale : 10/20${m.essais?` · ${m.essais} soumission${m.essais>1?'s':''} déjà faite${m.essais>1?'s':''}`:''}.</p>`;
  else h+='<p>Aucune mission en cours.</p>';
@@ -379,14 +390,14 @@ function submitMission(){
  const note=ev.note,g=GRADES[clamp(c.grade,0,3)];
  const rowsH=`<ul class="mw-cond">${ev.rows.map(r=>`<li class="${r.ok?'ok':'no'}">${r.ok?'✓':'✗'} ${esc(r.txt)}${r.v!=null?` <small>(votre projet : ${esc(nf(r.v,r.x.k==='mix'||r.x.k==='t100'?1:0))}${esc(CRIT[r.x.k].u)})</small>`:''}</li>`).join('')}</ul>`;
  if(note>=10){
-  const prime=Math.round(g.mois*.5*(note-10)/10/10)*10;
+  const prime=Math.round(g.sem*.05*(note-10)/10/10)*10;
   c.missions++;c.notes.push(note);if(c.notes.length>20) c.notes.shift();
   const promo=note>=12+c.grade;if(promo&&c.grade<3) c.qual++;
   let msg='';
   if(prime>0) MW.money(prime,'Prime de mission');
   MW.S.rep=Math.min(100,rep()+(note>=15?3:note>=12?2:1));
   const done=c.mission;c.mission=null;
-  if(c.grade<3&&c.qual>=g.need){c.grade++;c.qual=0;msg=`<p class="mw-soon">Promotion : vous êtes maintenant <b>${esc(GRADES[c.grade].n)}</b> (${esc(fmt(GRADES[c.grade].mois))} par mois).</p>`;MW.emit('employerChanged','ing');}
+  if(c.grade<3&&c.qual>=g.need){c.grade++;c.qual=0;msg=`<p class="mw-soon">Promotion : vous êtes maintenant <b>${esc(GRADES[c.grade].n)}</b> (${esc(fmt(GRADES[c.grade].sem))} de paie à la semaine).</p>`;MW.emit('employerChanged','ing');}
   refresh();MW.emit('missionDone',done,note);
   MW.panel('Mission validée',`<p>Le chef de projet valide votre projet : <b>${nf(note,1)} / 20</b>.${prime>0?` Prime : ${esc(fmt(prime))}.`:''}</p>${rowsH}${msg}<div class="mw-btns">${btn('close','Fermer')}</div>`);
  }else{
@@ -442,27 +453,32 @@ function dealer(z){
    MW.money(-net,'Achat : '+x.nom);c.car={id:x.id,nom:x.nom,kind:x.kind,color:x.color};applyCar();say('Belle voiture ! Elle vous attend devant le studio.','good');dealer(z);}});}
 
 /* ── Terrain : fonder sa marque ── */
+/* apport des investisseurs, en euros : proportionnel à la réputation et au grade */
+function investors(){const c=C();
+ const k=c.emp==='ing'?(INV_COEF['ing'+clamp(c.grade,1,3)]||1):c.emp==='patron'?INV_COEF.patron:0;
+ return Math.round(FOUND.investBase*clamp(rep(),0,100)*k/1e5)*1e5;}
+api.investors=investors;
 function foundOk(){const c=C(),s=MW.S;
- return s.money>=FOUND.capital&&rep()>=FOUND.rep&&((c.emp==='ing'&&c.grade>=1)||(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur));}
+ return s.money-owed()>=FOUND.capital&&rep()>=FOUND.rep&&((c.emp==='ing'&&c.grade>=1)||(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur));}
 function land(z){
  const c=C(),s=MW.S;
  if(c.emp==='fondateur'){MW.panel(z.nom,`<p>Votre marque <b>${esc(c.founded||'')}</b> est fondée. Retrouvez-la depuis l'écran d'accueil du jeu (« Continuer »).</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`);return;}
  const lines=[
-  {ok:s.money>=FOUND.capital,t:`Capital d'au moins ${fmt(FOUND.capital)} (prêts compris)`,now:'vous : '+fmt(s.money)},
+  {ok:s.money-owed()>=FOUND.capital,t:`Apport personnel d'au moins ${fmt(FOUND.capital)} (hors prêts à rembourser)`,now:'vous : '+fmt(s.money-owed())},
   {ok:rep()>=FOUND.rep,t:`Réputation : ${FOUND.rep}`,now:'vous : '+Math.round(rep())},
   {ok:(c.emp==='ing'&&c.grade>=1)||(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur),t:`Ingénieur confirmé, ou propriétaire de garage avec moteur niveau ${FOUND.niv.moteur}`,now:'vous : '+esc(employer().nom)}];
  const ok=foundOk();
- MW.panel(z.nom,`<p>Un grand terrain industriel est à vendre. Vous y installeriez l'atelier de votre propre marque d'automobiles : tout votre capital (et vos dettes) deviennent ceux de l'entreprise, et le jeu passe en mode constructeur.</p><ul class="mw-cond">${lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')}</ul>${ok?`<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="" placeholder="Automobiles ..."></label>`:''}<div class="mw-btns">${btn('found','Acheter le terrain et fonder ma marque','',!ok)}${btn('close','Fermer','ghost')}</div>`,
+ MW.panel(z.nom,`<p>Un grand terrain industriel est à vendre. Vous y installeriez l'atelier de votre propre marque d'automobiles (une usine de taille moyenne y est déjà construite) : votre apport personnel (et vos éventuelles dettes) deviennent ceux de l'entreprise, et le jeu passe en mode constructeur.</p><p class="hint">Concevoir et lancer un premier modèle de nos jours coûte plusieurs dizaines de millions. Des investisseurs, séduits par votre parcours, complètent donc votre apport : leur contribution est proportionnelle à votre réputation et à votre grade (ingénieur confirmé, chef de projet, directeur technique) ou à votre expérience de patron de garage. Pour vous, aujourd'hui : <b>${esc(fmt(investors()))}</b> (réputation ${Math.round(rep())}).</p><ul class="mw-cond">${lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')}</ul>${ok?`<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="" placeholder="Automobiles ..."></label>`:''}<div class="mw-btns">${btn('found','Acheter le terrain et fonder ma marque','',!ok)}${btn('close','Fermer','ghost')}</div>`,
   {onClick:a=>{if(a==='found'){const inp=document.getElementById('mwBrand'),nom=(inp&&inp.value.trim())||'Automobiles Nouvelles';foundBrand(nom);}}});}
 function foundBrand(nom){
  if(!foundOk()) return false;
- const s=MW.S,c=C(),cash=s.money,debt=owed();
- const y=Math.min(new Date().getFullYear(),2030);
+ const s=MW.S,c=C(),perso=s.money,debt=owed(),apport=investors();
+ const y=Math.min(new Date().getFullYear(),2030),cash=perso+apport;
  MW.closePanel();
- MW.money(-cash,'Apport au capital de '+nom);
+ MW.money(-perso,'Apport au capital de '+nom);
  c.loans=[];c.emp='fondateur';c.founded=nom;c.mission=null;
  MW.emit('founded',nom);MW.save();MW.suspend();
- api.startConstructor({co:nom,y,cash,debt});
+ api.startConstructor({co:nom,y,cash,debt,fac:FOUND.fac,rep:Math.round(30+clamp(rep(),0,100)*.2)});
  return true;}
 api.foundBrand=foundBrand;
 api.startConstructor=function(o){
@@ -473,6 +489,8 @@ api.startConstructor=function(o){
  G=null;syncEra();
  newGame({y,diff:'nor',co:o.co||'Automobiles Nouvelles'});
  if(o.cash!=null){G.cash=o.cash;G.startCash=Math.max(o.cash,G.startCash||0);}
+ if(o.fac!=null&&o.fac>G.fac){G.fac=Math.min(o.fac,FAC.length-1);G.facInv=0;for(let l=1;l<=G.fac;l++) G.facInv+=facCost(l,y);}
+ if(o.rep!=null) G.rep=clamp(o.rep,0,100);
  G.debt=o.debt||0;
  sanitize();eraFix();tuneSafe();saveGame();setMode('carriere',G);
  return true;};
@@ -480,7 +498,7 @@ api.startConstructor=function(o){
 /* ── panneau Carrière ── */
 function careerPanel(){
  const c=C(),e=employer(),s=MW.S;
- let h=`<div class="mw-card"><b>${esc(e.nom)}</b><br><small>${e.paie==='mois'?esc(fmt(e.mois))+' par mois, versés le 1er de chaque mois de jeu (prochaine paie : jour '+(Math.floor((s.day-1)/30)*30+31)+')':e.id==='aucun'?'Pas de salaire':e.id==='fondateur'?'Votre marque est fondée':e.net?'Vous encaissez les factures moins pièces ; loyer '+esc(fmt(e.loyer))+' par jour':Math.round(e.part*100)+' % de la main-d\'œuvre de chaque voiture rendue'}</small></div>`;
+ let h=`<div class="mw-card"><b>${esc(e.nom)}</b><br><small>${e.paie==='mois'?esc(fmt(e.sem))+' de paie à la semaine'+(e.part?', plus '+Math.round(e.part*100)+' % de la main-d\'œuvre':'')+' (prochaine paie : jour '+(Math.floor((s.day-1)/PAYDAYS)*PAYDAYS+PAYDAYS+1)+')':e.id==='aucun'?'Pas de salaire':e.id==='fondateur'?'Votre marque est fondée':e.net?'Vous encaissez les factures moins pièces ; loyer '+esc(fmt(e.loyer))+' par jour':Math.round(e.part*100)+' % de la main-d\'œuvre de chaque voiture rendue'}</small></div>`;
  h+='<h3 class="mw-h3">Compétences</h3><div class="mw-card">';
  for(const [k,n] of COMPS){const xp=(s.xp||{})[k]||0,l=level(k),a=xpFor(l),b=xpFor(l+1),p=l>=10?100:clamp((xp-a)/(b-a)*100,0,100);
   h+=`<div class="mw-sk"><span class="mw-sk-n">${esc(n)}</span><span class="mw-sk-b"><i style="width:${p.toFixed(0)}%"></i></span><b>${l}</b></div>`;}
@@ -518,10 +536,10 @@ MW.on('day',d=>{
  if(e.loyer) MW.money(-e.loyer,'Loyer du garage');
  // prêts
  for(const l of c.loans.slice()){const p=Math.min(l.per,l.rest);MW.money(-p,'Remboursement du prêt');l.rest=Math.round((l.rest-p)*100)/100;if(l.rest<=.5) c.loans.splice(c.loans.indexOf(l),1);}
- // paie au mois : le 1er du mois de jeu (jours 31, 61, …)
- if(d%30===1&&e.paie==='mois'&&e.mois>0){const n=Math.min(30,d-(c.payFrom||d));
-  if(n>0){const amt=Math.round(e.mois*n/30);MW.money(amt,'Salaire du mois');say(`Paie du mois : ${fmt(amt)}.`,'good');}}
- if(d%30===1) c.payFrom=d;
+ // paie à la semaine : tous les 7 jours de jeu (jours 8, 15, 22, …), au prorata si l'embauche est récente
+ if((d-1)%PAYDAYS===0&&e.paie==='mois'&&e.sem>0){const n=Math.min(PAYDAYS,d-(c.payFrom||d));
+  if(n>0){const amt=Math.round(e.sem*n/PAYDAYS);MW.money(amt,'Paie à la semaine');say(`Paie à la semaine : ${fmt(amt)}.`,'good');}}
+ if((d-1)%PAYDAYS===0) c.payFrom=d;
  // formations
  const f=c.form;
  if(f&&d>=f.fin){
