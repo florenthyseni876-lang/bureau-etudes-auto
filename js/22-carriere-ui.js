@@ -1,7 +1,7 @@
 'use strict';
 /* ───────────── Carrière : écran d'accueil et interface ───────────── */
 const BASE_TABS=TABS.slice();
-const CTABS=[['qg','Quartier général'],['gamme','Ma gamme'],['recherche','Recherche'],['usine','Usine et banque'],['marche','Marché'],['vente','Mise en vente']];
+const CTABS=[['qg','Quartier général'],['gamme','Ma gamme'],['recherche','Recherche'],['usine','Usine et banque'],['marche','Marché'],['marketing','Marketing'],['vente','Mise en vente']];
 const isCTab=t=>CTABS.some(x=>x[0]===t);
 ui.resAll=false;ui.newPrice=0;ui.newName='';ui.msg='';ui.flash='';ui.wizOk=null;
 
@@ -85,11 +85,11 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 function tile(l,v,sub){return `<div class="tile"><span class="eyebrow">${l}</span><b>${v}</b>${sub?`<small>${sub}</small>`:''}</div>`;}
 function stBadge(m){return m.st==='dev'?`<span class="pill">Développement · ${m.devLeft} trim.</span>`:m.st==='prod'?'<span class="pill ok">En production</span>':'<span class="pill off">Arrêté</span>';}
 function careerHTML(t){
-  return ({qg:qgHTML,gamme:gammeHTML,usine:usineHTML,vente:venteHTML,recherche:resHTML,marche:mktHTML}[t]||qgHTML)();
+  return ({qg:qgHTML,gamme:gammeHTML,usine:usineHTML,vente:venteHTML,recherche:resHTML,marche:mktHTML,marketing:mkHTML}[t]||qgHTML)();
 }
 function lastQHTML(){
   const lq=G.lastQ||{rev:0,profit:0,units:0},cap=FAC[G.fac][1];
-  return `<section class="cgrp"><h3>Le trimestre écoulé</h3><div class="tiles">${tile('Voitures vendues',nf(lq.units),`capacité ${nf(cap/4)} par trimestre`)}${tile('Chiffre d\'affaires',moneyF(lq.rev))}${tile('Résultat',moneyF(lq.profit),lq.upk?`dont usine ${moneyF(-lq.upk)}${lq.int?` · intérêts ${moneyF(-lq.int)}`:''}`:'')}${tile('Réputation',nf(G.rep)+' / 100',G.rep>=60?'Marque recherchée':G.rep>=40?'Marque connue':'Marque peu connue')}</div></section>`;
+  return `<section class="cgrp"><h3>Le trimestre écoulé</h3><div class="tiles">${tile('Voitures vendues',nf(lq.units),`capacité ${nf(cap/4)} par trimestre`)}${tile('Chiffre d\'affaires',moneyF(lq.rev))}${tile('Résultat',moneyF(lq.profit),lq.upk?`dont usine ${moneyF(-lq.upk)}${lq.int?` · intérêts ${moneyF(-lq.int)}`:''}${lq.mk&&lq.mk.total>0?` · marketing ${moneyF(-lq.mk.total)}`:''}`:'')}${tile('Réputation',nf(G.rep)+' / 100',G.rep>=60?'Marque recherchée':G.rep>=40?'Marque connue':'Marque peu connue')}</div></section>`;
 }
 function todo(){
   const t=[];
@@ -101,6 +101,7 @@ function todo(){
   if(prod.some(m=>m.last&&m.last.lim)) t.push({t:'Votre usine tourne à plein',d:'Des clients repartent sans voiture : agrandissez l\'usine ou augmentez vos prix.',b:'<button class="chip-btn" type="button" data-go="usine">Voir l\'usine</button>'});
   if(prod.length&&prod.every(m=>m.last&&m.last.u===0)) t.push({t:'Aucune vente ce trimestre',d:'Votre prix est peut-être trop élevé, ou la voiture n\'attire aucune clientèle. Comparez-la aux attentes dans la page Marché.',b:'<button class="chip-btn" type="button" data-go="marche">Voir le marché</button>'});
   if(G.resL.length<resSlots()&&G.models.length){const av=TECHS.filter(x=>x[3]<=G.y&&!G.techs.includes(x[0]));if(av.length) t.push({t:G.resL.length?'Un laboratoire est libre':'Aucune recherche en cours',d:`${av.length} technologie${av.length>1?'s':''} disponible${av.length>1?'s':''} à étudier.`,b:'<button class="chip-btn" type="button" data-go="recherche">Choisir une recherche</button>'});}
+  mkTodo(t,prod);
   if(!t.length) t.push({t:'Tout roule',d:'Passez au trimestre suivant, ou préparez un nouveau modèle pour suivre les attentes des clients.'});
   return t;
 }
@@ -119,6 +120,7 @@ function qgHTML(){
    ${card('data-go="gamme"','Ma gamme',G.models.length?`${prod} en vente · ${dev} en développement`:'Aucun modèle pour l\'instant','▤')}
    ${card('data-go="recherche"','Recherche',G.resL.length?`En cours : ${G.resL.map(r=>TECH[r.id].n).join(', ')}`:`Aucune recherche en cours · ${resSlots()} emplacement${resSlots()>1?'s':''}`,'⚗')}
    ${card('data-go="usine"','Usine et banque',`${FAC[G.fac][0]} · utilisée à ${nf(uti*100)} %`,'⚙')}
+   ${card('data-go="marketing"','Marketing',mkCardText(),'◎')}
    ${card('data-go="marche"','Marché',`${nf(marketVol(yq()),-3)} voitures neuves par an en ${G.y}`,'◷')}
   </section>`;
   h+=`<section class="cgrp"><h3>Actualités</h3><ul class="news">${G.news.slice(0,6).map(n=>`<li class="nw-${n.k}"><span class="eyebrow">${Q[n.q]} ${n.y}</span><b>${esc(n.t)}</b><p>${esc(n.d)}</p></li>`).join('')}</ul></section>`;
@@ -330,7 +332,7 @@ $('#cbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 /* ── le temps passe en direct : un trimestre dure QSEC secondes à vitesse normale ── */
 const QSEC=30;
 let clkLast=performance.now();
-function clockPaused(){return !G||G.over||!(G.spd>0)||!$('#home').hidden||!LFX.hidden||document.hidden;}
+function clockPaused(){return !G||G.over||!(G.spd>0)||!$('#home').hidden||!LFX.hidden||document.hidden||mkBusy();}
 setInterval(()=>{
   const now=performance.now(),dt=Math.min(1,(now-clkLast)/1000);clkLast=now;
   if(clockPaused()) return;
