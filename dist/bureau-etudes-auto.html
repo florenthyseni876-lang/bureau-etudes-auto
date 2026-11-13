@@ -796,6 +796,22 @@ button{touch-action:manipulation}
 .atl-prog{height:4px;background:rgba(255,255,255,.14);border-radius:2px;overflow:hidden}
 .atl-prog i{display:block;height:100%;background:#ffb800;transition:width .3s}
 .atl-label i{display:block;font-style:normal;font-size:12px;color:#d5deea;line-height:1.3;margin:2px 0 3px}
+
+/* atelier : inventaire */
+.atl-inv{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:5px}
+.inv-s{position:relative;min-height:46px;background:rgba(255,255,255,.06);border:1.5px solid #5b6d82;border-radius:4px;color:#e8f0f8;padding:3px 4px 3px 17px;text-align:left;cursor:pointer;overflow:hidden;font-size:11.5px;line-height:1.15}
+.inv-s span{position:absolute;left:4px;top:2px;font-family:var(--f-m);font-size:10px;color:#9fb0c4}
+.inv-s b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600}
+.inv-s i{font-style:normal;color:#6f8097}
+.inv-s:disabled{cursor:default;opacity:.6}
+.inv-s.nx{border-color:#ffb800}
+.inv-s.on{background:#ffb800;color:#10233d;border-color:#ffb800}.inv-s.on span{color:#10233d}
+.inv-drop{background:transparent;border:1.5px solid #5b6d82;border-radius:4px;color:#e8f0f8;font-family:var(--f-m);font-size:11px;padding:0 8px;cursor:pointer}
+.inv-drop:disabled{opacity:.4;cursor:default}
+.atl-use{position:absolute;right:max(14px,env(safe-area-inset-right,0px));bottom:215px;background:#ffb800;color:#10233d;border:2px solid #10233d;border-radius:8px;padding:12px 14px;font-family:var(--f-d);font-weight:700;font-size:17px;text-transform:uppercase;cursor:pointer;touch-action:manipulation;box-shadow:0 3px 0 #10233d}
+.atl-use b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:5px;background:#10233d;color:#ffb800;margin-right:6px;font-family:var(--f-m)}
+.atl-fp .atl-hud{width:min(720px,calc(100% - 24px))}
+@media (max-width:600px){.atl-inv{grid-template-columns:repeat(3,minmax(0,1fr))}.inv-drop{grid-column:1/-1;padding:6px}.inv-s{min-height:38px}.atl-use{bottom:330px;padding:10px 12px;font-size:15px}.atl-pad{bottom:330px}}
 </style>
 <div class="app">
   <header class="cartouche">
@@ -4772,7 +4788,8 @@ function openAtelier(name){
    <div class="atl-pad" id="atlPad" hidden><button type="button" data-mv="f" aria-label="Avancer">▲</button><button type="button" data-mv="l" aria-label="Gauche">◀</button><button type="button" data-mv="b" aria-label="Reculer">▼</button><button type="button" data-mv="r" aria-label="Droite">▶</button></div>
    <div class="atl-hud"><div class="atl-prog" aria-hidden="true"><i id="atlProg"></i></div><div class="atl-step"><span class="eyebrow" id="atlCount"></span><b id="atlTitle"></b><p id="atlText"></p><p class="atl-tool" id="atlTool"></p></div>
     <div class="atl-act"><button class="btn" type="button" id="atlTake">Prendre la place de l'ingénieur</button><button class="chip-btn" type="button" id="atlHint" hidden>Indice</button><button class="chip-btn" type="button" id="atlGive" hidden>Rendre la main à l'ingénieur</button></div>
-    <p class="atl-msg" id="atlMsg" role="status"></p></div>`;
+    <p class="atl-msg" id="atlMsg" role="status"></p><div class="atl-inv" id="atlInv" role="group" aria-label="Inventaire" hidden></div></div>
+   <button class="atl-use" type="button" id="atlUse" hidden><b>E</b> Saisir / Poser</button>`;
   document.body.appendChild(ov);document.body.classList.add('lfx-on');
   $('#atlName',ov).textContent=`${name} · ${M.E.c.full} · ${nf(M.E.L,1)} l · ${nf(M.E.peakP)} ch`;
   const cv=$('#atlCv',ov),keep=E3,view0=ui.eview;let A=null;
@@ -4782,7 +4799,7 @@ function openAtelier(name){
   const T=THREE;
   for(const m of A.shellMats){m.transparent=false;m.opacity=1;m.depthWrite=true;m.needsUpdate=true;}
   A.root.traverse(o=>{o.visible=true;});
-  AT={ov,cv,A,T,name,mode:'cine',spd:1,t:0,last:performance.now(),step:0,phase:0,ph:0,keys:{},yaw:0,pitch:-.12,pos:new T.Vector3(0,1650,1900),held:null,bolts:[],errs:0,t0:performance.now(),done:false,hint:null};
+  AT={ov,cv,A,T,name,mode:'cine',spd:1,t:0,last:performance.now(),step:0,phase:0,ph:0,keys:{},yaw:0,pitch:-.12,pos:new T.Vector3(0,1650,1900),held:null,inv:[],sel:0,bolts:[],errs:0,t0:performance.now(),done:false,hint:null};
   atBuildScene();atBuildSteps();atDetail();atHUD();atAmb();
   // interactions
   ov.addEventListener('click',e=>{const b=e.target.closest('button');if(!b) return;
@@ -4791,17 +4808,21 @@ function openAtelier(name){
     else if(b.id==='atlSnd'){fxSetOn(!SFX.on);b.setAttribute('aria-pressed',SFX.on);b.textContent=SFX.on?'Son activé':'Son coupé';}
     else if(b.id==='atlTake') atSetMode('fp');
     else if(b.id==='atlGive') atSetMode('cine');
-    else if(b.id==='atlHint') atHint();});
+    else if(b.id==='atlHint') atHint();
+    else if(b.id==='atlUse') atUse();
+    else if(b.id==='atlDrop') atDrop(AT.sel);
+    else if(b.dataset.inv!=null) atSelect(+b.dataset.inv);});
   let drag=null;
   cv.addEventListener('pointerdown',e=>{if(drag) return;drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,id:e.pointerId,t:performance.now()};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
   cv.addEventListener('pointermove',e=>{if(!AT) return;AT.mouse=e.pointerType==='mouse'?{x:e.clientX,y:e.clientY}:null;if(!drag||e.pointerId!==drag.id) return;if(AT.mode==='fp'){const k=e.pointerType==='mouse'?.0042:.0065;AT.yaw-=(e.clientX-drag.x)*k;AT.pitch=clamp(AT.pitch-(e.clientY-drag.y)*k*.85,-1.2,.9);}drag.x=e.clientX;drag.y=e.clientY;});
+  cv.addEventListener('wheel',e=>{if(!AT||AT.mode!=='fp'||!AT.inv.length) return;e.preventDefault();atSelect((AT.sel+(e.deltaY>0?1:-1)+AT.inv.length)%AT.inv.length);},{passive:false});
   const endDrag=e=>{if(!drag||!AT||e.pointerId!==drag.id) return;const moved=Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0),quick=performance.now()-drag.t<450;const d=drag;drag=null;if(e.type==='pointerup'&&AT.mode==='fp'&&moved<(e.pointerType==='mouse'?7:16)&&quick) atTap(e.clientX,e.clientY);};
   cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
   for(const b of $$('#atlPad [data-mv]',ov)){const k=b.dataset.mv,up=()=>{if(AT) AT.keys[k]=false;b.classList.remove('on');};
     b.addEventListener('pointerdown',e=>{e.preventDefault();if(!AT) return;AT.keys[k]=true;b.classList.add('on');try{b.setPointerCapture(e.pointerId);}catch(err){}});
     for(const ev of ['pointerup','pointercancel','lostpointercapture']) b.addEventListener(ev,up);b.addEventListener('contextmenu',e=>e.preventDefault());}
   AT.onBlur=()=>{if(AT) AT.keys={};};window.addEventListener('blur',AT.onBlur);
-  AT.onKey=e=>{if(!AT) return;const ch=(e.key||'').toLowerCase(),k={z:'f',w:'f',s:'b',q:'l',a:'l',d:'r',arrowup:'f',arrowdown:'b',arrowleft:'tl',arrowright:'tr'}[ch]||{KeyW:'f',KeyS:'b',KeyA:'l',KeyD:'r'}[e.code];if(k&&AT.mode==='fp'&&!e.ctrlKey&&!e.metaKey){AT.keys[k]=e.type==='keydown';e.preventDefault();}if(e.type==='keydown'&&e.key==='Escape') closeAtelier();};
+  AT.onKey=e=>{if(!AT) return;const ch=(e.key||'').toLowerCase(),k={z:'f',w:'f',s:'b',q:'l',a:'l',d:'r',arrowup:'f',arrowdown:'b',arrowleft:'tl',arrowright:'tr'}[ch]||{KeyW:'f',KeyS:'b',KeyA:'l',KeyD:'r'}[e.code];if(k&&AT.mode==='fp'&&!e.ctrlKey&&!e.metaKey){AT.keys[k]=e.type==='keydown';e.preventDefault();}if(e.type==='keydown'&&AT.mode==='fp'&&!e.repeat){if(ch==='e'){atUse();e.preventDefault();}else if(ch==='r'){atDrop(AT.sel);}else if(/^Digit[1-6]$/.test(e.code)){atSelect(+e.code.slice(5)-1);}}if(e.type==='keydown'&&e.key==='Escape') closeAtelier();};
   document.addEventListener('keydown',AT.onKey);document.addEventListener('keyup',AT.onKey);
   requestAnimationFrame(atFrame);
 }
@@ -4913,11 +4934,12 @@ function atHUD(msg){
 function atSetMode(m){
   if(!AT||AT.done) return;
   // remettre en place une pièce en cours de transport
-  const s=atStep();for(const p of s.parts) if(!p.placed){p.g.scale.setScalar(1);if(p.g.parent!==AT.A.root) AT.A.root.attach(p.g);p.g.position.copy(p.off);p.g.rotation.set(0,0,0);}
+  for(const p of AT.parts) if(!p.placed&&(p.g.parent!==AT.A.root||p.from)){p.g.scale.setScalar(1);if(p.g.parent!==AT.A.root) AT.A.root.attach(p.g);p.g.position.copy(p.off);p.g.rotation.set(0,0,0);p.g.visible=p.rank!==23;p.from=null;}
+  AT.inv=[];AT.sel=0;
   AT.held=null;AT.phase=0;AT.ph=0;AT.bp=null;AT.eng.carry=null;atClearBolts();AT.ghost.visible=false;AT.beacon.visible=false;
   AT.mode=m;AT.eng.g.visible=m==='cine';
   if(m==='fp'){const tall=AT.cv.clientHeight>AT.cv.clientWidth;AT.pos.set(0,1650,tall?2300:2100);AT.yaw=0;AT.pitch=tall?-.42:-.16;AT.t0=performance.now();}
-  atHUD(m==='fp'?'À vous : touchez la bonne pièce sur un établi pour la prendre, puis touchez le moteur pour la poser. Glissez pour regarder. Marchez avec Z Q S D (ou les flèches à l\'écran) ; ← → tournent la tête.':'');
+  atHUD(m==='fp'?'À vous : visez une pièce et appuyez sur E pour la saisir (jusqu\'à 6 dans l\'inventaire). Choisissez la pièce en main avec les cases ou les touches 1 à 6, puis visez le moteur et appuyez sur E pour la poser. Z Q S D pour marcher, R pour reposer.':'');atInvUI();if(AT.fpHands) AT.fpHands.visible=false;
 }
 function atWorldCtr(p){return p.ctr.clone().add(p.g.parent===AT.A.root?p.g.position.clone().applyMatrix4(new AT.T.Matrix4().extractRotation(AT.A.root.matrixWorld)):new AT.T.Vector3());}
 function atPlace(step){
@@ -4925,9 +4947,10 @@ function atPlace(step){
   atSnd('place');
 }
 function atNext(){
-  AT.step++;AT.phase=0;AT.ph=0;AT.held=null;AT.ghost.visible=false;AT.beacon.visible=false;
-  if(AT.step>=AT.steps.length){atFinish();return;}
-  atHUD('');
+  AT.step++;AT.phase=0;AT.ph=0;AT.ghost.visible=false;AT.beacon.visible=false;
+  if(AT.step>=AT.steps.length){atFinish();atInvUI();return;}
+  if(AT.mode==='fp'){const nx=atStep();if(nx.rank===23) for(const p of nx.parts) if(p.g.parent===AT.A.root) p.g.visible=true;const k=AT.inv.indexOf(nx);if(k>=0) AT.sel=k;atShowHeld();atInvUI();atHUD(AT.inv.includes(nx)?`Suivante : « ${nx.parts[0].name} », déjà dans votre inventaire.`:'');}
+  else{AT.held=null;atHUD('');}
 }
 function atFinish(){
   AT.done=true;atSnd('done');setTimeout(()=>{if(AT) atSnd('start');},700);
@@ -4959,40 +4982,69 @@ function atClearBolts(){for(const b of AT.bolts){AT.A.scene.remove(b.sp);b.sp.ma
 function atBoltHead(pos){const T=AT.T,m=new T.Mesh(new T.CylinderGeometry(15,15,14,6),AT.boltMat||(AT.boltMat=new T.MeshStandardMaterial({color:0xd5dae0,metalness:.9,roughness:.3})));m.position.copy(pos);m.castShadow=true;AT.A.scene.add(m);const w=new T.Mesh(new T.CylinderGeometry(21,21,4,12),AT.boltMat);w.position.copy(pos);w.position.y-=8;AT.A.scene.add(w);}
 function atBolt(b){b.done=true;atBoltHead(b.sp.position);b.sp.visible=false;AT.boltI++;AT.wrT=.3;atSnd('bolt');if(AT.boltI>=AT.bolts.length){atClearBolts();AT.fpWr.visible=false;atNext();}}
 // ── première personne : toucher une pièce, le moteur ou une vis
+// ── inventaire : jusqu'à 6 pièces saisies, une seule en main à la fois
+const AT_SLOTS=6;
+const atStepOf=p=>AT.steps.find(s=>s.parts.includes(p));
+function atInvUI(){
+  const box=$('#atlInv',AT.ov),use=$('#atlUse',AT.ov);if(!box) return;
+  const on=AT.mode==='fp'&&!AT.done;box.hidden=!on;use.hidden=!on;if(!on) return;
+  const cur=atStep();
+  box.innerHTML=Array.from({length:AT_SLOTS},(_,i)=>{const it=AT.inv[i];return `<button type="button" class="inv-s${it&&i===AT.sel?' on':''}${it&&it===cur?' nx':''}" data-inv="${i}"${it?'':' disabled'} aria-pressed="${!!it&&i===AT.sel}" aria-label="Case ${i+1}${it?' : '+it.parts[0].name:' vide'}"><span>${i+1}</span>${it?`<b>${it.parts.map(q=>q.name).join(' + ')}</b>`:'<i>vide</i>'}</button>`;}).join('')+`<button type="button" class="inv-drop" id="atlDrop"${AT.inv[AT.sel]?'':' disabled'} title="Reposer la pièce sur l'établi (touche R)">Reposer</button>`;
+}
+// montre en main la pièce de la case choisie, cache les autres, affiche la zone de pose si c'est son tour
+function atShowHeld(){
+  const {T}=AT;AT.sel=clamp(AT.sel,0,Math.max(0,AT.inv.length-1));
+  AT.inv.forEach((it,i)=>{for(const p of it.parts) p.g.visible=i===AT.sel;});
+  const it=AT.inv[AT.sel]||null;AT.held=it;AT.fpHands.visible=!!it;
+  if(it&&it===atStep()){const bb=new T.Box3();for(const p of it.parts){bb.expandByPoint(p.ctr.clone().add(p.size.clone().multiplyScalar(.5)));bb.expandByPoint(p.ctr.clone().sub(p.size.clone().multiplyScalar(.5)));}
+    AT.ghost.scale.copy(bb.getSize(new T.Vector3()).addScalar(30));AT.ghost.position.copy(bb.getCenter(new T.Vector3()));AT.ghost.visible=true;AT.ghost.updateMatrixWorld(true);}
+  else AT.ghost.visible=false;
+}
+function atGrab(step){
+  const {T,A}=AT;
+  for(const p of step.parts){p.g.visible=true;A.cam.attach(p.g);const k=Math.min(1,330/Math.max(p.size.x,p.size.y,p.size.z));p.g.scale.setScalar(k);p.g.rotation.set(.2,.5,0);p.g.position.set(290,-170,-820);}
+  A.cam.updateMatrixWorld(true);
+  for(const p of step.parts){p.g.updateMatrixWorld(true);const bb=new T.Box3().setFromObject(p.g),c=A.cam.worldToLocal(bb.getCenter(new T.Vector3()));p.g.position.add(new T.Vector3(290,-170,-820).sub(c));}
+  AT.inv.push(step);AT.sel=AT.inv.length-1;AT.beacon.visible=false;atSnd('pick');atShowHeld();atInvUI();
+}
+function atDrop(i){
+  const it=AT.inv[i];if(!it) return;
+  for(const p of it.parts){AT.A.root.attach(p.g);p.g.scale.setScalar(1);p.g.rotation.set(0,0,0);p.g.position.copy(p.off);p.g.visible=true;}
+  AT.inv.splice(i,1);if(AT.sel>=i&&AT.sel>0) AT.sel--;atSnd('place');atShowHeld();atInvUI();
+}
+function atSelect(i){if(!AT.inv[i]) return;AT.sel=i;atShowHeld();atInvUI();const it=AT.inv[i],cur=atStep();$('#atlMsg',AT.ov).textContent=it===cur?`« ${it.parts[0].name} » en main : visez la zone jaune du moteur et appuyez sur E.`:`« ${it.parts[0].name} » en main. Ce n'est pas encore son tour : il faut d'abord « ${cur.parts[0].name} ».`;}
+// touche E (ou bouton) : agir sur ce qui est visé
+function atUse(){if(!AT||AT.mode!=='fp'||AT.done) return;const r=AT.cv.getBoundingClientRect(),m=AT.mouse;atTap(m?m.x:r.left+r.width/2,m?m.y:r.top+r.height/2);}
 function atTap(x,y){
-  if(!AT||AT.done) return;
+  if(!AT||AT.done||AT.phase===5) return;
   const {T,A}=AT,r=AT.cv.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((x-r.left)/r.width*2-1,-((y-r.top)/r.height*2-1)),A.cam);
-  const s=atStep();
+  const s=atStep(),msg=t=>{$('#atlMsg',AT.ov).textContent=t;};
   if(AT.phase===2){const hits=ray.intersectObjects(AT.bolts.filter(b=>!b.done).map(b=>b.sp));if(!hits.length) return;const want=AT.bolts.find(q=>q.k===AT.boltI),hit=hits.find(h=>h.object===want.sp)||hits[0],b=AT.bolts.find(q=>q.sp===hit.object);
-    if(b.k===AT.boltI) atBolt(b);else{AT.errs++;atSnd('err');$('#atlMsg',AT.ov).textContent=`Respectez l'ordre de serrage : vis n° ${AT.boltI+1} d'abord, sinon la pièce se déforme.`;}return;}
-  if(!AT.held){
-    const cand=AT.parts.filter(p=>!p.placed&&p.g.visible!==false||(!p.placed&&p.rank===23));let best=null,bd=1e9;
-    for(const p of cand){p.g.visible=true;const h=ray.intersectObject(p.g,true)[0];if(p.rank===23&&AT.steps[AT.step].rank!==23) p.g.visible=false;if(h&&h.distance<bd){bd=h.distance;best=p;}}
-    for(const p of s.parts){p.g.visible=true;if(ray.intersectObject(p.g,true).length){best=p;break;}}
-    if(!best){$('#atlMsg',AT.ov).textContent='Touchez une pièce posée sur un établi ou une palette.';return;}
-    if(!s.parts.includes(best)){AT.errs++;atSnd('err');$('#atlMsg',AT.ov).textContent=`Pas encore « ${best.name} » : il faut d'abord monter « ${s.parts[0].name} ».`;return;}
-    // prise en main : toutes les pièces de l'étape suivent
-    AT.held=s;atSnd('pick');AT.beacon.visible=false;
-    AT.fpHands.visible=true;
-    for(const p of s.parts){A.cam.attach(p.g);const k=Math.min(1,330/Math.max(p.size.x,p.size.y,p.size.z));p.g.scale.setScalar(k);p.g.position.set(290,-170,-820).sub(p.ctr.clone().sub(s.parts[0].ctr).multiplyScalar(k));p.g.position.sub(new T.Vector3());p.g.rotation.set(.2,.5,0);}
-    // recentrer : la pièce tenue est ramenée devant la main
-    for(const p of s.parts){const bb=new T.Box3().setFromObject(p.g),c=A.cam.worldToLocal(bb.getCenter(new T.Vector3()));p.g.position.add(new T.Vector3(290,-170,-820).sub(c));}
-    const bb=new T.Box3();for(const p of s.parts){bb.expandByPoint(p.ctr.clone().add(p.size.clone().multiplyScalar(.5)));bb.expandByPoint(p.ctr.clone().sub(p.size.clone().multiplyScalar(.5)));}
-    AT.ghost.scale.copy(bb.getSize(new T.Vector3()).addScalar(30));AT.ghost.position.copy(bb.getCenter(new T.Vector3()));AT.ghost.visible=true;AT.ghost.updateMatrixWorld(true);
-    $('#atlMsg',AT.ov).textContent=`Vous tenez « ${s.parts[0].name} ». Touchez la zone jaune sur le moteur pour la poser.`;return;
+    if(b.k===AT.boltI) atBolt(b);else{AT.errs++;atSnd('err');msg(`Respectez l'ordre de serrage : vis n° ${AT.boltI+1} d'abord, sinon la pièce se déforme.`);}return;}
+  // pièce encore sur un établi ou une palette : la plus proche sous le viseur
+  const aimed=atAimPart(ray,p=>!p.placed&&p.g.parent===A.root),best=aimed&&aimed.p,bd=aimed?aimed.d:1e9;
+  // moteur : zone de pose ou pièces déjà montées
+  const eh=ray.intersectObjects([AT.ghost,...AT.parts.filter(p=>p.placed).map(p=>p.g)],true)[0],de=eh?eh.distance:1e9;
+  if(best&&bd<de){
+    if(AT.inv.length>=AT_SLOTS){atSnd('err');msg(`Inventaire plein (${AT_SLOTS} pièces) : posez ou reposez une pièce d'abord.`);return;}
+    const it=atStepOf(best);atGrab(it);
+    msg(it===s?`« ${best.name} » saisie. Visez la zone jaune du moteur et appuyez sur E pour la poser.`:`« ${best.name} » rangée dans l'inventaire. Elle servira plus tard : il faut d'abord « ${s.parts[0].name} ».`);return;
   }
-  // pose : il faut viser le moteur
-  const tg=[AT.ghost,...AT.parts.filter(p=>p.placed).map(p=>p.g)];
-  if(!ray.intersectObjects(tg,true).length){$('#atlMsg',AT.ov).textContent='Visez le moteur (zone jaune) pour poser la pièce.';return;}
-  for(const p of s.parts){A.root.attach(p.g);p.from={p:p.g.position.clone(),q:p.g.quaternion.clone(),s:p.g.scale.x};}
-  AT.held=null;AT.ghost.visible=false;AT.phase=5;AT.ph=0;AT.fpHands.visible=false;
+  if(!eh){msg(AT.held?'Visez le moteur pour poser la pièce, ou une autre pièce pour la saisir.':'Visez une pièce sur un établi et appuyez sur E pour la saisir.');return;}
+  const it=AT.held;
+  if(!it){msg('Aucune pièce en main : saisissez-en une avec E, ou choisissez une case de l\'inventaire.');return;}
+  if(it!==s){AT.errs++;atSnd('err');msg(`Pas encore « ${it.parts[0].name} » : il faut d'abord monter « ${s.parts[0].name} ».`);return;}
+  // pose : la pièce quitte l'inventaire et glisse jusqu'à sa place
+  AT.inv.splice(AT.inv.indexOf(it),1);
+  for(const p of it.parts){p.g.visible=true;A.root.attach(p.g);p.from={p:p.g.position.clone(),q:p.g.quaternion.clone(),s:p.g.scale.x};}
+  AT.phase=5;AT.ph=0;atShowHeld();AT.ghost.visible=false;AT.fpHands.visible=false;atInvUI();
 }
 function atAfterPlace(s){
   atPlace(s);for(const p of s.parts) p.from=null;
   if(s.bolts){AT.phase=2;atMakeBolts(s);AT.fpWr.visible=true;$('#atlMsg',AT.ov).textContent=`Serrez les ${s.bolts} vis dans l'ordre des numéros, à ${s.info[5]}.`;}
   else atNext();
 }
-function atHint(){const s=atStep();if(!s||AT.held||AT.phase===2) return;AT.errs+=.5;const c=new AT.T.Box3().setFromObject(s.parts[0].g).getCenter(new AT.T.Vector3());AT.beacon.position.set(c.x,1300,c.z);AT.beacon.visible=true;$('#atlMsg',AT.ov).textContent=`La pièce à prendre est sous le faisceau jaune : « ${s.parts[0].name} ».`;}
+function atHint(){const s=atStep();if(!s||AT.phase===2||AT.phase===5) return;AT.errs+=.5;const k=AT.inv.indexOf(s);if(k>=0){atSelect(k);$('#atlMsg',AT.ov).textContent=`« ${s.parts[0].name} » est dans votre inventaire, case ${k+1} : visez le moteur et appuyez sur E.`;return;}for(const p of s.parts) p.g.visible=true;const c=new AT.T.Box3().setFromObject(s.parts[0].g).getCenter(new AT.T.Vector3());AT.beacon.position.set(c.x,1300,c.z);AT.beacon.visible=true;$('#atlMsg',AT.ov).textContent=`La pièce à saisir est sous le faisceau jaune : « ${s.parts[0].name} ».`;}
 // ── boucle d'animation
 function atFrame(now){
   if(!AT) return;
@@ -5050,13 +5102,10 @@ function atLabel(){
   if(AT.mode!=='fp'||AT.done){lab.hidden=true;return;}
   const {T,A}=AT,r=AT.cv.getBoundingClientRect(),m=AT.mouse,sx=m?m.x:r.left+r.width/2,sy=m?m.y:r.top+r.height/2;
   const ray=new T.Raycaster();ray.far=2600;ray.setFromCamera(new T.Vector2((sx-r.left)/r.width*2-1,-((sy-r.top)/r.height*2-1)),A.cam);
-  let best=null,bd=1e9;const cur=atStep();
-  for(const p of AT.parts){if(!p.px||(AT.held&&AT.held.parts.includes(p))||(p.rank===23&&!p.g.visible)) continue;const h=ray.intersectObject(p.px,false)[0];if(!h) continue;
-    // une pièce posée est enveloppée par les autres : on préfère la plus petite boîte touchée
-    const vol=p.size.x*p.size.y*p.size.z,sc=h.distance+Math.cbrt(vol)*.6;if(sc<bd){bd=sc;best=p;}}
+  const cur=atStep(),bench=atAimPart(ray,p=>!p.placed&&p.g.parent===A.root),eng=atAimPart(ray,p=>p.placed),best=bench&&(!eng||bench.d<eng.d)?bench.p:eng?eng.p:null;
   if(!best){lab.hidden=true;return;}
   const next=cur&&cur.parts.includes(best);
-  lab.innerHTML=`<b>${best.name}</b>${best.desc?`<i>${String(best.desc).slice(0,110)}</i>`:''}<span>${best.placed?'Déjà montée':next?'À monter maintenant':'À monter plus tard'}</span>`;
+  lab.innerHTML=`<b>${best.name}</b>${best.desc?`<i>${String(best.desc).slice(0,110)}</i>`:''}<span>${best.placed?'Déjà montée':(next?'À monter maintenant':'À monter plus tard')+' · E pour saisir'}</span>`;
   lab.className='atl-label'+(next?' nx':best.placed?' ok':'');lab.hidden=false;
   lab.style.left=clamp(sx-r.left,90,r.width-90)+'px';lab.style.top=Math.max(70,sy-r.top-54)+'px';
 }
@@ -5133,6 +5182,15 @@ function atAmb(){
   const c=fxCtx();if(!c) return;if(!SFX.bus){const g=c.createGain();g.gain.value=.8;g.connect(c.destination);SFX.bus=g;}
   try{const src=c.createBufferSource();src.buffer=SFX.nb;src.loop=true;const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=210;const g=c.createGain();g.gain.value=.07;src.connect(f);f.connect(g);g.connect(SFX.bus);src.start();
     const o=c.createOscillator();o.frequency.value=100;const g2=c.createGain();g2.gain.value=.012;o.connect(g2);g2.connect(SFX.bus);o.start();AT.amb=[src,o];}catch(e){}
+}
+
+// pièce visée : parmi les boîtes traversées par le regard, celle dont le centre est le plus près de l'axe de visée
+function atAimPart(ray,ok){
+  const T=AT.T,cur=atStep();let best=null,bs=1e9;
+  for(const p of AT.parts){if(!p.px||!p.g.visible||!ok(p)) continue;const h=ray.intersectObject(p.px,false)[0];if(!h) continue;
+    const c=p.px.getWorldPosition(new T.Vector3()),half=Math.max(60,Math.max(p.size.x,p.size.y,p.size.z)/2),sc=ray.ray.distanceToPoint(c)/half+h.distance*1e-4-(cur&&cur.parts.includes(p)?.25:0);
+    if(sc<bs){bs=sc;best={p,d:h.distance};}}
+  return best;
 }
 
 /* ───────────── Rendu ───────────── */
