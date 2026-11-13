@@ -1036,3 +1036,28 @@ html.phone-land .mw-toasts{width:min(420px,44%)}html.phone-land .mw-t{font-size:
 html.phone-land .mw-pb{font-size:13px;padding:8px 12px 10px}html.phone-land .mw-ph{padding:6px 12px}html.phone-land .mw-ph h2{font-size:18px}
 html.phone-land .mw-speed{font-size:22px;bottom:8px}
 html.phone-land .mw-leg{display:none}
+
+/* ───────── Mode Mécanicien — Carrière ───────── */
+.mw-h3{font-family:var(--f-d);font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#ffc533;margin:6px 0 0}
+.mw-card{background:rgba(255,255,255,.06);border:1px solid #35506f;border-radius:4px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;line-height:1.4}
+.mw-card small{color:#9db3cc}
+.mw-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mw-row .btn{align-self:center;flex:none}
+.mw-cond{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+.mw-cond li.ok{color:#7be0a0}.mw-cond li.no{color:#ffb4a8}.mw-cond small{color:#9db3cc}
+.mw-sk{display:flex;align-items:center;gap:8px}
+.mw-sk-n{flex:0 0 170px;font-size:13.5px}
+.mw-sk-b{flex:1;height:9px;background:#0c1626;border:1px solid #35506f;border-radius:5px;overflow:hidden}
+.mw-sk-b i{display:block;height:100%;background:#ffb800}
+.mw-sk b{flex:0 0 24px;text-align:right}
+.mw-lab{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#9db3cc}
+.mw-in{font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid #6f86a3;border-radius:4px;background:#0c1626;color:#fff}
+.mw-mis{position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:80;width:min(760px,calc(100% - 24px));background:#14233a;color:#e8f0f8;border:2px solid #ffb800;border-radius:4px;padding:8px 12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 22px rgba(0,0,0,.4);font-size:13px}
+.mw-mis[hidden]{display:none}
+.mw-mis-t b{font-family:var(--f-d);font-size:16px;color:#ffc533}
+.mw-mis-l{display:flex;flex-wrap:wrap;gap:4px 12px}
+.mw-mis-l .ok{color:#7be0a0}.mw-mis-l .no{color:#ffb4a8}.mw-mis-l small{color:#9db3cc}
+.mw-mis-n{margin-left:auto}
+.mw-mis-b{display:flex;flex-wrap:wrap;gap:8px}
+@media (max-width:560px){.mw-sk-n{flex-basis:112px;font-size:12.5px}}
+html.phone-land .mw-mis{top:4px;padding:5px 9px;font-size:11.5px;gap:3px}html.phone-land .mw-mis-t b{font-size:13px}
