@@ -46,7 +46,7 @@ function openAtelier(name){
   const ov=el('div','atl');ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Atelier de montage du moteur');
   ov.innerHTML=`<canvas id="atlCv"></canvas>
    <div class="atl-top"><div><p class="eyebrow">Atelier de montage</p><b id="atlName"></b></div><div class="atl-btns"><button class="chip-btn" type="button" id="atlSpd">Vitesse ×1</button><button class="chip-btn" type="button" id="atlSnd" aria-pressed="${SFX.on}">${SFX.on?'Son activé':'Son coupé'}</button><button class="chip-btn" type="button" id="atlClose">Fermer</button></div></div>
-   <div class="atl-cross" aria-hidden="true"></div>
+   <div class="atl-cross" aria-hidden="true"></div><div class="atl-label" id="atlLabel" hidden></div>
    <div class="atl-pad" id="atlPad" hidden><button type="button" data-mv="f" aria-label="Avancer">▲</button><button type="button" data-mv="l" aria-label="Gauche">◀</button><button type="button" data-mv="b" aria-label="Reculer">▼</button><button type="button" data-mv="r" aria-label="Droite">▶</button></div>
    <div class="atl-hud"><div class="atl-step"><span class="eyebrow" id="atlCount"></span><b id="atlTitle"></b><p id="atlText"></p><p class="atl-tool" id="atlTool"></p></div>
     <div class="atl-act"><button class="btn" type="button" id="atlTake">Prendre la place de l'ingénieur</button><button class="chip-btn" type="button" id="atlHint" hidden>Indice</button><button class="chip-btn" type="button" id="atlGive" hidden>Rendre la main à l'ingénieur</button></div>
@@ -71,17 +71,21 @@ function openAtelier(name){
     else if(b.id==='atlGive') atSetMode('cine');
     else if(b.id==='atlHint') atHint();});
   let drag=null;
-  cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
-  cv.addEventListener('pointermove',e=>{if(!drag||!AT) return;if(AT.mode==='fp'){AT.yaw-=(e.clientX-drag.x)*.005;AT.pitch=clamp(AT.pitch-(e.clientY-drag.y)*.004,-1.1,.9);}drag.x=e.clientX;drag.y=e.clientY;});
-  cv.addEventListener('pointerup',e=>{if(!drag||!AT) return;const moved=Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0);drag=null;if(moved<8&&AT.mode==='fp') atTap(e.clientX,e.clientY);});
-  const pad=$('#atlPad',ov);for(const ev of ['pointerdown','pointerup','pointerleave','pointercancel']) pad.addEventListener(ev,e=>{const b=e.target.closest('[data-mv]');if(b&&AT) AT.keys[b.dataset.mv]=ev==='pointerdown';});
+  cv.addEventListener('pointerdown',e=>{if(drag) return;drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,id:e.pointerId,t:performance.now()};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
+  cv.addEventListener('pointermove',e=>{if(!AT) return;AT.mouse=e.pointerType==='mouse'?{x:e.clientX,y:e.clientY}:null;if(!drag||e.pointerId!==drag.id) return;if(AT.mode==='fp'){const k=e.pointerType==='mouse'?.0042:.0065;AT.yaw-=(e.clientX-drag.x)*k;AT.pitch=clamp(AT.pitch-(e.clientY-drag.y)*k*.85,-1.2,.9);}drag.x=e.clientX;drag.y=e.clientY;});
+  const endDrag=e=>{if(!drag||!AT||e.pointerId!==drag.id) return;const moved=Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0),quick=performance.now()-drag.t<450;const d=drag;drag=null;if(e.type==='pointerup'&&AT.mode==='fp'&&moved<(e.pointerType==='mouse'?7:16)&&quick) atTap(e.clientX,e.clientY);};
+  cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
+  for(const b of $$('#atlPad [data-mv]',ov)){const k=b.dataset.mv,up=()=>{if(AT) AT.keys[k]=false;b.classList.remove('on');};
+    b.addEventListener('pointerdown',e=>{e.preventDefault();if(!AT) return;AT.keys[k]=true;b.classList.add('on');try{b.setPointerCapture(e.pointerId);}catch(err){}});
+    for(const ev of ['pointerup','pointercancel','lostpointercapture']) b.addEventListener(ev,up);b.addEventListener('contextmenu',e=>e.preventDefault());}
+  AT.onBlur=()=>{if(AT) AT.keys={};};window.addEventListener('blur',AT.onBlur);
   AT.onKey=e=>{if(!AT) return;const k={ArrowUp:'f',KeyW:'f',KeyZ:'f',ArrowDown:'b',KeyS:'b',ArrowLeft:'l',KeyA:'l',KeyQ:'l',ArrowRight:'r',KeyD:'r'}[e.code];if(k){AT.keys[k]=e.type==='keydown';e.preventDefault();}if(e.type==='keydown'&&e.key==='Escape') closeAtelier();};
   document.addEventListener('keydown',AT.onKey);document.addEventListener('keyup',AT.onKey);
   requestAnimationFrame(atFrame);
 }
 function closeAtelier(){
   if(!AT) return;const a=AT;AT=null;
-  document.removeEventListener('keydown',a.onKey);document.removeEventListener('keyup',a.onKey);
+  document.removeEventListener('keydown',a.onKey);document.removeEventListener('keyup',a.onKey);window.removeEventListener('blur',a.onBlur);
   try{a.A.scene.traverse(o=>{if(o.geometry) o.geometry.dispose();});a.A.renderer.dispose();a.A.renderer.forceContextLoss();}catch(e){}
   a.ov.remove();document.body.classList.remove('lfx-on');fxStop();
 }
@@ -155,7 +159,7 @@ function atBuildSteps(){
   for(const p of parts){if(p.rank===0) continue;const last=steps[steps.length-1];if(last&&p.rank===6&&last.rank===6){last.parts.push(p);continue;}steps.push({rank:p.rank,parts:[p],info:p.info,bolts:p.info[4]});}
   // une seule série de vis par rang
   const seen={};for(const s of steps){if(s.bolts&&seen[s.rank]) s.bolts=0;seen[s.rank]=1;}
-  AT.parts=parts;AT.steps=steps;
+  AT.parts=parts;AT.steps=steps;for(const q of parts) q.px=q.g.children.find(c=>c.userData.proxy);
   const oil=parts.find(p=>p.rank===23);if(oil) oil.g.visible=false;
   // fantôme et balise
   AT.ghost=new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshBasicMaterial({color:0xffb800,transparent:true,opacity:.28,depthWrite:false}));AT.ghost.visible=false;A.scene.add(AT.ghost);
@@ -245,7 +249,6 @@ function atTap(x,y){
   // pose : il faut viser le moteur
   const tg=[AT.ghost,...AT.parts.filter(p=>p.placed).map(p=>p.g)];
   if(!ray.intersectObjects(tg,true).length){$('#atlMsg',AT.ov).textContent='Visez le moteur (zone jaune) pour poser la pièce.';return;}
-  if(AT.pos.distanceTo(new T.Vector3(0,1650,0))>2600){$('#atlMsg',AT.ov).textContent='Approchez-vous du moteur pour poser la pièce.';return;}
   atPlace(s);AT.held=null;AT.ghost.visible=false;
   if(s.bolts){AT.phase=2;atMakeBolts(s);$('#atlMsg',AT.ov).textContent=`Serrez les ${s.bolts} vis dans l'ordre des numéros, à ${s.info[5]}.`;}
   else atNext();
@@ -254,7 +257,7 @@ function atHint(){const s=atStep();if(!s||AT.held||AT.phase===2) return;AT.errs+
 // ── boucle d'animation
 function atFrame(now){
   if(!AT) return;
-  const {A,T}=AT,dt=Math.min(.05,(now-AT.last)/1000);AT.last=now;AT.t+=dt;
+  const {A,T}=AT,dt=Math.min(.1,(now-AT.last)/1000);AT.last=now;AT.t+=dt;
   const w=AT.cv.clientWidth,h=AT.cv.clientHeight;if(w&&h&&(w!==AT.w||h!==AT.h)){A.renderer.setSize(w,h,false);A.cam.aspect=w/h;A.cam.updateProjectionMatrix();AT.w=w;AT.h=h;}
   const e=AT.eng;
   if(AT.mode==='cine'&&!AT.done){
@@ -271,7 +274,7 @@ function atFrame(now){
     if(e.carry) for(const p of e.carry.parts){if(p.g.parent!==A.scene) A.scene.attach(p.g);const f=new T.Vector3(Math.sin(e.g.rotation.y),0,Math.cos(e.g.rotation.y));const want=e.pos.clone().add(f.multiplyScalar(330)).setY(1150);const c=new T.Box3().setFromObject(p.g).getCenter(new T.Vector3());p.g.position.add(want.sub(c).multiplyScalar(.35));}
   }
   // déplacement de l'ingénieur
-  {const d=e.tgt.clone().sub(e.pos);d.y=0;const dist=d.length(),v=2600*AT.spd;if(dist>5){d.normalize();e.pos.addScaledVector(d,Math.min(dist,v*dt));const ty=Math.atan2(d.x,d.z);let dy=ty-e.g.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));e.g.rotation.y+=dy*Math.min(1,dt*10);const sw=Math.sin(AT.t*11*Math.min(2,AT.spd))*.55;e.ll.rotation.x=sw;e.rl.rotation.x=-sw;}
+  {const d=e.tgt.clone().sub(e.pos);d.y=0;const dist=d.length(),v=2600*AT.spd;if(dist>5){d.normalize();e.pos.addScaledVector(d,Math.min(dist,v*dt));{const rr=Math.hypot(e.pos.x,e.pos.z);if(rr<880&&rr>1){e.pos.x*=880/rr;e.pos.z*=880/rr;}}const ty=Math.atan2(d.x,d.z);let dy=ty-e.g.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));e.g.rotation.y+=dy*Math.min(1,dt*10);const sw=Math.sin(AT.t*11*Math.min(2,AT.spd))*.55;e.ll.rotation.x=sw;e.rl.rotation.x=-sw;}
     else{e.ll.rotation.x*=.8;e.rl.rotation.x*=.8;const ty=Math.atan2(-e.pos.x,-e.pos.z);let dy=ty-e.g.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));e.g.rotation.y+=dy*Math.min(1,dt*8);}
     const work=AT.mode==='cine'&&AT.phase===4&&!AT.done,arm=e.carry?-1.25:work?-1.5+Math.sin(AT.t*18)*.25:-.08;e.la.rotation.x+=(arm-e.la.rotation.x)*.25;e.ra.rotation.x+=((work?-1.3+Math.cos(AT.t*18)*.3:arm)-e.ra.rotation.x)*.25;e.g.position.copy(e.pos);}
   // moteur terminé : il tourne
@@ -280,12 +283,31 @@ function atFrame(now){
   if(AT.mode==='fp'){
     const k=AT.keys,f=(k.f?1:0)-(k.b?1:0),sd=(k.r?1:0)-(k.l?1:0);
     if(f||sd){const fw=new T.Vector3(-Math.sin(AT.yaw),0,-Math.cos(AT.yaw)),rt=new T.Vector3(Math.cos(AT.yaw),0,-Math.sin(AT.yaw));const nx=AT.pos.clone().addScaledVector(fw,f*1700*dt).addScaledVector(rt,sd*1500*dt);
-      nx.x=clamp(nx.x,-1750,1750);nx.z=clamp(nx.z,-1900,2500);if(Math.hypot(nx.x,nx.z)>720) AT.pos.copy(nx);AT.pos.y=1650+Math.sin(AT.t*9)*12;}
+      nx.x=clamp(nx.x,-1780,1780);nx.z=clamp(nx.z,-1950,3400);const rr=Math.hypot(nx.x,nx.z);if(rr<760){nx.x*=760/Math.max(rr,1);nx.z*=760/Math.max(rr,1);}AT.pos.x=nx.x;AT.pos.z=nx.z;AT.pos.y=1650+Math.sin(AT.t*9)*10;}
+    else AT.pos.y+=(1650-AT.pos.y)*.2;
     A.cam.position.copy(AT.pos);A.cam.rotation.order='YXZ';A.cam.rotation.set(AT.pitch,AT.yaw,0);
     if(AT.ghost.visible) AT.ghost.material.opacity=.2+.15*Math.sin(AT.t*5);
+    if(now-(AT.lt||0)>110){AT.lt=now;atLabel();}
   }else{
-    const a=AT.t*.12+.6,R=AT.done?2600:3300;A.cam.position.set(Math.sin(a)*R,AT.done?1700:2000,Math.cos(a)*R+300);A.cam.rotation.order='XYZ';A.cam.lookAt(e.pos.x*.35,1150,e.pos.z*.35);
+    const a=Math.sin(AT.t*.16)*.62,R=AT.done?2500:3100;A.cam.position.set(Math.sin(a)*R,(AT.done?1650:1950)+Math.sin(AT.t*.11)*150,Math.cos(a)*R+250);A.cam.rotation.order='XYZ';A.cam.lookAt(e.pos.x*.3,1120,e.pos.z*.3);
   }
   A.renderer.render(A.scene,A.cam);
   requestAnimationFrame(atFrame);
+}
+
+// nom de la pièce regardée de près (au centre de l'écran, ou sous la souris)
+function atLabel(){
+  const lab=$('#atlLabel',AT.ov);if(!lab) return;
+  if(AT.mode!=='fp'||AT.done){lab.hidden=true;return;}
+  const {T,A}=AT,r=AT.cv.getBoundingClientRect(),m=AT.mouse,sx=m?m.x:r.left+r.width/2,sy=m?m.y:r.top+r.height/2;
+  const ray=new T.Raycaster();ray.far=2600;ray.setFromCamera(new T.Vector2((sx-r.left)/r.width*2-1,-((sy-r.top)/r.height*2-1)),A.cam);
+  let best=null,bd=1e9;const cur=atStep();
+  for(const p of AT.parts){if(!p.px||(AT.held&&AT.held.parts.includes(p))||(p.rank===23&&!p.g.visible)) continue;const h=ray.intersectObject(p.px,false)[0];if(!h) continue;
+    // une pièce posée est enveloppée par les autres : on préfère la plus petite boîte touchée
+    const vol=p.size.x*p.size.y*p.size.z,sc=h.distance+Math.cbrt(vol)*.6;if(sc<bd){bd=sc;best=p;}}
+  if(!best){lab.hidden=true;return;}
+  const next=cur&&cur.parts.includes(best);
+  lab.innerHTML=`<b>${best.name}</b><span>${best.placed?'Déjà montée':next?'À monter maintenant':'À monter plus tard'}</span>`;
+  lab.className='atl-label'+(next?' nx':best.placed?' ok':'');lab.hidden=false;
+  lab.style.left=clamp(sx-r.left,90,r.width-90)+'px';lab.style.top=Math.max(70,sy-r.top-54)+'px';
 }

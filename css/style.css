@@ -775,3 +775,13 @@ button{touch-action:manipulation}
 .atl-fp .atl-hud{width:min(600px,calc(100% - 24px));padding:9px 12px;gap:5px;background:rgba(12,20,32,.8)}
 .atl-fp .atl-step p{font-size:13px}
 @media (max-width:600px){.atl-fp #atlText{display:none}.atl-fp .atl-hud{padding:8px 10px}.atl-fp .atl-msg{font-size:12.5px}.atl-pad{bottom:190px}}
+
+.atl-label{position:absolute;transform:translate(-50%,-100%);background:rgba(12,20,32,.92);border:1.5px solid #8fa3ba;border-radius:3px;padding:5px 10px;pointer-events:none;text-align:center;max-width:260px;z-index:2}
+.atl-label b{display:block;font-family:var(--f-d);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.03em;line-height:1.1;color:#fff}
+.atl-label span{font-family:var(--f-m);font-size:11px;color:#c3cfdd}
+.atl-label.nx{border-color:#ffb800}.atl-label.nx span{color:#ffc533}
+.atl-label.ok{border-color:#35c26b}.atl-label.ok span{color:#7fe0a4}
+.atl-pad button.on{background:#ffb800;color:#10233d;border-color:#ffb800}
+.atl-pad{grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,58px);left:max(14px,env(safe-area-inset-left,0px));right:auto}
+.atl-pad button{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+@media (max-width:600px){.atl-pad{grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,54px)}}
