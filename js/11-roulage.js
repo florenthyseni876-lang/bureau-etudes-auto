@@ -5,7 +5,7 @@ function cruiseUI(){const b=$('#cruiseGo');if(b) b.textContent=cruise?'Arrêter 
 function startCruise(){
   const road=$('#road');if(!road) return;if(ui.broken){flashBroken();return;}run=null;
   const svg=road.querySelector('svg.car');
-  cruise={t:0,v:0,x:0,g:0,sh:0,last:performance.now(),ppm:svg?svg.getBoundingClientRect().width/(svg.viewBox.baseVal.width/1000):30,wheels:$$('.wheel',svg),hist:[[0,0]],hs:0,ct:-1,mt:-1};
+  cruise={t:0,v:0,x:0,g:0,sh:0,last:performance.now(),ppm:svg?boxW(svg)/(svg.viewBox.baseVal.width/1000):30,wheels:$$('.wheel',svg),hist:[[0,0]],hs:0,ct:-1,mt:-1};
   $('#runRead').innerHTML='';cruiseUI();requestAnimationFrame(stepCruise);
 }
 function stopCruise(){if(!cruise) return;cruise=null;cruiseUI();audioSet({rpm:M.E.idle,ld:0,pr:1},false);const m=$('#runMsg');if(m) m.textContent='Roulage arrêté.';}

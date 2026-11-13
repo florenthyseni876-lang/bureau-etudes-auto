@@ -309,7 +309,7 @@ function careerClick(e){
   else if(b.dataset.stop){const m=G.models.find(x=>x.id==b.dataset.stop);if(m&&confirm(`Arrêter définitivement la production de ${m.name} ?`)){m.st='stop';news(`Fin de production : ${m.name}`,`${nf(m.sold)} exemplaires vendus.`);}}
   else if(b.dataset.evol){const m=G.models.find(x=>x.id==b.dataset.evol);if(m){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer ?')) return true;startWiz(m);}return true;}
   else if(b.dataset.newcar){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer par une nouvelle voiture ?')) return true;startWiz(null);return true;}
-  else if(b.dataset.go){setTab(b.dataset.go);window.scrollTo({top:0});return true;}
+  else if(b.dataset.go){setTab(b.dataset.go);appScrollTop();return true;}
   else if(b.dataset.journal){const m=G.models.find(x=>x.id==b.dataset.journal);if(m) showJournal(m);return true;}
   else return false;
   if(msg) ui.msg=msg;
@@ -400,14 +400,14 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!LFX.hidden){closeL
 {const cb=$('#cbar'),setH=()=>document.documentElement.style.setProperty('--cbar-h',(cb.hidden?0:cb.offsetHeight)+'px');if(window.ResizeObserver) new ResizeObserver(setH).observe(cb);window.addEventListener('resize',setH);}
 function navClick(e){
   const b=e.target.closest('button');if(!b||!G) return;
-  if(b.dataset.go){setTab(b.dataset.go);window.scrollTo({top:0});return;}
+  if(b.dataset.go){setTab(b.dataset.go);appScrollTop();return;}
   const i=stepIdx(ui.tab);
-  if(b.id==='wizPrev'&&i>0){setTab(STEPS[i-1][0]);window.scrollTo({top:0});}
+  if(b.id==='wizPrev'&&i>0){setTab(STEPS[i-1][0]);appScrollTop();}
   else if(b.id==='wizNext'&&G.wiz){
     const t=STEPS[i][0],iss=stepIssues(t);
     if(iss.block.length) return;
     if(iss.warn.length&&ui.wizOk!==t){ui.wizOk=t;renderNav();return;}
-    G.wiz.max=Math.max(G.wiz.max,i+1);ui.wizOk=null;saveGame();setTab(STEPS[i+1][0]);window.scrollTo({top:0});
+    G.wiz.max=Math.max(G.wiz.max,i+1);ui.wizOk=null;saveGame();setTab(STEPS[i+1][0]);appScrollTop();
   }
 }
 $('#cnav').addEventListener('click',navClick);

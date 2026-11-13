@@ -849,6 +849,71 @@ button{touch-action:manipulation}
 .atl.atl-xs .inv-s{min-height:28px;padding:2px 2px 2px 11px}
 .atl.atl-xs .inv-s span{left:2px;font-size:9px}
 .atl.atl-xs .atl-msg{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ───────── Téléphone en paysage ───────── */
+html.land-rot,html.land-rot body{overflow:hidden;height:100%;overscroll-behavior:none}
+html.land-rot body{padding:0}
+.land{position:fixed;top:0;left:0;transform-origin:0 0;overflow:hidden;background:var(--paper);z-index:1}
+.land-scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 14px 40px}
+html.land-rot body::before{display:none}
+/* en paysage la hauteur est rare : en-tête et bandeaux plus compacts */
+html.phone-land .cartouche>div{padding:6px 12px}
+html.phone-land h1{font-size:22px}
+html.phone-land .cartouche .eyebrow{display:none}
+html.phone-land .cartouche input[type=text],html.phone-land .cartouche select{font-size:17px}
+html.phone-land .hd-btns{margin-top:4px}
+html.phone-land .key{padding:4px 10px 5px;min-width:88px}
+html.phone-land .key dd{font-size:18px}
+html.phone-land .tabs{margin-top:10px}
+html.phone-land .tab{font-size:15px;padding:6px 12px 5px}
+html.phone-land .cbar>div{padding:4px 10px}
+html.phone-land .cbar b{font-size:16px}
+html.phone-land .cbar .eyebrow{font-size:9px}
+html.phone-land .board{margin-top:10px;gap:14px}
+html.phone-land .home-in{padding-top:0;gap:10px}
+html.phone-land .home-t{font-size:38px}
+html.phone-land .home-sub{font-size:14px}
+html.phone-land .home-cars{padding:6px 0 4px}
+html.phone-land .home-menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+html.phone-land .home-b{padding:10px 40px 10px 14px}
+html.phone-land .home-b b{font-size:19px}
+html.phone-land .home-b span{font-size:12.5px}
+html.phone-land .road.scene{height:clamp(170px,46vh,260px)}
+html.land-rot .road.scene{height:200px}
+html.land-rot .car3d-w{height:230px}
+html.land-rot .draw canvas{height:230px}
+html.land-rot .wiz-foot{bottom:-40px}
+html.land-rot,html.land-rot *{touch-action:none!important}
+/* paysage téléphone : bandeaux sur une ligne, plus de place pour le contenu */
+html.phone-land .home-cars{grid-template-columns:repeat(6,minmax(0,1fr))}
+html.phone-land .home-cars svg{max-height:52px}
+html.phone-land .home-t{font-size:32px}
+html.phone-land .keys{position:static}
+html.phone-land .cbar{flex-wrap:nowrap}
+html.phone-land .cbar>div{flex:0 1 auto;padding:4px 10px}
+html.phone-land .cbar .cb-id,html.phone-land .cbar .cb-debt{display:none}
+html.phone-land .cbar .cb-fac{display:flex}
+html.phone-land .cbar .cb-act{flex:0 0 auto;margin-left:auto;border-top:0;padding:4px 8px;gap:6px}
+html.phone-land .cbar .cb-act .btn{flex:0 0 auto;padding:5px 10px;font-size:13px}
+html.phone-land .cbar .clk{min-width:30px;padding:5px 6px}
+html.phone-land .cnav{margin-top:8px;gap:6px}
+html.phone-land .cnav-h{font-size:20px}
+html.phone-land .steps button{font-size:13px;padding:4px 8px}
+html.phone-land .step-help{font-size:12.5px}
+html.phone-land .wiz-foot{padding:5px 10px;margin-top:10px}
+html.phone-land .wf-in{flex-wrap:nowrap;gap:8px}
+html.phone-land .wf-msg{order:0;flex:1 1 auto;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.phone-land .wf-msg small,html.phone-land .wf-det{display:none}
+html.phone-land .wf-in .btn{flex:0 0 auto;padding:5px 10px;font-size:13px}
+html.phone-land .grp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+html.phone-land .qg-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+html.phone-land .qg-card:first-child{grid-column:auto}
+html.phone-land .diff-pick{grid-template-columns:repeat(3,minmax(0,1fr))}
+html.phone-land .lfx-close{bottom:10px}
+html.phone-land .jr{grid-template-columns:1fr 1fr}
+html.phone-land .jr::after{display:block}
+html.phone-land .jr-page{padding:16px 16px 20px}
+html.phone-land .jr-page+.jr-page{border-top:0}
 </style>
 <div class="app">
   <header class="cartouche">
@@ -914,6 +979,87 @@ const sstep=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
 const nf=(x,d=0)=>{x=Number(x);if(!isFinite(x)) return '—';if(d<0){const k=Math.pow(10,-d);x=Math.round(x/k)*k;d=0;}return x.toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d}).replace(/[  ]/g,' ');};
 const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e};
 const reduced=()=>ui.noAnim;
+
+/* ───────────── Téléphone : tout le jeu en paysage ─────────────
+   Un téléphone tenu en portrait (ou dont la rotation est verrouillée) affiche le jeu pivoté d'un quart de tour :
+   il suffit de le tourner à l'horizontale. Si l'écran est réellement en paysage, rien n'est pivoté.
+   Sur Android, au premier appui, le jeu passe en plein écran et demande le paysage. */
+const LAND={on:false,wrap:null,scroll:null,obs:null};
+const isPhone=()=>Math.min(innerWidth,innerHeight)<560&&matchMedia('(pointer:coarse)').matches;
+// coordonnées d'un événement dans le repère de l'interface (et non de l'écran)
+function pXY(e){return LAND.on?{x:e.clientY,y:innerWidth-e.clientX}:{x:e.clientX,y:e.clientY};}
+// position d'un événement dans un élément, et taille de l'élément, dans le repère de l'interface
+function elXY(e,el){const r=el.getBoundingClientRect();return LAND.on?{x:e.clientY-r.top,y:r.right-e.clientX,w:r.height,h:r.width}:{x:e.clientX-r.left,y:e.clientY-r.top,w:r.width,h:r.height};}
+// largeur et hauteur affichées d'un élément (y compris SVG), dans le repère de l'interface
+function boxW(el){const r=el.getBoundingClientRect();return LAND.on?r.height:r.width;}
+function boxH(el){const r=el.getBoundingClientRect();return LAND.on?r.width:r.height;}
+function appScrollTop(){if(LAND.on) LAND.scroll.scrollTo({top:0});else window.scrollTo({top:0});}
+function landFit(){
+  const want=isPhone()&&innerHeight>innerWidth,de=document.documentElement;
+  if(want&&!LAND.on){
+    const w=el('div','land'),sc=el('div','land-scroll');w.id='land';sc.id='landScroll';w.appendChild(sc);
+    for(const n of [...document.body.childNodes]){if(n.nodeType===1&&n.tagName==='SCRIPT') continue;if(n.nodeType===1&&n.classList.contains('app')) sc.appendChild(n);else w.appendChild(n);}
+    document.body.appendChild(w);LAND.wrap=w;LAND.scroll=sc;LAND.on=true;de.classList.add('land-rot');
+    // tout ce qui est ajouté plus tard au corps de page (journal, atelier…) va dans le cadre pivoté
+    LAND.obs=new MutationObserver(ms=>{for(const m of ms) for(const n of m.addedNodes) if(n!==LAND.wrap&&n.nodeType===1&&n.tagName!=='SCRIPT'&&n.parentNode===document.body) LAND.wrap.appendChild(n);});
+    LAND.obs.observe(document.body,{childList:true});
+  }else if(!want&&LAND.on){
+    LAND.obs.disconnect();const app=LAND.scroll.querySelector('.app');
+    for(const n of [...LAND.wrap.childNodes]) if(n!==LAND.scroll) document.body.appendChild(n);
+    if(app) document.body.insertBefore(app,document.body.firstChild);
+    LAND.wrap.remove();LAND.on=false;de.classList.remove('land-rot');
+  }
+  if(LAND.on){const W=innerWidth,H=innerHeight;LAND.wrap.style.width=H+'px';LAND.wrap.style.height=W+'px';LAND.wrap.style.transform=`translateX(${W}px) rotate(90deg)`;}
+  de.classList.toggle('phone-land',isPhone()&&(LAND.on||innerWidth>innerHeight));
+}
+landFit();
+let landT=0;const landRe=()=>{clearTimeout(landT);landT=setTimeout(()=>{const was=LAND.on;landFit();if(was!==LAND.on){window.dispatchEvent(new Event('resize'));if(typeof render==='function'&&typeof M!=='undefined'&&M.E) try{render();}catch(e){}}},120);};
+window.addEventListener('resize',landRe);window.addEventListener('orientationchange',landRe);
+// Android : plein écran et paysage au premier appui
+document.addEventListener('pointerdown',function landLock(){
+  document.removeEventListener('pointerdown',landLock,true);
+  if(!isPhone()||innerWidth>innerHeight) return;
+  try{const de=document.documentElement,r=de.requestFullscreen&&de.requestFullscreen({navigationUI:'hide'});if(r&&r.then) r.then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{});}catch(e){}
+},true);
+// ── défilement au doigt dans l'interface pivotée : le navigateur ne sait pas défiler un cadre tourné,
+//    on traduit donc le glissé du doigt dans le repère de l'interface (avec inertie).
+(function(){
+  let t=null,anim=0;
+  const scrollable=(el,ax)=>{for(;el&&el!==document.documentElement;el=el.parentElement){const cs=getComputedStyle(el),ov=ax==='y'?cs.overflowY:cs.overflowX;if((ov==='auto'||ov==='scroll')&&(ax==='y'?el.scrollHeight>el.clientHeight+1:el.scrollWidth>el.clientWidth+1)) return el;if(el===LAND.wrap) break;}return ax==='y'?LAND.scroll:null;};
+  const skip=e=>e.target.closest&&e.target.closest('input[type=range],.atl,select,textarea,input[type=text]');
+  document.addEventListener('touchstart',e=>{
+    cancelAnimationFrame(anim);
+    if(!LAND.on||e.touches.length!==1||skip(e)){t=null;return;}
+    const p=e.touches[0];t={cv:e.target.tagName==='CANVAS',x0:p.clientX,y0:p.clientY,tg:e.target,ax:null,el:null,s0:0,moved:false,hist:[[performance.now(),p.clientX,p.clientY]]};
+  },{passive:true,capture:true});
+  document.addEventListener('touchmove',e=>{
+    if(!t||!LAND.on) return;const p=e.touches[0],dxL=p.clientY-t.y0,dyL=-(p.clientX-t.x0);
+    if(!t.ax){if(Math.hypot(dxL,dyL)<7) return;t.ax=Math.abs(dyL)>=Math.abs(dxL)?'y':'x';if(t.cv&&t.ax==='x'){t=null;return;}if(t.cv) LAND.pan=true;t.el=scrollable(t.tg,t.ax)||(t.ax==='x'?scrollable(t.tg,'y'):null);if(t.el&&t.ax==='x'&&!(t.el.scrollWidth>t.el.clientWidth+1)) t.ax='y';if(!t.el){t=null;return;}t.s0=t.ax==='y'?t.el.scrollTop:t.el.scrollLeft;t.moved=true;}
+    e.preventDefault();
+    if(t.ax==='y') t.el.scrollTop=t.s0-dyL;else t.el.scrollLeft=t.s0-dxL;
+    t.hist.push([performance.now(),p.clientX,p.clientY]);if(t.hist.length>6) t.hist.shift();
+  },{passive:false,capture:true});
+  document.addEventListener('touchend',()=>{
+    LAND.pan=false;if(!t) return;const tt=t;t=null;if(!tt.moved) return;
+    // empêche le « clic » de fin de glissé
+    const kill=ev=>{ev.stopPropagation();ev.preventDefault();};document.addEventListener('click',kill,true);setTimeout(()=>document.removeEventListener('click',kill,true),60);
+    const h=tt.hist,a=h[0],b=h[h.length-1],dt=Math.max(16,b[0]-a[0]);
+    let v=tt.ax==='y'?(b[1]-a[1])/dt:-(b[2]-a[2])/dt;        // px/ms dans le sens du défilement
+    if(Math.abs(v)<.05) return;let last=performance.now();
+    const step=now=>{const d=now-last;last=now;if(tt.ax==='y') tt.el.scrollTop+=v*d;else tt.el.scrollLeft+=v*d;v*=Math.pow(.95,d/16);if(Math.abs(v)>.02) anim=requestAnimationFrame(step);};
+    anim=requestAnimationFrame(step);
+  },{capture:true});
+})();
+// ── curseurs au doigt dans l'interface pivotée : valeur calculée dans le repère de l'interface
+(function(){
+  let rg=null;
+  const setV=(e,fire)=>{const p=e.touches[0]||e.changedTouches[0],q=elXY({clientX:p.clientX,clientY:p.clientY},rg),mn=+rg.min||0,mx=+rg.max||100,st=+rg.step||1,th=14;
+    const f=clamp((q.x-th/2)/Math.max(1,q.w-th),0,1);let v=mn+f*(mx-mn);v=Math.round((v-mn)/st)*st+mn;v=+v.toFixed(6);
+    if(+rg.value!==v){rg.value=v;rg.dispatchEvent(new Event('input',{bubbles:true}));}if(fire) rg.dispatchEvent(new Event('change',{bubbles:true}));};
+  document.addEventListener('touchstart',e=>{if(!LAND.on) return;const r=e.target.closest&&e.target.closest('input[type=range]');if(!r||r.disabled) return;rg=r;e.preventDefault();setV(e);},{passive:false,capture:true});
+  document.addEventListener('touchmove',e=>{if(!rg) return;e.preventDefault();setV(e);},{passive:false,capture:true});
+  document.addEventListener('touchend',e=>{if(!rg) return;setV(e,true);rg=null;},{capture:true});
+})();
 
 /* ───────────── Données ───────────── */
 const CFG={
@@ -1892,8 +2038,8 @@ function init3D(cv){
     const d2=new T.DirectionalLight(0xbfd4ff,.4);d2.position.set(-1.5,.6,-1.2);scene.add(d2);
     E3={cv,renderer,scene,cam,root:null,parts:[],anim:null,sig:'',R:600,w:0,h:0,hl:new T.MeshStandardMaterial({color:0xffb800,emissive:0xff9500,emissiveIntensity:.55,roughness:.4,metalness:.3}),shown:[],pinEls:[]};
     let drag=null;
-    cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
-    cv.addEventListener('pointermove',e=>{if(!drag) return;ui.az-=(e.clientX-drag.x)*.008;ui.el=clamp(ui.el+(e.clientY-drag.y)*.006,-1.2,1.35);drag={x:e.clientX,y:e.clientY};if(!engRaf) draw3D();});
+    cv.addEventListener('pointerdown',e=>{drag=pXY(e);try{cv.setPointerCapture(e.pointerId);}catch(err){}});
+    cv.addEventListener('pointermove',e=>{if(!drag) return;const q=pXY(e);if(LAND.pan){drag=q;return;}ui.az-=(q.x-drag.x)*.008;ui.el=clamp(ui.el+(q.y-drag.y)*.006,-1.2,1.35);drag=pXY(e);if(!engRaf) draw3D();});
     const up=()=>{drag=null;};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
     return true;
   }catch(e){E3=null;return false;}
@@ -2491,7 +2637,7 @@ function cruiseUI(){const b=$('#cruiseGo');if(b) b.textContent=cruise?'Arrêter 
 function startCruise(){
   const road=$('#road');if(!road) return;if(ui.broken){flashBroken();return;}run=null;
   const svg=road.querySelector('svg.car');
-  cruise={t:0,v:0,x:0,g:0,sh:0,last:performance.now(),ppm:svg?svg.getBoundingClientRect().width/(svg.viewBox.baseVal.width/1000):30,wheels:$$('.wheel',svg),hist:[[0,0]],hs:0,ct:-1,mt:-1};
+  cruise={t:0,v:0,x:0,g:0,sh:0,last:performance.now(),ppm:svg?boxW(svg)/(svg.viewBox.baseVal.width/1000):30,wheels:$$('.wheel',svg),hist:[[0,0]],hs:0,ct:-1,mt:-1};
   $('#runRead').innerHTML='';cruiseUI();requestAnimationFrame(stepCruise);
 }
 function stopCruise(){if(!cruise) return;cruise=null;cruiseUI();audioSet({rpm:M.E.idle,ld:0,pr:1},false);const m=$('#runMsg');if(m) m.textContent='Roulage arrêté.';}
@@ -2696,7 +2842,7 @@ function wireCross(box,xs,ysList,label,readEl){
   const hide=()=>{idx=-1;svgs.forEach(sv=>{sv.querySelector('.ch-x').style.display='none';sv.querySelector('.ch-d').style.display='none';});readEl.innerHTML=def;};
   const near=xv=>{let b=0,bd=1e9;for(let i=0;i<xs.length;i++){const d=Math.abs(xs[i]-xv);if(d<bd){bd=d;b=i;}}return b;};
   svgs.forEach(sv=>{
-    sv.addEventListener('pointermove',e=>{const rc=sv.getBoundingClientRect(),d=sv.dataset,px=(e.clientX-rc.left)/rc.width*(+sv.getAttribute('width'));show(near(+d.x0+clamp((px-d.l)/d.pw,0,1)*(d.x1-d.x0)));});
+    sv.addEventListener('pointermove',e=>{const q=elXY(e,sv),d=sv.dataset,px=q.x/q.w*(+sv.getAttribute('width'));show(near(+d.x0+clamp((px-d.l)/d.pw,0,1)*(d.x1-d.x0)));});
     sv.addEventListener('pointerleave',hide);
   });
   box.tabIndex=0;
@@ -2839,7 +2985,7 @@ function startRun(dist){
   if(cruise){cruise=null;cruiseUI();}
   let end=runChart(dist,0);const tr=M.C.trace,rb=runBreak(end);if(rb.k) end=rb.i;
   if(reduced()){run=null;finishRun(dist,end,rb);return;}
-  const svg=road.querySelector('svg.car'),ppm=svg?svg.getBoundingClientRect().width/(svg.viewBox.baseVal.width/1000):30;
+  const svg=road.querySelector('svg.car'),ppm=svg?boxW(svg)/(svg.viewBox.baseVal.width/1000):30;
   run={t0:performance.now(),dist,end,ppm,wheels:svg?$$('.wheel',svg):[],line:null,last:-1,brk:rb};
   $('#runMsg').textContent='Essai en cours…';$('#runRead').innerHTML='';
   requestAnimationFrame(stepRun);
@@ -3930,7 +4076,7 @@ function careerClick(e){
   else if(b.dataset.stop){const m=G.models.find(x=>x.id==b.dataset.stop);if(m&&confirm(`Arrêter définitivement la production de ${m.name} ?`)){m.st='stop';news(`Fin de production : ${m.name}`,`${nf(m.sold)} exemplaires vendus.`);}}
   else if(b.dataset.evol){const m=G.models.find(x=>x.id==b.dataset.evol);if(m){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer ?')) return true;startWiz(m);}return true;}
   else if(b.dataset.newcar){if(G.wiz&&!confirm('Une conception est déjà en cours. La remplacer par une nouvelle voiture ?')) return true;startWiz(null);return true;}
-  else if(b.dataset.go){setTab(b.dataset.go);window.scrollTo({top:0});return true;}
+  else if(b.dataset.go){setTab(b.dataset.go);appScrollTop();return true;}
   else if(b.dataset.journal){const m=G.models.find(x=>x.id==b.dataset.journal);if(m) showJournal(m);return true;}
   else return false;
   if(msg) ui.msg=msg;
@@ -4021,14 +4167,14 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!LFX.hidden){closeL
 {const cb=$('#cbar'),setH=()=>document.documentElement.style.setProperty('--cbar-h',(cb.hidden?0:cb.offsetHeight)+'px');if(window.ResizeObserver) new ResizeObserver(setH).observe(cb);window.addEventListener('resize',setH);}
 function navClick(e){
   const b=e.target.closest('button');if(!b||!G) return;
-  if(b.dataset.go){setTab(b.dataset.go);window.scrollTo({top:0});return;}
+  if(b.dataset.go){setTab(b.dataset.go);appScrollTop();return;}
   const i=stepIdx(ui.tab);
-  if(b.id==='wizPrev'&&i>0){setTab(STEPS[i-1][0]);window.scrollTo({top:0});}
+  if(b.id==='wizPrev'&&i>0){setTab(STEPS[i-1][0]);appScrollTop();}
   else if(b.id==='wizNext'&&G.wiz){
     const t=STEPS[i][0],iss=stepIssues(t);
     if(iss.block.length) return;
     if(iss.warn.length&&ui.wizOk!==t){ui.wizOk=t;renderNav();return;}
-    G.wiz.max=Math.max(G.wiz.max,i+1);ui.wizOk=null;saveGame();setTab(STEPS[i+1][0]);window.scrollTo({top:0});
+    G.wiz.max=Math.max(G.wiz.max,i+1);ui.wizOk=null;saveGame();setTab(STEPS[i+1][0]);appScrollTop();
   }
 }
 $('#cnav').addEventListener('click',navClick);
@@ -4273,8 +4419,8 @@ function initCar3D(cv){
     const d2=new T.DirectionalLight(0xc8dcff,.45);d2.position.set(-1.6,.8,-1.2);scene.add(d2);
     C3={cv,renderer,scene,cam,root:null,sig:''};
     let drag=null,pinch=null;
-    cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,id:e.pointerId};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
-    cv.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id) return;ui.caz-=(e.clientX-drag.x)*.009;ui.cel=clamp(ui.cel+(e.clientY-drag.y)*.006,-.15,1.3);drag.x=e.clientX;drag.y=e.clientY;drawCar3D();});
+    cv.addEventListener('pointerdown',e=>{const q0=pXY(e);drag={x:q0.x,y:q0.y,id:e.pointerId};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
+    cv.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id) return;const q=pXY(e);if(LAND.pan){drag.x=q.x;drag.y=q.y;return;}ui.caz-=(q.x-drag.x)*.009;ui.cel=clamp(ui.cel+(q.y-drag.y)*.006,-.15,1.3);drag.x=q.x;drag.y=q.y;drawCar3D();});
     const up=()=>{drag=null;};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
     const pts=new Map();
     cv.addEventListener('pointerdown',e=>{pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2){const [a,b]=[...pts.values()];pinch=Math.hypot(a[0]-b[0],a[1]-b[1]);drag=null;}});
@@ -4500,7 +4646,7 @@ let SCN={x:0,v:0,rpm:0,t:0};
 function sceneDraw(x,v,rpm){
   const cv=$('#sceneCv');if(!cv) return;
   SCN={x:x||0,v:v||0,rpm:rpm||(M.E?M.E.idle:800),t:performance.now()/1000};
-  const r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),W=Math.round(r.width),H=Math.round(r.height);
+  const dpr=Math.min(2,devicePixelRatio||1),W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);
   if(!W||!H) return;
   if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr;}
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
@@ -4532,8 +4678,8 @@ function farLayer(g,W,base,off,P,scale){
 function tree(g,x,y,s,P){g.fillStyle='#5b4632';g.fillRect(x-1.5*s,y-10*s,3*s,10*s);g.fillStyle=ui.scene==='montagne'?'#2f5a3f':'#4f7f3c';
   if(ui.scene==='montagne'){g.beginPath();g.moveTo(x-9*s,y-8*s);g.lineTo(x,y-34*s);g.lineTo(x+9*s,y-8*s);g.fill();}else{g.beginPath();g.arc(x,y-18*s,10*s,0,7);g.fill();}}
 function drawSide(g,W,H,P){
-  const road=$('#road'),car=$('#sceneCar svg'),ppm=car?car.getBoundingClientRect().width/(car.viewBox.baseVal.width/1000):30;
-  const gy=H-26,carEl=$('#sceneCar'),carW=carEl?carEl.getBoundingClientRect().width:0,travel=Math.max(0,W-carW-W*.06);
+  const road=$('#road'),car=$('#sceneCar svg'),ppm=car?boxW(car)/(car.viewBox.baseVal.width/1000):30;
+  const gy=H-26,carEl=$('#sceneCar'),carW=carEl?carEl.offsetWidth:0,travel=Math.max(0,W-carW-W*.06);
   const uu=clamp(SCN.x/70,0,1),tx=travel*(1-uu*uu*(3-2*uu));if(carEl) carEl.style.transform=`translateX(${tx.toFixed(1)}px)`;
   const x=Math.max(0,SCN.x*ppm-(travel-tx));
   g.save();g.translate(W,0);g.scale(-1,1);
@@ -4613,7 +4759,7 @@ function drawDash(g,W,H){
 }
 // vue d'hélicoptère
 function drawTop(g,W,H,P){
-  const car=$('#sceneCar svg'),ppm=car?car.getBoundingClientRect().height/(car.viewBox.baseVal.width/1000):20,x=SCN.x*ppm;
+  const car=$('#sceneCar svg'),ppm=car?boxH(car)/(car.viewBox.baseVal.width/1000):20,x=SCN.x*ppm;
   g.fillStyle=P.ground;g.fillRect(0,0,W,H);
   const rw=Math.min(W*.5,240),x0=W/2-rw/2;
   g.fillStyle=P.road;g.fillRect(x0,0,rw,H);
@@ -5235,8 +5381,8 @@ function atAimPart(ray,ok){
 // ── téléphone : toujours en paysage. Si l'écran reste en portrait (rotation verrouillée, iPhone), l'atelier pivote de 90°.
 function atPhone(){return Math.min(innerWidth,innerHeight)<560&&matchMedia('(pointer:coarse)').matches;}
 function atFit(){
-  if(!AT) return;const w=innerWidth,h=innerHeight,rot=h>w&&atPhone(),ov=AT.ov;AT.rot=rot;
-  ov.classList.toggle('rot',rot);ov.style.width=rot?h+'px':'';ov.style.height=rot?w+'px':'';ov.style.left=rot?w+'px':'';
+  if(!AT) return;const w=innerWidth,h=innerHeight,g=LAND.on,loc=!g&&h>w&&atPhone(),rot=g||loc,ov=AT.ov;AT.rot=rot;
+  ov.classList.toggle('rot',loc);ov.style.width=loc?h+'px':'';ov.style.height=loc?w+'px':'';ov.style.left=loc?w+'px':'';
   ov.classList.toggle('atl-land',(rot?w:h)<560);
   ov.classList.toggle('atl-xs',(rot?h:w)<700&&(rot?w:h)<560);
 }

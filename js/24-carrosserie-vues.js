@@ -181,8 +181,8 @@ function initCar3D(cv){
     const d2=new T.DirectionalLight(0xc8dcff,.45);d2.position.set(-1.6,.8,-1.2);scene.add(d2);
     C3={cv,renderer,scene,cam,root:null,sig:''};
     let drag=null,pinch=null;
-    cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,id:e.pointerId};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
-    cv.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id) return;ui.caz-=(e.clientX-drag.x)*.009;ui.cel=clamp(ui.cel+(e.clientY-drag.y)*.006,-.15,1.3);drag.x=e.clientX;drag.y=e.clientY;drawCar3D();});
+    cv.addEventListener('pointerdown',e=>{const q0=pXY(e);drag={x:q0.x,y:q0.y,id:e.pointerId};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
+    cv.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id) return;const q=pXY(e);if(LAND.pan){drag.x=q.x;drag.y=q.y;return;}ui.caz-=(q.x-drag.x)*.009;ui.cel=clamp(ui.cel+(q.y-drag.y)*.006,-.15,1.3);drag.x=q.x;drag.y=q.y;drawCar3D();});
     const up=()=>{drag=null;};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
     const pts=new Map();
     cv.addEventListener('pointerdown',e=>{pts.set(e.pointerId,[e.clientX,e.clientY]);if(pts.size===2){const [a,b]=[...pts.values()];pinch=Math.hypot(a[0]-b[0],a[1]-b[1]);drag=null;}});

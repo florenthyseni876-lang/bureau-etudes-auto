@@ -30,7 +30,7 @@ let SCN={x:0,v:0,rpm:0,t:0};
 function sceneDraw(x,v,rpm){
   const cv=$('#sceneCv');if(!cv) return;
   SCN={x:x||0,v:v||0,rpm:rpm||(M.E?M.E.idle:800),t:performance.now()/1000};
-  const r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),W=Math.round(r.width),H=Math.round(r.height);
+  const dpr=Math.min(2,devicePixelRatio||1),W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);
   if(!W||!H) return;
   if(cv.width!==W*dpr||cv.height!==H*dpr){cv.width=W*dpr;cv.height=H*dpr;}
   const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
@@ -62,8 +62,8 @@ function farLayer(g,W,base,off,P,scale){
 function tree(g,x,y,s,P){g.fillStyle='#5b4632';g.fillRect(x-1.5*s,y-10*s,3*s,10*s);g.fillStyle=ui.scene==='montagne'?'#2f5a3f':'#4f7f3c';
   if(ui.scene==='montagne'){g.beginPath();g.moveTo(x-9*s,y-8*s);g.lineTo(x,y-34*s);g.lineTo(x+9*s,y-8*s);g.fill();}else{g.beginPath();g.arc(x,y-18*s,10*s,0,7);g.fill();}}
 function drawSide(g,W,H,P){
-  const road=$('#road'),car=$('#sceneCar svg'),ppm=car?car.getBoundingClientRect().width/(car.viewBox.baseVal.width/1000):30;
-  const gy=H-26,carEl=$('#sceneCar'),carW=carEl?carEl.getBoundingClientRect().width:0,travel=Math.max(0,W-carW-W*.06);
+  const road=$('#road'),car=$('#sceneCar svg'),ppm=car?boxW(car)/(car.viewBox.baseVal.width/1000):30;
+  const gy=H-26,carEl=$('#sceneCar'),carW=carEl?carEl.offsetWidth:0,travel=Math.max(0,W-carW-W*.06);
   const uu=clamp(SCN.x/70,0,1),tx=travel*(1-uu*uu*(3-2*uu));if(carEl) carEl.style.transform=`translateX(${tx.toFixed(1)}px)`;
   const x=Math.max(0,SCN.x*ppm-(travel-tx));
   g.save();g.translate(W,0);g.scale(-1,1);
@@ -143,7 +143,7 @@ function drawDash(g,W,H){
 }
 // vue d'hélicoptère
 function drawTop(g,W,H,P){
-  const car=$('#sceneCar svg'),ppm=car?car.getBoundingClientRect().height/(car.viewBox.baseVal.width/1000):20,x=SCN.x*ppm;
+  const car=$('#sceneCar svg'),ppm=car?boxH(car)/(car.viewBox.baseVal.width/1000):20,x=SCN.x*ppm;
   g.fillStyle=P.ground;g.fillRect(0,0,W,H);
   const rw=Math.min(W*.5,240),x0=W/2-rw/2;
   g.fillStyle=P.road;g.fillRect(x0,0,rw,H);

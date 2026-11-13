@@ -1,5 +1,5 @@
 /* Service hors connexion : fichier généré par outils/build.py, ne pas modifier sw.js à la main. */
-const VERSION='bea-d735405606';
+const VERSION='bea-210c16fc4c';
 const FICHIERS=[
   './',
   'index.html',
@@ -7,6 +7,7 @@ const FICHIERS=[
   'css/style.css',
   'vendor/three.min.js',
   'js/00-outils.js',
+  'js/00b-paysage.js',
   'js/01-donnees.js',
   'js/02-etat.js',
   'js/03-moteur.js',

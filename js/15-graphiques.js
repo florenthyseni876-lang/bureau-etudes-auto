@@ -25,7 +25,7 @@ function wireCross(box,xs,ysList,label,readEl){
   const hide=()=>{idx=-1;svgs.forEach(sv=>{sv.querySelector('.ch-x').style.display='none';sv.querySelector('.ch-d').style.display='none';});readEl.innerHTML=def;};
   const near=xv=>{let b=0,bd=1e9;for(let i=0;i<xs.length;i++){const d=Math.abs(xs[i]-xv);if(d<bd){bd=d;b=i;}}return b;};
   svgs.forEach(sv=>{
-    sv.addEventListener('pointermove',e=>{const rc=sv.getBoundingClientRect(),d=sv.dataset,px=(e.clientX-rc.left)/rc.width*(+sv.getAttribute('width'));show(near(+d.x0+clamp((px-d.l)/d.pw,0,1)*(d.x1-d.x0)));});
+    sv.addEventListener('pointermove',e=>{const q=elXY(e,sv),d=sv.dataset,px=q.x/q.w*(+sv.getAttribute('width'));show(near(+d.x0+clamp((px-d.l)/d.pw,0,1)*(d.x1-d.x0)));});
     sv.addEventListener('pointerleave',hide);
   });
   box.tabIndex=0;

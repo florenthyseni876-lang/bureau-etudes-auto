@@ -14,8 +14,8 @@ function init3D(cv){
     const d2=new T.DirectionalLight(0xbfd4ff,.4);d2.position.set(-1.5,.6,-1.2);scene.add(d2);
     E3={cv,renderer,scene,cam,root:null,parts:[],anim:null,sig:'',R:600,w:0,h:0,hl:new T.MeshStandardMaterial({color:0xffb800,emissive:0xff9500,emissiveIntensity:.55,roughness:.4,metalness:.3}),shown:[],pinEls:[]};
     let drag=null;
-    cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
-    cv.addEventListener('pointermove',e=>{if(!drag) return;ui.az-=(e.clientX-drag.x)*.008;ui.el=clamp(ui.el+(e.clientY-drag.y)*.006,-1.2,1.35);drag={x:e.clientX,y:e.clientY};if(!engRaf) draw3D();});
+    cv.addEventListener('pointerdown',e=>{drag=pXY(e);try{cv.setPointerCapture(e.pointerId);}catch(err){}});
+    cv.addEventListener('pointermove',e=>{if(!drag) return;const q=pXY(e);if(LAND.pan){drag=q;return;}ui.az-=(q.x-drag.x)*.008;ui.el=clamp(ui.el+(q.y-drag.y)*.006,-1.2,1.35);drag=pXY(e);if(!engRaf) draw3D();});
     const up=()=>{drag=null;};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
     return true;
   }catch(e){E3=null;return false;}

@@ -461,8 +461,8 @@ function atAimPart(ray,ok){
 // ── téléphone : toujours en paysage. Si l'écran reste en portrait (rotation verrouillée, iPhone), l'atelier pivote de 90°.
 function atPhone(){return Math.min(innerWidth,innerHeight)<560&&matchMedia('(pointer:coarse)').matches;}
 function atFit(){
-  if(!AT) return;const w=innerWidth,h=innerHeight,rot=h>w&&atPhone(),ov=AT.ov;AT.rot=rot;
-  ov.classList.toggle('rot',rot);ov.style.width=rot?h+'px':'';ov.style.height=rot?w+'px':'';ov.style.left=rot?w+'px':'';
+  if(!AT) return;const w=innerWidth,h=innerHeight,g=LAND.on,loc=!g&&h>w&&atPhone(),rot=g||loc,ov=AT.ov;AT.rot=rot;
+  ov.classList.toggle('rot',loc);ov.style.width=loc?h+'px':'';ov.style.height=loc?w+'px':'';ov.style.left=loc?w+'px':'';
   ov.classList.toggle('atl-land',(rot?w:h)<560);
   ov.classList.toggle('atl-xs',(rot?h:w)<700&&(rot?w:h)<560);
 }

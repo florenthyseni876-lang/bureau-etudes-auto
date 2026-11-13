@@ -75,7 +75,7 @@ function startRun(dist){
   if(cruise){cruise=null;cruiseUI();}
   let end=runChart(dist,0);const tr=M.C.trace,rb=runBreak(end);if(rb.k) end=rb.i;
   if(reduced()){run=null;finishRun(dist,end,rb);return;}
-  const svg=road.querySelector('svg.car'),ppm=svg?svg.getBoundingClientRect().width/(svg.viewBox.baseVal.width/1000):30;
+  const svg=road.querySelector('svg.car'),ppm=svg?boxW(svg)/(svg.viewBox.baseVal.width/1000):30;
   run={t0:performance.now(),dist,end,ppm,wheels:svg?$$('.wheel',svg):[],line:null,last:-1,brk:rb};
   $('#runMsg').textContent='Essai en cours…';$('#runRead').innerHTML='';
   requestAnimationFrame(stepRun);
