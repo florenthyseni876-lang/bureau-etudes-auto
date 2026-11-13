@@ -101,6 +101,7 @@ function todo(){
   if(prod.some(m=>m.last&&m.last.lim)) t.push({t:'Votre usine tourne à plein',d:'Des clients repartent sans voiture : agrandissez l\'usine ou augmentez vos prix.',b:'<button class="chip-btn" type="button" data-go="usine">Voir l\'usine</button>'});
   if(prod.length&&prod.every(m=>m.last&&m.last.u===0)) t.push({t:'Aucune vente ce trimestre',d:'Votre prix est peut-être trop élevé, ou la voiture n\'attire aucune clientèle. Comparez-la aux attentes dans la page Marché.',b:'<button class="chip-btn" type="button" data-go="marche">Voir le marché</button>'});
   if(G.resL.length<resSlots()&&G.models.length){const av=TECHS.filter(x=>x[3]<=G.y&&!G.techs.includes(x[0]));if(av.length) t.push({t:G.resL.length?'Un laboratoire est libre':'Aucune recherche en cours',d:`${av.length} technologie${av.length>1?'s':''} disponible${av.length>1?'s':''} à étudier.`,b:'<button class="chip-btn" type="button" data-go="recherche">Choisir une recherche</button>'});}
+  if(typeof rivTodo==='function'){const x=rivTodo();if(x) t.push(x);}
   if(!t.length) t.push({t:'Tout roule',d:'Passez au trimestre suivant, ou préparez un nouveau modèle pour suivre les attentes des clients.'});
   return t;
 }
@@ -112,6 +113,7 @@ function qgHTML(){
   h+=`<section class="cgrp todo"><h3>À faire maintenant</h3><ol class="todo-l">${td.map(x=>`<li><div><b>${x.t}</b><p>${x.d}</p></div>${x.b?`<div>${x.b}</div>`:''}</li>`).join('')}</ol></section>`;
   {const rec=G.models.filter(m=>m.press&&(G.y*4+G.q)-(m.press.y*4+m.press.q)<=2);for(const m of rec) h+=`<section class="cgrp"><h3>La presse a essayé votre ${esc(m.name)}</h3>${pressHTML(m)}<div class="btns"><button class="chip-btn" type="button" data-journal="${m.id}">Ouvrir le journal</button></div></section>`;}
   if(G.models.length) h+=lastQHTML();
+  if(typeof rivRankLine==='function') h+=rivRankLine();
   const prod=G.models.filter(m=>m.st==='prod').length,dev=G.models.filter(m=>m.st==='dev').length,lq=G.lastQ,uti=lq&&lq.cap?lq.units*4/lq.cap:0;
   const card=(go,t,d,ico)=>`<button class="qg-card" type="button" ${go}><span class="qg-i" aria-hidden="true">${ico}</span><b>${t}</b><span>${d}</span></button>`;
   h+=`<section class="qg-grid" aria-label="Services de l'entreprise">
@@ -279,8 +281,9 @@ function uLabel(k,v){
 }
 function mktHTML(){
   const y=yq(),vol=marketVol(y),sh=segShares(y);
-  let h=`<section class="cgrp"><h3>Le marché en ${G.y}</h3><div class="tiles">${tile('Voitures neuves par an',nf(vol,-2),SHOCK[G.y]?'marché perturbé cette année':'')}${tile('Concurrents',nf(itp(NCOMP,y)),'marques en activité')}${tile('Voiture populaire',moneyF(refPrice(y)),`prix moyen, en ${curName(G.y)}`)}${tile('Votre part',G.lastQ&&vol?nf(G.lastQ.units*4/vol*100,2)+' %':'—','au dernier trimestre')}</div></section>`;
+  let h=`<section class="cgrp"><h3>Le marché en ${G.y}</h3><div class="tiles">${tile('Voitures neuves par an',nf(vol,-2),SHOCK[G.y]?'marché perturbé cette année':'')}${tile('Concurrents',nf(itp(NCOMP,y)),typeof rivAlive==='function'?`marques en activité, dont ${rivAlive().length} constructeurs connus`:'marques en activité')}${tile('Voiture populaire',moneyF(refPrice(y)),`prix moyen, en ${curName(G.y)}`)}${tile('Votre part',G.lastQ&&vol?nf(G.lastQ.units*4/vol*100,2)+' %':'—','au dernier trimestre')}</div></section>`;
   h+=`<section class="cgrp"><h3>Ce que les clients attendent</h3><p class="grp-note">Voiture moyenne de chaque clientèle en ${G.y}. Faire mieux attire les acheteurs ; les attentes montent chaque année.</p><div class="tbl-w"><table class="ctbl"><thead><tr><th>Clientèle</th><th class="n">Part du marché</th><th class="n">Puissance</th><th class="n">Vitesse maxi</th><th class="n">Prix moyen</th><th>Ce qui compte</th></tr></thead><tbody>${SEGS.map((s,i)=>`<tr><td><b>${s.n}</b></td><td class="n">${nf(sh[i]*100)} %</td><td class="n">${nf(itp(REF.P,y)*s.sp)} ch</td><td class="n">${nf(itp(REF.V,y)*s.sv,-1)} km/h</td><td class="n">${moneyF(refPrice(y,s))}</td><td>${segWhat(s,y)}</td></tr>`).join('')}</tbody></table></div></section>`;
+  if(typeof rivHTML==='function') h+=rivHTML();
   const up=REGS.filter(r=>r.ya>=G.y);
   h+=`<section class="cgrp"><h3>Réglementation</h3>${up.length?`<ul class="news">${up.map(r=>`<li class="nw-warn"><span class="eyebrow">${r.y===r.ya?r.y:`${r.y} · ${r.ya}`}</span><b>${r.n}</b><p>Exigé : ${r.need}. ${r.y===r.ya?`Pour toutes les voitures vendues à partir de ${r.y}.`:`Nouveaux modèles à partir de ${r.y}, toutes les voitures vendues à partir de ${r.ya}.`}</p></li>`).join('')}</ul>`:'<p class="grp-note">Toutes les normes connues sont en vigueur.</p>'}</section>`;
   const nx=TECHS.filter(t=>t[3]>G.y&&t[3]<=G.y+10).slice(0,12);

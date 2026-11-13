@@ -907,3 +907,21 @@ html.phone-land .jr{grid-template-columns:1fr 1fr}
 html.phone-land .jr::after{display:block}
 html.phone-land .jr-page{padding:16px 16px 20px}
 html.phone-land .jr-page+.jr-page{border-top:0}
+
+/* ── Chantier « Concurrents » : classement des constructeurs ── */
+.riv-rank{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 12px;border:1px solid var(--rule);background:var(--sheet);font-size:14px}
+.riv-l{list-style:none;display:flex;flex-direction:column;gap:8px}
+.riv-l>li{border:1px solid var(--rule);padding:8px 10px;min-width:0}
+.riv-l>li.riv-me{border-color:var(--accent)}
+.riv-h{display:flex;align-items:center;gap:10px;min-width:0}
+.riv-n{font-family:var(--f-d);font-size:20px;min-width:26px;text-align:center;color:var(--muted)}
+.riv-id{flex:1 1 auto;min-width:0}
+.riv-id b,.riv-id small{display:block;overflow-wrap:anywhere}
+.riv-id small,.riv-s small{color:var(--muted);font-size:12px}
+.riv-s{text-align:right;flex:0 0 auto}
+.riv-s b{display:block;font-size:15px}
+.riv-m{list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;padding-left:36px;font-size:12.5px}
+.riv-m li{min-width:0;overflow-wrap:anywhere}
+.riv-m li b{margin-right:6px}
+.riv-m li span{color:var(--muted)}
+@media (max-width:600px){.riv-m{padding-left:0}}
