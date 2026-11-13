@@ -50,7 +50,7 @@ function openAtelier(name){
    <div class="atl-cross" aria-hidden="true"></div><div class="atl-label" id="atlLabel" hidden></div>
    <div class="atl-pad" id="atlPad" hidden><button type="button" data-mv="f" aria-label="Avancer">▲</button><button type="button" data-mv="l" aria-label="Gauche">◀</button><button type="button" data-mv="b" aria-label="Reculer">▼</button><button type="button" data-mv="r" aria-label="Droite">▶</button></div>
    <div class="atl-hud"><div class="atl-prog" aria-hidden="true"><i id="atlProg"></i></div><div class="atl-step"><span class="eyebrow" id="atlCount"></span><b id="atlTitle"></b><p id="atlText"></p><p class="atl-tool" id="atlTool"></p></div>
-    <div class="atl-act"><button class="btn" type="button" id="atlTake">Prendre la place de l'ingénieur</button><button class="chip-btn" type="button" id="atlHint" hidden>Indice</button><button class="chip-btn" type="button" id="atlGive" hidden>Rendre la main à l'ingénieur</button></div>
+    <div class="atl-act"><button class="btn" type="button" id="atlTake">Prendre la place de l'ingénieur</button><button class="chip-btn" type="button" id="atlHint" hidden>Indice</button><button class="chip-btn" type="button" id="atlGive" hidden>Rendre la main<span class="atl-long"> à l'ingénieur</span></button></div>
     <p class="atl-msg" id="atlMsg" role="status"></p><div class="atl-inv" id="atlInv" role="group" aria-label="Inventaire" hidden></div></div>
    <button class="atl-use" type="button" id="atlUse" hidden><b>E</b> Saisir / Poser</button>`;
   document.body.appendChild(ov);document.body.classList.add('lfx-on');
@@ -63,7 +63,8 @@ function openAtelier(name){
   for(const m of A.shellMats){m.transparent=false;m.opacity=1;m.depthWrite=true;m.needsUpdate=true;}
   A.root.traverse(o=>{o.visible=true;});
   AT={ov,cv,A,T,name,mode:'cine',spd:1,t:0,last:performance.now(),step:0,phase:0,ph:0,keys:{},yaw:0,pitch:-.12,pos:new T.Vector3(0,1650,1900),held:null,inv:[],sel:0,bolts:[],errs:0,t0:performance.now(),done:false,hint:null};
-  atBuildScene();atBuildSteps();atDetail();atHUD();atAmb();
+  atFit();atBuildScene();atBuildSteps();atDetail();atHUD();atAmb();
+  AT.onFit=()=>atFit();window.addEventListener('resize',AT.onFit);window.addEventListener('orientationchange',AT.onFit);
   // interactions
   ov.addEventListener('click',e=>{const b=e.target.closest('button');if(!b) return;
     if(b.id==='atlClose') closeAtelier();
@@ -77,7 +78,7 @@ function openAtelier(name){
     else if(b.dataset.inv!=null) atSelect(+b.dataset.inv);});
   let drag=null;
   cv.addEventListener('pointerdown',e=>{if(drag) return;drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,id:e.pointerId,t:performance.now()};try{cv.setPointerCapture(e.pointerId);}catch(err){}});
-  cv.addEventListener('pointermove',e=>{if(!AT) return;AT.mouse=e.pointerType==='mouse'?{x:e.clientX,y:e.clientY}:null;if(!drag||e.pointerId!==drag.id) return;if(AT.mode==='fp'){const k=e.pointerType==='mouse'?.0042:.0065;AT.yaw-=(e.clientX-drag.x)*k;AT.pitch=clamp(AT.pitch-(e.clientY-drag.y)*k*.85,-1.2,.9);}drag.x=e.clientX;drag.y=e.clientY;});
+  cv.addEventListener('pointermove',e=>{if(!AT) return;AT.mouse=e.pointerType==='mouse'?{x:e.clientX,y:e.clientY}:null;if(!drag||e.pointerId!==drag.id) return;if(AT.mode==='fp'){const k=e.pointerType==='mouse'?.0042:.0065;let dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(AT.rot){const t=dx;dx=dy;dy=-t;}AT.yaw-=dx*k;AT.pitch=clamp(AT.pitch-dy*k*.85,-1.2,.9);}drag.x=e.clientX;drag.y=e.clientY;});
   cv.addEventListener('wheel',e=>{if(!AT||AT.mode!=='fp'||!AT.inv.length) return;e.preventDefault();atSelect((AT.sel+(e.deltaY>0?1:-1)+AT.inv.length)%AT.inv.length);},{passive:false});
   const endDrag=e=>{if(!drag||!AT||e.pointerId!==drag.id) return;const moved=Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0),quick=performance.now()-drag.t<450;const d=drag;drag=null;if(e.type==='pointerup'&&AT.mode==='fp'&&moved<(e.pointerType==='mouse'?7:16)&&quick) atTap(e.clientX,e.clientY);};
   cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
@@ -91,7 +92,7 @@ function openAtelier(name){
 }
 function closeAtelier(){
   if(!AT) return;const a=AT;AT=null;
-  document.removeEventListener('keydown',a.onKey);document.removeEventListener('keyup',a.onKey);window.removeEventListener('blur',a.onBlur);
+  document.removeEventListener('keydown',a.onKey);document.removeEventListener('keyup',a.onKey);window.removeEventListener('blur',a.onBlur);window.removeEventListener('resize',a.onFit);window.removeEventListener('orientationchange',a.onFit);try{if(document.fullscreenElement) document.exitFullscreen();if(screen.orientation&&screen.orientation.unlock) screen.orientation.unlock();}catch(e){}
   try{a.A.scene.traverse(o=>{if(o.geometry) o.geometry.dispose();});a.A.renderer.dispose();a.A.renderer.forceContextLoss();}catch(e){}
   try{for(const n of a.amb||[]) n.stop();}catch(e){}
   a.ov.remove();document.body.classList.remove('lfx-on');fxStop();
@@ -201,6 +202,7 @@ function atSetMode(m){
   AT.inv=[];AT.sel=0;
   AT.held=null;AT.phase=0;AT.ph=0;AT.bp=null;AT.eng.carry=null;atClearBolts();AT.ghost.visible=false;AT.beacon.visible=false;
   AT.mode=m;AT.eng.g.visible=m==='cine';
+  if(m==='fp'&&atPhone()){try{const de=document.documentElement,r=de.requestFullscreen&&de.requestFullscreen();if(r&&r.then) r.then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{});}catch(e){}}
   if(m==='fp'){const tall=AT.cv.clientHeight>AT.cv.clientWidth;AT.pos.set(0,1650,tall?2300:2100);AT.yaw=0;AT.pitch=tall?-.42:-.16;AT.t0=performance.now();}
   atHUD(m==='fp'?'À vous : visez une pièce et appuyez sur E pour la saisir (jusqu\'à 6 dans l\'inventaire). Choisissez la pièce en main avec les cases ou les touches 1 à 6, puis visez le moteur et appuyez sur E pour la poser. Z Q S D pour marcher, R pour reposer.':'');atInvUI();if(AT.fpHands) AT.fpHands.visible=false;
 }
@@ -280,7 +282,7 @@ function atSelect(i){if(!AT.inv[i]) return;AT.sel=i;atShowHeld();atInvUI();const
 function atUse(){if(!AT||AT.mode!=='fp'||AT.done) return;const r=AT.cv.getBoundingClientRect(),m=AT.mouse;atTap(m?m.x:r.left+r.width/2,m?m.y:r.top+r.height/2);}
 function atTap(x,y){
   if(!AT||AT.done||AT.phase===5) return;
-  const {T,A}=AT,r=AT.cv.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((x-r.left)/r.width*2-1,-((y-r.top)/r.height*2-1)),A.cam);
+  const {T,A}=AT,q=atXY(x,y),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(q.x/q.w*2-1,-(q.y/q.h*2-1)),A.cam);
   const s=atStep(),msg=t=>{$('#atlMsg',AT.ov).textContent=t;};
   if(AT.phase===2){const hits=ray.intersectObjects(AT.bolts.filter(b=>!b.done).map(b=>b.sp));if(!hits.length) return;const want=AT.bolts.find(q=>q.k===AT.boltI),hit=hits.find(h=>h.object===want.sp)||hits[0],b=AT.bolts.find(q=>q.sp===hit.object);
     if(b.k===AT.boltI) atBolt(b);else{AT.errs++;atSnd('err');msg(`Respectez l'ordre de serrage : vis n° ${AT.boltI+1} d'abord, sinon la pièce se déforme.`);}return;}
@@ -363,14 +365,14 @@ function atFrame(now){
 function atLabel(){
   const lab=$('#atlLabel',AT.ov);if(!lab) return;
   if(AT.mode!=='fp'||AT.done){lab.hidden=true;return;}
-  const {T,A}=AT,r=AT.cv.getBoundingClientRect(),m=AT.mouse,sx=m?m.x:r.left+r.width/2,sy=m?m.y:r.top+r.height/2;
-  const ray=new T.Raycaster();ray.far=2600;ray.setFromCamera(new T.Vector2((sx-r.left)/r.width*2-1,-((sy-r.top)/r.height*2-1)),A.cam);
+  const {T,A}=AT,r0=AT.cv.getBoundingClientRect(),m=AT.mouse,q=atXY(m?m.x:r0.left+r0.width/2,m?m.y:r0.top+r0.height/2);
+  const ray=new T.Raycaster();ray.far=2600;ray.setFromCamera(new T.Vector2(q.x/q.w*2-1,-(q.y/q.h*2-1)),A.cam);
   const cur=atStep(),bench=atAimPart(ray,p=>!p.placed&&p.g.parent===A.root),eng=atAimPart(ray,p=>p.placed),best=bench&&(!eng||bench.d<eng.d)?bench.p:eng?eng.p:null;
   if(!best){lab.hidden=true;return;}
   const next=cur&&cur.parts.includes(best);
   lab.innerHTML=`<b>${best.name}</b>${best.desc?`<i>${String(best.desc).slice(0,110)}</i>`:''}<span>${best.placed?'Déjà montée':(next?'À monter maintenant':'À monter plus tard')+' · E pour saisir'}</span>`;
   lab.className='atl-label'+(next?' nx':best.placed?' ok':'');lab.hidden=false;
-  lab.style.left=clamp(sx-r.left,90,r.width-90)+'px';lab.style.top=Math.max(70,sy-r.top-54)+'px';
+  lab.style.left=clamp(q.x,90,q.w-90)+'px';lab.style.top=Math.max(70,q.y-54)+'px';
 }
 
 // ── pièces d'atelier supplémentaires : coussinets, pompe à huile, joint de culasse (moteurs à pistons en ligne ou en V)
@@ -454,4 +456,17 @@ function atAimPart(ray,ok){
     const c=p.px.getWorldPosition(new T.Vector3()),half=Math.max(60,Math.max(p.size.x,p.size.y,p.size.z)/2),sc=ray.ray.distanceToPoint(c)/half+h.distance*1e-4-(cur&&cur.parts.includes(p)?.25:0);
     if(sc<bs){bs=sc;best={p,d:h.distance};}}
   return best;
+}
+
+// ── téléphone : toujours en paysage. Si l'écran reste en portrait (rotation verrouillée, iPhone), l'atelier pivote de 90°.
+function atPhone(){return Math.min(innerWidth,innerHeight)<560&&matchMedia('(pointer:coarse)').matches;}
+function atFit(){
+  if(!AT) return;const w=innerWidth,h=innerHeight,rot=h>w&&atPhone(),ov=AT.ov;AT.rot=rot;
+  ov.classList.toggle('rot',rot);ov.style.width=rot?h+'px':'';ov.style.height=rot?w+'px':'';ov.style.left=rot?w+'px':'';
+  ov.classList.toggle('atl-land',(rot?w:h)<560);
+  ov.classList.toggle('atl-xs',(rot?h:w)<700&&(rot?w:h)<560);
+}
+function atXY(x,y){
+  const cv=AT.cv;if(AT.rot) return {x:y,y:innerWidth-x,w:cv.clientWidth,h:cv.clientHeight};
+  const r=cv.getBoundingClientRect();return {x:x-r.left,y:y-r.top,w:r.width,h:r.height};
 }
