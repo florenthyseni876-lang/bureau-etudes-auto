@@ -3913,7 +3913,7 @@ function renderCbar(){
 }
 function advance(n){
   const y0=G.y,nt0=G.techs.length;G.qt=0;
-  for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.comp&&G.comp.show&&G.comp.show.length) break;if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
+  for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.comp&&G.comp.show&&G.comp.show.length) break;if(i<n-1&&typeof mkBusy==='function'&&mkBusy()) break; /* décision à prendre */if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
   renderCbar();
   if(isCTab(ui.tab)||(G.y===y0&&G.techs.length===nt0)){render();}else{buildControls();render();}
   if(G.pendingNews&&G.pendingNews.length){const id=G.pendingNews.shift();saveGame();const m=G.models.find(x=>x.id===id);if(m&&m.press) showLaunch(m);}
