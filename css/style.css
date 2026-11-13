@@ -907,3 +907,32 @@ html.phone-land .jr{grid-template-columns:1fr 1fr}
 html.phone-land .jr::after{display:block}
 html.phone-land .jr-page{padding:16px 16px 20px}
 html.phone-land .jr-page+.jr-page{border-top:0}
+
+/* ── Chantier « Compétition » ── */
+.cp-lbl{font-family:var(--f-m);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cp-opts{display:flex;flex-wrap:wrap;gap:6px}
+.cp-opts .chip-btn{padding:6px 10px;font-size:12px;white-space:normal;text-align:left}
+.cp-opts .chip-btn[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--ink)}
+.lfx-race{background:rgba(5,9,15,.94);display:grid;place-items:center;padding:8px}
+.rc{width:min(980px,100%);max-height:100%;overflow:auto;background:var(--sheet);color:var(--ink);border:1.5px solid var(--ink);padding:12px 14px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box}
+.rc-h{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.rc-h h2{font-family:var(--f-d);font-weight:700;font-size:clamp(20px,4vw,30px);text-transform:uppercase;letter-spacing:.03em;line-height:1.05;margin:0}
+.rc-lap{font-family:var(--f-m);font-size:13px}
+.rc-main{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.rc-cv{background:#1c2128;border:1px solid var(--rule);flex:0 1 auto;max-width:100%}
+.rc-board{list-style:none;margin:0;padding:0;flex:0 0 240px;min-width:150px;display:flex;flex-direction:column;gap:2px;font-size:12px}
+.rc-board li{display:grid;grid-template-columns:20px 10px 1fr auto;gap:6px;align-items:center;padding:2px 4px;border-bottom:1px solid var(--rule)}
+.rc-board li.me{background:var(--inset);font-weight:600}
+.rc-board li.out{opacity:.55}
+.rc-board i{display:block;width:10px;height:10px;border-radius:2px}
+.rc-pos{font-family:var(--f-m);text-align:right}
+.rc-nm small{display:block;color:var(--muted);font-size:10.5px;line-height:1.1}
+.rc-st{font-family:var(--f-m);font-size:10px;text-transform:uppercase}
+.rc-sum{margin:0}
+.rc-btns{display:flex;gap:8px;justify-content:flex-end}
+@media (max-width:700px){.rc-main{flex-direction:column}.rc-board{width:100%;flex:none}}
+html.phone-land .rc-main{flex-direction:row}
+html.phone-land .rc{padding:8px 10px;gap:5px}
+html.phone-land .rc-board{flex:0 0 150px;min-width:130px;width:auto;font-size:11px}
+html.phone-land .rc-board li{padding:1px 3px}
+html.phone-land .rc-nm small{display:none}
