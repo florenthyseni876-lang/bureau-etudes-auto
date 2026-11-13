@@ -34,6 +34,7 @@ function showHome(){
   $('#hContinue').hidden=!sv;
   if(sv) $('#homeContSub').textContent=`${sv.co} · ${Q[sv.q]} ${sv.y} · trésorerie ${moneyF(sv.cash,sv.y)}${sv.over?' · faillite':''}`;
   $('#homeMenu').hidden=false;$('#homeNew').hidden=true;
+  if(typeof MW!=='undefined'&&MW.homeInfo) MW.homeInfo();   // mode Mécanicien : sous-titre du bouton
   h.hidden=false;document.body.classList.add('home-on');
   const b=$('#homeMenu button');if(b) b.focus({preventScroll:true});
 }
@@ -50,6 +51,7 @@ function initHome(){
     if(b.id==='hContinue'){const sv=loadGame();if(sv) setMode('carriere',sv);}
     else if(b.id==='hNew'){$('#homeMenu').hidden=true;$('#homeNew').hidden=false;$('#coName').focus();$('#newWarn').hidden=!loadGame();}
     else if(b.id==='hFree') setMode('libre');
+    else if(b.id==='hMeca'){if(typeof MW!=='undefined') MW.open();}   // mode Mécanicien (js/40-meca-monde.js)
     else if(b.id==='hBack'){$('#homeMenu').hidden=false;$('#homeNew').hidden=true;}
     else if(b.id==='hFound'){
       const y=+($('input[name=eraY]:checked')||{value:1900}).value,diff=($('input[name=diff]:checked')||{value:'nor'}).value,co=$('#coName').value.trim()||'Automobiles Nouvelles';
