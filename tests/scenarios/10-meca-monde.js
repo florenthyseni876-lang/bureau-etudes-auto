@@ -91,11 +91,11 @@ module.exports = async function mecaMonde(page, env) {
   verifier(Math.hypot(ap.p.x - av.x, ap.p.z - av.z) < 1.5, `position non restaurée (${ap.p.x.toFixed(1)}, ${ap.p.z.toFixed(1)} au lieu de ${av.x.toFixed(1)}, ${av.z.toFixed(1)})`);
   verifier(ap.m === 345 && ap.f === 'ok', 'argent ou drapeaux non restaurés');
 
-  // 6. sommeil : 6 h du jour suivant
+  // 6. sommeil : réveil à 7 h 30 le jour suivant (le nouveau jour commence à 6 h au passage)
   await page.evaluate(() => __mw.sleep());
   await page.waitForFunction(() => !__mw.paused, null, { timeout: 8000 });
   const j = await page.evaluate(() => [__mw.S.day, __mw.S.min]);
-  verifier(j[0] === 2 && j[1] === 360, `dormir ne mène pas à 6 h le lendemain (jour ${j[0]}, minute ${j[1]})`);
+  verifier(j[0] === 2 && j[1] === 450, `dormir ne mène pas à 7 h 30 le lendemain (jour ${j[0]}, minute ${j[1]})`);
   await verifierTextes(page, 'mode Mécanicien');
   return 'marche, voiture, carte, panneau, sauvegarde et sommeil';
 };

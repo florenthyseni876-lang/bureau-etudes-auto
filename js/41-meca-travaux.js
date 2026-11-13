@@ -20,6 +20,7 @@
    Données sauvegardées : MW.S.jobs = {cars, seq, next, outils, stats, hist, essai}. */
 const MWJ=(()=>{
 const PI=Math.PI,INV_MAX=12,OPEN0=480,OPEN1=1140,SEUIL=75;
+const XP_K=2.0; /* multiplicateur d'expérience gagnée par voiture rendue (équilibrage du rythme) */
 const SKILLS=['entretien','freinage','liaison','moteur','transmission','electricite','diagnostic'];
 const SK_NOM={entretien:'Entretien',freinage:'Freinage',liaison:'Liaison au sol',moteur:'Moteur',transmission:'Transmission',electricite:'Électricité',diagnostic:'Diagnostic'};
 const OUTILS={cles:{nom:'Jeu de clés et douilles',prix:0},cle_dyn:{nom:'Clé dynamométrique',prix:85},valise:{nom:'Valise de diagnostic',prix:220}};
@@ -100,7 +101,7 @@ garage2:[['Ventoux','Alba','citadine'],['Ventoux','Marais','berline'],['Ventoux'
 garage3:[['Aurèle','Solenne','berline'],['Aurèle','Régence','berline'],['Aurèle','Altesse','suv']],
 garage4:[['Brivio','Fulmine','sport'],['Brivio','Corsa 8','sport'],['Brivio','Rapace','sport']]};
 const KMR={garage1:[45000,210000],garage2:[10000,120000],garage3:[6000,70000],garage4:[4000,50000]};
-const TAUX={garage1:55,garage2:65,garage3:95,garage4:90};
+const TAUX={garage1:62,garage2:88,garage3:118,garage4:155}; /* taux horaire de main-d'œuvre facturé (€/h) : quartier, généraliste, prestige, sport */
 const KFAC={citadine:1,berline:1.2,utilitaire:1.2,suv:1.5,sport:2.2};
 const COLS=[0xb03030,0x2f5da8,0xe8e8e8,0x2a2a2e,0x3f8a4a,0xd8b22a,0x7a7f88,0xc86a1c,0x6a3a8a];
 const NOMS=['Dupuis','Lambert','Moreau','Fabre','Garnier','Roux','Lefèvre','Marchand','Perrin','Collet','Benoît','Masson','Vidal','Carpentier','Girard','Noël','Blanc','Rey','Barre','Colin'];
@@ -339,7 +340,7 @@ function evalJob(c){
  const late=Math.max(0,openT()-c.promis),retard=Math.min(2,Math.floor(late/30)*.5);
  let n=5-manque.length*1.5-Math.min(3,inut.length)-retard;if(nonResolu) n=1;
  const note=Math.round(clamp(n,1,5)),mult=note>=4?1:note===3?.8:.5;
- for(const k in comp) comp[k]=Math.round(comp[k]*mult);
+ for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
  if(nonResolu){pieces=0;mo=0;lines.length=0;}
  const mainOeuvre=R2(mo/60*c.taux),facture=R2(pieces+mainOeuvre);
  return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,perte:R2(inut.reduce((a,id)=>a+PARTS[id].prix,0))};}
@@ -360,7 +361,7 @@ function done(c){
  const tot=R2(job.pay+refund);if(tot) MW.money(tot,c.noir?'Travail au noir (liquide) : '+voit(c):'Voiture rendue : '+voit(c));
  j.stats.rendues++;j.stats.note+=ev.note;j.stats.gain=R2(j.stats.gain+tot);
  j.hist.unshift({jour:s.day,client:c.client,voiture:voit(c),facture:ev.facture,pay:job.pay,note:ev.note});while(j.hist.length>15) j.hist.pop();
- removeCar(c,true);j.next=Math.max(j.next,absT()+rint(6,16));hudJobs();
+ removeCar(c,true);j.next=Math.max(j.next,absT()+rint(4,10));hudJobs();
  MW.emit('jobDone',job,ev.note);return job;}
 
 /* ═══════════ Panneaux ═══════════ */
@@ -537,7 +538,7 @@ function onMinute(){
   if(openT()-c.ot0>2200&&!(ess&&ess.c===c)){removeCar(c,true);MW.S.rep=clamp(R2((MW.S.rep||0)-2),0,100);MW.toast(`${c.client} a repris sa ${voit(c)} : trop d'attente. Votre réputation en souffre.`,'crit');}}
  hudJobs();
  if(!e||MW.S.min<OPEN0||MW.S.min>=OPEN1||j.cars.filter(c=>!c.noir).length>=maxCars()||absT()<j.next) return;
- if(makeCar()) j.next=absT()+rint(12,32);}
+ if(makeCar()) j.next=absT()+rint(10,24);}
 function init(){
  const j=J();ensureBar();
  for(const id in RT){MW.scene.remove(RT[id].g);delete RT[id];}
@@ -551,7 +552,7 @@ MW.on('start',init);
 MW.on('open',()=>{ensureBar();if(MW.S&&MW.S.jobs) invUI();});
 MW.on('close',()=>{if(ess) essaiEnd(true);});
 MW.on('minute',onMinute);
-MW.on('day',()=>{if(MW.S&&MW.S.jobs) J().next=absT()+120+rint(0,25);});
+MW.on('day',()=>{if(MW.S&&MW.S.jobs) J().next=absT()+120+rint(0,10);});
 let fr=0;
 MW.on('tick',dt=>{
  if(!MW.S||!MW.S.jobs) return;animate(dt);
@@ -563,7 +564,7 @@ MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
 const api={PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();

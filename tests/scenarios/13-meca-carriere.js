@@ -49,14 +49,14 @@ module.exports = async function mecaCarriere(page, env) {
 
   // 2. payFor et travaux simulés : l'expérience monte, la promotion arrive
   const pay = await page.evaluate(() => MWC.payFor({ facture: 120, mainOeuvre: 60 }));
-  verifier(pay === 18, `part d'apprenti inattendue : ${pay}`);
+  verifier(pay === 21, `part d'apprenti inattendue : ${pay}`);
   await page.evaluate(() => {
-    __mw.S.xp.entretien = 220;
-    for (let i = 0; i < 4; i++) __mw.emit('jobDone', { id: 'j' + i, client: 'Client', voiture: 'Citadine', travaux: ['Vidange'], facture: 90, mainOeuvre: 45, competences: ['entretien'] }, 4);
+    __mw.S.xp.entretien = 480;
+    for (let i = 0; i < 6; i++) __mw.emit('jobDone', { id: 'j' + i, client: 'Client', voiture: 'Citadine', travaux: ['Vidange'], facture: 90, mainOeuvre: 45, competences: ['entretien'] }, 4);
   });
   const niv = await page.evaluate(() => MWC.level('entretien'));
-  verifier(niv >= 3, `niveau d'entretien attendu ≥ 3, obtenu ${niv}`);
-  verifier((await poste()).id === 'meca', "la promotion de mécanicien n'a pas lieu après 4 voitures rendues");
+  verifier(niv >= 4, `niveau d'entretien attendu ≥ 4, obtenu ${niv}`);
+  verifier((await poste()).id === 'meca', "la promotion de mécanicien n'a pas lieu après 6 voitures rendues");
   verifier(await page.evaluate(() => MWC.state().stats.vid >= 1), 'la première vidange n\'est pas comptée');
 
   // 3. panneau Carrière (touche C)
@@ -79,20 +79,20 @@ module.exports = async function mecaCarriere(page, env) {
   await fermer();
 
   // 5. entretien d'embauche chez Ventoux
-  await page.evaluate(() => { __mw.S.xp.entretien = 800; __mw.S.xp.freinage = 250; __mw.S.xp.moteur = 250; });
+  await page.evaluate(() => { __mw.S.xp.entretien = 800; __mw.S.xp.freinage = 800; __mw.S.xp.moteur = 250; __mw.S.rep = 50; });
   await ouvrir('garage2', 'interview');
   await repondreJuste();
   await attendreCondition(page, () => MWC.employer().id === 'ventoux', "l'entretien réussi n'embauche pas chez Ventoux");
   await fermer();
   const ev = await poste();
-  verifier(ev.zone === 'garage2' && ev.paie === 'mois' && ev.salaire > 1000, `employeur Ventoux inattendu : ${JSON.stringify(ev)}`);
-  verifier(await page.evaluate(() => MWC.payFor({ facture: 500, mainOeuvre: 200 })) === 0, 'la paie au mois ne devrait rien verser à la tâche');
+  verifier(ev.zone === 'garage2' && ev.paie === 'mois' && ev.salaire > 1000 && ev.sem === ev.salaire, `employeur Ventoux inattendu : ${JSON.stringify(ev)}`);
+  verifier(await page.evaluate(() => MWC.payFor({ facture: 500, mainOeuvre: 200 })) === 20, 'la prime de rendement des salariés (10 % de la main-d\'œuvre) est incorrecte');
 
-  // 6. paie au mois : le 1er du mois de jeu
-  const m0 = await page.evaluate(() => { __mw.S.day = 30; __mw.S.min = 359; return __mw.S.money; });
+  // 6. paie à la semaine : tous les 7 jours de jeu
+  const m0 = await page.evaluate(() => { __mw.S.day = 35; __mw.S.min = 359; return __mw.S.money; });
   await page.evaluate(() => __mw.addMin(3));
   const m1 = await page.evaluate(() => __mw.S.money);
-  verifier(m1 - m0 >= 2000, `la paie du mois n'est pas versée (${m0} puis ${m1})`);
+  verifier(m1 - m0 >= 1500, `la paie de la semaine n'est pas versée (${m0} puis ${m1})`);
 
   // 7. refus : un candidat trop faible chez Scuderia Brivio ne peut pas passer l'entretien
   await ouvrir('garage4');
@@ -150,7 +150,7 @@ module.exports = async function mecaCarriere(page, env) {
   await page.evaluate(() => {
     const m = measure(M.E, M.C);
     MWC.setMission({ id: 'y', titre: 'Mission réalisable', grade: 0, essais: 0, cahier: [{ k: 'P', lo: Math.floor(m.P - 20), hi: Math.ceil(m.P + 20) }, { k: 'cyl', n: M.E.c.n }] });
-    MWC.state().qual = 1;
+    MWC.state().qual = 2;
   });
   const argent0 = await page.evaluate(() => __mw.S.money);
   await page.click('#mwMis [data-a="sub"]');
@@ -165,14 +165,15 @@ module.exports = async function mecaCarriere(page, env) {
   await ouvrir('terrain');
   verifier(await page.evaluate(() => document.querySelector('[data-mw="found"]').disabled), 'la fondation devrait être refusée sans capital');
   await fermer();
-  await page.evaluate(() => { __mw.S.money = 2300000; __mw.S.rep = 70; });
+  await page.evaluate(() => { __mw.S.money = 80000; __mw.S.rep = 70; });
   await ouvrir('terrain');
   await page.fill('#mwBrand', 'Marque Essai');
   await cliquer(page, '[data-mw="found"]');
   await attendreCondition(page, () => window.__bea && window.__bea.G && window.__bea.G.co === 'Marque Essai', 'la carrière de constructeur ne démarre pas');
-  const g = await page.evaluate(() => ({ y: __bea.G.y, cash: __bea.G.cash, co: __bea.G.co, debt: __bea.G.debt }));
+  const g = await page.evaluate(() => ({ y: __bea.G.y, cash: __bea.G.cash, co: __bea.G.co, debt: __bea.G.debt, fac: __bea.G.fac, rep: __bea.G.rep }));
   verifier(g.y >= 2024, `année de départ inattendue : ${g.y}`);
-  verifier(g.cash >= 2.2e6 && g.cash <= 2.4e6, `capital inattendu : ${g.cash}`);
+  verifier(g.cash >= 1.5e8 && g.cash <= 2.5e8, `capital inattendu (apport personnel + investisseurs) : ${g.cash}`);
+  verifier(g.fac === 2 && g.rep > 30, `usine ou réputation de départ inattendues : niveau ${g.fac}, réputation ${g.rep}`);
   verifier(await page.evaluate(() => !document.getElementById('mwRoot') || document.getElementById('mwRoot').hidden), 'le mode Mécanicien devrait être fermé');
   await attendreVisible(page, '#cbar', 'la barre de carrière constructeur est absente');
   await verifierTextes(page, 'carrière constructeur fondée');
