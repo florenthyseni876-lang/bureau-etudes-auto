@@ -113,7 +113,7 @@ function measure(E,C,s){
   const aero=G&&G.techs.includes('p_soufflerie')?1:0;
   return {P:E.peakP,T:E.peakT,v:C.vmax*(1+.02*aero),t100:C.t100,mix:C.conso.mix*(1-.03*aero),comf:C.comfort,saf:C.safety,rel:E.rel,prest:C.prest,pract:C.pract,off:C.off,hand:C.handling,cost:C.cost,mass:C.mass,body:s.body,fit:C.fit.ok,emis:!!E.emis,style:s.style,cat:s.cat,di:s.fuelSys==='di'||s.fuelSys==='dual',abs:!!s.abs,esp:!!s.esp,passive:s.passive,defects,dw,L:E.L,cfg:E.c.lab,diesel:!!FUEL[s.fuel].diesel};
 }
-function unitCost(m,annual){const vf=clamp(1.25-.075*Math.log10(Math.max(annual,10)),.8,1.25);return m.cost*prodF()*vf*eraK(G?yq():2020);}
+function unitCost(m,annual){const vf=clamp(1.25-.075*Math.log10(Math.max(annual,10)),.8,1.25);return m.cost*prodF()*vf*eraK(G?yq():2020)*(G?mkCostF():1);}
 // attractivité d'un modèle pour un segment (1 = voiture moyenne de l'époque)
 function appeal(m,seg,y,price){
   const w=seg.w,ln=Math.log,c=x=>clamp(x,.25,2.5);let L=0;
@@ -202,7 +202,7 @@ function demand(models,y){
     RV.forEach((r,j)=>{r.dem+=vol*sh[i]*RF[j]*Math.pow(RA[j],K)/sum;});
     models.forEach((m,j)=>{const d=vol*sh[i]*fitOf(seg,m.met.body,y)*Math.pow(A[j],K)/sum;out[j].seg[seg.k]=d;out[j].tot+=d;});
   });
-  return out;
+  return mkDemand(models,out,y);
 }
 function news(t,d,k){G.news.unshift({y:G.y,q:G.q,t,d,k:k||'info'});if(G.news.length>80) G.news.length=80;}
 function techsNewIn(y){return TECHS.filter(t=>t[3]===y).map(t=>t[2]);}
@@ -265,7 +265,7 @@ function nextQuarter(){
   if(typeof compQuarter==='function') compQuarter(); /* compétition */
   // ventes
   const prod=G.models.filter(m=>m.st==='prod');
-  const cap=capOfFac(G.fac)/4;let rev=0,cost=0,units=0;
+  const cap=capOfFac(G.fac)/4*mkCap();let rev=0,cost=0,units=0;
   if(prod.length){
     const d=demand(prod,y).map(x=>x.tot/4),tot=d.reduce((a,b)=>a+b,0),k=tot>cap?cap/tot:1;
     prod.forEach((m,i)=>{
@@ -284,6 +284,7 @@ function nextQuarter(){
   G.cash+=profit;
   G.acc.rev+=rev;G.acc.cost+=cost+upk+int;G.acc.units+=units;G.acc.profit+=profit;
   G.lastQ={rev,cost,upk,int,profit,units,cap:cap*4};
+  mkAfterQuarter();
   coverCash();
   if(G.cash<0){G.negQ++;if(G.negQ>=2){G.over=true;news('Faillite',`${G.co} ne peut plus payer ses fournisseurs. La société est liquidée.`,'crit');saveGame();return;}news('Trésorerie négative','La banque refuse d\'avancer plus. Sans redressement le trimestre prochain, c\'est la faillite.','crit');}
   else G.negQ=0;

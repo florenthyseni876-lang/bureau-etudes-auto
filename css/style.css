@@ -953,3 +953,22 @@ html.phone-land .rc-nm small{display:none}
 .riv-m li b{margin-right:6px}
 .riv-m li span{color:var(--muted)}
 @media (max-width:600px){.riv-m{padding-left:0}}
+/* ── Marketing et événements ── */
+.mk-l{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:8px}
+.mk-l li{display:flex;gap:12px;justify-content:space-between;align-items:center;border:1px solid var(--rule);padding:10px 12px;min-width:0}
+.mk-l li.is-on{border-color:var(--ink)}
+.mk-l li>div{min-width:0}
+.mk-l li>div:first-child{flex:1 1 auto}
+.mk-l p{margin:2px 0 4px}
+.mk-l small{display:block;opacity:.8}
+.mk-dlg{max-width:520px;max-height:100%;overflow-y:auto}
+.mk-opts{display:flex;flex-direction:column;gap:8px}
+.mk-opt{display:flex;flex-direction:column;gap:4px;text-align:left;background:var(--sheet);border:1.5px solid var(--ink);padding:10px 12px;cursor:pointer;min-width:0}
+.mk-opt:hover,.mk-opt:focus-visible{background:var(--inset)}
+.mk-opt b{font-size:16px}
+.mk-opt span{font-size:14px;line-height:1.35}
+@media (max-width:600px){.mk-l li{flex-direction:column;align-items:stretch}}
+html.phone-land .mk-l li{flex-direction:row}
+html.phone-land .mk-dlg{padding:12px 14px;gap:6px}
+html.phone-land .mk-opts{flex-direction:row}
+html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
