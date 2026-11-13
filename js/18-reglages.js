@@ -3,7 +3,7 @@
 const o=(obj)=>Object.entries(obj).map(([k,v])=>[k,v.n]);
 const UI={
  moteur:[
-  {t:'Moteurs tout prêts',note:()=>'Architectures et cotes inspirées de moteurs de série, valeurs approchées. Les puissances simulées restent des ordres de grandeur ; chaque réglage reste modifiable ensuite.',items:[{k:'engSel',type:'engsel'}]},
+  {t:'Mes moteurs et moteurs tout prêts',note:()=>'Architectures et cotes inspirées de moteurs de série, valeurs approchées. Les puissances simulées restent des ordres de grandeur ; chaque réglage reste modifiable ensuite.',items:[{k:'myEng',type:'myeng'},{k:'engSel',type:'engsel'}]},
   {t:'Architecture',note:()=>{const E=M.E,q=S.stroke/S.bore;if(E.rot) return `${E.c.full} · ${E.rot} × ${nf(E.disp/E.rot)} cm³ = ${nf(E.disp)} cm³ · respire comme un ${nf(E.disp*2,-1)} cm³ à pistons, car chaque rotor a une combustion par tour d'arbre.`;return `${E.c.full} · ${nf(E.disp)} cm³ · ${nf(E.disp/E.n)} cm³ par cylindre · ${q<.95?'moteur supercarré':q>1.05?'moteur longue course':'moteur carré'} (course/alésage ${nf(q,2)})`;},items:[
    {k:'config',type:'seg',l:'Disposition des cylindres',wide:1,opts:Object.entries(CFG).map(([k,v])=>[k,v.lab,v.full])},
    {k:'bore',type:'range',l:'Alésage',lf:()=>CFG[S.config].rot?'Rayon du rotor':'Alésage',min:60,max:110,step:.5,d:1,u:'mm',hint:'Un grand alésage loge de grosses soupapes : le moteur respire mieux à haut régime.'},
@@ -164,6 +164,7 @@ const UI={
 };
 const ctlUpd=[];
 function makeCtl(it){
+  if(it.type==='myeng') return myEngCtl();
   const id='c_'+it.k;let wrap;
   if(it.type==='seg'||it.type==='toggle'){const d0=it.dis,tg=it.type==='toggle';it=Object.assign({},it,{dis:(S,v)=>eraDis(it.k,tg?true:v)||(d0?d0(S,v):false)});}
   if(it.type==='range'){
