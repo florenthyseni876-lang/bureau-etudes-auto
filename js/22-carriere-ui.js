@@ -1,7 +1,7 @@
 'use strict';
 /* ───────────── Carrière : écran d'accueil et interface ───────────── */
 const BASE_TABS=TABS.slice();
-const CTABS=[['qg','Quartier général'],['gamme','Ma gamme'],['recherche','Recherche'],['usine','Usine et banque'],['marche','Marché'],['vente','Mise en vente']];
+const CTABS=[['qg','Quartier général'],['gamme','Ma gamme'],['recherche','Recherche'],['usine','Usine et banque'],['marche','Marché'],['competition','Compétition'],['vente','Mise en vente']];
 const isCTab=t=>CTABS.some(x=>x[0]===t);
 ui.resAll=false;ui.newPrice=0;ui.newName='';ui.msg='';ui.flash='';ui.wizOk=null;
 
@@ -74,10 +74,11 @@ function renderCbar(){
 }
 function advance(n){
   const y0=G.y,nt0=G.techs.length;G.qt=0;
-  for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
+  for(let i=0;i<n&&!G.over;i++){const k=G.news.length,top=G.news[0];nextQuarter();if(i<n-1&&G.comp&&G.comp.show&&G.comp.show.length) break;if(i<n-1&&G.news[0]!==top&&G.news.slice(0,G.news.length-k+1).some(x=>x.k==='crit')) break;}
   renderCbar();
   if(isCTab(ui.tab)||(G.y===y0&&G.techs.length===nt0)){render();}else{buildControls();render();}
   if(G.pendingNews&&G.pendingNews.length){const id=G.pendingNews.shift();saveGame();const m=G.models.find(x=>x.id===id);if(m&&m.press) showLaunch(m);}
+  if(typeof compShowPending==='function') compShowPending(); /* compétition */
 }
 
 /* ── pages ── */
@@ -85,7 +86,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 function tile(l,v,sub){return `<div class="tile"><span class="eyebrow">${l}</span><b>${v}</b>${sub?`<small>${sub}</small>`:''}</div>`;}
 function stBadge(m){return m.st==='dev'?`<span class="pill">Développement · ${m.devLeft} trim.</span>`:m.st==='prod'?'<span class="pill ok">En production</span>':'<span class="pill off">Arrêté</span>';}
 function careerHTML(t){
-  return ({qg:qgHTML,gamme:gammeHTML,usine:usineHTML,vente:venteHTML,recherche:resHTML,marche:mktHTML}[t]||qgHTML)();
+  return ({qg:qgHTML,gamme:gammeHTML,usine:usineHTML,vente:venteHTML,recherche:resHTML,marche:mktHTML,competition:compHTML}[t]||qgHTML)();
 }
 function lastQHTML(){
   const lq=G.lastQ||{rev:0,profit:0,units:0},cap=FAC[G.fac][1];
@@ -101,6 +102,7 @@ function todo(){
   if(prod.some(m=>m.last&&m.last.lim)) t.push({t:'Votre usine tourne à plein',d:'Des clients repartent sans voiture : agrandissez l\'usine ou augmentez vos prix.',b:'<button class="chip-btn" type="button" data-go="usine">Voir l\'usine</button>'});
   if(prod.length&&prod.every(m=>m.last&&m.last.u===0)) t.push({t:'Aucune vente ce trimestre',d:'Votre prix est peut-être trop élevé, ou la voiture n\'attire aucune clientèle. Comparez-la aux attentes dans la page Marché.',b:'<button class="chip-btn" type="button" data-go="marche">Voir le marché</button>'});
   if(G.resL.length<resSlots()&&G.models.length){const av=TECHS.filter(x=>x[3]<=G.y&&!G.techs.includes(x[0]));if(av.length) t.push({t:G.resL.length?'Un laboratoire est libre':'Aucune recherche en cours',d:`${av.length} technologie${av.length>1?'s':''} disponible${av.length>1?'s':''} à étudier.`,b:'<button class="chip-btn" type="button" data-go="recherche">Choisir une recherche</button>'});}
+  if(typeof compTodo==='function') compTodo(t); /* compétition */
   if(!t.length) t.push({t:'Tout roule',d:'Passez au trimestre suivant, ou préparez un nouveau modèle pour suivre les attentes des clients.'});
   return t;
 }
@@ -119,6 +121,7 @@ function qgHTML(){
    ${card('data-go="gamme"','Ma gamme',G.models.length?`${prod} en vente · ${dev} en développement`:'Aucun modèle pour l\'instant','▤')}
    ${card('data-go="recherche"','Recherche',G.resL.length?`En cours : ${G.resL.map(r=>TECH[r.id].n).join(', ')}`:`Aucune recherche en cours · ${resSlots()} emplacement${resSlots()>1?'s':''}`,'⚗')}
    ${card('data-go="usine"','Usine et banque',`${FAC[G.fac][0]} · utilisée à ${nf(uti*100)} %`,'⚙')}
+   ${typeof compCard==='function'?compCard(card):''}
    ${card('data-go="marche"','Marché',`${nf(marketVol(yq()),-3)} voitures neuves par an en ${G.y}`,'◷')}
   </section>`;
   h+=`<section class="cgrp"><h3>Actualités</h3><ul class="news">${G.news.slice(0,6).map(n=>`<li class="nw-${n.k}"><span class="eyebrow">${Q[n.q]} ${n.y}</span><b>${esc(n.t)}</b><p>${esc(n.d)}</p></li>`).join('')}</ul></section>`;
@@ -356,7 +359,7 @@ function showLaunch(m){
   $('.lfx-skip',LFX).addEventListener('click',()=>showJournal(m));$('.lfx-skip',LFX).focus({preventScroll:true});
   lfxT.push(setTimeout(()=>showJournal(m),5200));
 }
-function closeLfx(){fxStop();for(const t of lfxT) clearTimeout(t);lfxT=[];LFX.hidden=true;LFX.innerHTML='';document.body.classList.remove('lfx-on');}
+function closeLfx(){fxStop();for(const t of lfxT) clearTimeout(t);lfxT=[];LFX.hidden=true;LFX.innerHTML='';document.body.classList.remove('lfx-on');if(typeof compAfterClose==='function') setTimeout(compAfterClose,0);}
 function longReview(r,m,first){
   const p=r.pros||[],c=r.cons||[],B=BODY[m.met.body].n.toLocaleLowerCase(),up=s=>s.replace(/^./,ch=>ch.toUpperCase());
   const a=[];
