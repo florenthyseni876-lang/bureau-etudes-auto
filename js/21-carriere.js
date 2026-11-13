@@ -193,9 +193,13 @@ function reviewModel(m){
 function demand(models,y){
   const vol=marketVol(y),sh=segShares(y),N=itp(NCOMP,y)*(G.diff==='dur'?1.3:G.diff==='fac'?.8:1),K=2;
   const out=models.map(()=>({tot:0,seg:{}}));
+  const RV=typeof rivList==='function'?rivList(y):[];RV.forEach(r=>{r.dem=0;}); // modèles des constructeurs rivaux (29-concurrents.js)
   SEGS.forEach((seg,i)=>{
     const A=models.map(m=>regBan(m.met,y,!m.st)?0:appeal(m.met,seg,y,m.price)*repF()*(m.age!=null?m.age:ageF(m))*pressF(m));
-    const sum=A.reduce((a,x)=>a+Math.pow(x,K),0)+N;
+    const RA=RV.map(r=>appeal(r.met,seg,y,r.price)*r.mult),RF=RV.map(r=>fitOf(seg,r.met.body,y));
+    // les rivaux prennent la place d'une partie des concurrents anonymes (il en reste au moins 35 %)
+    const sum=A.reduce((a,x)=>a+Math.pow(x,K),0)+RA.reduce((a,x,j)=>a+RF[j]*Math.pow(x,K),0)+(RV.length?Math.max(N*.35,N-RF.reduce((a,x)=>a+x,0)):N);
+    RV.forEach((r,j)=>{r.dem+=vol*sh[i]*RF[j]*Math.pow(RA[j],K)/sum;});
     models.forEach((m,j)=>{const d=vol*sh[i]*fitOf(seg,m.met.body,y)*Math.pow(A[j],K)/sum;out[j].seg[seg.k]=d;out[j].tot+=d;});
   });
   return out;
@@ -283,6 +287,7 @@ function nextQuarter(){
   coverCash();
   if(G.cash<0){G.negQ++;if(G.negQ>=2){G.over=true;news('Faillite',`${G.co} ne peut plus payer ses fournisseurs. La société est liquidée.`,'crit');saveGame();return;}news('Trésorerie négative','La banque refuse d\'avancer plus. Sans redressement le trimestre prochain, c\'est la faillite.','crit');}
   else G.negQ=0;
+  if(typeof rivQuarter==='function') rivQuarter(y); // vie des constructeurs rivaux
   // fin d'année
   G.q++;
   if(G.q>3){
