@@ -25,6 +25,8 @@ module.exports = async function mecaTravaux(page, env) {
   const fermer = async () => { await appuyer('Escape'); await attendreCondition(page, () => !__mw.paused, 'le panneau ne se ferme pas', 8000); };
 
   // 1. un client arrive pendant les heures d'ouverture, avec un travail simple pour le niveau 1
+  // avec le module carrière, il faut un emploi pour recevoir des clients : mécanicien au Garage du Coin
+  await e(() => { if (typeof MWC !== 'undefined') MWC.hire('meca'); });
   await e(() => { __mw.S.min = 590; __mw.S.flags.coinVu = true; });
   await attendreCondition(page, () => { __mw.addMin(2); return __mwj.jobs().length >= 1; }, "aucun client n'arrive au garage", 20000);
   const c0 = await e(() => { const c = __mwj.jobs()[0]; return { z: c.zone, ordre: c.ordre, type: c.type, niv: c.ordre.map(id => __mwj.PARTS[id].niv), mesh: !!__mw.scene.children.length }; });

@@ -35,8 +35,7 @@ module.exports = async function nouveautes(page, env) {
   let course = false, decisions = 0;
   for (let i = 0; i < 10 && !course; i++) {
     await page.evaluate(() => advance(1));
-    const o = await page.$('[data-mkopt]');
-    if (o && await o.isVisible()) { await o.click(); decisions++; }
+    if (await page.evaluate(() => { const o = document.querySelector('#mkEv:not([hidden]) [data-mkopt]'); if (o) o.click(); return !!o; })) decisions++;
     course = await page.evaluate(() => !LFX.hidden && !!document.querySelector('.rc'));
   }
   verifier(course, 'la course ne s\'est pas affichée');
@@ -49,8 +48,7 @@ module.exports = async function nouveautes(page, env) {
   await page.evaluate(() => { G.cash = 1e9; G.over = false; });
   for (let i = 0; i < 40; i++) {
     await page.evaluate(() => { advance(1); if (!LFX.hidden) closeLfx(); });
-    const o = await page.$('[data-mkopt]');
-    if (o && await o.isVisible()) { await o.click(); decisions++; }
+    if (await page.evaluate(() => { const o = document.querySelector('#mkEv:not([hidden]) [data-mkopt]'); if (o) o.click(); return !!o; })) decisions++;
   }
   const fini = await page.evaluate(() => isFinite(G.cash) && isFinite(G.rep) && isFinite(G.mk ? G.mk.aw ?? 0 : 0));
   verifier(fini, 'trésorerie, réputation ou notoriété non finie');

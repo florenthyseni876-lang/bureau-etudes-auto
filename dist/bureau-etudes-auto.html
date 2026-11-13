@@ -7623,7 +7623,7 @@ function employer(){
  const c=C(),id=EMP[c.emp]?c.emp:'aucun',e=EMP[id];let nom=e.nom+(e.lieu?' · '+e.lieu:''),mois=e.mois,niv=e.niv;
  if(id==='ing'){const g=GRADES[clamp(c.grade,0,3)];nom=g.n+' · Centre technique';mois=g.mois;}
  if(id==='fondateur') nom='Fondateur de '+(c.founded||'votre marque');
- return {id,nom,lieu:e.lieu,zone:e.zone,salaire:e.paie==='mois'?mois:e.part,paie:e.paie,part:e.part,mois,niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
+ return {id,nom,lieu:e.lieu,zone:e.zone,salaire:e.paie==='mois'?mois:e.part,paie:e.paie,part:e.part,mois,niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,compte:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
 api.employer=employer;
 api.post=()=>{const e=employer();return e.nom;};
 
@@ -7647,7 +7647,7 @@ function netOf(job){
 api.payFor=job=>{
  const e=employer();if(!job||e.paie==='mois') return 0;
  if(e.id==='aucun'||e.id==='fondateur') return 0;
- if(e.net) return Math.round(netOf(job));
+ if(e.net) return Math.round(+job.facture||0); /* pièces déjà payées au magasin */
  const mo=job.mainOeuvre!=null?+job.mainOeuvre:(+job.facture||0)*.4;
  return Math.round(Math.max(0,mo)*e.part);};
 
@@ -8071,7 +8071,7 @@ MW.on('key',k=>{if(k==='c') careerPanel();});
 MW.addButton('career','Carrière (C)',careerPanel);
 MW.on('jobDone',(job,note)=>{
  const c=C();c.stats.jobs++;
- try{if(/vidange/i.test(JSON.stringify(job&&job.travaux||''))) c.stats.vid++;}catch(e){}
+ try{if(/vidange|"huile"/i.test(JSON.stringify(job&&job.travaux||''))) c.stats.vid++;}catch(e){}
  const p=api.payFor(job||{});if(p>0){c.stats.paid++;c.stats.earn+=p;}
  lvCheck();promoCheck();refresh();});
 MW.on('money',(dx,motif)=>{if(dx>0&&/salaire|paie/i.test(motif||'')){const c=C();c.stats.paid++;refresh();}});
