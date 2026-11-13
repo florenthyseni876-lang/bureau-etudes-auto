@@ -1,5 +1,5 @@
 /* Service hors connexion : fichier généré par outils/build.py, ne pas modifier sw.js à la main. */
-const VERSION='bea-8af8e73c8c';
+const VERSION='bea-273b763ba8';
 const FICHIERS=[
   './',
   'index.html',
@@ -41,6 +41,7 @@ const FICHIERS=[
   'js/40-meca-monde.js',
   'js/41-meca-travaux.js',
   'js/42-meca-carriere.js',
+  'js/43-meca-noir.js',
   'js/19-rendu.js',
   'js/pwa.js',
   'icons/apple-touch-icon.png',

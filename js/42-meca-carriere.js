@@ -507,6 +507,7 @@ MW.on('enterZone',id=>{if(id==='garage1') lastGoal='';});
 MW.on('key',k=>{if(k==='c') careerPanel();});
 MW.addButton('career','Carrière (C)',careerPanel);
 MW.on('jobDone',(job,note)=>{
+ if(job&&job.noir) return; /* noir : un travail au noir ne compte ni pour le tutoriel ni pour les promotions */
  const c=C();c.stats.jobs++;
  try{if(/vidange|"huile"/i.test(JSON.stringify(job&&job.travaux||''))) c.stats.vid++;}catch(e){}
  const p=api.payFor(job||{});if(p>0){c.stats.paid++;c.stats.earn+=p;}
