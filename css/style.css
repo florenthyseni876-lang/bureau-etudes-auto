@@ -1036,3 +1036,29 @@ html.phone-land .mw-toasts{width:min(420px,44%)}html.phone-land .mw-t{font-size:
 html.phone-land .mw-pb{font-size:13px;padding:8px 12px 10px}html.phone-land .mw-ph{padding:6px 12px}html.phone-land .mw-ph h2{font-size:18px}
 html.phone-land .mw-speed{font-size:22px;bottom:8px}
 html.phone-land .mw-leg{display:none}
+
+/* ───── Mode Mécanicien — Travaux (clients, pièces, inventaire, carnet) ───── */
+.mw-inv{position:absolute;left:50%;bottom:max(10px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:4px;padding:5px;background:rgba(10,20,35,.74);border:1.5px solid #35506f;border-radius:5px;max-width:96%;z-index:2}
+.mw-inv[hidden]{display:none}
+.mw-slot{width:min(44px,calc((100vw - 52px)/12));height:44px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px solid #35506f;border-radius:4px;background:rgba(255,255,255,.05);color:#e8f0f8;font-family:inherit;padding:0;cursor:pointer;line-height:1.1}
+.mw-slot.vide{cursor:default}
+.mw-slot b{font-size:10.5px;font-weight:700}.mw-slot i{font-size:9px;font-style:normal;opacity:.8}
+.mw-slot.neuve{border-color:#3ccf6a;background:rgba(60,207,106,.16)}
+.mw-slot.usagee{border-color:#ffb800;background:rgba(255,184,0,.14)}
+.mw-prt{background:rgba(255,255,255,.05);border:1px solid #35506f;border-radius:4px;padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.mw-prt-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mw-prt small{font-size:12.5px;color:#b4c6dc}
+.mw-prt .mw-lock{color:#ffd466}.mw-prt .mw-need{color:#ff9a8a}
+.mw-tag{display:inline-block;font-size:11.5px;padding:2px 7px;border-radius:10px;background:rgba(111,134,163,.3);border:1px solid #6f86a3;color:#e8f0f8;font-family:inherit}
+.mw-tag.ok{background:rgba(60,207,106,.22);border-color:#3ccf6a}.mw-tag.warn{background:rgba(255,184,0,.2);border-color:#ffb800}
+button.mw-tag{cursor:pointer}
+.mw-chips{display:flex;flex-wrap:wrap;gap:5px}
+.mw-usure{height:6px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden}
+.mw-usure i{display:block;height:100%}.mw-usure i.v{background:#3ccf6a}.mw-usure i.o{background:#ffb800}.mw-usure i.r{background:#ff5a4a}
+.mw-h3{font-family:var(--f-d);font-size:16px;text-transform:uppercase;letter-spacing:.04em;color:#ffc533;margin:6px 0 0}
+.mw-ul{margin:0;padding-left:20px}
+.mw-note{font-size:30px;color:#ffc533;text-align:center;letter-spacing:4px}
+.mw-fac{width:100%;border-collapse:collapse;font-size:14px}.mw-fac td{padding:3px 4px;border-bottom:1px solid #35506f}.mw-fac td+td{text-align:right}.mw-fac tr.t td{font-weight:700;border-bottom:0}
+.mw-pb .btn.sm[disabled]{opacity:.45;cursor:not-allowed}
+html.phone-land .mw-slot{width:28px;height:34px}html.phone-land .mw-slot b{font-size:8.5px}html.phone-land .mw-slot i{display:none}
+html.phone-land .mw-inv{bottom:6px;padding:3px;gap:3px}
