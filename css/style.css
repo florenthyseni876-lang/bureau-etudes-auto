@@ -1092,3 +1092,22 @@ html.phone-land .mw-mis{top:4px;padding:5px 9px;font-size:11.5px;gap:3px}html.ph
 .mw-noir-bar i{display:block;height:100%;background:#3ccf6a;transition:width .3s}
 .mw-noir-bar.y i{background:#ffb800}.mw-noir-bar.o i{background:#ff8a1c}.mw-noir-bar.r i{background:#ff4a3a}
 .mw-sk .mw-noir-bar{flex:1;margin:0}
+
+/* ───────── Mode Mécanicien — Gestes réalistes ───────── */
+.mg-tools{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:3px;padding:5px;background:rgba(10,20,35,.74);border:1.5px solid #35506f;border-radius:5px;z-index:5;max-height:80%;overflow:auto}
+.mg-tools[hidden],.mg-info[hidden],.mg-hold[hidden],.mg-hint[hidden],.mg-aux[hidden],.mg-bin[hidden]{display:none}
+.mg-t{display:flex;align-items:center;gap:6px;min-width:112px;padding:3px 7px;border:1.5px solid #35506f;border-radius:4px;background:rgba(255,255,255,.05);color:#e8f0f8;font:inherit;font-size:12px;cursor:pointer;text-align:left}
+.mg-t b{width:14px;color:#ffc533}.mg-t.on{border-color:#ffb800;background:rgba(255,184,0,.22)}.mg-t.hint{animation:mg-pulse 1s infinite}
+@keyframes mg-pulse{50%{box-shadow:0 0 0 3px rgba(255,210,58,.8)}}
+.mg-info{position:absolute;left:50%;top:calc(50% + 26px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(10,20,35,.82);padding:5px 12px;border-radius:4px;pointer-events:none;max-width:80%;text-align:center;font-size:14px}
+.mg-info .s{font-size:12px;color:#b4c6dc}.mg-info .w{font-size:12.5px;color:#ffd466}
+.mg-hold{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px;border-radius:50%;pointer-events:none;background:conic-gradient(#ffb800 var(--p,0deg),rgba(255,255,255,.12) 0);-webkit-mask:radial-gradient(circle,transparent 15px,#000 16px);mask:radial-gradient(circle,transparent 15px,#000 16px)}
+.mg-hint{position:absolute;left:50%;top:max(56px,env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(10,20,35,.82);border:1.5px solid #ffd23a;border-radius:4px;padding:5px 12px;font-size:13px;pointer-events:none;max-width:86%;text-align:center}
+.mg-hint i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffd23a;margin-right:6px}
+.mg-aux{position:absolute;right:14px;top:40%;background:rgba(10,20,35,.86);border:1.5px solid #ffb800;border-radius:4px;padding:8px 12px;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none;font-size:13px}
+.mg-dip{position:relative;width:26px;height:120px;background:#1a2433;border:1.5px solid #6f86a3}
+.mg-dip i{position:absolute;left:0;right:0;height:3px;background:#e8a820;bottom:0}.mg-dip span{position:absolute;right:30px;font-size:10px;color:#9db3cc}.mg-dip .mx{bottom:84%}.mg-dip .mn{bottom:12%}
+.mg-bin{position:absolute;left:50%;bottom:calc(max(10px,env(safe-area-inset-bottom,0px)) + 56px);transform:translateX(-50%);background:rgba(10,20,35,.8);border:1.5px solid #ff7a00;border-radius:4px;padding:3px 10px;font-size:12px;pointer-events:none}
+html.phone-land .mg-tools{left:4px;flex-direction:row;flex-wrap:wrap;top:auto;bottom:140px;transform:none;max-width:46%}
+html.phone-land .mg-t{min-width:0;padding:2px 4px;font-size:10px}html.phone-land .mg-t b{width:auto}
+html.phone-land .mg-info{top:calc(50% + 14px);font-size:12px}html.phone-land .mg-hint{font-size:11px;padding:3px 8px}
