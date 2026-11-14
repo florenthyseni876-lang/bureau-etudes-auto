@@ -269,7 +269,18 @@ function doDep(c,id){
    remise en état ou usée à 60 % au plus, que son client ne réclame pas. Jamais d'huile, de filtres ni de plaquettes d'occasion. */
 const REEMP=['pneus','batterie','disq_av','disq_ar','amort','alternateur','demarreur','injecteurs'];
 const reempFind=(c,id)=>REEMP.includes(id)?inv().findIndex(it=>it.k==='usagee'&&it.id===id&&it.job!==c.id&&!rendBloq(it)&&(it.ren||it.u<=60)):-1;
-const newFind=(c,id)=>{const i=invFind('neuve',id);return i>=0?i:reempFind(c,id);};
+/* pièce en main (Maj + chiffre, X, clic sur la barre) : montée en priorité si elle convient */
+let selIt=null;
+const selIdx=()=>selIt?inv().indexOf(selIt):-1;
+const selOK=(c,id)=>{const i=selIdx();if(i<0) return -1;const it=inv()[i];if(it.id!==id) return -1;return (it.k==='neuve'||(it.k==='usagee'&&REEMP.includes(id)&&it.job!==c.id&&!rendBloq(it)&&(it.ren||it.u<=60)))?i:-1;};
+const newFind=(c,id)=>{const s=selOK(c,id);if(s>=0) return s;const i=invFind('neuve',id);return i>=0?i:reempFind(c,id);};
+function take(i){const it=inv()[i];
+ if(!it){selIt=null;invUI();return;}
+ selIt=selIt===it?null:it;invUI();
+ if(selIt) MW.toast(`En main : ${PARTS[it.id].nom} (${it.k==='neuve'?'neuve':it.ren?'remise en état':'usagée, usure '+it.u+' %'}).`,'info');}
+function takeNext(d){const a=inv();if(!a.length){selIt=null;invUI();return;}
+ const i=selIdx(),n=i<0?(d>0?0:a.length-1):i+d;selIt=n>=0&&n<a.length?a[n]:null;invUI();
+ if(selIt) MW.toast(`En main : ${PARTS[selIt.id].nom} (${selIt.k==='neuve'?'neuve':'usagée'}).`,'info');}
 function doPose(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
  const i=newFind(c,id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express (ou une pièce d'occasion en bon état).`);
@@ -491,10 +502,13 @@ function etagere(zid){
  if(!st.length) h+='<p class="mw-soon">À votre compte, vous achetez vos pièces chez Pièces Auto Express.</p>';
  h+=st.map(id=>{const p=PARTS[id],n=inv().filter(it=>it.k==='neuve'&&it.id===id).length;
   return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min</small><div class="mw-btns">${btn('take:'+id,'Prendre')}</div></div>`;}).join('');
+ const besoin=[];for(const c of J().cars) if(c.zone===zid&&!c.noir) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&st.includes(id)&&!besoin.includes(id)&&invFind('neuve',id)<0) besoin.push(id);
+ if(besoin.length) h=`<div class="mw-btns">${btn('need','Prendre les pièces des ordres en cours ('+besoin.map(id=>PARTS[id].nom).join(', ')+')')}</div>`+h;
  const nm=inv().filter(it=>it.k==='neuve'&&it.src==='etagere').length;
  if(nm) h+=`<div class="mw-btns">${btn('putall','Rapporter mes pièces neuves non achetées','ghost')}</div>`;
  const fn=(a,keep)=>{const [k,id]=a.split(':');
   if(k==='take'){if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else{invAdd({k:'neuve',id,src:'etagere'});MW.toast(PARTS[id].nom+' : pris(e) à l\'étagère.','info');}}
+  else if(k==='need'){let n=0;for(const id of besoin){if(inv().length>=INV_MAX){MW.toast('Inventaire plein.','warn');break;}invAdd({k:'neuve',id,src:'etagere'});n++;}if(n) MW.toast(`${n} pièce(s) prise(s) à l'étagère.`,'good');}
   else if(k==='putall'){for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='neuve'&&inv()[i].src==='etagere') inv().splice(i,1);invUI();}
   etagere(zid);};
  show('Étagère de pièces',h,fn,{keep:true,wide:true});}
@@ -551,14 +565,17 @@ function carnet(){
 function ensureBar(){
  const r=document.getElementById('mwRoot');if(!r) return null;let b=document.getElementById('mwInv');
  if(!b){b=document.createElement('div');b.id='mwInv';b.className='mw-inv';b.setAttribute('aria-label','Inventaire');r.appendChild(b);
-  b.addEventListener('click',e=>{const s=e.target.closest('[data-i]');if(s&&!MW.paused) itemPanel(+s.dataset.i);});}
+  b.addEventListener('click',e=>{const s=e.target.closest('[data-i]');if(!s||MW.paused) return;const i=+s.dataset.i;if(inv()[i]&&inv()[i]===selIt) itemPanel(i);else take(i);});}
  return b;}
 function invUI(){
  const b=ensureBar();if(!b||!MW.S) return;let h='';const a=inv();
  for(let i=0;i<INV_MAX;i++){const it=a[i];
-  if(it){const p=PARTS[it.id];h+=`<button type="button" class="mw-slot ${it.k}" data-i="${i}" title="${esc(p.nom+(it.k==='neuve'?' (neuf)':' (usagé)'))}"><b>${esc(p.ab)}</b><i>${it.k==='neuve'?'neuf':rendBloq(it)?'client':it.ren?'rénové':'usé'}</i></button>`;}
-  else h+='<span class="mw-slot vide"></span>';}
- b.innerHTML=h;}
+  const kk=i<10?`<u>⇧${(i+1)%10}</u>`:'';
+  if(it){const p=PARTS[it.id];h+=`<button type="button" class="mw-slot ${it.k}${it===selIt?' sel':''}" data-i="${i}" title="${esc(p.nom+(it.k==='neuve'?' (neuf)':' (usagé)'))}${i<10?' · Maj+'+((i+1)%10):''}">${kk}<b>${esc(p.ab)}</b><i>${it.k==='neuve'?'neuf':rendBloq(it)?'client':it.ren?'rénové':'usé'}</i></button>`;}
+  else h+=`<span class="mw-slot vide">${kk}</span>`;}
+ if(selIt&&inv().indexOf(selIt)<0) selIt=null;
+ b.innerHTML=h;
+ MW.hud('main',selIt?`<b>En main</b> : ${esc(PARTS[selIt.id].nom)} (${selIt.k==='neuve'?'neuve':'usagée'}) · X : suivante · V : ranger`:'');}
 function hudJobs(){
  if(!MW.S) return;const j=J(),e=emp();
  if(!e&&!j.cars.length){MW.hud('job','');return;}
@@ -615,13 +632,18 @@ MW.on('tick',dt=>{
  if(++fr%8===0){const b=document.getElementById('mwInv');if(b){const ic=MW.player().inCar||MW.paused;if(b.hidden!==ic) b.hidden=ic;}}});
 MW.on('tab',carnet);
 MW.addButton('carnet','Carnet (Tab)',()=>{if(MW.S) carnet();});
+/* inventaire au clavier : Maj + 1…0 prend en main la pièce de l'emplacement 1 à 10, X passe à la suivante, V la range */
+MW.on('key',(k,e)=>{if(!MW.S) return;
+ const m=e&&e.shiftKey&&e.code&&/^(?:Digit|Numpad)(\d)$/.exec(e.code);
+ if(m){const d=+m[1];take(d===0?9:d-1);return;}
+ if(k==='x') takeNext(e&&e.shiftKey?-1:1);else if(k==='v'&&selIt){selIt=null;invUI();MW.toast('Pièce rangée : mains libres.','info');}});
 MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),take,takeNext,held:()=>selIt,rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();

@@ -264,9 +264,9 @@ function infoUI(){
  /* aide : prochaine étape */
  let hh='';if(aideOn()&&HINT){const nm=typeof HINT.t.name==='function'?HINT.t.name():HINT.t.name;hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${HINT.a.tool?' · '+esc(toolName(HINT.a.tool,HINT.a.sock)):''}`;}
  /* pièce déposée sans pièce neuve en poche : on le dit toujours, même sans l'aide (c'est l'étape qui bloque le plus souvent) */
- if(R&&R.c&&R.c.rem){const miss=Object.keys(R.c.rem).filter(id=>!haveNew(R.c,id));
-  if(miss.length){const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
-   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.`;}}
+ if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
+  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
+   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}
 function auxSet(h){const u=ensureUI();if(!u) return;if(!h){u.aux.hidden=true;return;}u.aux.innerHTML=h;u.aux.hidden=false;}
@@ -856,7 +856,8 @@ function wire(){
  if(be){be.addEventListener('pointerdown',()=>{eDown=true;});for(const t of ['pointerup','pointercancel','pointerleave']) be.addEventListener(t,()=>onRelease());}
  const lk=document.getElementById('mwLook');
  if(lk) lk.addEventListener('wheel',e=>{if(!on()||!R) return;e.preventDefault();const i=TOOLS.findIndex(t=>t.id===tool);setTool(TOOLS[(i+(e.deltaY>0?1:-1)+TOOLS.length)%TOOLS.length].id);},{passive:false});
- MW.on('key',k=>{if(!on()) return;if(k==='g') settings();else if(k==='r') cycleSock(1);else{const t=TOOLS.find(x=>x.key===k);if(t&&R) setTool(t.id);}});
+ MW.on('key',(k,e)=>{if(!on()) return;if(k==='g') settings();else if(k==='r') cycleSock(1);else{if(e&&e.shiftKey) return; /* Maj + chiffre : pièce de l'inventaire */
+  const m=e&&e.code&&/^(?:Digit|Numpad)(\d)$/.exec(e.code),d=m?m[1]:k;const t=TOOLS.find(x=>x.key===d);if(t&&R) setTool(t.id);}});
  MW.addButton('gestes','Gestes (G)',()=>{if(MW.S) settings();});}
 MW.on('start',()=>{wire();init();});
 MW.on('open',()=>{wire();ensureUI();});
@@ -864,7 +865,7 @@ MW.on('close',()=>{if(R) freeRig();});
 MW.on('tick',tick);
 
 Object.assign(api,{
- on:()=>on(),set:o=>{Object.assign(gs(),o);lastTb='';if(!on()&&R) freeRig();},rig:()=>R,aim:()=>AIM,hint:()=>HINT,tools:TOOLS,tool:id=>setTool(id),sock:n=>setSock(n),
+ on:()=>on(),set:o=>{Object.assign(gs(),o);lastTb='';if(!on()&&R) freeRig();},rig:()=>R,aim:()=>AIM,hint:()=>HINT,tools:TOOLS,tool:id=>setTool(id),curTool:()=>tool,sock:n=>setSock(n),
  ownW:c=>on(),lift:c=>on()&&!(c&&c.noir)?1.45:1,mesh:c=>{if(!on()||!c.g) return;},blocage,malus,malusTxt,rest,fin:false,settings,
  /* le rig suit la voiture la plus proche : pour les tests, on le force */
  ensure:c=>{if(!R||R.c!==c){if(R) freeRig();buildRig(c);}return R;},

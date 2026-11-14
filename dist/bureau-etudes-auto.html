@@ -1026,6 +1026,9 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-soon{color:#ffd466;background:rgba(255,184,0,.12);padding:8px 10px;border-radius:3px}
 .mw-pb .btn.warn{background:#7a3b12;border-color:#ff9a3c;color:#ffe3c7}.mw-fr{color:#ff9a3c}
 .mw-fr-d{border:1px dashed rgba(255,154,60,.45);border-radius:3px;padding:6px 10px}.mw-fr-d>summary{cursor:pointer;color:#ffb36b;font-weight:600}.mw-fr-d[open]>summary{margin-bottom:8px}.mw-fr-d .mw-soon{margin-top:8px}
+.mw-pb kbd{display:inline-block;min-width:1.4em;padding:0 4px;border:1px solid #5a7697;border-bottom-width:2px;border-radius:3px;background:#1b2c44;font:600 11.5px/1.5 inherit;text-align:center;color:#e8f0f8}
+.mw-pb h4{margin:6px 0 0;font-size:14px;color:#ffd466}.mw-gd-ol,.mw-gd-ul{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:5px}.mw-gd-v{color:#3ccf6a;font-weight:600}.mw-gd-o{color:#ffb800;font-weight:600}
+.mw-gd-j{border:1px solid #35506f;border-radius:4px;padding:6px 10px;background:rgba(255,255,255,.03)}.mw-gd-j>summary{cursor:pointer}.mw-gd-j[open]{display:flex;flex-direction:column;gap:6px}.mw-gd-tabs .btn{min-width:36px}
 .mw-map{position:absolute;inset:0;background:#14233a;display:flex;flex-direction:column;align-items:center;gap:6px;padding:max(8px,env(safe-area-inset-top,0px)) 12px 8px;touch-action:auto}
 .mw-map .mw-ph{align-self:stretch;border:0;padding:4px 0}
 .mw-map canvas{border:2px solid #ffb800;max-width:100%}
@@ -1054,6 +1057,8 @@ html.phone-land .mw-leg{display:none}
 .mw-slot b{font-size:10.5px;font-weight:700}.mw-slot i{font-size:9px;font-style:normal;opacity:.8}
 .mw-slot.neuve{border-color:#3ccf6a;background:rgba(60,207,106,.16)}
 .mw-slot.usagee{border-color:#ffb800;background:rgba(255,184,0,.14)}
+.mw-slot{position:relative}.mw-slot u{position:absolute;top:1px;left:3px;font-size:8px;text-decoration:none;opacity:.55;font-weight:400}
+.mw-slot.sel{border-color:#fff;box-shadow:0 0 0 2px #ffb800,0 0 10px rgba(255,184,0,.6);transform:translateY(-4px)}
 .mw-prt{background:rgba(255,255,255,.05);border:1px solid #35506f;border-radius:4px;padding:8px 10px;display:flex;flex-direction:column;gap:4px}
 .mw-prt-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .mw-prt small{font-size:12.5px;color:#b4c6dc}
@@ -1069,7 +1074,7 @@ button.mw-tag{cursor:pointer}
 .mw-note{font-size:30px;color:#ffc533;text-align:center;letter-spacing:4px}
 .mw-fac{width:100%;border-collapse:collapse;font-size:14px}.mw-fac td{padding:3px 4px;border-bottom:1px solid #35506f}.mw-fac td+td{text-align:right}.mw-fac tr.t td{font-weight:700;border-bottom:0}
 .mw-pb .btn.sm[disabled]{opacity:.45;cursor:not-allowed}
-html.phone-land .mw-slot{width:28px;height:34px}html.phone-land .mw-slot b{font-size:8.5px}html.phone-land .mw-slot i{display:none}
+html.phone-land .mw-slot{width:28px;height:34px}html.phone-land .mw-slot b{font-size:8.5px}html.phone-land .mw-slot i{display:none}html.phone-land .mw-slot u{display:none}
 html.phone-land .mw-inv{bottom:6px;padding:3px;gap:3px}
 /* ───────── Mode Mécanicien — Carrière ───────── */
 .mw-h3{font-family:var(--f-d);font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#ffc533;margin:6px 0 0}
@@ -7318,7 +7323,18 @@ function doDep(c,id){
    remise en état ou usée à 60 % au plus, que son client ne réclame pas. Jamais d'huile, de filtres ni de plaquettes d'occasion. */
 const REEMP=['pneus','batterie','disq_av','disq_ar','amort','alternateur','demarreur','injecteurs'];
 const reempFind=(c,id)=>REEMP.includes(id)?inv().findIndex(it=>it.k==='usagee'&&it.id===id&&it.job!==c.id&&!rendBloq(it)&&(it.ren||it.u<=60)):-1;
-const newFind=(c,id)=>{const i=invFind('neuve',id);return i>=0?i:reempFind(c,id);};
+/* pièce en main (Maj + chiffre, X, clic sur la barre) : montée en priorité si elle convient */
+let selIt=null;
+const selIdx=()=>selIt?inv().indexOf(selIt):-1;
+const selOK=(c,id)=>{const i=selIdx();if(i<0) return -1;const it=inv()[i];if(it.id!==id) return -1;return (it.k==='neuve'||(it.k==='usagee'&&REEMP.includes(id)&&it.job!==c.id&&!rendBloq(it)&&(it.ren||it.u<=60)))?i:-1;};
+const newFind=(c,id)=>{const s=selOK(c,id);if(s>=0) return s;const i=invFind('neuve',id);return i>=0?i:reempFind(c,id);};
+function take(i){const it=inv()[i];
+ if(!it){selIt=null;invUI();return;}
+ selIt=selIt===it?null:it;invUI();
+ if(selIt) MW.toast(`En main : ${PARTS[it.id].nom} (${it.k==='neuve'?'neuve':it.ren?'remise en état':'usagée, usure '+it.u+' %'}).`,'info');}
+function takeNext(d){const a=inv();if(!a.length){selIt=null;invUI();return;}
+ const i=selIdx(),n=i<0?(d>0?0:a.length-1):i+d;selIt=n>=0&&n<a.length?a[n]:null;invUI();
+ if(selIt) MW.toast(`En main : ${PARTS[selIt.id].nom} (${selIt.k==='neuve'?'neuve':'usagée'}).`,'info');}
 function doPose(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
  const i=newFind(c,id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express (ou une pièce d'occasion en bon état).`);
@@ -7540,10 +7556,13 @@ function etagere(zid){
  if(!st.length) h+='<p class="mw-soon">À votre compte, vous achetez vos pièces chez Pièces Auto Express.</p>';
  h+=st.map(id=>{const p=PARTS[id],n=inv().filter(it=>it.k==='neuve'&&it.id===id).length;
   return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min</small><div class="mw-btns">${btn('take:'+id,'Prendre')}</div></div>`;}).join('');
+ const besoin=[];for(const c of J().cars) if(c.zone===zid&&!c.noir) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&st.includes(id)&&!besoin.includes(id)&&invFind('neuve',id)<0) besoin.push(id);
+ if(besoin.length) h=`<div class="mw-btns">${btn('need','Prendre les pièces des ordres en cours ('+besoin.map(id=>PARTS[id].nom).join(', ')+')')}</div>`+h;
  const nm=inv().filter(it=>it.k==='neuve'&&it.src==='etagere').length;
  if(nm) h+=`<div class="mw-btns">${btn('putall','Rapporter mes pièces neuves non achetées','ghost')}</div>`;
  const fn=(a,keep)=>{const [k,id]=a.split(':');
   if(k==='take'){if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else{invAdd({k:'neuve',id,src:'etagere'});MW.toast(PARTS[id].nom+' : pris(e) à l\'étagère.','info');}}
+  else if(k==='need'){let n=0;for(const id of besoin){if(inv().length>=INV_MAX){MW.toast('Inventaire plein.','warn');break;}invAdd({k:'neuve',id,src:'etagere'});n++;}if(n) MW.toast(`${n} pièce(s) prise(s) à l'étagère.`,'good');}
   else if(k==='putall'){for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='neuve'&&inv()[i].src==='etagere') inv().splice(i,1);invUI();}
   etagere(zid);};
  show('Étagère de pièces',h,fn,{keep:true,wide:true});}
@@ -7600,14 +7619,17 @@ function carnet(){
 function ensureBar(){
  const r=document.getElementById('mwRoot');if(!r) return null;let b=document.getElementById('mwInv');
  if(!b){b=document.createElement('div');b.id='mwInv';b.className='mw-inv';b.setAttribute('aria-label','Inventaire');r.appendChild(b);
-  b.addEventListener('click',e=>{const s=e.target.closest('[data-i]');if(s&&!MW.paused) itemPanel(+s.dataset.i);});}
+  b.addEventListener('click',e=>{const s=e.target.closest('[data-i]');if(!s||MW.paused) return;const i=+s.dataset.i;if(inv()[i]&&inv()[i]===selIt) itemPanel(i);else take(i);});}
  return b;}
 function invUI(){
  const b=ensureBar();if(!b||!MW.S) return;let h='';const a=inv();
  for(let i=0;i<INV_MAX;i++){const it=a[i];
-  if(it){const p=PARTS[it.id];h+=`<button type="button" class="mw-slot ${it.k}" data-i="${i}" title="${esc(p.nom+(it.k==='neuve'?' (neuf)':' (usagé)'))}"><b>${esc(p.ab)}</b><i>${it.k==='neuve'?'neuf':rendBloq(it)?'client':it.ren?'rénové':'usé'}</i></button>`;}
-  else h+='<span class="mw-slot vide"></span>';}
- b.innerHTML=h;}
+  const kk=i<10?`<u>⇧${(i+1)%10}</u>`:'';
+  if(it){const p=PARTS[it.id];h+=`<button type="button" class="mw-slot ${it.k}${it===selIt?' sel':''}" data-i="${i}" title="${esc(p.nom+(it.k==='neuve'?' (neuf)':' (usagé)'))}${i<10?' · Maj+'+((i+1)%10):''}">${kk}<b>${esc(p.ab)}</b><i>${it.k==='neuve'?'neuf':rendBloq(it)?'client':it.ren?'rénové':'usé'}</i></button>`;}
+  else h+=`<span class="mw-slot vide">${kk}</span>`;}
+ if(selIt&&inv().indexOf(selIt)<0) selIt=null;
+ b.innerHTML=h;
+ MW.hud('main',selIt?`<b>En main</b> : ${esc(PARTS[selIt.id].nom)} (${selIt.k==='neuve'?'neuve':'usagée'}) · X : suivante · V : ranger`:'');}
 function hudJobs(){
  if(!MW.S) return;const j=J(),e=emp();
  if(!e&&!j.cars.length){MW.hud('job','');return;}
@@ -7664,13 +7686,18 @@ MW.on('tick',dt=>{
  if(++fr%8===0){const b=document.getElementById('mwInv');if(b){const ic=MW.player().inCar||MW.paused;if(b.hidden!==ic) b.hidden=ic;}}});
 MW.on('tab',carnet);
 MW.addButton('carnet','Carnet (Tab)',()=>{if(MW.S) carnet();});
+/* inventaire au clavier : Maj + 1…0 prend en main la pièce de l'emplacement 1 à 10, X passe à la suivante, V la range */
+MW.on('key',(k,e)=>{if(!MW.S) return;
+ const m=e&&e.shiftKey&&e.code&&/^(?:Digit|Numpad)(\d)$/.exec(e.code);
+ if(m){const d=+m[1];take(d===0?9:d-1);return;}
+ if(k==='x') takeNext(e&&e.shiftKey?-1:1);else if(k==='v'&&selIt){selIt=null;invUI();MW.toast('Pièce rangée : mains libres.','info');}});
 MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),take,takeNext,held:()=>selIt,rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();
@@ -10984,9 +11011,9 @@ function infoUI(){
  /* aide : prochaine étape */
  let hh='';if(aideOn()&&HINT){const nm=typeof HINT.t.name==='function'?HINT.t.name():HINT.t.name;hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${HINT.a.tool?' · '+esc(toolName(HINT.a.tool,HINT.a.sock)):''}`;}
  /* pièce déposée sans pièce neuve en poche : on le dit toujours, même sans l'aide (c'est l'étape qui bloque le plus souvent) */
- if(R&&R.c&&R.c.rem){const miss=Object.keys(R.c.rem).filter(id=>!haveNew(R.c,id));
-  if(miss.length){const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
-   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.`;}}
+ if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
+  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
+   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}
 function auxSet(h){const u=ensureUI();if(!u) return;if(!h){u.aux.hidden=true;return;}u.aux.innerHTML=h;u.aux.hidden=false;}
@@ -11576,7 +11603,8 @@ function wire(){
  if(be){be.addEventListener('pointerdown',()=>{eDown=true;});for(const t of ['pointerup','pointercancel','pointerleave']) be.addEventListener(t,()=>onRelease());}
  const lk=document.getElementById('mwLook');
  if(lk) lk.addEventListener('wheel',e=>{if(!on()||!R) return;e.preventDefault();const i=TOOLS.findIndex(t=>t.id===tool);setTool(TOOLS[(i+(e.deltaY>0?1:-1)+TOOLS.length)%TOOLS.length].id);},{passive:false});
- MW.on('key',k=>{if(!on()) return;if(k==='g') settings();else if(k==='r') cycleSock(1);else{const t=TOOLS.find(x=>x.key===k);if(t&&R) setTool(t.id);}});
+ MW.on('key',(k,e)=>{if(!on()) return;if(k==='g') settings();else if(k==='r') cycleSock(1);else{if(e&&e.shiftKey) return; /* Maj + chiffre : pièce de l'inventaire */
+  const m=e&&e.code&&/^(?:Digit|Numpad)(\d)$/.exec(e.code),d=m?m[1]:k;const t=TOOLS.find(x=>x.key===d);if(t&&R) setTool(t.id);}});
  MW.addButton('gestes','Gestes (G)',()=>{if(MW.S) settings();});}
 MW.on('start',()=>{wire();init();});
 MW.on('open',()=>{wire();ensureUI();});
@@ -11584,7 +11612,7 @@ MW.on('close',()=>{if(R) freeRig();});
 MW.on('tick',tick);
 
 Object.assign(api,{
- on:()=>on(),set:o=>{Object.assign(gs(),o);lastTb='';if(!on()&&R) freeRig();},rig:()=>R,aim:()=>AIM,hint:()=>HINT,tools:TOOLS,tool:id=>setTool(id),sock:n=>setSock(n),
+ on:()=>on(),set:o=>{Object.assign(gs(),o);lastTb='';if(!on()&&R) freeRig();},rig:()=>R,aim:()=>AIM,hint:()=>HINT,tools:TOOLS,tool:id=>setTool(id),curTool:()=>tool,sock:n=>setSock(n),
  ownW:c=>on(),lift:c=>on()&&!(c&&c.noir)?1.45:1,mesh:c=>{if(!on()||!c.g) return;},blocage,malus,malusTxt,rest,fin:false,settings,
  /* le rig suit la voiture la plus proche : pour les tests, on le force */
  ensure:c=>{if(!R||R.c!==c){if(R) freeRig();buildRig(c);}return R;},
@@ -12145,6 +12173,131 @@ MW.on('day',()=>{try{if(MW.S) day(false);}catch(e){console.error(e);}});
 return {state:st,toggle,invoiceHTML,counter,after,stock,day,risk,carnetHTML,P_NOW,P_LATER,AMENDE};
 })();
 window.__mwa=MWA;
+
+/* ───────────── Mode « Mécanicien » — GUIDE DU MÉCANICIEN (niveaux 0 à 5) ─────────────
+   Manuel en jeu, touche H ou bouton « Guide (H) » : les bases (niveau 0), puis pour chaque niveau de compétence les travaux
+   débloqués, les pièces à prendre, les outils (touches) et les étapes une à une, telles que les gestes réalistes de js/46
+   les demandent. Le niveau du joueur est indiqué ; les chapitres pas encore atteints restent lisibles.
+   ═══ API `MWGD` ═══  MWGD.open(niveau) ouvre le guide (0 à 5, défaut : le chapitre utile) ; MWGD.NIV nombre de chapitres. */
+const MWGD=(()=>{
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const K=t=>`<kbd>${t}</kbd>`;
+const ol=a=>`<ol class="mw-gd-ol">${a.map(x=>`<li>${x}</li>`).join('')}</ol>`;
+const ul=a=>`<ul class="mw-gd-ul">${a.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+const job=(titre,comp,pieces,outils,etapes,note)=>`<details class="mw-gd-j"><summary><b>${titre}</b> <small>${comp}</small></summary>
+ <p><b>Pièces à prendre à l'étagère :</b> ${pieces}</p><p><b>Outils :</b> ${outils}</p>${ol(etapes)}${note?`<p class="hint">${note}</p>`:''}</details>`;
+const T={main:`Mains ${K(1)}`,cliquet:`Cliquet ${K(2)}`,filtre:`Clé à filtre ${K(3)}`,tournevis:`Tournevis ${K(4)}`,boul:`Boulonneuse ${K(5)}`,dyn:`Clé dynamométrique ${K(6)}`,
+ bac:`Bac ${K(7)}`,bidon:`Bidon ${K(8)}`,ent:`Entonnoir ${K(9)}`,pinces:`Pinces ${K(0)}`,presse:'Presse (molette)',ser:'Seringue (molette)',douille:`taille de douille ${K('R')}`};
+const LEVER=`Visez la <b>commande du pont élévateur</b> (boîtier sur la colonne) et maintenez ${K('E')} : <i>Lever le pont</i>.`;
+const BAISSER=`Commande du pont, maintenir ${K('E')} : <i>Baisser le pont</i>.`;
+const CAPOT=`Visez l'avant de la voiture, maintenez ${K('E')} : <i>Ouvrir le capot</i>.`;
+const RENDRE=`Visez la <b>portière conducteur (habitacle)</b>, ${K('E')}, puis <i>Rendre la voiture</i> : facture, note et paie.`;
+const ROUE_DEP=[`Roue au sol : ${T.boul} (ou ${T.cliquet}), visez chaque écrou, maintenez ${K('E')} : <i>Desserrer l'écrou au sol</i>.`,LEVER,
+ `Retirez chaque écrou (même outil) : ils tombent dans le bac magnétique de la servante.`,`${T.main} : <i>Déposer la roue</i>.`];
+const ROUE_REP=[`${T.main} : <i>Reposer la roue</i>, puis <i>Visser l'écrou</i> un par un.`,BAISSER,
+ `${T.dyn} : <i>Serrer au couple (en étoile)</i>. Suivez l'ordre affiché (écrou 1, 2, 3…) : le jeu refuse le mauvais ordre.`];
+const GEN=(p)=>[`Accédez à la pièce (capot ouvert, ou pont levé pour le dessous, ou roue déposée).`,`${T.cliquet} avec la bonne ${T.douille} : <i>Dévisser</i> les fixations (ou ${T.tournevis} / ${T.pinces} pour les clips et colliers).`,
+ `${T.main} : <i>Déposer la pièce usée</i>, elle part dans votre inventaire.`,`${T.main} : <i>Monter la pièce neuve</i> (${p}).`,`Même outil qu'au début : <i>Revisser</i> toutes les fixations.`];
+
+const CH=[
+{t:'Niveau 0 · Les bases',h:()=>`
+ <p>Vous êtes mécanicien : des clients déposent leur voiture sur un pont, vous la réparez, puis vous la rendez. Votre paie et votre expérience dépendent de la note du client (1 à 5 étoiles).</p>
+ <h4>Les touches</h4>${ul([
+  `${K('Z')}${K('Q')}${K('S')}${K('D')} (ou ${K('W')}${K('A')}${K('S')}${K('D')}, ou les flèches) : marcher · ${K('Maj')} : courir · souris : regarder (cliquez dans le jeu pour la capturer).`,
+  `${K('E')} : agir sur ce que vous visez. <b>Maintenez ${K('E')}</b> pour dévisser, serrer ou verser : une jauge ronde se remplit.`,
+  `${K(1)} à ${K(0)} : choisir l'outil (barre à droite) · ${K('R')} : changer la taille de douille.`,
+  `${K('Maj')} + ${K(1)} à ${K(0)} : prendre en main la pièce de l'emplacement 1 à 10 de l'inventaire (barre du bas) · ${K('X')} : pièce suivante · ${K('V')} : la ranger.`,
+  `${K('Tab')} : carnet (ordres, inventaire, expérience) · ${K('M')} : carte · ${K('C')} : carrière · ${K('G')} : réglages des gestes · ${K('H')} : ce guide · ${K('Échap')} : pause.`])}
+ <h4>Une voiture, du début à la fin</h4>${ol([
+  `<b>Lisez l'ordre</b> : le client annonce le travail (bandeau à gauche et carnet ${K('Tab')}). S'il décrit un symptôme, il faut d'abord trouver la panne (niveau 2).`,
+  `<b>Prenez les pièces neuves</b> à l'<b>étagère</b> de l'atelier (${K('E')} devant l'étagère). Le bouton <i>Prendre les pièces des ordres en cours</i> prend tout d'un coup. Sans la pièce neuve sur vous, rien ne se remonte : le bandeau du haut vous le rappelle.`,
+  `<b>Travaillez</b> : visez une pièce, son nom s'affiche avec le geste possible et l'outil demandé. Le bandeau « Étape suivante » vous guide (réglable avec ${K('G')}).`,
+  `<b>Rendez la voiture</b> : ${RENDRE}`])}
+ <h4>L'inventaire (barre du bas)</h4>${ul([
+  `12 places. <span class="mw-gd-v">Vert</span> : pièce neuve · <span class="mw-gd-o">orange</span> : pièce usagée déposée.`,
+  `Un clic (ou ${K('Maj')}+chiffre) prend la pièce en main : c'est elle qui sera montée en priorité. Un 2e clic ouvre sa fiche (jeter, valeur).`,
+  `Les pièces usagées se vendent à la ferraille ou d'occasion (établi) : voir niveau 5.`])}
+ <h4>Si vous êtes bloqué</h4>${ul([
+  `Visez l'élément : le message orange dit exactement ce qui manque (« Levez le pont », « Il faut une douille de 17 », « Prenez la pièce neuve »…).`,
+  `Mauvais outil ? Regardez la barre d'outils : l'outil attendu est mis en évidence. Sur un clavier AZERTY, les chiffres marchent sans ${K('Maj')}.`,
+  `Vous préférez des menus ? ${K('G')} → <i>Menus classiques</i> : chaque point de la voiture ouvre une liste de boutons (Démonter, Monter…).`])}`},
+{t:'Niveau 1 · Entretien',h:()=>`
+ <p>Les premiers travaux : vidange, filtres, ampoules, essuie-glaces, batterie, pneus. Tous les travaux de niveau 1 sont confiés dès le premier jour.</p>
+ ${job('Vidange (huile et filtre)','Entretien niveau 1','<b>Huile moteur (5 l)</b> + <b>Filtre à huile</b>, à prendre <u>avant</u> de commencer.',`${T.bac}, ${T.cliquet} + douille, ${T.main}, ${T.filtre}, ${T.bidon}, ${T.dyn}, ${T.ent}`,[
+  LEVER,
+  `${T.bac} : visez le <b>sol sous le carter</b> (sous le moteur), ${K('E')} : <i>Placer le bac sous le carter</i>.`,
+  `${T.cliquet}, réglez la douille demandée avec ${K('R')}, visez le <b>bouchon de vidange</b> (sous le carter), maintenez ${K('E')} : <i>Desserrer le bouchon</i>.`,
+  `${T.main}, maintenez ${K('E')} : <i>Retirer le bouchon à la main</i>. L'huile coule dans le bac (noire si elle est vieille). Laissez couler.`,
+  `Pendant l'écoulement, le filtre : ${T.filtre} (ou ${T.cliquet} si c'est une cartouche dans un boîtier), maintenez ${K('E')} : <i>Desserrer le filtre</i>, puis ${T.main} : <i>Dévisser et déposer</i>.`,
+  `${T.bidon} : <i>Huiler le joint du filtre neuf</i>, puis ${T.main} : <i>Visser le filtre neuf à la main</i>.`,
+  `Quand l'huile ne coule plus : ${T.main} sur le trou du carter : <i>Reposer le bouchon avec un joint neuf</i>.`,
+  `${T.dyn} (même douille) : <i>Serrer le bouchon au couple</i>.`,
+  `${T.main} : <i>Retirer le bac de vidange</i>, puis ${BAISSER}`,
+  CAPOT,
+  `${T.main} sur le <b>bouchon de remplissage</b> (sur le moteur, souvent jaune ou marqué d'une burette) : <i>Ouvrir</i>.`,
+  `${T.ent} : <i>Placer l'entonnoir</i>.`,
+  `${T.bidon} sur l'entonnoir, <b>maintenez ${K('E')}</b> : <i>Verser l'huile</i>. Le bandeau affiche la quantité du moteur (par exemple 4,5 l) et ce que vous avez versé : relâchez quand vous l'atteignez, sans trop dépasser.`,
+  `${T.main} : <i>Retirer l'entonnoir</i>, <i>Refermer le bouchon de remplissage</i>, puis <i>Retirer et lire la jauge</i> (entre MINI et MAXI).`,
+  `Fermez le capot, puis ${RENDRE}`],
+  'Erreurs pénalisées : bac oublié, bouchon pas serré au couple, bouchon de remplissage ouvert, trop ou pas assez d\'huile, bouchon oublié dans le bac magnétique.')}
+ ${job('Filtre à air et filtre d\'habitacle','Entretien niveau 1','<b>Filtre à air</b> et/ou <b>Filtre d\'habitacle</b>.',`${T.tournevis} ou ${T.pinces}, ${T.main}`,[CAPOT,...GEN('filtre neuf').slice(1),`Le filtre d'habitacle se trouve côté passager, derrière la boîte à gants (habitacle).`,RENDRE])}
+ ${job('Ampoules et essuie-glaces','Entretien / électricité niveau 1','<b>Ampoules de feux</b> ou <b>Balais d\'essuie-glace</b>.',`${T.main}, ${T.tournevis}`,[`Ampoules : capot ouvert, derrière le phare. Essuie-glaces : sur le pare-brise.`,...GEN('pièce neuve').slice(2,4),RENDRE])}
+ ${job('Batterie','Électricité niveau 1','<b>Batterie</b>.',`${T.cliquet} (douille de 10 ou 13), ${T.main}`,[CAPOT,`${T.cliquet} (douille demandée) : <i>Desserrer la cosse / la bride</i> sur chaque fixation (comme en vrai, commencez par la borne moins −).`,`${T.main} : <i>Sortir</i> la vieille batterie, puis poser la neuve.`,`${T.cliquet} : <i>Resserrer la cosse / la bride</i> sur chaque fixation.`,RENDRE])}
+ ${job('Pneus (×4)','Liaison au sol niveau 1','<b>Pneus (×4)</b>.',`${T.boul} ou ${T.cliquet}, ${T.main}, ${T.dyn}`,[...ROUE_DEP,`${T.main} sur la roue déposée : <i>Monter un pneu neuf (machine à pneus)</i>. Recommencez pour les 4 roues.`,...ROUE_REP,RENDRE])}`},
+{t:'Niveau 2 · Freins et diagnostic',h:()=>`
+ <p>Débloqué quand une compétence atteint le niveau 2 (environ 50 points d'expérience, quelques voitures). Le patron vous confie alors les freins et les pannes à diagnostiquer.</p>
+ ${job('Plaquettes de frein (avant ou arrière)','Freinage niveau 2','<b>Plaquettes avant</b> (ou arrière).',`${T.boul}/${T.cliquet}, ${T.main}, ${T.presse}, ${T.dyn}`,[
+  ...ROUE_DEP,
+  `${T.cliquet} (douille demandée) : <i>Dévisser la vis de l'étrier</i>.`,
+  `${T.main} : <i>Basculer l'étrier</i>, puis <i>Sortir les plaquettes</i> usées.`,
+  `${T.presse} : <i>Repousser le piston</i> (les plaquettes neuves sont plus épaisses).`,
+  `${T.main} : <i>Poser les plaquettes neuves</i>, <i>Remettre l'étrier en place</i>, puis ${T.cliquet} : <i>Revisser la vis de l'étrier</i>.`,
+  `Faites les deux côtés du même essieu (gauche et droite).`,
+  ...ROUE_REP,
+  `Dans l'habitacle : <i>Pomper la pédale de frein</i> jusqu'à ce qu'elle soit ferme. Oublier, c'est une pédale molle et un client furieux.`,RENDRE])}
+ ${job('Bougies, courroie d\'accessoires, liquide de frein','Moteur / freinage niveau 2','La pièce de l\'ordre.',`${T.cliquet} + douille, ${T.main}, ${T.ser} pour le liquide`,[CAPOT,...GEN('pièce neuve').slice(1),RENDRE])}
+ <h4>Trouver une panne (client qui décrit un symptôme)</h4>${ol([
+  `Lisez le symptôme : il oriente vers une zone (bruit au freinage → freins, démarreur qui tourne mollement → batterie…).`,
+  `<b>Inspectez</b> les pièces suspectes (${T.main}, ${K('E')} sur la pièce : <i>Inspecter</i>) : l'usure s'affiche.`,
+  `<b>Essai sur route</b> (habitacle) : un indice précis selon la situation (démarrage, freinage, virage…).`,
+  `<b>Valise de diagnostic</b> (habitacle, électricité niveau 2, 220 € au magasin) : lit les codes défaut des pannes invisibles (alternateur, injecteurs, sonde lambda…).`,
+  `Remplacez la pièce coupable seulement : une pièce changée pour rien n'est pas payée et fait baisser la note.`])}`},
+{t:'Niveau 3 · Disques, suspension, électricité',h:()=>`
+ <p>Niveau 3 vers 200 points d'expérience dans la compétence. La <b>clé dynamométrique</b> (85 € au magasin, fournie par les garages plus grands) devient indispensable.</p>
+ ${job('Disques de frein','Freinage niveau 3','<b>Disques</b> (et souvent <b>plaquettes</b> en même temps).',`${T.boul}/${T.cliquet}, ${T.main}, ${T.presse}, ${T.dyn}`,[
+  ...ROUE_DEP,`Déposez l'étrier comme pour les plaquettes, puis ${T.cliquet} : <i>Dévisser la vis du support</i> d'étrier.`,
+  `${T.main} : déposez le disque usé, posez le disque neuf, revissez le support puis remontez plaquettes et étrier.`,...ROUE_REP,`Pompez la pédale de frein.`,RENDRE])}
+ ${job('Amortisseurs avant','Liaison au sol niveau 3','<b>Amortisseurs avant (paire)</b>.',`${T.cliquet}, ${T.main}, ${T.dyn}`,[...ROUE_DEP,...GEN('amortisseur neuf').slice(1),...ROUE_REP,RENDRE])}
+ ${job('Alternateur, démarreur, sonde lambda','Électricité / moteur niveau 3','La pièce trouvée au diagnostic.',`${T.cliquet} + douille, ${T.main}`,[`Débranchez la batterie (borne −) par sécurité.`,CAPOT+' Sonde lambda : pont levé, sur l\'échappement.',...GEN('pièce neuve').slice(1),`Rebranchez la batterie, essai sur route.`,RENDRE])}`},
+{t:'Niveau 4 · Gros travaux moteur',h:()=>`
+ <p>Niveau 4 vers 450 points d'expérience. Travaux longs et bien payés, réservés aux mécaniciens confirmés (garages prestigieux).</p>
+ ${job('Kit de distribution','Moteur niveau 4','<b>Kit de distribution</b> (absent sur les moteurs à chaîne).',`${T.cliquet}, ${T.dyn}, ${T.main}`,[CAPOT,...GEN('kit neuf').slice(1),`Serrage final au couple. Une distribution mal montée casse le moteur : prenez votre temps.`,RENDRE])}
+ ${job('Embrayage','Transmission niveau 4','<b>Kit d\'embrayage</b>.',`${T.cliquet}, ${T.dyn}, ${T.main}`,[LEVER,...GEN('kit neuf').slice(1),BAISSER,`Essai sur route : l'embrayage ne doit plus patiner.`,RENDRE])}
+ ${job('Injecteurs','Moteur niveau 4','<b>Injecteurs</b>.',`${T.cliquet} + douille, ${T.main}`,[CAPOT,...GEN('injecteurs neufs').slice(1),`Contrôle à la valise : plus de code de ratés.`,RENDRE])}`},
+{t:'Niveau 5 · Expert et patron',h:()=>`
+ <p>Au niveau 5 et au-delà, vous savez tout faire. La différence se joue sur la carrière, l'argent et la réputation.</p>
+ <h4>Carrière</h4>${ul([`Les garages prestigieux (${K('C')} : carrière) embauchent les mécaniciens expérimentés et diplômés, et paient mieux.`,`À votre compte : vous achetez vos pièces chez Pièces Auto Express, mais toute la facture est pour vous.`,`Plus tard : ingénieur, puis votre propre marque.`])}
+ <h4>Anciennes pièces</h4>${ul([`<b>Ferraille</b> (magasin) : métal au poids, plomb des batteries, consigne des alternateurs, démarreurs et injecteurs.`,`<b>Occasion</b> (établi) : une pièce encore bonne se vend à des particuliers, de 8 h à 20 h.`,`<b>Remise en état</b> (établi) : disques rectifiés, batterie rechargée, alternateur, démarreur et injecteurs refaits, revendus plus cher.`,`<b>Réemploi</b> : une pièce durable d'occasion peut être montée sur la voiture d'un client, facturée 40 % moins cher (prenez-la en main avec ${K('Maj')}+chiffre).`,`Certains clients veulent récupérer leurs anciennes pièces : gardez-les jusqu'au rendu.`])}
+ <h4>Honnêteté</h4>${ul([`À l'écran de rendu, <i>Arrondir la facture…</i> permet de tricher : réemploi au prix du neuf, main-d'œuvre gonflée, pièces facturées sans être changées.`,`Risques : le client peut s'en apercevoir au comptoir, ou des jours plus tard (remboursement du double, amende, avertissement puis licenciement). Les soupçons du quartier (carnet) rendent chaque arnaque plus risquée.`])}`}];
+
+let cur=null;
+function lvMax(){try{return Math.max(...MWJ.SKILLS.map(k=>MWJ.level(k)));}catch(e){return 1;}}
+function open(n){
+ if(!MW.S) return;if(n==null) n=cur!=null?cur:(MW.S.jobs&&MW.S.jobs.stats&&MW.S.jobs.stats.rendues>0?Math.min(5,lvMax()):0);cur=Math.max(0,Math.min(5,n|0));
+ const lv=(()=>{try{return MWJ.SKILLS.map(k=>`<span class="mw-tag">${esc(MWJ.SK_NOM[k])} ${MWJ.level(k)}</span>`).join('');}catch(e){return '';}})();
+ const tabs=CH.map((c,i)=>`<button type="button" class="btn sm${i===cur?'':' ghost'}" data-mw="gd:${i}" aria-pressed="${i===cur}">${i}</button>`).join('');
+ const h=`<div class="mw-btns mw-gd-tabs" role="tablist" aria-label="Niveaux">${tabs}</div><h3 class="mw-h3">${esc(CH[cur].t)}</h3>${CH[cur].h()}
+  <h4>Vos niveaux</h4><div class="mw-chips">${lv}</div>
+  <div class="mw-btns">${cur>0?`<button type="button" class="btn ghost" data-mw="gd:${cur-1}">← Niveau ${cur-1}</button>`:''}${cur<5?`<button type="button" class="btn" data-mw="gd:${cur+1}">Niveau ${cur+1} →</button>`:''}<button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`;
+ const pb=document.getElementById('mwPb');
+ MW.panel('Guide du mécanicien',h,{wide:true,onClick:a=>{if(a.startsWith('gd:')){open(+a.slice(3));const q=document.getElementById('mwPb');if(q) q.scrollTop=0;}}});
+ return cur;}
+MW.on('key',k=>{if(k==='h') open();});
+MW.addButton('guide','Guide (H)',()=>open());
+MW.on('start',()=>{cur=null;});
+return {open,NIV:CH.length,CH};
+})();
+window.__mwgd=MWGD;
 
 /* ───────────── Rendu ───────────── */
 function renderKeys(){
