@@ -432,17 +432,19 @@ api.takeLoan=takeLoan;api.owed=owed;
 
 /* ── Vendeur d'occasions ── */
 const CARS=[
- {id:'vieille',nom:'Votre vieille voiture',kind:'berline',color:0x7c8a6a,prix:0},
- {id:'citadine',nom:'Citadine d\'occasion (7 ans)',kind:'citadine',color:0x3d7fc4,prix:4500},
- {id:'berline',nom:'Berline d\'occasion (5 ans)',kind:'berline',color:0x6a6f78,prix:9500},
- {id:'utilitaire',nom:'Fourgonnette d\'atelier',kind:'utilitaire',color:0xe8e8e8,prix:12000},
- {id:'suv',nom:'SUV familial (3 ans)',kind:'suv',color:0x2f5d3a,prix:17000},
- {id:'sport',nom:'Coupé sport (2 ans)',kind:'sport',color:0xc4281c,prix:36000}];
+ {id:'vieille',nom:'Peugeot 206 1.4 HDi 70 (2004, votre vieille voiture)',model:'p206',kind:'citadine',color:0x7c8a6a,prix:0},
+ {id:'citadine',nom:'Peugeot 208 1.2 VTi 82 (2016, 7 ans)',model:'p208',kind:'citadine',color:0x3d7fc4,prix:4500},
+ {id:'berline',nom:'Volkswagen Golf 1.6 TDI 105 (2018, 5 ans)',model:'golf7',kind:'berline',color:0x6a6f78,prix:9500},
+ {id:'utilitaire',nom:"Renault Kangoo 1.5 dCi 90 (fourgonnette d'atelier)",model:'kangoo2',kind:'utilitaire',color:0xe8e8e8,prix:12000},
+ {id:'suv',nom:'Peugeot 3008 1.5 BlueHDi 130 (2020, 3 ans)',model:'p3008',kind:'suv',color:0x2f5d3a,prix:17000},
+ {id:'sport',nom:'Renault Mégane RS 2.0 turbo 265 (2016, 2 ans)',model:'meganers',kind:'sport',color:0xc4281c,prix:36000}];
 function applyCar(){
- const c=C();if(!c.car||!MW.playerCar) return;
+ const c=C(),cc=c.car||CARS[0];if(!MW.playerCar) return;
  try{const pc=MW.playerCar(),m=pc&&pc.mesh;if(!m) return;
-  const n=MW.carMesh({kind:c.car.kind,color:c.car.color});
+  const n=MW.carMesh({kind:cc.kind,color:cc.color,model:cc.model||(CARS.find(x=>x.id===cc.id)||{}).model});
+  const keep=m.children.filter(o=>o.isLight||(o.type==='Object3D'&&!o.name&&!o.children.length)); /* phares et leur cible (socle) */
   while(m.children.length) m.remove(m.children[0]);
+  for(const o of keep) m.add(o);
   while(n.children.length) m.add(n.children[0]);
   m.userData=n.userData;}catch(e){console.error(e);}}
 function dealer(z){
@@ -450,7 +452,7 @@ function dealer(z){
  MW.panel(z.nom,`<p>Votre voiture actuelle : <b>${esc((CARS.find(x=>x.id===cur)||CARS[0]).nom)}</b>. Le vendeur reprend l'ancienne à 40 % de sa valeur d'achat.</p><div class="mw-card">${CARS.filter(x=>x.id!=='vieille').map(x=>{const net=x.prix-Math.round(curP*.4);return `<div class="mw-row"><span>${esc(x.nom)}<br><small>${esc(fmt(x.prix))}${curP?' · à payer : '+esc(fmt(Math.max(0,net))):''}</small></span>${btn('buy:'+x.id,cur===x.id?'Possédée':'Acheter','sm',cur===x.id||MW.S.money<Math.max(0,net))}</div>`;}).join('')}</div><p class="hint">Seul l'aspect de la voiture change : les performances de conduite restent celles d'une voiture ordinaire.</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`,
   {wide:true,onClick:a=>{if(!a.startsWith('buy:')) return;const x=CARS.find(k=>k.id===a.slice(4));if(!x) return;
    const net=Math.max(0,x.prix-Math.round(curP*.4));if(MW.S.money<net) return;
-   MW.money(-net,'Achat : '+x.nom);c.car={id:x.id,nom:x.nom,kind:x.kind,color:x.color};applyCar();say('Belle voiture ! Elle vous attend devant le studio.','good');dealer(z);}});}
+   MW.money(-net,'Achat : '+x.nom);c.car={id:x.id,nom:x.nom,kind:x.kind,color:x.color,model:x.model};applyCar();say('Belle voiture ! Elle vous attend devant le studio.','good');dealer(z);}});}
 
 /* ── Terrain : fonder sa marque ── */
 /* apport des investisseurs, en euros : proportionnel à la réputation et au grade */

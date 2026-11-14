@@ -31,7 +31,7 @@ const PD=[
 ['filtre_huile','Filtre à huile','Fil.H','dessous','','entretien',1,12,10,'cles',0,15000,'','','Filtre encrassé.',''],
 ['filtre_air','Filtre à air','Fil.A','capot','','entretien',1,18,10,'cles',0,30000,'accel','Le moteur manque de reprise : le filtre à air est bouché.','Filtre noir de poussière.',''],
 ['filtre_hab',"Filtre d'habitacle",'Fil.Hb','cabine','','entretien',1,15,15,'cles',0,20000,'','','Filtre gris, odeur de moisi.',''],
-['bougies','Bougies (×4)','Boug.','capot','','moteur',2,32,30,'cles',0,60000,'accel',"Le moteur a des à-coups en accélérant.",'Électrodes usées, dépôt noir.',''],
+['bougies','Bougies (allumage ou préchauffage)','Boug.','capot','','moteur',2,32,30,'cles',0,60000,'accel',"Le moteur a des à-coups en accélérant.",'Électrodes usées, dépôt noir.',''],
 ['plaq_av','Plaquettes avant','Plq.AV','roue','av','freinage',2,45,40,'cles',0,50000,'frein','Grincement métallique au freinage, côté avant.','Garnitures à ras : le support métallique frotte.',''],
 ['plaq_ar','Plaquettes arrière','Plq.AR','roue','ar','freinage',2,38,40,'cles',0,80000,'frein','Le train arrière frotte légèrement au freinage.','Garnitures fines et inégales.',''],
 ['disq_av','Disques avant','Dsq.AV','roue','av','freinage',3,110,60,'cles',0,90000,'frein','Le volant vibre au freinage.','Disques rayés, bord marqué.',''],
@@ -106,6 +106,11 @@ const KFAC={citadine:1,berline:1.2,utilitaire:1.2,suv:1.5,sport:2.2};
 const COLS=[0xb03030,0x2f5da8,0xe8e8e8,0x2a2a2e,0x3f8a4a,0xd8b22a,0x7a7f88,0xc86a1c,0x6a3a8a];
 const NOMS=['Dupuis','Lambert','Moreau','Fabre','Garnier','Roux','Lefèvre','Marchand','Perrin','Collet','Benoît','Masson','Vidal','Carpentier','Girard','Noël','Blanc','Rey','Barre','Colin'];
 const CIV=['M.','Mme','M.','Mme','Mlle'];
+/* voitures réelles (js/44) : pièces, noms et prix selon la voiture ; sans MWCARS tout reste comme avant */
+const appl=(m,id)=>{try{return typeof MWCARS==='undefined'||!m||MWCARS.applies(m,id);}catch(e){return true;}};
+const pn=(c,p)=>{const id=typeof p==='string'?p:p.id;let n=null;try{if(c&&c.mdl&&typeof MWCARS!=='undefined') n=MWCARS.partName(c.mdl,id);}catch(e){}return n||PARTS[id].nom;};
+const pprice=(c,p)=>{try{if(c&&c.mdl&&typeof MWCARS!=='undefined') return MWCARS.partPrice(c.mdl,p.id,p.prix);}catch(e){}return p.prix;};
+const lbl=c=>`${c.marque} ${c.modele}`+(c.an?` · ${c.an}`:'');
 const rnd=Math.random,rint=(a,b)=>a+Math.floor(rnd()*(b-a+1));
 const pick=a=>a[Math.floor(rnd()*a.length)];
 const R2=x=>Math.round(x*100)/100;
@@ -146,8 +151,8 @@ const invFind=(k,id,job)=>inv().findIndex(it=>it.k===k&&it.id===id&&(job==null||
 
 /* ═══════════ Voitures clientes ═══════════ */
 function wearOf(p,km){return clamp(Math.round(km/p.vie*60*(.4+rnd()*.8)),0,70);}
-function chooseJob(e,o){
- const cap=empMax(e),stretch=rnd()<.1?1:0,ok=id=>{const p=PARTS[id];return p.niv<=Math.max(cap,1)&&lv(p.comp)+stretch>=p.niv;};
+function chooseJob(e,o,mdl){
+ const cap=empMax(e),stretch=rnd()<.1?1:0,ok=id=>{const p=PARTS[id];return p.niv<=Math.max(cap,1)&&lv(p.comp)+stretch>=p.niv&&appl(mdl,id);};
  if(o.travaux){const l=o.travaux.filter(id=>PARTS[id]);return {type:'travaux',ordre:l,nom:o.nom||l.map(id=>PARTS[id].nom).join(', ')};}
  if(o.tpl){const t=TPL.find(x=>x[0]===o.tpl);if(t) return {type:'travaux',ordre:t[2].slice(),nom:t[1]};}
  if(o.symp){const y=SYMP.find(x=>x.id===o.symp);if(y) return {type:'symptome',symp:y,ordre:[],nom:y.txt};}
@@ -158,21 +163,26 @@ function chooseJob(e,o){
  const ts=TPL.filter(t=>t[2].every(ok));const l=ts.length?ts:[TPL[0]];
  let tot=0;for(const t of l) tot+=t[3];let r=rnd()*tot,t=l[0];for(const x of l){r-=x[3];if(r<=0){t=x;break;}}
  return {type:'travaux',ordre:t[2].slice(),nom:t[1]};}
+const needOf=o=>o.travaux?o.travaux.filter(id=>PARTS[id]):o.tpl?((TPL.find(x=>x[0]===o.tpl)||[0,0,[]])[2]):o.symp?[(SYMP.find(x=>x.id===o.symp)||{c:'huile'}).c]:[];
+/* modèle du garage (tuple [marque, modèle + moteur, kind, id]) où toutes les pièces demandées existent (pas de courroie de distribution sur une chaîne…) */
+function modelFor(zid,need){const pl=MODELS[zid]||MODELS.garage1,f=need&&need.length?pl.filter(m=>need.every(id=>appl(m[3],id))):pl;return pick(f.length?f:pl);}
 function makeCar(o){
  o=o||{};const NZ=o.noir||null; /* noir : client hors garage {zone,mod,color,client,taux,prix…}, sans employeur */
  const e=NZ?{id:'noir',zone:NZ.zone||'cour',niveauxAutorises:10}:emp();if(!e) return null;const z=MW.zone(e.zone);if(!z||!z.ponts) return null;
  const j=J();let pont=-1;const nP=z.libres!=null?z.libres:z.ponts.length;for(let i=0;i<nP;i++) if(!carAt(z.id,i)){pont=i;break;}
  if(pont<0) return null;
- const jb=chooseJob(e,o),mod=(NZ&&NZ.mod)||pick(MODELS[z.id]||MODELS.garage1),kr=KMR[z.id]||KMR.garage1,km=o.km||Math.round(rint(kr[0],kr[1])/100)*100;
- const parts={};for(const p of PLIST) parts[p.id]={u:p.id==='ampoules'?rint(0,25):wearOf(p,km)};
+ const mod=(NZ&&NZ.mod)||modelFor(z.id,needOf(o)),jb=chooseJob(e,o,mod[3]),kr=KMR[z.id]||KMR.garage1,cat=mod[3]&&typeof MWCARS!=='undefined'?MWCARS.get(mod[3]):null;
+ let km=o.km||Math.round(rint(kr[0],kr[1])/100)*100,an=null;
+ if(cat){const yr=2026,age=Math.round(Math.max(1,km/rint(9000,16000)));an=clamp(yr-age,cat.y0,Math.min(cat.y1,yr));if(!o.km) km=Math.round(clamp((yr-an)*rint(8000,16500)+rint(500,6000),Math.min(kr[0],4000),kr[1]*1.15)/100)*100;}
+ const parts={};for(const p of PLIST) parts[p.id]=appl(mod[3],p.id)?{u:p.id==='ampoules'?rint(0,25):wearOf(p,km)}:{u:0,na:1};
  // un petit « extra » usé, détectable à l'inspection
- if(rnd()<.35){const ex=pick(PLIST.filter(p=>!p.hid&&p.niv<=Math.max(lv(p.comp)+1,1)&&!jb.ordre.includes(p.id)&&p.id!=='ampoules'));if(ex) parts[ex.id].u=rint(78,94);}
+ if(rnd()<.35){const ex=pick(PLIST.filter(p=>!p.hid&&p.niv<=Math.max(lv(p.comp)+1,1)&&!jb.ordre.includes(p.id)&&p.id!=='ampoules'&&appl(mod[3],p.id)));if(ex) parts[ex.id].u=rint(78,94);}
  for(const id of jb.ordre) parts[id].u=Math.max(parts[id].u,rint(62,97));
- if(jb.symp){parts[jb.symp.c].u=rint(92,100);for(const id of jb.symp.red) parts[id].u=Math.max(parts[id].u,rint(42,62));}
+ if(jb.symp){parts[jb.symp.c].u=rint(92,100);for(const id of jb.symp.red) if(!parts[id].na) parts[id].u=Math.max(parts[id].u,rint(42,62));}
  for(const id in parts) parts[id].u0=parts[id].u;
  let mo=0;for(const id of jb.ordre) mo+=PARTS[id].mo;if(jb.symp) mo=PARTS[jb.symp.c].mo+60;
  const L=()=>String.fromCharCode(65+rint(0,25));
- const c={id:'j'+(++j.seq),zone:z.id,pont,client:(NZ&&NZ.client)||pick(CIV)+' '+pick(NOMS),marque:mod[0],modele:mod[1],kind:mod[2],color:(NZ&&NZ.color!=null)?NZ.color:pick(COLS),
+ const c={id:'j'+(++j.seq),zone:z.id,pont,client:(NZ&&NZ.client)||pick(CIV)+' '+pick(NOMS),marque:mod[0],modele:mod[1],kind:mod[2],mdl:mod[3]||null,an:an,color:(NZ&&NZ.color!=null)?NZ.color:pick(COLS),
   plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
   arrive:absT(),ot0:openT(),promis:openT()+Math.max(150,Math.round(mo*2+60)),type:jb.type,ordre:jb.ordre,symp:jb.symp?{id:jb.symp.id,txt:jb.symp.txt,c:jb.symp.c,dn:jb.symp.dn}:null,nom:jb.nom,
   parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
@@ -187,17 +197,23 @@ function removeCar(c,silent){
 /* ── maillage 3D des voitures (sur les ponts) ── */
 const RT={};
 const KD={citadine:[3.7,1.65],berline:[4.6,1.8],sport:[4.4,1.9],suv:[4.5,1.9],utilitaire:[4.8,1.9]};
+const dimOf=c=>{try{if(c.mdl&&typeof MWCARS!=='undefined'){const m=MWCARS.get(c.mdl);if(m) return [m.L,m.W];}}catch(e){}return KD[c.kind]||KD.berline;};
+const ptsOf=c=>{try{if(c.mdl&&typeof MWCARS!=='undefined'&&MWCARS.get(c.mdl)) return MWCARS.pts(c.mdl);}catch(e){}return null;};
 function buildMesh(c){
  const z=MW.zone(c.zone);if(!z||!z.ponts||!z.ponts[c.pont]) return;const p=z.ponts[c.pont],T=MW.THREE;
  const old=RT[c.id];if(old) MW.scene.remove(old.g);
- const g=MW.carMesh({color:c.color,kind:c.kind}),d=KD[c.kind]||KD.berline,r={g,hood:g.getObjectByName('hood'),y:.22+(c.st.lifted?1:0),ha:c.st.capot?-1:0,disc:{},mk:{}};
+ const g=MW.carMesh({color:c.color,kind:c.kind,model:c.mdl,plate:c.plaque}),d=dimOf(c),r={g,hood:g.getObjectByName('hood'),y:.22+(c.st.lifted?1:0),ha:c.st.capot?-1:0,disc:{},mk:{}};
  g.position.set(p.x,r.y,p.z);g.rotation.y=p.ry;MW.scene.add(g);
  if(r.hood) r.hood.rotation.x=r.ha;
  for(const n of ['wFL','wFR','wRL','wRR']){const w=g.getObjectByName(n);if(!w) continue;
+  if(g.getObjectByName('brake'+n.slice(1))) continue; /* js/44 : disques et étriers réels, toujours visibles */
   const m=MW.cyl(.13,.22,0x8a8f98,w.position.x,w.position.y,w.position.z);m.rotation.z=PI/2;g.add(m);m.visible=false;r.disc[n]=m;}
  const mkr=(k,x,y,zz)=>{const m=MW.box(.18,.18,.18,0xffb800,x,y,zz);m.rotation.set(.6,.6,0);g.add(m);r.mk[k]=m;};
- mkr('capot',0,1.15,d[0]/2-.45);mkr('cabine',d[1]/2+.05,1.0,0);mkr('dessous',0,.3,0);
- for(const [n,sx,sz] of [['FL',1,1],['FR',-1,1],['RL',1,-1],['RR',-1,-1]]) mkr(n,sx*(d[1]/2+.05),.85,sz*d[0]*.3);
+ const ud=g.userData&&g.userData.anchors;
+ if(ud&&ud.hoodPivot){const hp=ud.hoodPivot.position,hL=g.userData.hoodLen||.9;mkr('capot',0,hp.y+.4,hp.z+hL*.5);mkr('cabine',d[1]/2+.05,1.0,ud.cabin.position.z);mkr('dessous',0,.3,ud.under.position.z);
+  for(const n of ['FL','FR','RL','RR']){const a=ud['hub'+n].position;mkr(n,Math.sign(a.x)*(d[1]/2+.05),a.y*2+.1,a.z);}}
+ else{mkr('capot',0,1.15,d[0]/2-.45);mkr('cabine',d[1]/2+.05,1.0,0);mkr('dessous',0,.3,0);
+ for(const [n,sx,sz] of [['FL',1,1],['FR',-1,1],['RL',1,-1],['RR',-1,-1]]) mkr(n,sx*(d[1]/2+.05),.85,sz*d[0]*.3);}
  RT[c.id]=r;applyVisual(c,true);}
 function applyVisual(c,snap){
  const r=RT[c.id];if(!r) return;
@@ -205,9 +221,10 @@ function applyVisual(c,snap){
  for(const n of ['FL','FR','RL','RR']){const off=n[0]==='F'?c.st.av:c.st.ar,w=r.g.getObjectByName('w'+n);if(w) w.visible=!off;if(r.disc['w'+n]) r.disc['w'+n].visible=!!off;}
  if(r.mk.dessous) r.mk.dessous.visible=!!c.st.lifted;}
 function moveInteracts(c){
- const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) return;const d=KD[c.kind]||KD.berline,f={x:Math.sin(p.ry),z:Math.cos(p.ry)},l={x:Math.cos(p.ry),z:-Math.sin(p.ry)};
+  const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) return;const d=dimOf(c),pt=ptsOf(c),f={x:Math.sin(p.ry),z:Math.cos(p.ry)},l={x:Math.cos(p.ry),z:-Math.sin(p.ry)};
  const at=(lx,lz)=>({x:p.x+l.x*lx+f.x*lz,z:p.z+l.z*lx+f.z*lz});
  const set=(k,lx,lz)=>{const o=PTS[c.zone+':'+c.pont+':'+k];if(o){const q=at(lx,lz);o.x=q.x;o.z=q.z;}};
+ if(pt){for(const k in pt) set(k,pt[k].x,pt[k].z);return;}
  set('capot',0,d[0]/2+.9);set('cabine',d[1]/2+.8,0);set('dessous',0,0);
  set('FL',d[1]/2+.8,d[0]*.3);set('FR',-(d[1]/2+.8),d[0]*.3);set('RL',d[1]/2+.8,-d[0]*.3);set('RR',-(d[1]/2+.8),-d[0]*.3);}
 function animate(dt){
@@ -241,17 +258,17 @@ function doDep(c,id){
  const p=PARTS[id];if(c.done[id]||c.rem[id]) return false;if(!gesteOK(c,p)) return false;
  if(inv().length>=INV_MAX) return warn('Inventaire plein : jetez ou revendez des pièces usagées.');
  {const m=Math.max(4,Math.round(p.mo*.4));MW.addMin(m);NG(c,'dep',p,m);}c.rem[id]=1;if(!c.insp[id]){c.insp[id]=1;}
- invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id});MW.toast(`${p.nom} déposé(e) : rangé(e) dans l'inventaire.`,'info');return true;}
+ invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id});MW.toast(`${pn(c,p)} déposé(e) : rangé(e) dans l'inventaire.`,'info');return true;}
 function doPose(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
- const i=invFind('neuve',id);if(i<0) return warn(`Il vous faut ${p.nom.toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express.`);
+ const i=invFind('neuve',id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express.`);
  const it=inv()[i];invDel(i);{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(m);NG(c,'pose',p,m);}
  if(it.src==='achat') c.avance=R2(c.avance+(it.paye||0));
- delete c.rem[id];c.done[id]=1;c.parts[id].u=0;MW.toast(`${p.nom} : monté(e).`,'good');MW.emit('partFitted',c,id);return true;}
+ delete c.rem[id];c.done[id]=1;c.parts[id].u=0;MW.toast(id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'?`${pn(c,p)} : ${nf(MWCARS.oilL(c.mdl),2)} l versés, niveau au repère maxi.`:`${pn(c,p)} : monté(e).`,'good');MW.emit('partFitted',c,id);return true;}
 function doRem(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;const i=invFind('usagee',id,c.id);
  if(i<0) return warn("L'ancienne pièce n'est plus dans votre inventaire.");
- invDel(i);{const m=Math.max(3,Math.round(p.mo*.3));MW.addMin(m);NG(c,'rem',p,m);}delete c.rem[id];MW.toast(`${p.nom} : ancienne pièce remise en place.`,'info');return true;}
+ invDel(i);{const m=Math.max(3,Math.round(p.mo*.3));MW.addMin(m);NG(c,'rem',p,m);}delete c.rem[id];MW.toast(`${pn(c,p)} : ancienne pièce remise en place.`,'info');return true;}
 const remIn=(c,f)=>Object.keys(c.rem).some(id=>f(PARTS[id]));
 function togCapot(c){
  if(c.st.capot){if(remIn(c,p=>p.zone==='capot')) return warn('Une pièce est démontée sous le capot.');c.st.capot=0;MW.addMin(1);NG(c,'capot',null,1);}
@@ -267,7 +284,7 @@ function togRoues(c,ax){
 function doValise(c){
  if(!outilOK('valise',c)) return warn('Il vous faut une valise de diagnostic (en vente chez Pièces Auto Express).');
  if(lv('electricite')<2) return warn("Lire la valise demande de l'électronique : niveau 2 en électricité.");
- MW.addMin(10);NG(c,'valise',null,10);const l=[];for(const q of PLIST) if(q.hid&&!c.done[q.id]&&c.parts[q.id].u>=60) l.push(q.code);
+ MW.addMin(10);NG(c,'valise',null,10);const l=[];for(const q of PLIST) if(q.hid&&!c.done[q.id]&&!c.parts[q.id].na&&c.parts[q.id].u>=60) l.push(q.code);
  c.codes=l.length?l:['Aucun défaut mémorisé.'];if(!c.vu){c.vu=1;c.comp.diagnostic=(c.comp.diagnostic||0)+4;}return true;}
 
 /* ═══════════ Essai sur route ═══════════ */
@@ -327,12 +344,12 @@ function quote(ids,kind,taux,extraMin){
 /* ═══════════ Évaluation et rendu ═══════════ */
 function blocage(c){
  const l=[];if(c.st.capot) l.push('le capot est ouvert');if(c.st.av||c.st.ar) l.push('des roues sont déposées');if(c.st.lifted) l.push('le pont est levé');
- const r=Object.keys(c.rem);if(r.length) l.push('une pièce est démontée ('+r.map(id=>PARTS[id].nom.toLowerCase()).join(', ')+')');return l;}
+ const r=Object.keys(c.rem);if(r.length) l.push('une pièce est démontée ('+r.map(id=>pn(c,id).toLowerCase()).join(', ')+')');return l;}
 function evalJob(c){
  const e=emp()||{},lines=[],comp={};let pieces=0,mo=0;const need=[],extra=[],inut=[];
  for(const id in c.done){const p=PARTS[id],ord=c.ordre.includes(id),cul=c.symp&&c.symp.c===id,usee=c.parts[id].u0>=SEUIL;
   if(ord||cul) need.push(id);else if(usee) extra.push(id);else{inut.push(id);continue;}
-  const prix=R2(p.prix*1.3*c.fp);lines.push({id,nom:p.nom,prix,mo:p.mo,extra:!(ord||cul)});pieces+=prix;mo+=p.mo;
+  const prix=R2(pprice(c,p)*1.3*c.fp);lines.push({id,nom:pn(c,p),prix,mo:p.mo,extra:!(ord||cul)});pieces+=prix;mo+=p.mo;
   comp[p.comp]=(comp[p.comp]||0)+Math.round(p.mo*.35*(1+.25*(p.niv-1)));}
  const manque=c.ordre.filter(id=>!c.done[id]),nonResolu=!!(c.symp&&!c.done[c.symp.c]);
  let diag=0;if(c.symp&&!nonResolu){diag=15;mo+=15;comp.diagnostic=(comp.diagnostic||0)+c.symp.dn*15;}
@@ -343,7 +360,7 @@ function evalJob(c){
  for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
  if(nonResolu){pieces=0;mo=0;lines.length=0;}
  const mainOeuvre=R2(mo/60*c.taux),facture=R2(pieces+mainOeuvre);
- return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,perte:R2(inut.reduce((a,id)=>a+PARTS[id].prix,0))};}
+ return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
 function payOf(job){
  if(typeof MWC!=='undefined'&&MWC&&typeof MWC.payFor==='function'){try{const v=MWC.payFor(job);if(typeof v==='number'&&isFinite(v)) return R2(Math.max(0,v));}catch(e){}}
  const e=emp()||{};return e.paie==='mois'?0:R2(job.mainOeuvre*.4);}
@@ -385,14 +402,16 @@ function rowHTML(c,p){
   if(p.hid) info+=`<small>${esc(c.vu?(u>=60?p.code:'Mesures normales à la valise.'):"Rien d'anormal à l'œil nu : seule la valise de diagnostic peut le dire.")}</small>`;
   else info+=`<div class="mw-usure"><i style="width:${u}%" class="${u>=SEUIL?'r':u>=55?'o':'v'}"></i></div><small>Usure ${u} % — ${esc(u<35?'bon état.':u<60?'usure correcte.':u<SEUIL?'à surveiller.':(u>=90?"hors d'usage. ":'à remplacer. ')+p.usTxt)}</small>`;}
  const need=[];if(p.niv>lv(p.comp)||!canDo(p.id,c)) need.push(`niveau ${p.niv} en ${SK_NOM[p.comp].toLowerCase()}`);if(!outilOK(p.outil,c)) need.push(OUTILS[p.outil].nom.toLowerCase());
- return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b>${tag}</div>${info}${need.length?`<small class="mw-lock">Requis : ${esc(need.join(', '))}.</small>`:''}<div class="mw-btns">${b}</div></div>`;}
+
+ if(p.id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'&&!c.done[p.id]) info+=`<small>Capacité du moteur : ${nf(MWCARS.oilL(c.mdl),2)} l (${esc(MWCARS.get(c.mdl).eng.visc)}).</small>`;
+ return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(pn(c,p))}</b>${tag}</div>${info}${need.length?`<small class="mw-lock">Requis : ${esc(need.join(', '))}.</small>`:''}<div class="mw-btns">${b}</div></div>`;}
 function stateChips(c){
  const t=(on,a,b)=>`<span class="mw-tag${on?' warn':''}">${on?a:b}</span>`;
  return `<div class="mw-chips">${t(c.st.capot,'Capot ouvert','Capot fermé')}${t(c.st.lifted,'Pont levé','Pont bas')}${t(c.st.av,'Roues AV déposées','Roues AV posées')}${t(c.st.ar,'Roues AR déposées','Roues AR posées')}</div>`;}
 const PT_NOM={capot:'Capot',cabine:'Habitacle',dessous:'Dessous',FL:'Roue avant gauche',FR:'Roue avant droite',RL:'Roue arrière gauche',RR:'Roue arrière droite'};
 function openPoint(cid,kind,keep){
  const c=carById(cid);if(!c){MW.closePanel();return;}
- const ax=kind[0]==='F'?'av':kind[0]==='R'?'ar':'';let h=`<p class="hint">${esc(c.client)} · ${esc(voit(c))} · ${esc(c.plaque)} · ${nf(c.km)} km<br>Demande : ${esc(demande(c))}</p>${stateChips(c)}`;
+ const ax=kind[0]==='F'?'av':kind[0]==='R'?'ar':'';let h=`<p class="hint">${esc(c.client)} · ${esc(lbl(c))} · ${esc(c.plaque)} · ${nf(c.km)} km<br>Demande : ${esc(demande(c))}</p>${stateChips(c)}`;
  let ctl='';
  if(kind==='capot') ctl=btn('capot',c.st.capot?'Fermer le capot':'Ouvrir le capot');
  else if(ax) ctl=btn('pont',c.st.lifted?'Baisser le pont':'Lever le pont')+btn('roues',(c.st[ax]?'Reposer':'Déposer')+' les roues '+(ax==='av'?'avant':'arrière'));
@@ -402,7 +421,7 @@ function openPoint(cid,kind,keep){
   h+=`<div class="mw-btns">${btn('valise','Valise de diagnostic','ghost')}${btn('essai','Essai sur route','ghost')}${btn('rendre','Rendre la voiture','')}</div>`;
   if(c.codes) h+=`<p><b>Valise :</b><br>${c.codes.map(esc).join('<br>')}</p>`;
   if(c.clues.length) h+=`<p><b>Indices relevés :</b><br>${c.clues.map(esc).join('<br>')}</p>`;}
- const l=PLIST.filter(p=>kind==='capot'?p.zone==='capot':kind==='dessous'?p.zone==='dessous':kind==='cabine'?p.zone==='cabine':(p.zone==='roue'&&(p.ax==='*'||p.ax===ax)));
+ const l=PLIST.filter(p=>!(c.parts[p.id]&&c.parts[p.id].na)).filter(p=>kind==='capot'?p.zone==='capot':kind==='dessous'?p.zone==='dessous':kind==='cabine'?p.zone==='cabine':(p.zone==='roue'&&(p.ax==='*'||p.ax===ax)));
  h+=l.map(p=>rowHTML(c,p)).join('');
  show(`${PT_NOM[kind]} · ${voit(c)}`,h,a=>pointAct(cid,kind,a),{keep});}
 function pointAct(cid,kind,a){
@@ -420,8 +439,8 @@ function rendreUI(c){
  if(c.noir) h+=`<p>${c.noir.service?'Service rendu à la voisine : pas de paiement.':'Prix convenu en liquide : <b>'+fmt(c.noir.prix||0)+'</b> (sans facture).'}</p>`; /* noir */
  else if(ev.lines.length) h+=`<table class="mw-fac"><tbody>${ev.lines.map(l=>`<tr><td>${esc(l.nom)}${l.extra?' <small>(en plus)</small>':''}</td><td>${fmt(l.prix)}</td></tr>`).join('')}<tr><td>Main-d'œuvre (${nf(ev.mainOeuvre/c.taux*60)} min)</td><td>${fmt(ev.mainOeuvre)}</td></tr><tr class="t"><td>Total</td><td>${fmt(ev.facture)}</td></tr></tbody></table>`;
  const w=[];if(ev.nonResolu) w.push('La panne signalée n\'est pas réparée : le client ne paiera rien et sera très mécontent.');
- if(ev.manque.length) w.push('Travaux demandés non faits : '+ev.manque.map(id=>PARTS[id].nom.toLowerCase()).join(', ')+'.');
- if(ev.inut.length) w.push('Pièces remplacées pour rien (non facturées) : '+ev.inut.map(id=>PARTS[id].nom.toLowerCase()).join(', ')+'.');
+ if(ev.manque.length) w.push('Travaux demandés non faits : '+ev.manque.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
+ if(ev.inut.length) w.push('Pièces remplacées pour rien (non facturées) : '+ev.inut.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.retard) w.push('Voiture rendue en retard.');
  if(w.length) h+=`<p class="mw-soon">${w.map(esc).join('<br>')}</p>`;
  h+=`<div class="mw-btns"><button type="button" class="btn" data-mw="ok">Rendre les clés</button><button type="button" class="btn ghost" data-mw="back">Retour</button></div>`;
@@ -482,7 +501,7 @@ function carnet(){
  let h=`<h3 class="mw-h3">Ordres en cours</h3>`;
  if(!j.cars.length) h+=`<p>${e?'Aucun client pour le moment. Les voitures arrivent de 8 h à 19 h.':'Vous n\'êtes employé nulle part : pas de clients.'}</p>`;
  for(const c of j.cars){const pr=c.ordre.length?c.ordre.filter(id=>c.done[id]).length+'/'+c.ordre.length:(c.symp&&c.done[c.symp.c]?'réparé':'à diagnostiquer'),late=openT()>c.promis;
-  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${c.noir?'Cour (noir)':'Pont '+(c.pont+1)} · ${esc(voit(c))}</b><span class="mw-tag${late?' warn':''}">${esc(pr)}</span></div><small>${esc(c.client)} · ${esc(c.plaque)} · ${nf(c.km)} km</small><div>${esc(demande(c))}</div>${c.codes?`<small>Valise : ${c.codes.map(esc).join(' ; ')}</small>`:''}${c.clues.length?`<small>Indices : ${c.clues.map(esc).join(' ')}</small>`:''}<small>${late?'En retard sur la promesse faite au client.':'Promis dans environ '+nf(Math.max(0,c.promis-openT()))+' min de travail.'}</small></div>`;}
+  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${c.noir?'Cour (noir)':'Pont '+(c.pont+1)} · ${esc(voit(c))}</b><span class="mw-tag${late?' warn':''}">${esc(pr)}</span></div><small>${esc(c.client)} · ${esc(c.plaque)} · ${esc(c.an?c.an+' · ':'')}${nf(c.km)} km</small><div>${esc(demande(c))}</div>${c.codes?`<small>Valise : ${c.codes.map(esc).join(' ; ')}</small>`:''}${c.clues.length?`<small>Indices : ${c.clues.map(esc).join(' ')}</small>`:''}<small>${late?'En retard sur la promesse faite au client.':'Promis dans environ '+nf(Math.max(0,c.promis-openT()))+' min de travail.'}</small></div>`;}
  h+=`<h3 class="mw-h3">Inventaire (${inv().length}/${INV_MAX})</h3>`;
  h+=inv().length?`<div class="mw-chips">${inv().map((it,i)=>`<button type="button" class="mw-tag ${it.k==='neuve'?'ok':'warn'}" data-mw="item:${i}">${esc(PARTS[it.id].nom)} (${it.k==='neuve'?'neuf':'usagé'})</button>`).join('')}</div>`:'<p>Vide.</p>';
  h+=`<h3 class="mw-h3">Outils</h3><p>${Object.keys(j.outils).filter(k=>j.outils[k]).map(k=>esc(OUTILS[k].nom)).join(' · ')}</p>`;
@@ -563,7 +582,7 @@ MW.addButton('carnet','Carnet (Tab)',()=>{if(MW.S) carnet();});
 MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
-const api={PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
+const api={modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
  state:()=>J(),act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
