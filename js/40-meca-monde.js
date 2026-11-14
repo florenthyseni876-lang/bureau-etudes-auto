@@ -187,7 +187,7 @@ function signTex(text,bg,fg){
  const t=new T.CanvasTexture(c);t.anisotropy=2;return t;}
 
 /* ── construction du monde ── */
-let built=false,carObj=null,lampMat=null,sunL=null,hemi=null,beacon=null,headL=null;
+let built=false,decorOn=false,carObj=null,lampMat=null,sunL=null,hemi=null,beacon=null,headL=null;
 const doorFns={};
 function wallBox(cx,cz,w,d,y0,y1,col,solid){const m=mk(gBox(w,y1-y0,d),mat(col,.22),cx,(y0+y1)/2,cz);sceneObj.add(m);if(solid) addCol(cx,cz,w,d);}
 function buildBuilding(z){
@@ -238,6 +238,7 @@ function buildWorld(){
  const bg=new T.Color(0x8fc4ee);sceneObj.background=bg;sceneObj.fog=new T.Fog(0x8fc4ee,90,330);
  hemi=new T.HemisphereLight(0xcfe4ff,0x6a6a58,.9);sceneObj.add(hemi);
  sunL=new T.DirectionalLight(0xfff0d0,.9);sceneObj.add(sunL);sceneObj.add(sunL.target);
+ const base0=sceneObj.children.length,treeL=[]; /* décor (45-meca-decor.js) : tout ce qui suit est remplacé par un décor soigné si le point d'accroche est présent */
  // sol, routes, trottoirs
  sceneObj.add(mk(gBox(1400,.2,1400),mat(0x6f9a4a),0,-.1,0));
  for(const r of RZ){sceneObj.add(mk(gBox(600,.1,20),mat(0xb9b9b4),0,.05,r));sceneObj.add(mk(gBox(600,.12,14),mat(0x3a3d42),0,.06,r));}
@@ -271,7 +272,7 @@ function buildWorld(){
  const tm=[],cm=[];let tries=0;
  while(tm.length<90&&tries++<900){const x=rnd()*560-280,z=rnd()*560-280;
   if(RX.some(a=>Math.abs(x-a)<17)||RZ.some(a=>Math.abs(z-a)<17)||!free(x,z,1,1,4)) continue;
-  const s=.8+rnd()*.7;tm.push(new T.Matrix4().makeScale(1,s,1).setPosition(x,1.1*s,z));cm.push(new T.Matrix4().makeScale(s,s,s).setPosition(x,3.6*s,z));addCol(x,z,.7,.7);}
+  const s=.8+rnd()*.7;treeL.push([x,z,s]);tm.push(new T.Matrix4().makeScale(1,s,1).setPosition(x,1.1*s,z));cm.push(new T.Matrix4().makeScale(s,s,s).setPosition(x,3.6*s,z));addCol(x,z,.7,.7);}
  instanced(gCyl(.3,2.2,6),mat(0x6a4a2a),tm);instanced(new T.ConeGeometry(1.9,4.2,7),mat(0x2f7a3a),cm);
  // lampadaires
  const pm=[],lm=[];
@@ -279,6 +280,10 @@ function buildWorld(){
  for(const r of RX) for(let zz=-285;zz<=285;zz+=30){if(RZ.some(a=>Math.abs(zz-a)<14)) continue;pm.push(new T.Matrix4().makeTranslation(r-8.8,3,zz));lm.push(new T.Matrix4().makeTranslation(r-8.8,6.1,zz));}
  instanced(gCyl(.1,6,6),mat(0x40444a),pm);
  lampMat=new T.MeshBasicMaterial({color:0x888070});instanced(gBox(.7,.3,.7),lampMat,lm);
+ // décor : remplace les boîtes de base (les colliders restent ceux de la base)
+ if(api.decor&&api.decor.build){const base=sceneObj.children.slice(base0);for(const o of base) sceneObj.remove(o);
+  try{api.decor.build({scene:sceneObj,zones,walls,addCol,free,RX,RZ,HALF,hemi,sun:sunL,houses,trees:treeL,rnd});decorOn=true;}
+  catch(e){console.error('Décor : '+(e&&e.stack?e.stack:e));for(const o of base) sceneObj.add(o);decorOn=false;}}
  // faisceau du repère
  beacon=new T.Mesh(new T.CylinderGeometry(1.3,1.3,40,16,1,true),new T.MeshBasicMaterial({color:0xffc820,transparent:true,opacity:.28,side:T.DoubleSide,depthWrite:false}));
  beacon.position.y=20;beacon.visible=false;sceneObj.add(beacon);
@@ -393,8 +398,9 @@ function useCur(k){
  if(k==='f'){if(curI&&curI.key.toLowerCase()==='f'&&curI.o){try{curI.o.use();}catch(e){console.error(e);}return;}toggleCar();return;}
  if(curI&&curI.o&&curI.key.toLowerCase()===k){try{curI.o.use();}catch(e){console.error(e);}}}
 function pauseMenu(){
- api.panel('Pause',`<p>${esc(api.timeStr())} · ${esc(fmt(S.money))}</p><div class="mw-btns v"><button type="button" class="btn" data-mw="resume">Reprendre</button><button type="button" class="btn ghost" data-mw="save">Sauvegarder</button><button type="button" class="btn ghost" data-mw="quit">Quitter vers l'accueil</button><button type="button" class="btn ghost" data-mw="new">Recommencer une partie…</button></div><p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · Échap : pause.</p>`,
+ api.panel('Pause',`<p>${esc(api.timeStr())} · ${esc(fmt(S.money))}</p><div class="mw-btns v"><button type="button" class="btn" data-mw="resume">Reprendre</button><button type="button" class="btn ghost" data-mw="save">Sauvegarder</button>${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}<button type="button" class="btn ghost" data-mw="quit">Quitter vers l'accueil</button><button type="button" class="btn ghost" data-mw="new">Recommencer une partie…</button></div><p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · Échap : pause.</p>`,
   {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){api.save();api.toast('Partie sauvegardée.','good');}
+   else if(a==='quality'){api.decor.cycleQuality();api.closePanel();pauseMenu();}
    else if(a==='quit'){api.closePanel();api.close();}
    else if(a==='new') api.panel('Recommencer ?',`<p>Votre progression sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, recommencer</button><button type="button" class="btn ghost" data-mw="close">Non</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}}});}});}
 function toggleMap(on){ensureUI();if(panelSt) return;mapOpen=on===undefined?!mapOpen:on;ui.map.hidden=!mapOpen;setPaused();if(mapOpen){sizeBig();drawBig();}}
@@ -433,7 +439,7 @@ function toggleCar(){
  else api.toast('Votre voiture est trop loin.','info');}
 api.player=()=>({x:P.x,z:P.z,ry:P.ry,inCar:P.inCar,zone:zoneCur?zoneCur.id:null,zoneObj:zoneCur,pitch:P.pitch});
 api.playerCar=()=>({mesh:carObj,x:S.car.x,z:S.car.z,ry:S.car.ry,speed:car.v});
-api.teleport=(x,z,ry)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;}};
+api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;}};
 api.setMarker=(t,label)=>{if(!S) return;S.marker=t;S.markerLabel=label||null;placeBeacon();};
 function markerPos(){const m=S&&S.marker;if(!m) return null;if(typeof m==='string'){const z=zById[m];return z?{x:z.porte.x,z:z.porte.z}:null;}return typeof m.x==='number'?m:null;}
 function placeBeacon(){if(!beacon) return;const p=markerPos();beacon.visible=!!p;if(p){beacon.position.x=p.x;beacon.position.z=p.z;}}
@@ -543,7 +549,7 @@ function frame(t){
  if(P.inCar){const fx=Math.sin(S.car.ry),fz=Math.cos(S.car.ry),tx=S.car.x-fx*7.5,tz=S.car.z-fz*7.5,k=camInit?1-Math.exp(-7*dt):1;
   camPos.x+=(tx-camPos.x)*k;camPos.y=3.4;camPos.z+=(tz-camPos.z)*k;camInit=true;cam.position.copy(camPos);cam.lookAt(S.car.x+fx*5,1.3,S.car.z+fz*5);}
  else{camInit=false;cam.position.set(P.x,1.7,P.z);cam.rotation.set(P.pitch,P.ry+PI,0);}
- updateSky();
+ if(decorOn){try{api.decor.frame(dt,t,(S.min+acc)/60);}catch(e){console.error(e);decorOn=false;}}else updateSky();
  if(beacon&&beacon.visible) beacon.material.opacity=.2+.12*Math.sin(t/300);
  // HUD
  const ts=api.timeStr();if(ts!==hudTime){hudTime=ts;ui.time.textContent=ts;}
@@ -565,7 +571,7 @@ function begin(fresh){
  emit('start');
  if(fresh||!S.flags.welcomed){S.flags.welcomed=true;api.toast('Bienvenue ! Votre carrière de mécanicien commence. Rendez-vous au Garage du Coin (repère jaune).','good');}}
 api.reset=()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){}ensureUI();begin(true);api.save();};
-api.isOpen=()=>active;
+api.isOpen=()=>active;api.renderer=()=>R;api.fit=()=>fit();
 function activate(){
  if(active) return;active=true;
  window.addEventListener('keydown',onKey,true);window.addEventListener('keyup',onKey,true);document.addEventListener('mousemove',onMouse);
@@ -583,9 +589,10 @@ const onHide=()=>{if(active&&S) api.save();};
 let rsT=0;const onResize=()=>{clearTimeout(rsT);rsT=setTimeout(fit,60);fit();};
 api.open=()=>{
  ensureUI();
- if(!built){buildWorld();regZoneInteracts();}
  if(!R){try{R=new T.WebGLRenderer({canvas:ui.cv,antialias:!isPhone(),powerPreference:'high-performance'});}catch(e){R=null;alert('La vue 3D n\'est pas disponible sur cet appareil.');return;}
-  R.setPixelRatio(Math.min(window.devicePixelRatio||1,isPhone()?1.5:1.5));}
+  R.setPixelRatio(Math.min(window.devicePixelRatio||1,isPhone()?1.5:1.5));
+  if(api.decor&&api.decor.renderer) try{api.decor.renderer(R);}catch(e){console.error(e);}}
+ if(!built){buildWorld();regZoneInteracts();}
  if(typeof hideHome==='function') hideHome();
  ui.r.hidden=false;document.body.classList.add('mw-on');
  if(!S){begin(!load());}
