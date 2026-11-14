@@ -223,7 +223,7 @@ function dayMin(t){let d=Math.floor(t/1440);const m=t%1440;if(m<360) d-=1;return
 const rdvStr=t=>{const x=dayMin(t);return `${JA[dow(x.d)]} · jour ${x.d} à ${hm(x.m)}`;};
 function makeRequest(o){
  o=o||{};const n=N(),D=MWJ.noirData,job=pickJob(o);if(!job) return null;
- const mod=o.mod||pick(D.MODELS.garage1),taux=D.TAUX.garage1,q=MWJ.quote(job.ids,mod[2],taux,job.symp?15:0);
+ const mod=o.mod||(MWJ.modelFor?MWJ.modelFor('garage1',job.ids,job.symp):pick(D.MODELS.garage1)),taux=D.TAUX.garage1,q=MWJ.quote(job.ids,mod[2],taux,job.symp?15:0);
  let prix=o.prix!=null?o.prix:q.facture*K.remise*(n.ae?K.aeHausse:1)*(.92+rnd()*.16);
  prix=Math.max(Math.round(prix),Math.ceil(q.cout*1.15));
  const rdv=rdvTime(o);
