@@ -318,13 +318,15 @@ const MATS={
  drum:()=>mat('drum',()=>new T.MeshLambertMaterial({color:0x4a4c50})),
  caliperD:()=>mat('calD',()=>new T.MeshLambertMaterial({color:0x2c2e32})),
  caliperR:()=>mat('calR',()=>new T.MeshLambertMaterial({color:0xc0201c})),
- under:()=>mat('under',()=>new T.MeshLambertMaterial({color:0x1b1c1f,side:T.DoubleSide})),
+ under:()=>mat('under',()=>new T.MeshLambertMaterial({color:0x4a4d53,side:T.DoubleSide})),
  steel:()=>mat('steel',()=>new T.MeshPhongMaterial({color:0x34373c,shininess:40,specular:0x333333})),
  head:()=>mat('head',()=>{const m=new T.MeshPhongMaterial({color:0xdfe7ee,shininess:100,specular:0xffffff,emissive:0xfff3c8});m.emissiveIntensity=.12;return m;}),
  tail:()=>mat('tail',()=>{const m=new T.MeshPhongMaterial({color:0x9a1018,shininess:80,specular:0x886666,emissive:0xff2020});m.emissiveIntensity=.2;return m;}),
  amber:()=>mat('amber',()=>{const m=new T.MeshPhongMaterial({color:0xd98a10,shininess:60,emissive:0xffa000});m.emissiveIntensity=.15;return m;}),
  inter:()=>mat('inter',()=>new T.MeshLambertMaterial({color:0x34373d,side:T.DoubleSide})),
- hoodUnder:()=>mat('hoodU',()=>new T.MeshLambertMaterial({color:0x26282c,side:T.DoubleSide}))};
+ hoodUnder:()=>mat('hoodU',()=>new T.MeshLambertMaterial({color:0x7d838b,emissive:0x2e3136,side:T.DoubleSide})),
+ cast:()=>mat('cast',()=>new T.MeshPhongMaterial({color:0x8d939a,shininess:30,specular:0x444444})),
+ exh:()=>mat('exh',()=>new T.MeshPhongMaterial({color:0x6e5d4e,shininess:35,specular:0x3a3a3a}))};
 /* éclairage de nuit : les feux sont émissifs quand il fait nuit */
 let nightOn=null;
 function setNight(n){if(n===nightOn) return;nightOn=n;
@@ -386,7 +388,7 @@ function buildGeo(car){
  const lidLo=rearLid?zr+L*(1-(sh.lidR||.93)):zc,lidHi=rearLid?zrb-.02:zf-.13;
  const ring=(z,open)=>{
   const {wf,vf}=endF(z),ytc=top(z),ytf=Math.max(ytc,Math.min(ytc+.3,gdz(z))),ybz=yb(z),ym=(ybz+ytc)/2,hh=ytf-ybz,vs=Math.min(1,hh/.4);
-  const yF=yfl(z),R=[[.6*hw,yF],[.86*hw,ybz],[.972*hw,ybz+Math.min(.04,hh*.3)],[hw,ybz+.14*hh],[hw,ybz+.78*hh],[.978*hw,ytf-.034*vs],[.9*hw,ytf-.006],[.64*hw,ytf],[.6*hw,ytc]];
+  const yF=yfl(z)+.11,R=[[.6*hw,yF],[.86*hw,ybz],[.972*hw,ybz+Math.min(.04,hh*.3)],[hw,ybz+.14*hh],[hw,ybz+.78*hh],[.978*hw,ytf-.034*vs],[.9*hw,ytf-.006],[.64*hw,ytf],[.6*hw,ytc]];
   const f=p=>[p[0]*wf,ym+(p[1]-ym)*vf],r=R.map(f),pts=[];
   for(let i=R.length-1;i>=0;i--) pts.push([-r[i][0],r[i][1]]);
   for(let i=0;i<R.length;i++) pts.push(r[i]);
@@ -398,10 +400,10 @@ function buildGeo(car){
  for(const e of [-.003,0,.003]){zset.add(+(lidLo+e).toFixed(4));zset.add(+(lidHi+e).toFixed(4));}
  const zs=[...zset].filter(z=>z>=zr&&z<=zf).sort((a,b)=>a-b);
  const rings=zs.map(z=>ring(z,z>=lidLo-.0005&&z<=lidHi+.0005));
- const paint=[],dark=[],trim=[],chrome=[],glass=[],head=[],tail=[],amber=[],inter=[],steel=[];
+ const paint=[],dark=[],trim=[],chrome=[],glass=[],head=[],tail=[],amber=[],inter=[],steel=[],ubel=[];
  paint.push(loft(rings));
  /* dessous sombre (plancher, voûtes de roues) */
- {const ur=zs.map(z=>{const {wf}=endF(z),y=yb(z)-.002,yF=yfl(z)-.002;return {z,pts:[[-.86*hw*wf,y],[-.6*hw*wf,yF],[.6*hw*wf,yF],[.86*hw*wf,y]],closed:false};});dark.push(loft(ur));}
+ {const ur=zs.map(z=>{const {wf}=endF(z),y=yb(z)-.002,yF=yfl(z)+.108;return {z,pts:[[-.86*hw*wf,y],[-.6*hw*wf,yF],[.6*hw*wf,yF],[.86*hw*wf,y]],closed:false};});ubel.push(loft(ur));}
  /* habitacle : coque peinte */
  const ptsR=[[zrb,top(zrb)],[lerp(zrb,zRr,.25),lerp(top(zrb),H,sh.rb)],[zRr,H-.03],[lerp(zRr,zRf,.5),H],[zRf,H-.012],[lerp(zRf,zc,.55),lerp(H-.012,top(zc),.4+sh.fb*.2)],[zc,top(zc)]];
  const roofY=curveFn(ptsR),c=.05;
@@ -485,7 +487,35 @@ function buildGeo(car){
   under:[0,gc,(afz+arz)/2],oilPlug:[0,gc-.02,eZ],oilFilter:[.2,gc+.0,eZ],battery:[.55,.55,bayZ+(car.loc==='front'?.35:0)],airbox:[-.5,.62,bayZ+.3],exhaust:[exX,.14,zr+.02],fuelCap:[fuelX,hb-.2,fuelZ],
   coolant:[.3,.8,bayZ-.2],washer:[-.6,.55,bayZ+.35],brakeFluid:[.36,.78,lidLo+.06],radiator:[0,.5,lidHi-.1],oilCap:[0,.95,bayZ],dipstick:[.2,.8,bayZ],alternator:[.3,.4,bayZ+.1],
   hoodPivot:[0,pivY,lidLo],cabin:[sx,.95,zSeat]};
- return (GEO[car.id]={paint:merge(paint),dark:merge(dark),trim:merge(trim),chrome:merge(chrome),glass:merge(glass),head:merge(head),tail:merge(tail),amber:merge(amber),inter:merge(inter),steel:merge(steel),
+ /* [finition] dessous détaillé : carter, berceau, bras de suspension, barre antiroulis, ressorts, cardans, catalyseur, réservoir */
+ const ualu=[],uex=[],dirF=car.loc==='front'?1:-1;
+ const bar2=(arr,x1,y1,z1,x2,y2,z2,w,h)=>{const dx=x2-x1,dy=y2-y1,dz=z2-z1,len=Math.hypot(dx,dy,dz)||.01;arr.push(bxg(w,h,len,(x1+x2)/2,(y1+y2)/2,(z1+z2)/2,-Math.asin(dy/len),Math.atan2(dx,dz),0));};
+ {const yb=gc+.04,hxF=hw-tF.w/2-.02,hxR=hw-tR.w/2-.02;
+  if(!car.ev){
+   ualu.push(bxg(.3,.13,.52,0,gc+.045,eZ));ualu.push(bxg(.34,.03,.56,0,gc+.1,eZ));
+   steel.push(cyg(.016,.016,.02,6,0,gc-.025,eZ,0,0,0));
+   ualu.push(bxg(.26,.12,.3,0,gc+.05,eZ-dirF*.5));
+   uex.push(cyz(.07,.42,14,exX,gc+.03,exZ0));uex.push(bxg(.2,.012,.5,exX,gc+.1,exZ0));
+   uex.push(cyz(.034,Math.abs(exZ0-(eZ+dirF*.2)),10,exX*.8,gc+.04,(exZ0+eZ+dirF*.2)/2));
+  }
+  for(const sg of [-1,1]){
+   steel.push(bxg(.07,.08,.95,sg*.4,yb,afz+.02));
+   bar2(steel,sg*.36,yb-.02,afz-.32,sg*(hxF-.06),yb-.01,afz-.02,.06,.04);
+   bar2(steel,sg*.36,yb-.02,afz+.34,sg*(hxF-.06),yb-.01,afz+.03,.06,.04);
+   steel.push(cyg(.052,.052,.26,10,sg*(hxF-.16),gc+.27,afz,0,0,0));
+   steel.push(cyg(.012,.012,.2,6,sg*(hxF-.12),gc+.15,afz+.26,0,0,0));
+   bar2(steel,sg*.22,gc+.04,arz-.04,sg*(hxR-.05),gc+.06,arz-.18,.05,.04);
+   bar2(steel,sg*.22,gc+.05,arz+.2,sg*(hxR-.05),gc+.06,arz+.12,.05,.04);
+   steel.push(cyg(.058,.058,.28,10,sg*(hxR-.18),gc+.28,arz-.06,0,0,0));
+   if(car.drive!=='rwd') bar2(steel,sg*.18,gc+.06,afz-.05,sg*(hxF-.06),gc+.1,afz,.035,.035);
+   if(car.drive!=='fwd') bar2(steel,sg*.15,gc+.06,arz+.02,sg*(hxR-.06),gc+.1,arz,.035,.035);
+  }
+  steel.push(cyx(.011,hxF*1.7,8,0,gc+.05,afz+.3));
+  const tkz=arz+.62;dark.push(bxg(W*.6,.1,.72,0,gc+.055,tkz));
+  for(const dz of [-.26,.26]) steel.push(bxg(W*.6+.02,.02,.045,0,gc+.04,tkz+dz));
+  uex.push(cyg(.085,.085,.55,14,exX,gc,zr+.62,PI/2,0,0));
+ }
+ return (GEO[car.id]={ubel:merge(ubel),ualu:merge(ualu),uex:merge(uex),paint:merge(paint),dark:merge(dark),trim:merge(trim),chrome:merge(chrome),glass:merge(glass),head:merge(head),tail:merge(tail),amber:merge(amber),inter:merge(inter),steel:merge(steel),
   hoodTop,hoodUnder,hLen,lidLo,lidHi,pivY,anchors,plateF,plateR,wx:{F:hw-tF.w/2-.015,R:hw-tR.w/2-.015},afz,arz,tF,tR,hw,zf,zr,top,roofY,zc,zrb,rearLid,bayZ,sx,gc,hb,hn});}
 
 /* ═══════════ 7. Instances de voitures ═══════════ */
@@ -516,7 +546,7 @@ function makeCar(car,o){
  const G=buildGeo(car),g=new T.Group();g.name='car_'+car.id;
  const pal=COLS_CAT[car.cat]||COLS_CAT.pop,color=o.color!=null?o.color:pal[Math.floor(rndf()*pal.length)],pm=paintMat(color);
  g.add(mesh(G.paint,pm));g.add(mesh(G.dark,MATS.dark()));g.add(mesh(G.trim,MATS.trim()));g.add(mesh(G.glass,MATS.glass()));
- g.add(mesh(G.head,MATS.head()));g.add(mesh(G.tail,MATS.tail()));g.add(mesh(G.amber,MATS.amber()));g.add(mesh(G.inter,MATS.inter()));g.add(mesh(G.steel,MATS.steel()));
+ g.add(mesh(G.head,MATS.head()));g.add(mesh(G.tail,MATS.tail()));g.add(mesh(G.amber,MATS.amber()));g.add(mesh(G.inter,MATS.inter()));g.add(mesh(G.steel,MATS.steel()));if(G.ualu.attributes.position.count) g.add(mesh(G.ualu,MATS.cast()));g.add(mesh(G.ubel,MATS.under()));g.add(mesh(G.uex,MATS.exh()));
  if(G.chrome.attributes.position.count) g.add(mesh(G.chrome,MATS.chrome()));
  /* capot (charnière à l'arrière du capot) */
  const hood=new T.Group();hood.name='hood';hood.position.set(0,G.pivY,G.lidLo);hood.add(mesh(G.hoodTop,pm));hood.add(mesh(G.hoodUnder,MATS.hoodUnder()));g.add(hood);
@@ -607,11 +637,11 @@ function engineRelease(id){const c=ECACHE[id];if(!c) return;if(--c.refs>0) retur
 const EMAT=new Map();
 const emat=b=>{const k=b.color+'|'+b.rough+'|'+b.metal;let m=EMAT.get(k);if(!m){m=new T.MeshStandardMaterial({color:new T.Color(b.color).multiplyScalar(1.7),roughness:Math.max(.5,b.rough),metalness:Math.min(.2,b.metal)});EMAT.set(k,m);}return m;};
 const BAYM={
- plas:()=>mat('bplas',()=>new T.MeshLambertMaterial({color:0x2a2d32})),blk:()=>mat('bblk',()=>new T.MeshLambertMaterial({color:0x111214,side:T.DoubleSide})),
+ plas:()=>mat('bplas',()=>new T.MeshLambertMaterial({color:0x343840,emissive:0x101214})),blk:()=>mat('bblk',()=>new T.MeshLambertMaterial({color:0x1b1d20,emissive:0x0a0b0c,side:T.DoubleSide})),
  grey:()=>mat('bgrey',()=>new T.MeshPhongMaterial({color:0x737982,shininess:35,specular:0x333333})),alu:()=>mat('balu',()=>new T.MeshPhongMaterial({color:0xaab1b9,shininess:60,specular:0x666666})),
  tank:()=>mat('btank',()=>new T.MeshLambertMaterial({color:0xe6ecdf,transparent:true,opacity:.78,side:T.DoubleSide})),capY:()=>mat('bcapy',()=>new T.MeshLambertMaterial({color:0xe8b820})),
  capB:()=>mat('bcapb',()=>new T.MeshLambertMaterial({color:0x2a62c8})),red:()=>mat('bred',()=>new T.MeshLambertMaterial({color:0xc02a20})),
- rad:()=>mat('brad',()=>new T.MeshLambertMaterial({color:0x3b3f45,side:T.DoubleSide})),floor:()=>mat('bfloor',()=>new T.MeshLambertMaterial({color:0x35383d,side:T.DoubleSide})),
+ rad:()=>mat('brad',()=>new T.MeshLambertMaterial({color:0x4d525a,emissive:0x16181a,side:T.DoubleSide})),floor:()=>mat('bfloor',()=>new T.MeshLambertMaterial({color:0x5c616a,emissive:0x1c1e21,side:T.DoubleSide})),
  hose:()=>mat('bhose',()=>new T.MeshLambertMaterial({color:0x0c0d0f})),orange:()=>mat('borg',()=>new T.MeshLambertMaterial({color:0xe07a10}))};
 function coverTex(car){
  const k='cov'+car.eng.id;let t=MT.get(k);if(t) return t;
@@ -641,7 +671,7 @@ function engineMesh(car,o){
  const topAt=z=>G.top(z);
  const zMin=lidLo+.05,zMax=front?lidHi-.2:lidHi-.04;
  const minTop=Math.min(topAt(zMin),topAt(zMax),topAt((zMin+zMax)/2));
- const availY=minTop-.05-(gc+.09),availZ=zMax-zMin,gbL=trans?.34:0,availX=2*(hw-(front?.3:.26))-gbL;
+ const availY=minTop-.05-(gc+.13),availZ=zMax-zMin,gbL=trans?.34:0,availX=2*(hw-(front?.3:.26))-gbL;
  let fit={ok:true,f:1};
  if(!car.ev){
   parts=engineParts(car);ud.eng=parts;eg=new T.Group();eg.rotation.y=th;
@@ -654,7 +684,7 @@ function engineMesh(car,o){
   const c0=bb.getCenter(V3(0,0,0)),s2=bb.getSize(V3(0,0,0));
   let tx=0,tz;
   if(trans){tx=-fw.x*gbL/2;tz=zMin+s2.z/2;}else{tz=zMin+Math.max(0,(availZ-s2.z))*(front?.45:.5)+s2.z/2;}
-  const ty=gc+.09+s2.y/2;
+  const ty=gc+.13+s2.y/2;
   eg.position.set(tx-c0.x,ty-c0.y,tz-c0.z);eg.updateMatrixWorld(true);bb.setFromObject(eg);
   fit={ok:false,f};
  }else{evParts(add,zMin+.3,gc);bb.set(V3(-.55,gc+.12,zMin+.05),V3(.4,gc+.72,zMin+.55));fit={ok:true,f:1};}
@@ -667,7 +697,7 @@ function engineMesh(car,o){
   if(trans){const gx=(fw.x>0?bb.max.x:bb.min.x)+fw.x*gbL/2;pt('gearbox','alu',bxg(gbL,.36,Math.min(bs.z*1.02,.44),gx,bc.y-.02,bc.z));pt('gearbox','alu',cyx(.17,.12,20,(fw.x>0?bb.max.x:bb.min.x)+fw.x*.04,bc.y-.02,bc.z));ud.gear={c:V3(gx,bc.y-.02,bc.z),ax:V3(fw.x>0?1:-1,0,0),L:gbL,e:V3((fw.x>0?bb.max.x:bb.min.x),bc.y-.02,bc.z)};}
   else{const gz=(fw.z>0?bb.max.z:bb.min.z)+fw.z*.17;pt('gearbox','alu',bxg(.34,.34,.34,bc.x,bc.y-.04,gz));pt('gearbox','alu',cyz(.17,.1,20,bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z)+fw.z*.04));ud.gear={c:V3(bc.x,bc.y-.04,gz),ax:V3(0,0,fw.z>0?1:-1),L:.34,e:V3(bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z))};}}
  /* plancher, tablier, traverse, charnières */
- add('floor',bxg(2*(hw-.12),.02,lidHi-lidLo,0,gc+.06,(lidLo+lidHi)/2));
+ add('floor',bxg(2*(hw-.12),.02,lidHi-lidLo,0,gc+.1,(lidLo+lidHi)/2));
  add('floor',bxg(2*(hw-.1),Math.max(.2,minTop-gc),.03,0,gc+(minTop-gc)/2,lidLo+.012));
  for(const sg of [-1,1]) add('grey',bxg(.07,.05,.07,sg*hw*.5,G.pivY-.02,lidLo+.02));
  if(front){add('floor',bxg(2*(hw-.1),.3,.05,0,gc+.28,lidHi-.02));add('floor',bxg(2*(hw-.12),.06,.06,0,topAt(lidHi)-.05,lidHi-.03));}

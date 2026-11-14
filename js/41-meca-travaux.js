@@ -199,7 +199,7 @@ function removeCar(c,silent){
  if(!silent) hudJobs();}
 
 /* ── maillage 3D des voitures (sur les ponts) ── */
-const RT={};
+const RT={};let MKG=null,MKM=null;
 const KD={citadine:[3.7,1.65],berline:[4.6,1.8],sport:[4.4,1.9],suv:[4.5,1.9],utilitaire:[4.8,1.9]};
 const dimOf=c=>{try{if(c.mdl&&typeof MWCARS!=='undefined'){const m=MWCARS.get(c.mdl);if(m) return [m.L,m.W];}}catch(e){}return KD[c.kind]||KD.berline;};
 const ptsOf=c=>{try{if(c.mdl&&typeof MWCARS!=='undefined'&&MWCARS.get(c.mdl)) return MWCARS.pts(c.mdl);}catch(e){}return null;};
@@ -212,7 +212,7 @@ function buildMesh(c){
  for(const n of ['wFL','wFR','wRL','wRR']){const w=g.getObjectByName(n);if(!w) continue;
   if(g.getObjectByName('brake'+n.slice(1))) continue; /* js/44 : disques et étriers réels, toujours visibles */
   const m=MW.cyl(.13,.22,0x8a8f98,w.position.x,w.position.y,w.position.z);m.rotation.z=PI/2;g.add(m);m.visible=false;r.disc[n]=m;}
- const mkr=(k,x,y,zz)=>{const m=MW.box(.18,.18,.18,0xffb800,x,y,zz);m.rotation.set(.6,.6,0);g.add(m);r.mk[k]=m;};
+ const mkr=(k,x,y,zz)=>{const m=new T.Mesh(MKG||(MKG=new T.OctahedronGeometry(.06)),MKM||(MKM=new T.MeshBasicMaterial({color:0xffb800,transparent:true,opacity:.55,depthWrite:false})));m.position.set(x,y,zz);g.add(m);r.mk[k]=m;}; /* repères discrets (menus classiques seulement) */
  const ud=g.userData&&g.userData.anchors;
  if(ud&&ud.hoodPivot){const hp=ud.hoodPivot.position,hL=g.userData.hoodLen||.9;mkr('capot',0,hp.y+.4,hp.z+hL*.5);mkr('cabine',d[1]/2+.05,1.0,ud.cabin.position.z);mkr('dessous',0,.3,ud.under.position.z);
   for(const n of ['FL','FR','RL','RR']){const a=ud['hub'+n].position;mkr(n,Math.sign(a.x)*(d[1]/2+.05),a.y*2+.1,a.z);}}
@@ -223,7 +223,8 @@ function applyVisual(c,snap){
  const r=RT[c.id];if(!r) return;
  if(snap){r.y=.22+(c.st.lifted?LH(c):0);r.ha=c.st.capot?-1:0;r.g.position.y=r.y;if(r.hood) r.hood.rotation.x=r.ha;}
  for(const n of ['FL','FR','RL','RR']){const off=n[0]==='F'?c.st.av:c.st.ar,w=r.g.getObjectByName('w'+n);if(w&&!(MG()&&MG().ownW(c))) w.visible=!off;if(r.disc['w'+n]) r.disc['w'+n].visible=!!off;}
- if(r.mk.dessous) r.mk.dessous.visible=!!c.st.lifted;}
+ syncMk(c,r);}
+function syncMk(c,r){const real=!!(MG()&&MG().on());for(const k in r.mk) r.mk[k].visible=!real&&(k!=='dessous'||!!c.st.lifted);}
 function moveInteracts(c){
   const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) return;const d=dimOf(c),pt=ptsOf(c),f={x:Math.sin(p.ry),z:Math.cos(p.ry)},l={x:Math.cos(p.ry),z:-Math.sin(p.ry)};
  const at=(lx,lz)=>({x:p.x+l.x*lx+f.x*lz,z:p.z+l.z*lx+f.z*lz});
@@ -234,6 +235,7 @@ function moveInteracts(c){
 function animate(dt){
  for(const id in RT){const r=RT[id],c=carById(id);if(!c){continue;}
   if(!(ess&&ess.c===c)){const ty=.22+(c.st.lifted?LH(c):0);if(Math.abs(r.y-ty)>.002){r.y+=clamp(ty-r.y,-dt*.9,dt*.9);r.g.position.y=r.y;}}
+  if(r.mk&&(r._mg=(r._mg||0)+1)%20===0) syncMk(c,r);
   if(r.hood){const ta=c.st.capot?-1:0;if(Math.abs(r.ha-ta)>.002){r.ha+=clamp(ta-r.ha,-dt*2.5,dt*2.5);r.hood.rotation.x=r.ha;}}}}
 
 /* ═══════════ Accès, gestes ═══════════ */

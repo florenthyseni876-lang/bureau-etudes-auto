@@ -6,6 +6,28 @@ const T=D.T,PI=D.PI,H=D.H,{zones,addCol}=ctx;
 const core=m=>D.B('core',m),det=m=>D.B('detail',m);
 const R=D.rng(808),pick=a=>a[Math.floor(R()*a.length)];
 const lifts=[],GW=4.6;
+const L2W=(p,lx,lz)=>({x:p.x+Math.cos(p.ry)*lx+Math.sin(p.ry)*lz,z:p.z-Math.sin(p.ry)*lx+Math.cos(p.ry)*lz});
+/* chariots, bras et patins d'un pont (position au repos ou suivant la voiture cg) */
+function stepLift(Lf,dt,cg){const p=Lf.p;
+  const k=Math.min(1,dt*14);
+  const ty=cg?cg.position.y+.1:.3;
+  Lf.y+=(ty-Lf.y)*k;if(Math.abs(Lf.y-ty)<.002) Lf.y=ty;
+  const cy=Lf.y+.16;
+  for(const c of Lf.car){c.g.position.set(p.x,cy,p.z);c.g.rotation.y=p.ry;}
+  const pd=Lf.pad;
+  for(const a of Lf.arms){
+   /* pivot sur le chariot, cible : patin sous le point de levage de la voiture (ou bras repliés le long de la colonne) */
+   const px=a.s*1.9,pz=a.q*.2,tx=pd?a.s*pd.x:a.s*1.45,tz=pd?(a.q>0?pd.f:pd.r):a.q*.55;
+   const dx=tx-px,dz=tz-pz,L=.9;let d=Math.hypot(dx,dz);d=Math.max(.2,Math.min(d,L*2-.03));
+   const ph=Math.atan2(dx,dz),al=Math.acos(Math.max(-1,Math.min(1,d/(2*L))));
+   let best=null;for(const sg of [-1,1]){const a1=ph+sg*al,ex=px+Math.sin(a1)*L,ez=pz+Math.cos(a1)*L,sc=Math.abs(ex)*1+(a.q*(ez-pz))*0;if(!best||sc>best.sc) best={a1,ex,ez,sc};}
+   const ex=best.ex,ez=best.ez,a2=Math.atan2((pd?tx:px+Math.sin(ph)*d)-ex,(pd?tz:pz+Math.cos(ph)*d)-ez);
+   const yy=Lf.y+.1+.06;
+   const I=L2W(p,px,pz),E=L2W(p,ex,ez);
+   a.inn.position.set(I.x,yy,I.z);a.inn.rotation.y=p.ry+best.a1;
+   a.out.position.set(E.x,yy,E.z);a.out.rotation.y=p.ry+a2;}
+}
+
 const sansF='"Barlow Condensed","Arial Narrow",Arial,sans-serif';
 const fitText=(x,t,w,f,wt,fam)=>{x.font=(wt||'bold')+' '+f+'px '+(fam||sansF);while(x.measureText(t).width>w&&f>10){f-=2;x.font=(wt||'bold')+' '+f+'px '+(fam||sansF);}return f;};
 
@@ -103,19 +125,27 @@ function garage(z){
   if(z.id==='garage3'){for(const du of [-.8,.8]) core('neon').cyl(.17,.17,.05,10,...(()=>{const q=loc(u+du,v);return [q.x,Hh-.09,q.z];})(),0xfff0d0);}
   else{const p=loc(u,v);core('neon').box(2.6,.06,.16,p.x,Hh-.5,p.z,0xfff6dc);core('plain').box(2.8,.05,.26,p.x,Hh-.44,p.z,0x8a8e94);
    core('plain').box(.03,.4,.03,p.x-1.1,Hh-.25,p.z,0x30343a);core('plain').box(.03,.4,.03,p.x+1.1,Hh-.25,p.z,0x30343a);}}
- /* ── ponts élévateurs à deux colonnes ── */
+ /* ── ponts élévateurs à deux colonnes : colonnes fixes ; chariots, bras et patins mobiles (js : D.animFn) ── */
  z.ponts.forEach((p,i)=>{const b=core('plain'),pb=D.L(b,p.x,p.z,p.ry,0);
-  for(const s of [-1,1]){pb.box(.72,.2,4.3,s*.82,.12,0,0x2d3237);pb.rbox(.72,.05,.6,s*.82,.075,2.45,0x2d3237,0,.28,0);pb.rbox(.72,.05,.6,s*.82,.075,-2.45,0x2d3237,0,-.28,0);
-   pb.box(.34,.12,.34,s*.82,.2,1.1,0x44494f);pb.box(.34,.12,.34,s*.82,.2,-1.1,0x44494f);
+  for(const s of [-1,1]){
    pb.box(.9,.06,.9,s*2.15,.13,0,0x30353a);pb.box(.3,3.5,.46,s*2.15,1.9,0,st.lift);pb.box(.38,.12,.52,s*2.15,3.68,0,0x30353a);pb.box(.16,.3,.1,s*2.15-s*.03,1.4,.28,0xf2c200);
-   pb.box(.06,3.1,.06,s*2.4,1.7,-.12,0x1c1c1e);}
+   pb.box(.06,3.1,.06,s*2.4,1.7,-.12,0x1c1c1e);pb.box(.1,.5,.06,s*2.15,.45,.26,0x1c1c1e);
+   addCol(L2W(p,s*2.15,0).x,L2W(p,s*2.15,0).z,.7,.7);} /* les colonnes arrêtent le joueur (et la caméra) */
   const hz=D.B('core','hazard'),hp=D.L(hz,p.x,p.z,p.ry,0);
   for(const s of [-1,1]){hp.box(.16,.012,5.7,s*2.75,.106,0,0xffffff);hp.box(5.6,.012,.16,0,.106,s*2.9,0xffffff);}
-  const g=D.group(Bm=>{const l=D.L(Bm('plain'),0,0,0,0),bb=Bm('plain');
-   for(const s of [-1,1]){l.box(.48,.64,.6,s*2.15,0,0,0x2c3136);l.box(.22,.4,.36,s*2.15,.2,.4,st.lift===0x1c1c22?0x2c3136:0x30353a);
-    for(const q of [-1,1]){const x0=s*2.15,z0=q*.12,x1=s*.8,z1=q*.64,len=Math.hypot(x1-x0,z1-z0),ra=Math.atan2(x1-x0,z1-z0);
-     bb.box(.15,.09,len,(x0+x1)/2,-.04,(z0+z1)/2,0x3b4046,ra);bb.cyl(.085,.075,.09,10,x1,0,z1,0x161618);}}});
-  g.position.set(p.x,.3,p.z);g.rotation.y=p.ry;g.traverse(o=>{o.castShadow=true;});ctx.scene.add(g);lifts.push({g,p});
+  const car=[],arms=[];
+  for(const s of [-1,1]){
+   car.push({s,g:D.group(Bm=>{const l=D.L(Bm('plain'),0,0,0,0);
+    l.box(.5,.46,.7,s*2.15,0,0,0x2c3136);l.box(.16,.34,.78,s*1.88,0,0,st.lift===0x1c1c22?0x2c3136:0x3a4046);
+    for(const q of [-1,1]) l.box(.12,.14,.14,s*1.86,0,q*.2,0x14161a);})});
+   for(const q of [-1,1]){
+    const inn=D.group(Bm=>{const l=D.L(Bm('plain'),0,0,0,0);l.box(.15,.09,.9,0,0,.45,0x3b4046);l.cyl(.07,.07,.12,10,0,.0,0,0x161618);l.cyl(.06,.06,.12,10,0,0,.9,0x161618);}),
+     out=D.group(Bm=>{const l=D.L(Bm('plain'),0,0,0,0);l.box(.12,.075,.9,0,0,.45,0x464c52);l.cyl(.088,.078,.05,12,0,.06,.9,0x161618);l.cyl(.1,.1,.012,12,0,.09,.9,0x2a2a2d);});
+    arms.push({s,q,inn,out});}}
+  const lf={p,car,arms,y:.3,id:z.id+':'+i,pad:null,carRef:null};
+  for(const c of car) ctx.scene.add(c.g);for(const a of arms){ctx.scene.add(a.inn);ctx.scene.add(a.out);}
+  for(const o of [...car.map(c=>c.g),...arms.flatMap(a=>[a.inn,a.out])]) o.traverse(m=>{m.castShadow=false;});
+  stepLift(lf,1,null);lifts.push(lf);
   // flaques d'huile
   for(let k=0;k<(z.id==='garage1'?4:1);k++) det('plain').cyl(.22+R()*.25,.22+R()*.25,.005,12,p.x+(R()-.5)*3,.103,p.z+(R()-.5)*4,0x383229);});
  /* ── établi, panneau d'outils ── */
@@ -360,9 +390,13 @@ for(const z of zones) if(z.type!=='garage'&&z.type!=='terrain') other(z);
 
 /* ═══════ Animation : les bras des ponts suivent la voiture ═══════ */
 D.animFn=(dt,P)=>{if(!lifts.length) return;let cars=null;
- for(const Lf of lifts){if(Math.abs(P.x-Lf.p.x)>45||Math.abs(P.z-Lf.p.z)>45) continue;if(!cars) cars=ctx.scene.children.filter(o=>o.userData&&o.userData.L&&o.isObject3D&&o.position);
-  let y=null;for(const c of cars) if(Math.abs(c.position.x-Lf.p.x)<.9&&Math.abs(c.position.z-Lf.p.z)<.9){y=c.position.y;break;}
-  const ty=y==null?.3:y+.15;Lf.g.position.y+=(ty-Lf.g.position.y)*Math.min(1,dt*14);}};
+ for(const Lf of lifts){const p=Lf.p;if(Math.abs(P.x-p.x)>45||Math.abs(P.z-p.z)>45) continue;if(!cars) cars=ctx.scene.children.filter(o=>o.userData&&o.userData.L&&o.isObject3D&&o.position);
+  let cg=null;for(const c of cars) if(Math.abs(c.position.x-p.x)<.9&&Math.abs(c.position.z-p.z)<.9){cg=c;break;}
+  if(cg!==Lf.carRef){Lf.carRef=cg;Lf.pad=null;
+   if(cg){const an=cg.userData.anchors,fl=an&&an.hubFL,rl=an&&an.hubRL;
+    if(fl&&rl){const hx=Math.max(.5,Math.abs(fl.position.x)-.14),zf=fl.position.z-.62,zr=rl.position.z+.62;Lf.pad={f:zf,r:Math.min(zr,zf-.5),x:hx};}
+    else Lf.pad={f:.8,r:-.8,x:.7};}}
+  stepLift(Lf,dt,cg);}};
 };
 
 /* ═══════ Cour du travail au noir et voisinage (créés après la construction du module 43) ═══════ */

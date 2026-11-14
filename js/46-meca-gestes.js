@@ -157,7 +157,7 @@ function freeRig(){
  R.root.parent&&R.root.parent.remove(R.root);disposeObj(R.root);
  R.fl.parent&&R.fl.parent.remove(R.fl);disposeObj(R.fl);
  for(const o of R.vis){o.parent&&o.parent.remove(o);}
- ANI.length=0;R=null;AIM=null;HINT=null;H=null;handSet(null);setHold(0);if(MW.eyeY) MW.eyeY=0;}
+ ANI.length=0;hlClear();if(ring) ring.visible=false;if(ring2) ring2.visible=false;R=null;AIM=null;HINT=null;H=null;handSet(null);setHold(0);if(MW.eyeY) MW.eyeY=0;}
 
 /* ═══════════ Cibles, actions, visée ═══════════ */
 /* action : {lab, tool, sock, hold, snd, ok:()=>why|null, fix, do, min, ph:[partId,'dep'|'pose'], ord, exp, key} */
@@ -275,51 +275,14 @@ function binAdd(k,n){const b=R.F.bin;b[k]=(b[k]||0)+(n||1);}
 function binTake(k,n){const b=R.F.bin;b[k]=Math.max(0,(b[k]||0)-(n||1));if(!b[k]) delete b[k];}
 
 /* ═══════════ Pièce en main et outil en main (vue 1re personne) ═══════════ */
-let VM=null,vmTool=null,vmHand=null,vmW=0,vmT=0,vmK=0;
-function vmEnsure(){
- if(VM) return VM;VM=new T.Group();VM.name='mg_vm';VM.renderOrder=999;MW.scene.add(MW.cam);MW.cam.add(VM);return VM;}
-const VMM=(col,k)=>{const m=new T.MeshLambertMaterial({color:col});m.depthTest=false;m.depthWrite=false;m.userData.vm=1;return m;};
-const vmCache={};
-function vmModel(id){
- if(vmCache[id]) return vmCache[id];
- const g=new T.Group(),m=(col)=>VMM(col),box=(w,h,d,col,x,y,z)=>{const o=new T.Mesh(gBox(w,h,d),m(col));o.position.set(x,y,z);o.renderOrder=999;g.add(o);return o;},cyl=(r,h,col,x,y,z,rx,rz,n)=>{const o=new T.Mesh(gCyl(r,r,h,n||12),m(col));o.position.set(x,y,z);o.rotation.set(rx||0,0,rz||0);o.renderOrder=999;g.add(o);return o;};
- /* chaque outil est dirigé vers l'avant (−z de la caméra) */
- if(id==='cliquet'){box(.022,.022,.30,0x2a2e33,0,0,-.12);cyl(.04,.05,0xb4bcc4,0,0,-.30,PI/2,0,6);cyl(.03,.07,0xd8dde2,0,0,-.34,PI/2,0,6);box(.03,.03,.1,0xc02a20,0,0,.06);}
- else if(id==='cle_filtre'){cyl(.045,.08,0x9aa3ab,0,0,-.3,PI/2);box(.02,.02,.30,0x2a2e33,0,0,-.12);box(.03,.03,.1,0xe8b820,0,0,.05);}
- else if(id==='tournevis'){cyl(.018,.1,0xe8b820,0,0,-.04,PI/2);cyl(.006,.16,0xd8dde2,0,0,-.2,PI/2);}
- else if(id==='boulonneuse'){box(.07,.1,.2,0x0d6e8c,0,0,-.05);box(.04,.12,.05,0x1b1b1e,0,-.09,0);cyl(.032,.07,0xd8dde2,0,0,-.2,PI/2,0,6);box(.04,.05,.07,0x25282c,0,.07,.04);}
- else if(id==='cle_dyn'){box(.02,.02,.42,0x9aa3ab,0,0,-.17);cyl(.034,.06,0xd8dde2,0,0,-.4,PI/2,0,6);box(.034,.034,.12,0x1b1b1e,0,0,.1);box(.02,.03,.03,0xc02a20,0,.028,-.05);}
- else if(id==='bac'){box(.30,.05,.22,0x2a62c8,0,-.02,-.2);box(.28,.01,.20,0x0b1020,0,.012,-.2);}
- else if(id==='bidon'){box(.12,.2,.08,0xe8e8e4,0,0,-.15);cyl(.022,.06,0xe8b820,.03,.12,-.15);box(.03,.1,.02,0xe8e8e4,-.05,.08,-.15);}
- else if(id==='entonnoir'){const o=new T.Mesh(gCyl(.06,.012,.1,14),m(0xe8b820));o.position.set(0,0,-.2);o.renderOrder=999;g.add(o);}
- else if(id==='pinces'){box(.02,.02,.2,0x2a2e33,-.012,0,-.12);box(.02,.02,.2,0x2a2e33,.012,0,-.12);box(.03,.03,.06,0xc02a20,0,0,.04);}
- else if(id==='presse'){cyl(.025,.2,0x9aa3ab,0,0,-.18,PI/2);box(.07,.07,.02,0x4d535a,0,0,-.3);box(.03,.1,.03,0x25282c,0,0,.0);}
- else if(id==='seringue'){cyl(.03,.2,0xe9e9e4,0,0,-.18,PI/2);cyl(.006,.12,0xd8dde2,0,0,-.34,PI/2);box(.07,.01,.02,0xe9e9e4,0,0,-.08);}
- else {box(.05,.02,.1,0xd9b48f,.0,-.03,-.2); box(.03,.015,.07,0xd9b48f,.05,-.025,-.18);} /* mains */
- vmCache[id]=g;return g;}
-function vmSet(){
- if(!VM) return;if(vmTool) VM.remove(vmTool);vmTool=null;
- const m=vmModel(tool);vmTool=m;VM.add(m);}
-function handSet(item){ /* item : maillage de la pièce neuve tenue dans l'autre main (ou null) */
- if(!VM) return;if(vmHand){VM.remove(vmHand);vmHand=null;}
- if(item){vmHand=item;VM.add(item);}}
-function vmKick(a){vmK=1;}
-function vmWork(w){vmW=w;}
-function vmTick(dt){
- if(!VM) return;const show=!!R&&on()&&!MW.paused&&!MW.player().inCar;VM.visible=show;if(!show) return;
- vmT+=dt;vmK=Math.max(0,vmK-dt*5);
- const w=vmW,bob=Math.sin(vmT*1.8)*.004;
- VM.position.set(.22,-.2+bob,-.42);VM.rotation.set(.12,-.12,0);
- if(vmTool){
-  vmTool.position.set(0,0,0);vmTool.rotation.set(0,0,0);
-  if(w){const j=Math.sin(vmT*(tool==='boulonneuse'?60:14));
-   if(tool==='cliquet'||tool==='cle_dyn'||tool==='cle_filtre'){vmTool.rotation.z=j*.12;vmTool.position.z=-.02;}
-   else if(tool==='boulonneuse'){vmTool.position.x=j*.004;vmTool.position.z=-.04;}
-   else if(tool==='bidon'){vmTool.rotation.x=-.9;vmTool.position.y=.05;}
-   else if(tool==='tournevis'){vmTool.rotation.z=j*.2;}
-   else {vmTool.position.z=-.03+j*.01;}}
-  vmTool.position.z+=-vmK*.05;}
- if(vmHand){vmHand.position.set(-.38,-.02+bob,-.1);vmHand.rotation.set(.2,.5,0);}}
+/* l'outil, les gants et les avant-bras sont dessinés par js/47 (2e passe de rendu, au 1er plan) */
+const MF=()=>typeof MWF!=='undefined'?MWF:null;
+function vmEnsure(){const m=MF();if(m) m.vmEnsure();}
+function vmSet(){const m=MF();if(m) m.vmTool(tool);}
+function handSet(item){const m=MF();if(m) m.vmItem(item);} /* pièce neuve tenue dans l'autre main (ou null) */
+function vmKick(a){const m=MF();if(m) m.vmKick();}
+function vmWork(w){const m=MF();if(m) m.vmWork(w);}
+function vmTick(dt){const m=MF();if(m) m.vmTick(dt,!!R&&on()&&!MW.paused&&!MW.player().inCar);}
 
 /* ═══════════ Synchronisation visuelle ═══════════ */
 function syncAll(instant){if(!R) return;for(const pr of R.procs) try{pr.vis&&pr.vis(R,!!instant);}catch(e){console.error('vis '+pr.id,e);}binUI();}
@@ -351,7 +314,7 @@ const jobDone=c=>c.ordre.length?c.ordre.every(id=>c.done[id]):!!(c.symp&&c.done[
 function buildCommon(R){
  const {c,g,u}=R,F=R.F;R.blk={lower:[],hood:[]};R.spotN=0;
  /* servante à outils avec bac magnétique */
- const cart=grp();const cp=R.W(2.5,0,-.1);cart.position.copy(cp);cart.rotation.y=R.p.ry;
+ const cart=grp();const cp=R.W(3.05,0,-1.0);cart.position.copy(cp);cart.rotation.y=R.p.ry;
  cart.add(bx(.78,.62,.44,C.red,0,.46,0),bx(.8,.03,.46,C.dsteel,0,.78,0),bx(.74,.02,.4,C.dsteel,0,.46,.22));
  for(const [x,z] of [[-.34,-.17],[.34,-.17],[-.34,.17],[.34,.17]]) cart.add(cy(.05,.04,C.rubber,x,.07,z,'x'));
  for(const y of [.32,.46,.6]) cart.add(bx(.7,.012,.01,C.dsteel,0,y,.225));
@@ -661,7 +624,7 @@ function buildVidange(R){
  const tick=(R2,dt)=>{
   if(O.on&&O.bac){O.drain=Math.min(1,O.drain+dt/DRAIN_T);if(O.drain>=1){O.on=0;MW.toast(`Huile vidangée : ${nf(cap,1)} l récupérés dans le bac.`,'info');syncAll(false);}}
   if(O.on&&!O.bac) O.on=0;
-  const flow=O.on?Math.pow(1-O.drain,.6):0;stream.visible=O.on&&flow>.03;
+  const flow=O.on?Math.pow(1-O.drain,.6):0;stream.visible=!!(O.on&&flow>.03);
   if(stream.visible){const top=R2.g.localToWorld(pl.clone().add(V3(-.1,0,0))),h=Math.max(.2,top.y-.36);stream.parent!==R2.fl&&R2.fl.add(stream);stream.position.set(top.x,top.y-h/2,top.z);stream.scale.set(.5+flow*1.3,h,.5+flow*1.3);if(rnd()<dt*3) snd('drip');}
   lvl.scale.y=.2+O.drain*5;lvl.position.y=.03+O.drain*.04;
  };
@@ -833,17 +796,39 @@ function tick(dt){
   if(Math.abs(lx)<hw&&Math.abs(lz)<hl){const kx=hw-Math.abs(lx),kz=hl-Math.abs(lz);let nx=lx,nz=lz;if(kx<kz) nx=Math.sign(lx||1)*hw;else nz=Math.sign(lz||1)*hl;
    MW.teleport(R.p.x+R.cosr*nx+R.sinr*nz,R.p.z-R.sinr*nx+R.cosr*nz);}}
  if(++fr%6===0) hintUpdate();
- aimUpdate();holdTick(MW.paused?0:dt);infoUI();toolUI();
+ aimUpdate();hlUpdate();holdTick(MW.paused?0:dt);infoUI();toolUI();
  if(aimI){const q=MW.player();aimI.x=q.x+Math.sin(q.ry)*.2;aimI.z=q.z+Math.cos(q.ry)*.2;}
  /* anneau d'aide autour de l'élément suivant */
  ringUpdate();
 }
-let ring=null;
+let ring=null,ring2=null;
+const RINGM=(()=>{const m=new T.MeshBasicMaterial({color:0xffe27a,depthTest:false,depthWrite:false,transparent:true,opacity:.85});m.userData.lin=0;return m;})();
+const mkRing=()=>{const r=new T.Mesh(new T.TorusGeometry(.03,.0022,6,28),RINGM);r.renderOrder=998;r.visible=false;MW.scene.add(r);return r;};
+function putRing(r,t,k){
+ if(!t||!worldOf(t,tmpV)){r.visible=false;return;}
+ r.visible=true;r.position.copy(tmpV);r.quaternion.copy(MW.cam.quaternion);
+ const s=Math.max(.7,Math.min(4.5,(t.r||.08)/.03*k*(1+.1*Math.sin(performance.now()/200))));r.scale.setScalar(s);}
 function ringUpdate(){
- if(!ring){ring=new T.Mesh(new T.TorusGeometry(.035,.003,8,24),mat(0xffd23a,'v'));ring.renderOrder=998;MW.scene.add(ring);}
- if(!aideOn()||!HINT||!R||MW.paused||!(HINT.t.vis?HINT.t.vis():true)){ring.visible=false;return;}
- if(!worldOf(HINT.t,tmpV)){ring.visible=false;return;}
- ring.visible=true;ring.position.copy(tmpV);ring.quaternion.copy(MW.cam.quaternion);const k=(HINT.t.r||.08)/.035*(1+.12*Math.sin(performance.now()/180));ring.scale.setScalar(Math.max(.8,Math.min(6,k)));}
+ if(!ring) ring=mkRing();if(!ring2) ring2=mkRing();
+ /* anneau fin autour de l'élément suivant de l'aide */
+ if(!aideOn()||!HINT||!R||MW.paused||!(HINT.t.vis?HINT.t.vis():true)) ring.visible=false;else putRing(ring,HINT.t,.9);
+ /* cible visée sans pièce propre (point sur la carrosserie…) : petit anneau, jamais un volume opaque */
+ if(AIM&&!hlN&&!MW.paused&&AIM.t!==(HINT&&HINT.t)) putRing(ring2,AIM.t,.55);else ring2.visible=false;}
+
+/* ═══════════ Surbrillance de la pièce visée : léger halo additif pulsant sur ses propres maillages ═══════════ */
+const HLM=(()=>{const m=new T.MeshBasicMaterial({color:0xffb02e,transparent:true,opacity:.2,depthWrite:false,blending:T.AdditiveBlending,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});m.color.convertSRGBToLinear();m.userData.lin=1;return m;})();
+let hlT=null,hlL=[],hlN=0;
+function hlClear(){for(const m of hlL) if(m.parent) m.parent.remove(m);hlL.length=0;hlT=null;hlN=0;}
+function hlSet(t){
+ if(t===hlT) return;hlClear();hlT=t;if(!t||t.off) return;
+ const o=typeof t.o==='function'?t.o():t.o;if(!o||!visOf(o)) return;
+ const list=[];o.traverse(m=>{if(m.isMesh&&!m.userData.hl&&m.geometry&&m.visible!==false&&!m.userData.skipHl) list.push(m);});
+ if(!list.length||list.length>12) return;
+ for(const m of list){const h=new T.Mesh(m.geometry,HLM);h.userData.hl=1;h.renderOrder=(m.renderOrder||0)+1;h.raycast=()=>{};m.add(h);hlL.push(h);}
+ hlN=list.length;}
+function hlUpdate(){
+ const t=AIM&&!MW.paused&&on()?AIM.t:null;hlSet(t);
+ if(hlN) HLM.opacity=.17+.1*Math.sin(performance.now()/230);}
 
 /* ═══════════ Réglages (touche G) et branchements ═══════════ */
 function settings(){

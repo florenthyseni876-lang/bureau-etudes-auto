@@ -557,6 +557,7 @@ function frame(t){
  if(P.inCar){ui.speed.hidden=false;ui.speed.textContent=Math.round(Math.abs(car.v)*3.6)+' km/h';}else if(!ui.speed.hidden) ui.speed.hidden=true;
  if(t-mapT>120){mapT=t;drawMini();if(mapOpen) drawBig();}
  R.render(sceneObj,cam);
+ if(api.afterRender){try{api.afterRender(R);}catch(e){api.afterRender=null;console.error(e);}} /* [finition] 2e passe : mains et outil au 1er plan */
  emit('tick',dt);}
 
 function applyState(){
