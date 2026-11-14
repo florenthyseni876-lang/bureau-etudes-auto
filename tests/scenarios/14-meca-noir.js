@@ -11,6 +11,7 @@ module.exports = async function mecaNoir(page, env) {
   await cliquer(page, '#hMeca');
   await attendreVisible(page, '#mwRoot', "le mode Mécanicien ne s'ouvre pas");
   await page.waitForFunction(() => window.__mw && window.__mw.S && window.__mwj && window.__mwn && typeof MWC !== 'undefined', null, { timeout: 15000 });
+  await page.evaluate(() => { if (typeof MWG !== 'undefined') MWG.set({ classic: true }); }); // menus classiques de js/41 (gestes réalistes : scénario 16)
   await attendre(400);
 
   const e = (f, a) => page.evaluate(f, a);
@@ -257,6 +258,7 @@ module.exports = async function mecaNoir(page, env) {
   await e(() => { const s = JSON.parse(localStorage.getItem('bea.meca.v1')); delete s.noir; localStorage.setItem('bea.meca.v1', JSON.stringify(s)); });
   await cliquer(page, '#hMeca');
   await page.waitForFunction(() => window.__mw && window.__mw.S && window.__mwn, null, { timeout: 15000 });
+  await page.evaluate(() => { if (typeof MWG !== 'undefined') MWG.set({ classic: true }); }); // menus classiques de js/41 (gestes réalistes : scénario 16)
   await attendre(500);
   verifier(await e(() => __mwn.state().gauge === 0 && __mwn.state().slots === 1 && !__mwn.state().ae), 'une sauvegarde sans données « noir » ne se charge pas proprement');
   await e(() => { __mw.S.flags.coinVu = true; });
