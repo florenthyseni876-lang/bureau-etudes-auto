@@ -310,7 +310,7 @@ function ensureUI(){
  const r=el('div','mw');r.id='mwRoot';r.hidden=true;r.setAttribute('aria-label','Carrière de mécanicien');
  r.innerHTML=`<canvas class="mw-cv" id="mwCv"></canvas><div class="mw-look" id="mwLook"></div>
  <div class="mw-top"><b id="mwTime"></b><span id="mwMoney"></span></div><div class="mw-zones" id="mwZones"></div>
- <div class="mw-tr"><canvas class="mw-mini" id="mwMini" width="140" height="140" aria-label="Mini-carte"></canvas><div class="mw-bar" id="mwBar"><button type="button" class="mw-b" data-b="map">Carte (M)</button><button type="button" class="mw-b" data-b="menu">Menu</button></div></div>
+ <div class="mw-tr"><canvas class="mw-mini" id="mwMini" width="140" height="140" aria-label="Mini-carte"></canvas><div class="mw-bar" id="mwBar"><button type="button" class="mw-b" data-b="map">Carte (M)</button><button type="button" class="mw-b" data-b="menu">Menu (Échap)</button></div></div>
  <div class="mw-cross" aria-hidden="true"></div><div class="mw-toasts" id="mwToasts" role="status"></div>
  <div class="mw-speed" id="mwSpeed" hidden></div><div class="mw-prompt" id="mwPrompt" hidden></div>
  <div class="mw-touch" id="mwTouch"><div class="mw-joy" id="mwJoy"><i id="mwKnob"></i></div><div class="mw-acts"><button type="button" class="mw-a" id="mwBtnE">E</button><button type="button" class="mw-a f" id="mwBtnF">F</button></div></div>
@@ -397,12 +397,30 @@ function onLockChange(){if(!active) return;if(!document.pointerLockElement&&!api
 function useCur(k){
  if(k==='f'){if(curI&&curI.key.toLowerCase()==='f'&&curI.o){try{curI.o.use();}catch(e){console.error(e);}return;}toggleCar();return;}
  if(curI&&curI.o&&curI.key.toLowerCase()===k){try{curI.o.use();}catch(e){console.error(e);}}}
-function pauseMenu(){
- api.panel('Pause',`<p>${esc(api.timeStr())} · ${esc(fmt(S.money))}</p><div class="mw-btns v"><button type="button" class="btn" data-mw="resume">Reprendre</button><button type="button" class="btn ghost" data-mw="save">Sauvegarder</button>${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}<button type="button" class="btn ghost" data-mw="quit">Quitter vers l'accueil</button><button type="button" class="btn ghost" data-mw="new">Recommencer une partie…</button></div><p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · Échap : pause.</p>`,
-  {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){api.save();api.toast('Partie sauvegardée.','good');}
+/* ── menu (Échap ou bouton « Menu ») : reprendre, sauvegarder, guide, qualité, retour à l'accueil, recommencer ── */
+let lastSave=null; /* {day, min, ok} : dernière sauvegarde manuelle, affichée dans le menu */
+function saveNow(){const ok=api.save();lastSave={day:S.day,min:S.min,ok};return ok;}
+function pauseMenu(msg){
+ const sv=lastSave?(lastSave.ok?`<p class="mw-ok" role="status">✓ Partie sauvegardée (jour ${lastSave.day}, ${String(Math.floor(lastSave.min/60)).padStart(2,'0')} h ${String(lastSave.min%60).padStart(2,'0')}).</p>`:`<p class="mw-soon" role="alert">La sauvegarde a échoué : le navigateur refuse d'enregistrer (navigation privée ou stockage plein).</p>`):'';
+ api.panel('Menu',`<p>Jour ${S.day} · ${esc(api.timeStr())} · ${esc(fmt(S.money))}</p>${msg||''}${sv}<div class="mw-btns v">
+  <button type="button" class="btn" data-mw="resume">Reprendre</button>
+  <button type="button" class="btn ghost" data-mw="save">💾 Sauvegarder la partie</button>
+  <button type="button" class="btn ghost" data-mw="quit">🏠 Retour à l'accueil (sauvegarde automatique)</button>
+  ${typeof MWGD!=='undefined'?'<button type="button" class="btn ghost" data-mw="guide">Guide du mécanicien (H)</button>':''}
+  ${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}
+  <button type="button" class="btn ghost" data-mw="new">Recommencer une partie…</button></div>
+  <p class="hint">La partie se sauvegarde aussi toute seule toutes les 30 secondes et quand vous revenez à l'accueil. Pour la reprendre : bouton « Carrière de mécanicien » de l'accueil.</p>
+  <p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · H : guide · Échap : menu.</p>`,
+  {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){saveNow();pauseMenu();}
+   else if(a==='guide'){api.closePanel();try{MWGD.open();}catch(e){console.error(e);}}
    else if(a==='quality'){api.decor.cycleQuality();api.closePanel();pauseMenu();}
-   else if(a==='quit'){api.closePanel();api.close();}
-   else if(a==='new') api.panel('Recommencer ?',`<p>Votre progression sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, recommencer</button><button type="button" class="btn ghost" data-mw="close">Non</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}}});}});}
+   else if(a==='quit'){saveNow();api.closePanel();api.close();}
+   else if(a==='new') api.panel('Recommencer ?',`<p>Votre progression sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, recommencer</button><button type="button" class="btn ghost" data-mw="no">Non, revenir au menu</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}else if(b==='no') pauseMenu();}});}});}
+api.menu=pauseMenu;
+/* accueil : le bouton « Carrière de mécanicien » indique la partie sauvegardée */
+function homeSub(){try{const el=document.getElementById('hMecaSub');if(!el) return;if(!el.dataset.def) el.dataset.def=el.textContent;
+ const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');
+ el.textContent=o&&o.day?`Reprendre votre partie : jour ${o.day}, ${fmt(o.money||0)}.`:el.dataset.def;}catch(e){}}
 function toggleMap(on){ensureUI();if(panelSt) return;mapOpen=on===undefined?!mapOpen:on;ui.map.hidden=!mapOpen;setPaused();if(mapOpen){sizeBig();drawBig();}}
 function sizeBig(){const s=Math.max(200,Math.min(ui.map.clientWidth-24,ui.map.clientHeight-110));ui.big.width=ui.big.height=Math.round(s);ui.big.style.width=ui.big.style.height=Math.round(s)+'px';}
 
@@ -603,7 +621,8 @@ api.open=()=>{
 api.suspend=()=>{if(!active) return;api.save();exitLock();deactivate();if(panelSt){const p=panelSt;panelSt=null;ui.pw.hidden=true;if(p.onClose) try{p.onClose();}catch(e){}}
  mapOpen=false;ui.map.hidden=true;sleeping=false;ui.fade.classList.remove('on');setPaused();keys={};
  ui.r.hidden=true;document.body.classList.remove('mw-on');emit('close');};
-api.close=()=>{const was=active;api.suspend();if(was&&typeof showHome==='function') showHome();};
+api.close=()=>{const was=active;api.suspend();if(was&&typeof showHome==='function') showHome();homeSub();};
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',homeSub);else setTimeout(homeSub,0);
 api.useDoor=id=>{const z=api.zone(id);if(z) zoneUse(z);};/* outil de test : déclenche l'action de la porte (ou du comptoir) d'une zone */
 window.__mw=api;
 return api;})();

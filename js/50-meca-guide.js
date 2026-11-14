@@ -80,7 +80,26 @@ const CH=[
   `Faites les deux côtés du même essieu (gauche et droite).`,
   ...ROUE_REP,
   `Dans l'habitacle : <i>Pomper la pédale de frein</i> jusqu'à ce qu'elle soit ferme. Oublier, c'est une pédale molle et un client furieux.`,RENDRE])}
- ${job('Bougies, courroie d\'accessoires, liquide de frein','Moteur / freinage niveau 2','La pièce de l\'ordre.',`${T.cliquet} + douille, ${T.main}, ${T.ser} pour le liquide`,[CAPOT,...GEN('pièce neuve').slice(1),RENDRE])}
+ ${job('Bougies d\'allumage (moteur essence)','Moteur niveau 2','<b>Bougies</b> (un jeu pour tous les cylindres).',`${T.main}, ${T.cliquet} (douille de 8 ou 10 pour la bobine, douille à bougie de 14 ou 16), ${T.dyn}`,[
+  CAPOT,`Pour <b>chaque cylindre</b>, visez « Bougie et bobine 1/4 », 2/4… :`,
+  `${T.main} : <i>Débrancher le connecteur de la bobine</i>.`,`${T.cliquet} (douille de la vis, ${K('R')}) : <i>Dévisser la vis de la bobine</i>. La vis va dans le bac magnétique.`,
+  `${T.main} : <i>Extraire la bobine crayon</i>.`,`${T.cliquet} avec la douille à bougie : <i>Dévisser la bougie usée</i>.`,
+  `${T.main} : <i>Contrôler l'écartement des électrodes</i> de la bougie neuve (0,8 mm, une seule fois pour le jeu), puis <i>Engager la bougie neuve à la main</i> (à la main d'abord, pour ne pas abîmer le filetage).`,
+  `${T.dyn} (douille à bougie) : <i>Serrer la bougie au couple</i> (25 N·m).`,
+  `${T.main} : <i>Remettre la bobine</i>, ${T.cliquet} : <i>Revisser la vis</i>, ${T.main} : <i>Rebrancher le connecteur</i> (clic).`,
+  `Une fois tous les cylindres faits, fermez le capot (impossible s'il reste une bobine débranchée), puis ${RENDRE}`],'Moteur diesel : les « bougies » sont des bougies de préchauffage, voir ci-dessous.')}
+ ${job('Bougies de préchauffage (moteur diesel)','Moteur niveau 2','<b>Bougies</b> (de préchauffage).',`${T.cliquet} (douille de 8, 10 ou 12), ${T.main}, ${T.dyn}`,[
+  CAPOT,`Pour chaque cylindre : ${T.cliquet} : <i>Dévisser l'écrou de la cosse</i>, puis ${T.main} : <i>Retirer la cosse d'alimentation</i>.`,
+  `${T.cliquet} : <i>Dévisser la bougie de préchauffage</i>. Le geste est long : elle est fragile, on dévisse doucement.`,
+  `${T.main} : <i>Visser la bougie neuve à la main</i>, puis ${T.dyn} : <i>Serrer au couple</i> (15 N·m).`,
+  `${T.main} : <i>Remettre la cosse</i>, ${T.cliquet} : <i>Revisser l'écrou</i>.`,RENDRE])}
+ ${job('Courroie d\'accessoires','Moteur niveau 2','<b>Courroie d\'accessoires</b>.',`${T.main}, ${T.cliquet} (douille du tendeur : 13, 15 ou 17), ${T.pinces}`,[
+  CAPOT,`${T.main} sur la courroie : <i>Repérer le passage de la courroie</i> (schéma sous le capot). Sans ce repérage, le jeu refuse de détendre la courroie.`,
+  `${T.cliquet} sur le <b>galet tendeur</b> : <i>Faire pivoter le tendeur pour détendre la courroie</i>.`,`${T.pinces} : <i>Bloquer le tendeur avec une goupille</i>.`,
+  `${T.main} : <i>Sortir la courroie usée des poulies</i>, puis <i>Contrôler les galets et les poulies</i> (rotation, jeu, bruit).`,
+  `${T.main} : <i>Passer la courroie neuve</i>, poulie de vilebrequin en premier.`,`${T.cliquet} sur le tendeur : <i>Reprendre le tendeur, retirer la goupille et le relâcher</i>.`,
+  `${T.main} : <i>Vérifier que la courroie est bien dans toutes les gorges</i>, fermez le capot, puis ${RENDRE}`])}
+ ${job('Liquide de frein','Freinage niveau 2','<b>Liquide de frein</b>.',`${T.ser}, ${T.bidon}, ${T.main}`,[CAPOT,`${T.main} sur le bocal de liquide de frein : <i>Dévisser le bouchon du bocal</i>.`,`${T.ser} : <i>Aspirer l'ancien liquide</i>.`,`${T.bidon} : <i>Remplir de liquide neuf et purger</i> (maintenir ${K('E')}).`,`${T.main} : <i>Revisser le bouchon</i>.`,RENDRE])}
  <h4>Trouver une panne (client qui décrit un symptôme)</h4>${ol([
   `Lisez le symptôme : il oriente vers une zone (bruit au freinage → freins, démarreur qui tourne mollement → batterie…).`,
   `<b>Inspectez</b> les pièces suspectes (${T.main}, ${K('E')} sur la pièce : <i>Inspecter</i>) : l'usure s'affiche.`,

@@ -53,7 +53,7 @@ function setSock(n){if(SOCKS.includes(n)){sock=n;toolUI();}}
 function cycleSock(d){const i=SOCKS.indexOf(sock);setSock(SOCKS[(i+d+SOCKS.length)%SOCKS.length]);snd('tool');}
 /* taille de douille imposée par la voiture : stable pour un modèle donné */
 function hashN(s){let h=0;for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;return Math.abs(h);}
-const sockOf=(c,k)=>{const O={plug:[14,17,19,21,22],cart:[27,32],bolt:[10,12,13,14],brk:[17,18,19].map(x=>x===18?19:x),nut:[17,19,19,21],bat:[10,13],alt:[13,15],start:[13,15],plugs:[14,16],clip:[8,10],top:[13,15],inj:[8,10],gear:[13,15,17],arm:[13,15],clutch:[10,13],tens:[13,15,17],sonde:[22]}[k]||[13];return O[hashN((c.mdl||c.modele||'x')+k)%O.length];};
+const sockOf=(c,k)=>{const O={plug:[14,17,19,21,22],cart:[27,32],bolt:[10,12,13,14],brk:[17,18,19].map(x=>x===18?19:x),nut:[17,19,19,21],bat:[10,13],alt:[13,15],start:[13,15],plugs:[14,16],glow:[8,10,12],clip:[8,10],top:[13,15],inj:[8,10],gear:[13,15,17],arm:[13,15],clutch:[10,13],tens:[13,15,17],sonde:[22]}[k]||[13];return O[hashN((c.mdl||c.modele||'x')+k)%O.length];};
 
 /* ═══════════ Maillages et matériaux ═══════════ */
 const GCH=new Map(),MCH=new Map();
@@ -748,16 +748,96 @@ const c4=R=>!!R.c.st.capot&&!!bayG(R);
 function buildOthers(R){
  const c=R.c;
  for(const sp of SPECS){
-  if(sp.id==='bougies'||sp.id==='batterie'&&false) continue;
+  if(sp.id==='bougies'||sp.id==='courroie_acc') continue; /* gestes détaillés : buildPlugsBelt */
   if(!partOK(c,sp.id)) continue;
   if(sp.id==='batterie'){const s2=Object.assign({},sp,{kind:'bat'});buildGeneric(R,Object.assign(s2,{kind:'bat'}));continue;}
   buildGeneric(R,sp);}
- /* bougies : une unité par cylindre */
- if(partOK(c,'bougies')){const e=c.mdl&&MWCARS.get(c.mdl).eng,n=Math.min(e?e.n:4,8),diesel=e&&e.fuel==='diesel';
-  buildGeneric(R,{id:'bougies',kind:diesel?'glow':'plug',units:n,nfix:0,at:R=>LOCAL(R,'coils',0,0,0),unitAt:(R2,i)=>{const b=bayG(R2),cs=b&&b.userData.coils;if(cs&&cs[i]) return cs[i].p.clone().add(V3(0,.04,0));const a=R2.A('coils');return V3(a.x+(i-(n-1)/2)*.08,a.y+.05,a.z);},
-   vis:R=>c4(R),depTool:'cliquet',depSock:'plugs',depLab:diesel?'Dévisser la bougie de préchauffage':"Déposer la bobine et dévisser la bougie",poseLab:diesel?'Visser la bougie neuve':'Visser la bougie neuve et remettre la bobine',poseTool:'cliquet',poseSock:'plugs',depHold:.9,poseHold:.9,r:.045,ord:0});}
 }
 BUILD.push(buildOthers);
+
+/* ═══════════ Bougies (allumage ou préchauffage) et courroie d'accessoires : gestes détaillés ═══════════ */
+/* essence : connecteur, vis et bobine crayon, bougie dévissée à la douille à bougie, écartement contrôlé, bougie neuve engagée à la main,
+   serrage au couple, bobine, vis, connecteur. Diesel : écrou et cosse d'alimentation, bougie de préchauffage dévissée doucement. */
+const PLUG_E=[
+ {lab:'Débrancher le connecteur de la bobine',tool:'main',hold:.5,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1},
+ {lab:'Extraire la bobine crayon',tool:'main',hold:.6,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la bougie usée (douille à bougie et rallonge)',tool:'cliquet',sock:'plugs',hold:1.3,snd:'ratchet',ph:'dep',out:1},
+ {lab:'Engager la bougie neuve à la main, sans forcer',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1,gap:1},
+ {lab:'Serrer la bougie au couple (25 N·m)',tool:'cle_dyn',sock:'plugs',hold:.9,snd:'click',ph:'pose'},
+ {lab:'Remettre la bobine',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
+ {lab:'Revisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1},
+ {lab:'Rebrancher le connecteur (clic)',tool:'main',hold:.4,snd:'click',ph:'pose'}];
+const PLUG_D=[
+ {lab:"Dévisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1,bk:'cosse'},
+ {lab:"Retirer la cosse d'alimentation",tool:'main',hold:.5,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la bougie de préchauffage (doucement : elle casse facilement)',tool:'cliquet',sock:'glow',hold:1.7,snd:'ratchet',ph:'dep',out:1},
+ {lab:'Visser la bougie de préchauffage neuve à la main',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1},
+ {lab:'Serrer au couple (15 N·m)',tool:'cle_dyn',sock:'glow',hold:.9,snd:'click',ph:'pose'},
+ {lab:'Remettre la cosse',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
+ {lab:"Revisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1,bk:'cosse'}];
+const plugSteps=c=>{try{return MWCARS.get(c.mdl).eng.fuel==='diesel'?PLUG_D:PLUG_E;}catch(e){return PLUG_E;}};
+/* courroie : repérer le passage, détendre et bloquer le tendeur, sortir la courroie, contrôler les galets, passer la neuve,
+   libérer le tendeur, vérifier l'alignement dans toutes les gorges */
+function buildPlugsBelt(R){
+ const {c}=R,F=R.F;
+ if(partOK(c,'bougies')){
+  const steps=plugSteps(c),diesel=steps===PLUG_D,e=c.mdl&&MWCARS.get(c.mdl)?MWCARS.get(c.mdl).eng:null,n=Math.min(e?e.n:4,8);
+  if(!F.bp||F.bp.st.length!==n) F.bp={st:new Array(n).fill(0),gap:0};
+  const B=F.bp,OUT=steps.findIndex(x=>x.out)+1,END=steps.length;
+  const want=()=>wanted(c,'bougies')||!!F.p.bougies;
+  const at=i=>{const b=bayG(R),cs=b&&b.userData.coils;if(cs&&cs[i]) return cs[i].p.clone().add(V3(0,.04,0));const a=R.A('coils');return V3(a.x+(i-(n-1)/2)*.08,a.y+.05,a.z);};
+  const U=[];
+  for(let i=0;i<n;i++){
+   const p=at(i),base=grp(p.x,p.y,p.z);R.root.add(base);
+   const coil=diesel?grp(0,0,0,hex(.009,.012,0xcfd4d9,0,.012,0),cy(.003,.05,C.red,.025,.014,0,'x')):grp(0,0,0,cy(.014,.09,0x1f2226,0,.03,0),bx(.03,.022,.026,0x30343a,0,.085,0),bx(.012,.012,.03,C.org,0,.09,.02));
+   const plugOld=grp(0,0,0,cy(.007,.03,0xe9e5d8,0,-.005,0),hex(.011,.012,0x6a5a4a,0,-.025,0));
+   const plugNew=grp(0,0,0,cy(.007,.03,C.white,0,-.005,0),hex(.011,.012,C.chrome,0,-.025,0));
+   base.add(coil,plugOld,plugNew);U.push({base,coil,plugOld,plugNew});
+   R.add({id:'bp:'+i,o:base,r:.045,vis:()=>c4(R),name:()=>`${diesel?'Bougie de préchauffage':'Bougie et bobine'} ${i+1}/${n}`,acts:()=>{
+    const k=B.st[i],a=[];
+    if(k<END){const S=steps[k],gapNeed=S.gap&&!B.gap;
+     if(gapNeed) a.push({key:'bpg'+i,lab:"Contrôler l'écartement des électrodes de la bougie neuve (cale : 0,8 mm)",tool:'main',hold:.6,snd:'click',ord:20+i+.35,exp:want(),min:1,ph:['bougies','pose'],why:needNew(c,'bougies'),do:()=>{B.gap=1;MW.toast("Écartement contrôlé : 0,8 mm, conforme.",'info');}});
+     a.push({key:'bp'+i+'_'+k,lab:S.lab,tool:S.tool,sock:S.sock?sockOf(c,S.sock):undefined,hold:S.hold,snd:S.snd,ord:20+i+k*.05,exp:want(),min:.7,ph:['bougies',S.ph],
+      why:accOK(c,'bougies')||levelOK(c,'bougies')||(S.need?needNew(c,'bougies'):null)||(gapNeed?"Contrôlez d'abord l'écartement des électrodes de la bougie neuve.":null),fix:fixOf(accOK(c,'bougies')),
+      do:()=>{B.st[i]=k+1;F.p.bougies=1;if(S.bin>0) binAdd(S.bk||'vis');else if(S.bin<0) binTake(S.bk||'vis');
+       if(k+1===OUT&&B.st.every(x=>x>=OUT)&&!doDepL(R,'bougies')) B.st[i]=k; /* inventaire plein : la bougie reste en place */
+       if(k+1===END&&B.st.every(x=>x>=END)) doPoseL(R,'bougies');}});}
+    if(k===0) a.push({key:'bpi'+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'bougies');inspMsg(R,'bougies');}});
+    return a;}});}
+  R.blk.hood.push(()=>B.st.some(x=>x>0&&x<END)?(diesel?'Remontez toutes les bougies de préchauffage et leurs cosses.':'Remontez toutes les bougies, bobines et connecteurs.'):null);
+  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
+   u.coil.position.set(coilOut?.07:0,coilOut?.1:0,0);u.coil.rotation.z=coilOut?.6:0;
+   u.plugOld.visible=k<OUT;u.plugOld.position.y=k===OUT-1?.006:0;u.plugNew.visible=k>=OUT+1;});}});}
+ if(partOK(c,'courroie_acc')){
+  if(!F.cr) F.cr={k:0,sch:0,gal:0};const K=F.cr,id='courroie_acc';
+  const want=()=>wanted(c,id)||!!F.p[id];
+  const pb=LOCAL(R,'alternator',0,.05,0),belt=grp(pb.x,pb.y,pb.z);R.root.add(belt);
+  const host=()=>engSep(R,'belt'),oldP=host()?null:mkProxy('belt',c.parts[id].u0!=null?c.parts[id].u0:60),newP=mkProxy('belt',0);if(oldP) belt.add(oldP);belt.add(newP);
+  const tens=grp(pb.x,pb.y+.12,pb.z);R.root.add(tens);const arm=grp(0,0,0,bx(.06,.012,.02,C.cast,.03,0,0),hex(.013,.016,0xcfd4d9,0,0,.012,'z'),cy(.022,.016,C.steel,.06,0,0,'z'));tens.add(arm);
+  const pin=cy(.003,.05,C.yel,.02,.02,.012,'z');tens.add(pin);
+  const why0=()=>accOK(c,id)||levelOK(c,id)||toolGate(c,id);
+  const act=(key,lab,tool,sock,hold,snd,ord,ph,from,to,extra)=>({key,lab,tool,sock:sock?sockOf(c,sock):undefined,hold,snd,ord,exp:want(),min:3,ph:[id,ph],why:why0()||(extra&&extra()),fix:fixOf(accOK(c,id)),do:()=>{K.k=to;F.p[id]=1;
+   if(to===3&&!doDepL(R,id)) K.k=from;if(to===7&&!doPoseL(R,id)) K.k=from;}});
+  R.add({id:'cr:belt',o:belt,r:.14,vis:()=>c4(R),name:()=>K.k>=3&&K.k<5?'Poulies (courroie déposée)':"Courroie d'accessoires",acts:()=>{const a=[];
+   if(K.k===0&&!K.sch) a.push({key:'crs',lab:'Repérer le passage de la courroie (schéma sous le capot)',tool:'main',hold:.6,snd:'click',ord:20,exp:want(),min:2,ph:[id,'dep'],why:why0(),fix:fixOf(accOK(c,id)),do:()=>{K.sch=1;F.p[id]=1;MW.toast('Passage repéré : vilebrequin, alternateur, pompe à eau, compresseur de climatisation, puis le galet tendeur.','info');}});
+   if(K.k===2) a.push(act('cr3','Sortir la courroie usée des poulies','main',null,.9,'clunk',23,'dep',2,3));
+   if(K.k===3) a.push(act('cr4','Contrôler les galets et les poulies (rotation, jeu, bruit)','main',null,.8,'screw',24,'pose',3,4));
+   if(K.k===4) a.push(act('cr5','Passer la courroie neuve, poulie de vilebrequin en premier','main',null,1.2,'clunk',25,'pose',4,5,()=>needNew(c,id)||(K.sch?null:"Vous n'avez pas repéré le passage de la courroie.")));
+   if(K.k===6) a.push(act('cr7','Vérifier que la courroie est bien dans toutes les gorges','main',null,.6,'click',27,'pose',6,7));
+   if(K.k===0) a.push({key:'cri',lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,id);inspMsg(R,id);}});
+   return a;}});
+  R.add({id:'cr:tens',o:tens,r:.05,vis:()=>c4(R),name:'Galet tendeur',acts:()=>{const a=[];
+   if(K.k===0) a.push(act('cr1','Faire pivoter le tendeur pour détendre la courroie','cliquet','tens',1.2,'ratchet',21,'dep',0,1,()=>K.sch?null:"Repérez d'abord le passage de la courroie : sans schéma, impossible de la remonter."));
+   if(K.k===1) a.push(act('cr2','Bloquer le tendeur avec une goupille','pinces',null,.6,'click',22,'dep',1,2));
+   if(K.k===5) a.push(act('cr6','Reprendre le tendeur, retirer la goupille et le relâcher','cliquet','tens',1.0,'ratchet',26,'pose',5,6));
+   return a;}});
+  R.blk.hood.push(()=>K.k>0&&K.k<7?"Remontez et tendez la courroie d'accessoires.":null);
+  R.procs.push({id:'belt',vis:()=>{const h=host();if(h) h.visible=K.k<3;if(oldP) oldP.visible=K.k<3;newP.visible=K.k>=5;
+   arm.rotation.z=K.k>=1&&K.k<6?.5:0;pin.visible=K.k>=2&&K.k<6;},free:()=>{const h=host();if(h) h.visible=true;}});}
+}
+BUILD.push(buildPlugsBelt);
+
 
 SPECS.push({id:'liquide_frein',kind:'fluid',at:R=>LOCAL(R,'brakeFluid',0,.08,0),nfix:1,fixAt:[[0,.0,0]],fixTool:'main',fixName:'Bouchon du bocal',fixLab:'Dévisser le bouchon du bocal',fixRe:'Revisser le bouchon',vis:R=>c4(R),depTool:'seringue',depLab:"Aspirer l'ancien liquide",poseTool:'bidon',poseLab:'Remplir de liquide neuf et purger',poseHold:1.8,r:.09,ord:12});
 SPECS.push({id:'amort',kind:'damper',units:2,nfix:0,at:R=>LOCAL(R,'hubFL',0,.3,0),unitAt:(R,i)=>{const a=R.A(i?'hubFR':'hubFL');return V3(a.x,a.y+.32,a.z);},vis:R=>R.c.st.av,depTool:'cliquet',depSock:'top',depLab:"Déposer l'amortisseur et son ressort",poseTool:'cliquet',poseSock:'top',poseLab:"Monter l'amortisseur neuf",depHold:1.4,poseHold:1.4,r:.15,ord:13});
@@ -770,6 +850,8 @@ function blocage(c){
  const off=Object.keys(g.w).filter(S=>g.w[S].o);if(off.length) l.push('une roue est déposée');
  if(g.pump) l.push("la pédale de frein n'a pas été pompée");
  const o=g.o;if(o){if(o.bac) l.push('le bac de vidange est resté sous la voiture');if(!o.cap) l.push("le bouchon de remplissage d'huile est ouvert");if(c.done.huile&&!o.done) l.push("le moteur n'a pas été rempli d'huile");if(o.fun) l.push("l'entonnoir est resté sur le moteur");}
+ if(g.bp){const E=plugSteps(c).length;if(g.bp.st.some(x=>x>0&&x<E)) l.push('des bougies ne sont pas remontées');}
+ if(g.cr&&g.cr.k>0&&g.cr.k<7) l.push("la courroie d'accessoires n'est pas remontée");
  if(g.s) for(const id in g.s){const sp=SPECS.find(x=>x.id===id);if(!sp) continue;const req=(sp.nfix||0)-(sp.optFix||0);if(g.s[id].f.slice(0,req).some(v=>!v)) l.push('des fixations ne sont pas remontées ('+id.replace('_',' ')+')');if(g.s[id].cv===0) l.push('un couvercle est déposé');}
  return l;}
 function malus(c){const g=c.g;if(!g||!on()) return 0;let m=0;const b=g.bin||{};for(const k in b) if(k!=='ecrou'||true) m+=b[k]||0;if(g.o&&g.o.over) m+=1;return Math.min(3,m);}

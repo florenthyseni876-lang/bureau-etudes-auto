@@ -1017,6 +1017,7 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-pb .btn{align-self:flex-start}
 .mw-btns{display:flex;flex-wrap:wrap;gap:8px}.mw-btns.v{flex-direction:column;align-items:stretch}.mw-btns.v .btn{align-self:stretch}
 .mw-soon{color:#ffd466;background:rgba(255,184,0,.12);padding:8px 10px;border-radius:3px}
+.mw-ok{color:#7fe3a0;background:rgba(60,207,106,.12);padding:8px 10px;border-radius:3px}
 .mw-pb .btn.warn{background:#7a3b12;border-color:#ff9a3c;color:#ffe3c7}.mw-fr{color:#ff9a3c}
 .mw-fr-d{border:1px dashed rgba(255,154,60,.45);border-radius:3px;padding:6px 10px}.mw-fr-d>summary{cursor:pointer;color:#ffb36b;font-weight:600}.mw-fr-d[open]>summary{margin-bottom:8px}.mw-fr-d .mw-soon{margin-top:8px}
 .mw-pb kbd{display:inline-block;min-width:1.4em;padding:0 4px;border:1px solid #5a7697;border-bottom-width:2px;border-radius:3px;background:#1b2c44;font:600 11.5px/1.5 inherit;text-align:center;color:#e8f0f8}

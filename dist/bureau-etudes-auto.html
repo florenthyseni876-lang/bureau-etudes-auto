@@ -1024,6 +1024,7 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-pb .btn{align-self:flex-start}
 .mw-btns{display:flex;flex-wrap:wrap;gap:8px}.mw-btns.v{flex-direction:column;align-items:stretch}.mw-btns.v .btn{align-self:stretch}
 .mw-soon{color:#ffd466;background:rgba(255,184,0,.12);padding:8px 10px;border-radius:3px}
+.mw-ok{color:#7fe3a0;background:rgba(60,207,106,.12);padding:8px 10px;border-radius:3px}
 .mw-pb .btn.warn{background:#7a3b12;border-color:#ff9a3c;color:#ffe3c7}.mw-fr{color:#ff9a3c}
 .mw-fr-d{border:1px dashed rgba(255,154,60,.45);border-radius:3px;padding:6px 10px}.mw-fr-d>summary{cursor:pointer;color:#ffb36b;font-weight:600}.mw-fr-d[open]>summary{margin-bottom:8px}.mw-fr-d .mw-soon{margin-top:8px}
 .mw-pb kbd{display:inline-block;min-width:1.4em;padding:0 4px;border:1px solid #5a7697;border-bottom-width:2px;border-radius:3px;background:#1b2c44;font:600 11.5px/1.5 inherit;text-align:center;color:#e8f0f8}
@@ -6755,7 +6756,7 @@ function ensureUI(){
  const r=el('div','mw');r.id='mwRoot';r.hidden=true;r.setAttribute('aria-label','Carrière de mécanicien');
  r.innerHTML=`<canvas class="mw-cv" id="mwCv"></canvas><div class="mw-look" id="mwLook"></div>
  <div class="mw-top"><b id="mwTime"></b><span id="mwMoney"></span></div><div class="mw-zones" id="mwZones"></div>
- <div class="mw-tr"><canvas class="mw-mini" id="mwMini" width="140" height="140" aria-label="Mini-carte"></canvas><div class="mw-bar" id="mwBar"><button type="button" class="mw-b" data-b="map">Carte (M)</button><button type="button" class="mw-b" data-b="menu">Menu</button></div></div>
+ <div class="mw-tr"><canvas class="mw-mini" id="mwMini" width="140" height="140" aria-label="Mini-carte"></canvas><div class="mw-bar" id="mwBar"><button type="button" class="mw-b" data-b="map">Carte (M)</button><button type="button" class="mw-b" data-b="menu">Menu (Échap)</button></div></div>
  <div class="mw-cross" aria-hidden="true"></div><div class="mw-toasts" id="mwToasts" role="status"></div>
  <div class="mw-speed" id="mwSpeed" hidden></div><div class="mw-prompt" id="mwPrompt" hidden></div>
  <div class="mw-touch" id="mwTouch"><div class="mw-joy" id="mwJoy"><i id="mwKnob"></i></div><div class="mw-acts"><button type="button" class="mw-a" id="mwBtnE">E</button><button type="button" class="mw-a f" id="mwBtnF">F</button></div></div>
@@ -6842,12 +6843,30 @@ function onLockChange(){if(!active) return;if(!document.pointerLockElement&&!api
 function useCur(k){
  if(k==='f'){if(curI&&curI.key.toLowerCase()==='f'&&curI.o){try{curI.o.use();}catch(e){console.error(e);}return;}toggleCar();return;}
  if(curI&&curI.o&&curI.key.toLowerCase()===k){try{curI.o.use();}catch(e){console.error(e);}}}
-function pauseMenu(){
- api.panel('Pause',`<p>${esc(api.timeStr())} · ${esc(fmt(S.money))}</p><div class="mw-btns v"><button type="button" class="btn" data-mw="resume">Reprendre</button><button type="button" class="btn ghost" data-mw="save">Sauvegarder</button>${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}<button type="button" class="btn ghost" data-mw="quit">Quitter vers l'accueil</button><button type="button" class="btn ghost" data-mw="new">Recommencer une partie…</button></div><p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · Échap : pause.</p>`,
-  {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){api.save();api.toast('Partie sauvegardée.','good');}
+/* ── menu (Échap ou bouton « Menu ») : reprendre, sauvegarder, guide, qualité, retour à l'accueil, recommencer ── */
+let lastSave=null; /* {day, min, ok} : dernière sauvegarde manuelle, affichée dans le menu */
+function saveNow(){const ok=api.save();lastSave={day:S.day,min:S.min,ok};return ok;}
+function pauseMenu(msg){
+ const sv=lastSave?(lastSave.ok?`<p class="mw-ok" role="status">✓ Partie sauvegardée (jour ${lastSave.day}, ${String(Math.floor(lastSave.min/60)).padStart(2,'0')} h ${String(lastSave.min%60).padStart(2,'0')}).</p>`:`<p class="mw-soon" role="alert">La sauvegarde a échoué : le navigateur refuse d'enregistrer (navigation privée ou stockage plein).</p>`):'';
+ api.panel('Menu',`<p>Jour ${S.day} · ${esc(api.timeStr())} · ${esc(fmt(S.money))}</p>${msg||''}${sv}<div class="mw-btns v">
+  <button type="button" class="btn" data-mw="resume">Reprendre</button>
+  <button type="button" class="btn ghost" data-mw="save">💾 Sauvegarder la partie</button>
+  <button type="button" class="btn ghost" data-mw="quit">🏠 Retour à l'accueil (sauvegarde automatique)</button>
+  ${typeof MWGD!=='undefined'?'<button type="button" class="btn ghost" data-mw="guide">Guide du mécanicien (H)</button>':''}
+  ${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}
+  <button type="button" class="btn ghost" data-mw="new">Recommencer une partie…</button></div>
+  <p class="hint">La partie se sauvegarde aussi toute seule toutes les 30 secondes et quand vous revenez à l'accueil. Pour la reprendre : bouton « Carrière de mécanicien » de l'accueil.</p>
+  <p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · H : guide · Échap : menu.</p>`,
+  {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){saveNow();pauseMenu();}
+   else if(a==='guide'){api.closePanel();try{MWGD.open();}catch(e){console.error(e);}}
    else if(a==='quality'){api.decor.cycleQuality();api.closePanel();pauseMenu();}
-   else if(a==='quit'){api.closePanel();api.close();}
-   else if(a==='new') api.panel('Recommencer ?',`<p>Votre progression sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, recommencer</button><button type="button" class="btn ghost" data-mw="close">Non</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}}});}});}
+   else if(a==='quit'){saveNow();api.closePanel();api.close();}
+   else if(a==='new') api.panel('Recommencer ?',`<p>Votre progression sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, recommencer</button><button type="button" class="btn ghost" data-mw="no">Non, revenir au menu</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}else if(b==='no') pauseMenu();}});}});}
+api.menu=pauseMenu;
+/* accueil : le bouton « Carrière de mécanicien » indique la partie sauvegardée */
+function homeSub(){try{const el=document.getElementById('hMecaSub');if(!el) return;if(!el.dataset.def) el.dataset.def=el.textContent;
+ const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');
+ el.textContent=o&&o.day?`Reprendre votre partie : jour ${o.day}, ${fmt(o.money||0)}.`:el.dataset.def;}catch(e){}}
 function toggleMap(on){ensureUI();if(panelSt) return;mapOpen=on===undefined?!mapOpen:on;ui.map.hidden=!mapOpen;setPaused();if(mapOpen){sizeBig();drawBig();}}
 function sizeBig(){const s=Math.max(200,Math.min(ui.map.clientWidth-24,ui.map.clientHeight-110));ui.big.width=ui.big.height=Math.round(s);ui.big.style.width=ui.big.style.height=Math.round(s)+'px';}
 
@@ -7048,7 +7067,8 @@ api.open=()=>{
 api.suspend=()=>{if(!active) return;api.save();exitLock();deactivate();if(panelSt){const p=panelSt;panelSt=null;ui.pw.hidden=true;if(p.onClose) try{p.onClose();}catch(e){}}
  mapOpen=false;ui.map.hidden=true;sleeping=false;ui.fade.classList.remove('on');setPaused();keys={};
  ui.r.hidden=true;document.body.classList.remove('mw-on');emit('close');};
-api.close=()=>{const was=active;api.suspend();if(was&&typeof showHome==='function') showHome();};
+api.close=()=>{const was=active;api.suspend();if(was&&typeof showHome==='function') showHome();homeSub();};
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',homeSub);else setTimeout(homeSub,0);
 api.useDoor=id=>{const z=api.zone(id);if(z) zoneUse(z);};/* outil de test : déclenche l'action de la porte (ou du comptoir) d'une zone */
 window.__mw=api;
 return api;})();
@@ -10800,7 +10820,7 @@ function setSock(n){if(SOCKS.includes(n)){sock=n;toolUI();}}
 function cycleSock(d){const i=SOCKS.indexOf(sock);setSock(SOCKS[(i+d+SOCKS.length)%SOCKS.length]);snd('tool');}
 /* taille de douille imposée par la voiture : stable pour un modèle donné */
 function hashN(s){let h=0;for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;return Math.abs(h);}
-const sockOf=(c,k)=>{const O={plug:[14,17,19,21,22],cart:[27,32],bolt:[10,12,13,14],brk:[17,18,19].map(x=>x===18?19:x),nut:[17,19,19,21],bat:[10,13],alt:[13,15],start:[13,15],plugs:[14,16],clip:[8,10],top:[13,15],inj:[8,10],gear:[13,15,17],arm:[13,15],clutch:[10,13],tens:[13,15,17],sonde:[22]}[k]||[13];return O[hashN((c.mdl||c.modele||'x')+k)%O.length];};
+const sockOf=(c,k)=>{const O={plug:[14,17,19,21,22],cart:[27,32],bolt:[10,12,13,14],brk:[17,18,19].map(x=>x===18?19:x),nut:[17,19,19,21],bat:[10,13],alt:[13,15],start:[13,15],plugs:[14,16],glow:[8,10,12],clip:[8,10],top:[13,15],inj:[8,10],gear:[13,15,17],arm:[13,15],clutch:[10,13],tens:[13,15,17],sonde:[22]}[k]||[13];return O[hashN((c.mdl||c.modele||'x')+k)%O.length];};
 
 /* ═══════════ Maillages et matériaux ═══════════ */
 const GCH=new Map(),MCH=new Map();
@@ -11495,16 +11515,96 @@ const c4=R=>!!R.c.st.capot&&!!bayG(R);
 function buildOthers(R){
  const c=R.c;
  for(const sp of SPECS){
-  if(sp.id==='bougies'||sp.id==='batterie'&&false) continue;
+  if(sp.id==='bougies'||sp.id==='courroie_acc') continue; /* gestes détaillés : buildPlugsBelt */
   if(!partOK(c,sp.id)) continue;
   if(sp.id==='batterie'){const s2=Object.assign({},sp,{kind:'bat'});buildGeneric(R,Object.assign(s2,{kind:'bat'}));continue;}
   buildGeneric(R,sp);}
- /* bougies : une unité par cylindre */
- if(partOK(c,'bougies')){const e=c.mdl&&MWCARS.get(c.mdl).eng,n=Math.min(e?e.n:4,8),diesel=e&&e.fuel==='diesel';
-  buildGeneric(R,{id:'bougies',kind:diesel?'glow':'plug',units:n,nfix:0,at:R=>LOCAL(R,'coils',0,0,0),unitAt:(R2,i)=>{const b=bayG(R2),cs=b&&b.userData.coils;if(cs&&cs[i]) return cs[i].p.clone().add(V3(0,.04,0));const a=R2.A('coils');return V3(a.x+(i-(n-1)/2)*.08,a.y+.05,a.z);},
-   vis:R=>c4(R),depTool:'cliquet',depSock:'plugs',depLab:diesel?'Dévisser la bougie de préchauffage':"Déposer la bobine et dévisser la bougie",poseLab:diesel?'Visser la bougie neuve':'Visser la bougie neuve et remettre la bobine',poseTool:'cliquet',poseSock:'plugs',depHold:.9,poseHold:.9,r:.045,ord:0});}
 }
 BUILD.push(buildOthers);
+
+/* ═══════════ Bougies (allumage ou préchauffage) et courroie d'accessoires : gestes détaillés ═══════════ */
+/* essence : connecteur, vis et bobine crayon, bougie dévissée à la douille à bougie, écartement contrôlé, bougie neuve engagée à la main,
+   serrage au couple, bobine, vis, connecteur. Diesel : écrou et cosse d'alimentation, bougie de préchauffage dévissée doucement. */
+const PLUG_E=[
+ {lab:'Débrancher le connecteur de la bobine',tool:'main',hold:.5,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1},
+ {lab:'Extraire la bobine crayon',tool:'main',hold:.6,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la bougie usée (douille à bougie et rallonge)',tool:'cliquet',sock:'plugs',hold:1.3,snd:'ratchet',ph:'dep',out:1},
+ {lab:'Engager la bougie neuve à la main, sans forcer',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1,gap:1},
+ {lab:'Serrer la bougie au couple (25 N·m)',tool:'cle_dyn',sock:'plugs',hold:.9,snd:'click',ph:'pose'},
+ {lab:'Remettre la bobine',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
+ {lab:'Revisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1},
+ {lab:'Rebrancher le connecteur (clic)',tool:'main',hold:.4,snd:'click',ph:'pose'}];
+const PLUG_D=[
+ {lab:"Dévisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1,bk:'cosse'},
+ {lab:"Retirer la cosse d'alimentation",tool:'main',hold:.5,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la bougie de préchauffage (doucement : elle casse facilement)',tool:'cliquet',sock:'glow',hold:1.7,snd:'ratchet',ph:'dep',out:1},
+ {lab:'Visser la bougie de préchauffage neuve à la main',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1},
+ {lab:'Serrer au couple (15 N·m)',tool:'cle_dyn',sock:'glow',hold:.9,snd:'click',ph:'pose'},
+ {lab:'Remettre la cosse',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
+ {lab:"Revisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1,bk:'cosse'}];
+const plugSteps=c=>{try{return MWCARS.get(c.mdl).eng.fuel==='diesel'?PLUG_D:PLUG_E;}catch(e){return PLUG_E;}};
+/* courroie : repérer le passage, détendre et bloquer le tendeur, sortir la courroie, contrôler les galets, passer la neuve,
+   libérer le tendeur, vérifier l'alignement dans toutes les gorges */
+function buildPlugsBelt(R){
+ const {c}=R,F=R.F;
+ if(partOK(c,'bougies')){
+  const steps=plugSteps(c),diesel=steps===PLUG_D,e=c.mdl&&MWCARS.get(c.mdl)?MWCARS.get(c.mdl).eng:null,n=Math.min(e?e.n:4,8);
+  if(!F.bp||F.bp.st.length!==n) F.bp={st:new Array(n).fill(0),gap:0};
+  const B=F.bp,OUT=steps.findIndex(x=>x.out)+1,END=steps.length;
+  const want=()=>wanted(c,'bougies')||!!F.p.bougies;
+  const at=i=>{const b=bayG(R),cs=b&&b.userData.coils;if(cs&&cs[i]) return cs[i].p.clone().add(V3(0,.04,0));const a=R.A('coils');return V3(a.x+(i-(n-1)/2)*.08,a.y+.05,a.z);};
+  const U=[];
+  for(let i=0;i<n;i++){
+   const p=at(i),base=grp(p.x,p.y,p.z);R.root.add(base);
+   const coil=diesel?grp(0,0,0,hex(.009,.012,0xcfd4d9,0,.012,0),cy(.003,.05,C.red,.025,.014,0,'x')):grp(0,0,0,cy(.014,.09,0x1f2226,0,.03,0),bx(.03,.022,.026,0x30343a,0,.085,0),bx(.012,.012,.03,C.org,0,.09,.02));
+   const plugOld=grp(0,0,0,cy(.007,.03,0xe9e5d8,0,-.005,0),hex(.011,.012,0x6a5a4a,0,-.025,0));
+   const plugNew=grp(0,0,0,cy(.007,.03,C.white,0,-.005,0),hex(.011,.012,C.chrome,0,-.025,0));
+   base.add(coil,plugOld,plugNew);U.push({base,coil,plugOld,plugNew});
+   R.add({id:'bp:'+i,o:base,r:.045,vis:()=>c4(R),name:()=>`${diesel?'Bougie de préchauffage':'Bougie et bobine'} ${i+1}/${n}`,acts:()=>{
+    const k=B.st[i],a=[];
+    if(k<END){const S=steps[k],gapNeed=S.gap&&!B.gap;
+     if(gapNeed) a.push({key:'bpg'+i,lab:"Contrôler l'écartement des électrodes de la bougie neuve (cale : 0,8 mm)",tool:'main',hold:.6,snd:'click',ord:20+i+.35,exp:want(),min:1,ph:['bougies','pose'],why:needNew(c,'bougies'),do:()=>{B.gap=1;MW.toast("Écartement contrôlé : 0,8 mm, conforme.",'info');}});
+     a.push({key:'bp'+i+'_'+k,lab:S.lab,tool:S.tool,sock:S.sock?sockOf(c,S.sock):undefined,hold:S.hold,snd:S.snd,ord:20+i+k*.05,exp:want(),min:.7,ph:['bougies',S.ph],
+      why:accOK(c,'bougies')||levelOK(c,'bougies')||(S.need?needNew(c,'bougies'):null)||(gapNeed?"Contrôlez d'abord l'écartement des électrodes de la bougie neuve.":null),fix:fixOf(accOK(c,'bougies')),
+      do:()=>{B.st[i]=k+1;F.p.bougies=1;if(S.bin>0) binAdd(S.bk||'vis');else if(S.bin<0) binTake(S.bk||'vis');
+       if(k+1===OUT&&B.st.every(x=>x>=OUT)&&!doDepL(R,'bougies')) B.st[i]=k; /* inventaire plein : la bougie reste en place */
+       if(k+1===END&&B.st.every(x=>x>=END)) doPoseL(R,'bougies');}});}
+    if(k===0) a.push({key:'bpi'+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'bougies');inspMsg(R,'bougies');}});
+    return a;}});}
+  R.blk.hood.push(()=>B.st.some(x=>x>0&&x<END)?(diesel?'Remontez toutes les bougies de préchauffage et leurs cosses.':'Remontez toutes les bougies, bobines et connecteurs.'):null);
+  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
+   u.coil.position.set(coilOut?.07:0,coilOut?.1:0,0);u.coil.rotation.z=coilOut?.6:0;
+   u.plugOld.visible=k<OUT;u.plugOld.position.y=k===OUT-1?.006:0;u.plugNew.visible=k>=OUT+1;});}});}
+ if(partOK(c,'courroie_acc')){
+  if(!F.cr) F.cr={k:0,sch:0,gal:0};const K=F.cr,id='courroie_acc';
+  const want=()=>wanted(c,id)||!!F.p[id];
+  const pb=LOCAL(R,'alternator',0,.05,0),belt=grp(pb.x,pb.y,pb.z);R.root.add(belt);
+  const host=()=>engSep(R,'belt'),oldP=host()?null:mkProxy('belt',c.parts[id].u0!=null?c.parts[id].u0:60),newP=mkProxy('belt',0);if(oldP) belt.add(oldP);belt.add(newP);
+  const tens=grp(pb.x,pb.y+.12,pb.z);R.root.add(tens);const arm=grp(0,0,0,bx(.06,.012,.02,C.cast,.03,0,0),hex(.013,.016,0xcfd4d9,0,0,.012,'z'),cy(.022,.016,C.steel,.06,0,0,'z'));tens.add(arm);
+  const pin=cy(.003,.05,C.yel,.02,.02,.012,'z');tens.add(pin);
+  const why0=()=>accOK(c,id)||levelOK(c,id)||toolGate(c,id);
+  const act=(key,lab,tool,sock,hold,snd,ord,ph,from,to,extra)=>({key,lab,tool,sock:sock?sockOf(c,sock):undefined,hold,snd,ord,exp:want(),min:3,ph:[id,ph],why:why0()||(extra&&extra()),fix:fixOf(accOK(c,id)),do:()=>{K.k=to;F.p[id]=1;
+   if(to===3&&!doDepL(R,id)) K.k=from;if(to===7&&!doPoseL(R,id)) K.k=from;}});
+  R.add({id:'cr:belt',o:belt,r:.14,vis:()=>c4(R),name:()=>K.k>=3&&K.k<5?'Poulies (courroie déposée)':"Courroie d'accessoires",acts:()=>{const a=[];
+   if(K.k===0&&!K.sch) a.push({key:'crs',lab:'Repérer le passage de la courroie (schéma sous le capot)',tool:'main',hold:.6,snd:'click',ord:20,exp:want(),min:2,ph:[id,'dep'],why:why0(),fix:fixOf(accOK(c,id)),do:()=>{K.sch=1;F.p[id]=1;MW.toast('Passage repéré : vilebrequin, alternateur, pompe à eau, compresseur de climatisation, puis le galet tendeur.','info');}});
+   if(K.k===2) a.push(act('cr3','Sortir la courroie usée des poulies','main',null,.9,'clunk',23,'dep',2,3));
+   if(K.k===3) a.push(act('cr4','Contrôler les galets et les poulies (rotation, jeu, bruit)','main',null,.8,'screw',24,'pose',3,4));
+   if(K.k===4) a.push(act('cr5','Passer la courroie neuve, poulie de vilebrequin en premier','main',null,1.2,'clunk',25,'pose',4,5,()=>needNew(c,id)||(K.sch?null:"Vous n'avez pas repéré le passage de la courroie.")));
+   if(K.k===6) a.push(act('cr7','Vérifier que la courroie est bien dans toutes les gorges','main',null,.6,'click',27,'pose',6,7));
+   if(K.k===0) a.push({key:'cri',lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,id);inspMsg(R,id);}});
+   return a;}});
+  R.add({id:'cr:tens',o:tens,r:.05,vis:()=>c4(R),name:'Galet tendeur',acts:()=>{const a=[];
+   if(K.k===0) a.push(act('cr1','Faire pivoter le tendeur pour détendre la courroie','cliquet','tens',1.2,'ratchet',21,'dep',0,1,()=>K.sch?null:"Repérez d'abord le passage de la courroie : sans schéma, impossible de la remonter."));
+   if(K.k===1) a.push(act('cr2','Bloquer le tendeur avec une goupille','pinces',null,.6,'click',22,'dep',1,2));
+   if(K.k===5) a.push(act('cr6','Reprendre le tendeur, retirer la goupille et le relâcher','cliquet','tens',1.0,'ratchet',26,'pose',5,6));
+   return a;}});
+  R.blk.hood.push(()=>K.k>0&&K.k<7?"Remontez et tendez la courroie d'accessoires.":null);
+  R.procs.push({id:'belt',vis:()=>{const h=host();if(h) h.visible=K.k<3;if(oldP) oldP.visible=K.k<3;newP.visible=K.k>=5;
+   arm.rotation.z=K.k>=1&&K.k<6?.5:0;pin.visible=K.k>=2&&K.k<6;},free:()=>{const h=host();if(h) h.visible=true;}});}
+}
+BUILD.push(buildPlugsBelt);
+
 
 SPECS.push({id:'liquide_frein',kind:'fluid',at:R=>LOCAL(R,'brakeFluid',0,.08,0),nfix:1,fixAt:[[0,.0,0]],fixTool:'main',fixName:'Bouchon du bocal',fixLab:'Dévisser le bouchon du bocal',fixRe:'Revisser le bouchon',vis:R=>c4(R),depTool:'seringue',depLab:"Aspirer l'ancien liquide",poseTool:'bidon',poseLab:'Remplir de liquide neuf et purger',poseHold:1.8,r:.09,ord:12});
 SPECS.push({id:'amort',kind:'damper',units:2,nfix:0,at:R=>LOCAL(R,'hubFL',0,.3,0),unitAt:(R,i)=>{const a=R.A(i?'hubFR':'hubFL');return V3(a.x,a.y+.32,a.z);},vis:R=>R.c.st.av,depTool:'cliquet',depSock:'top',depLab:"Déposer l'amortisseur et son ressort",poseTool:'cliquet',poseSock:'top',poseLab:"Monter l'amortisseur neuf",depHold:1.4,poseHold:1.4,r:.15,ord:13});
@@ -11517,6 +11617,8 @@ function blocage(c){
  const off=Object.keys(g.w).filter(S=>g.w[S].o);if(off.length) l.push('une roue est déposée');
  if(g.pump) l.push("la pédale de frein n'a pas été pompée");
  const o=g.o;if(o){if(o.bac) l.push('le bac de vidange est resté sous la voiture');if(!o.cap) l.push("le bouchon de remplissage d'huile est ouvert");if(c.done.huile&&!o.done) l.push("le moteur n'a pas été rempli d'huile");if(o.fun) l.push("l'entonnoir est resté sur le moteur");}
+ if(g.bp){const E=plugSteps(c).length;if(g.bp.st.some(x=>x>0&&x<E)) l.push('des bougies ne sont pas remontées');}
+ if(g.cr&&g.cr.k>0&&g.cr.k<7) l.push("la courroie d'accessoires n'est pas remontée");
  if(g.s) for(const id in g.s){const sp=SPECS.find(x=>x.id===id);if(!sp) continue;const req=(sp.nfix||0)-(sp.optFix||0);if(g.s[id].f.slice(0,req).some(v=>!v)) l.push('des fixations ne sont pas remontées ('+id.replace('_',' ')+')');if(g.s[id].cv===0) l.push('un couvercle est déposé');}
  return l;}
 function malus(c){const g=c.g;if(!g||!on()) return 0;let m=0;const b=g.bin||{};for(const k in b) if(k!=='ecrou'||true) m+=b[k]||0;if(g.o&&g.o.over) m+=1;return Math.min(3,m);}
@@ -12255,7 +12357,26 @@ const CH=[
   `Faites les deux côtés du même essieu (gauche et droite).`,
   ...ROUE_REP,
   `Dans l'habitacle : <i>Pomper la pédale de frein</i> jusqu'à ce qu'elle soit ferme. Oublier, c'est une pédale molle et un client furieux.`,RENDRE])}
- ${job('Bougies, courroie d\'accessoires, liquide de frein','Moteur / freinage niveau 2','La pièce de l\'ordre.',`${T.cliquet} + douille, ${T.main}, ${T.ser} pour le liquide`,[CAPOT,...GEN('pièce neuve').slice(1),RENDRE])}
+ ${job('Bougies d\'allumage (moteur essence)','Moteur niveau 2','<b>Bougies</b> (un jeu pour tous les cylindres).',`${T.main}, ${T.cliquet} (douille de 8 ou 10 pour la bobine, douille à bougie de 14 ou 16), ${T.dyn}`,[
+  CAPOT,`Pour <b>chaque cylindre</b>, visez « Bougie et bobine 1/4 », 2/4… :`,
+  `${T.main} : <i>Débrancher le connecteur de la bobine</i>.`,`${T.cliquet} (douille de la vis, ${K('R')}) : <i>Dévisser la vis de la bobine</i>. La vis va dans le bac magnétique.`,
+  `${T.main} : <i>Extraire la bobine crayon</i>.`,`${T.cliquet} avec la douille à bougie : <i>Dévisser la bougie usée</i>.`,
+  `${T.main} : <i>Contrôler l'écartement des électrodes</i> de la bougie neuve (0,8 mm, une seule fois pour le jeu), puis <i>Engager la bougie neuve à la main</i> (à la main d'abord, pour ne pas abîmer le filetage).`,
+  `${T.dyn} (douille à bougie) : <i>Serrer la bougie au couple</i> (25 N·m).`,
+  `${T.main} : <i>Remettre la bobine</i>, ${T.cliquet} : <i>Revisser la vis</i>, ${T.main} : <i>Rebrancher le connecteur</i> (clic).`,
+  `Une fois tous les cylindres faits, fermez le capot (impossible s'il reste une bobine débranchée), puis ${RENDRE}`],'Moteur diesel : les « bougies » sont des bougies de préchauffage, voir ci-dessous.')}
+ ${job('Bougies de préchauffage (moteur diesel)','Moteur niveau 2','<b>Bougies</b> (de préchauffage).',`${T.cliquet} (douille de 8, 10 ou 12), ${T.main}, ${T.dyn}`,[
+  CAPOT,`Pour chaque cylindre : ${T.cliquet} : <i>Dévisser l'écrou de la cosse</i>, puis ${T.main} : <i>Retirer la cosse d'alimentation</i>.`,
+  `${T.cliquet} : <i>Dévisser la bougie de préchauffage</i>. Le geste est long : elle est fragile, on dévisse doucement.`,
+  `${T.main} : <i>Visser la bougie neuve à la main</i>, puis ${T.dyn} : <i>Serrer au couple</i> (15 N·m).`,
+  `${T.main} : <i>Remettre la cosse</i>, ${T.cliquet} : <i>Revisser l'écrou</i>.`,RENDRE])}
+ ${job('Courroie d\'accessoires','Moteur niveau 2','<b>Courroie d\'accessoires</b>.',`${T.main}, ${T.cliquet} (douille du tendeur : 13, 15 ou 17), ${T.pinces}`,[
+  CAPOT,`${T.main} sur la courroie : <i>Repérer le passage de la courroie</i> (schéma sous le capot). Sans ce repérage, le jeu refuse de détendre la courroie.`,
+  `${T.cliquet} sur le <b>galet tendeur</b> : <i>Faire pivoter le tendeur pour détendre la courroie</i>.`,`${T.pinces} : <i>Bloquer le tendeur avec une goupille</i>.`,
+  `${T.main} : <i>Sortir la courroie usée des poulies</i>, puis <i>Contrôler les galets et les poulies</i> (rotation, jeu, bruit).`,
+  `${T.main} : <i>Passer la courroie neuve</i>, poulie de vilebrequin en premier.`,`${T.cliquet} sur le tendeur : <i>Reprendre le tendeur, retirer la goupille et le relâcher</i>.`,
+  `${T.main} : <i>Vérifier que la courroie est bien dans toutes les gorges</i>, fermez le capot, puis ${RENDRE}`])}
+ ${job('Liquide de frein','Freinage niveau 2','<b>Liquide de frein</b>.',`${T.ser}, ${T.bidon}, ${T.main}`,[CAPOT,`${T.main} sur le bocal de liquide de frein : <i>Dévisser le bouchon du bocal</i>.`,`${T.ser} : <i>Aspirer l'ancien liquide</i>.`,`${T.bidon} : <i>Remplir de liquide neuf et purger</i> (maintenir ${K('E')}).`,`${T.main} : <i>Revisser le bouchon</i>.`,RENDRE])}
  <h4>Trouver une panne (client qui décrit un symptôme)</h4>${ol([
   `Lisez le symptôme : il oriente vers une zone (bruit au freinage → freins, démarreur qui tourne mollement → batterie…).`,
   `<b>Inspectez</b> les pièces suspectes (${T.main}, ${K('E')} sur la pièce : <i>Inspecter</i>) : l'usure s'affiche.`,
