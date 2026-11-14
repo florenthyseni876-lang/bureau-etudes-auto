@@ -30,7 +30,7 @@ const CH=[
  <h4>Les touches</h4>${ul([
   `${K('Z')}${K('Q')}${K('S')}${K('D')} (ou ${K('W')}${K('A')}${K('S')}${K('D')}, ou les flèches) : marcher · ${K('Maj')} : courir · souris : regarder (cliquez dans le jeu pour la capturer).`,
   `${K('E')} : agir sur ce que vous visez. <b>Maintenez ${K('E')}</b> pour dévisser, serrer ou verser : une jauge ronde se remplit.`,
-  `${K(1)} à ${K(0)} : choisir l'outil (barre à droite) · ${K('R')} : changer la taille de douille.`,
+  `${K(1)} à ${K(0)} : choisir l'outil (barre à droite) · ${K('R')} : prendre la douille demandée par ce que vous visez (sinon : douille suivante). Tant que l'aide est active, ${K('E')} prend tout seul le bon outil et la bonne douille.`,
   `${K('Maj')} + ${K(1)} à ${K(0)} : prendre en main la pièce de l'emplacement 1 à 10 de l'inventaire (barre du bas) · ${K('X')} : pièce suivante · ${K('V')} : la ranger.`,
   `${K('Tab')} : carnet (ordres, inventaire, expérience) · ${K('M')} : carte · ${K('C')} : carrière · ${K('G')} : réglages des gestes · ${K('H')} : ce guide · ${K('Échap')} : pause.`])}
  <h4>Une voiture, du début à la fin</h4>${ol([
@@ -51,7 +51,7 @@ const CH=[
  ${job('Vidange (huile et filtre)','Entretien niveau 1','<b>Huile moteur (5 l)</b> + <b>Filtre à huile</b>, à prendre <u>avant</u> de commencer.',`${T.bac}, ${T.cliquet} + douille, ${T.main}, ${T.filtre}, ${T.bidon}, ${T.dyn}, ${T.ent}`,[
   LEVER,
   `${T.bac} : visez le <b>sol sous le carter</b> (sous le moteur), ${K('E')} : <i>Placer le bac sous le carter</i>.`,
-  `${T.cliquet}, réglez la douille demandée avec ${K('R')}, visez le <b>bouchon de vidange</b> (sous le carter), maintenez ${K('E')} : <i>Desserrer le bouchon</i>.`,
+  `${T.cliquet}, visez le <b>bouchon de vidange</b> (sous le carter, passez sous la voiture levée), appuyez sur ${K('R')} pour prendre la bonne douille (17, 19, 21 ou 22 selon la voiture), puis maintenez ${K('E')} : <i>Desserrer le bouchon</i>. Le bac doit être placé avant.`,
   `${T.main}, maintenez ${K('E')} : <i>Retirer le bouchon à la main</i>. L'huile coule dans le bac (noire si elle est vieille). Laissez couler.`,
   `Pendant l'écoulement, le filtre : ${T.filtre} (ou ${T.cliquet} si c'est une cartouche dans un boîtier), maintenez ${K('E')} : <i>Desserrer le filtre</i>, puis ${T.main} : <i>Dévisser et déposer</i>.`,
   `${T.bidon} : <i>Huiler le joint du filtre neuf</i>, puis ${T.main} : <i>Visser le filtre neuf à la main</i>.`,

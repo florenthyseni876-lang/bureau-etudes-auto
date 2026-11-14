@@ -1015,6 +1015,8 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-pb{padding:12px 14px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;line-height:1.45;-webkit-overflow-scrolling:touch}
 .mw-pb p{margin:0}.mw-pb .hint{font-size:12.5px;color:#9db3cc}
 .mw-pb .btn{align-self:flex-start}
+.mw-pn .btn{border-color:#ffb800}.mw-pn .btn.ghost{color:#e8f0f8;border-color:#5a7697;background:rgba(255,255,255,.04)}.mw-pn .btn.ghost:hover{background:rgba(255,255,255,.1)}.mw-pn .btn.warn{border-color:#ff9a3c}
+.mw-pn .btn.ghost:focus-visible,.mw-pn .btn:focus-visible{outline:2px solid #ffb800;outline-offset:2px}
 .mw-btns{display:flex;flex-wrap:wrap;gap:8px}.mw-btns.v{flex-direction:column;align-items:stretch}.mw-btns.v .btn{align-self:stretch}
 .mw-soon{color:#ffd466;background:rgba(255,184,0,.12);padding:8px 10px;border-radius:3px}
 .mw-ok{color:#7fe3a0;background:rgba(60,207,106,.12);padding:8px 10px;border-radius:3px}

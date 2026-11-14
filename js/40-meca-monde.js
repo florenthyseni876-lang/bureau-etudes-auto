@@ -402,25 +402,29 @@ let lastSave=null; /* {day, min, ok} : dernière sauvegarde manuelle, affichée 
 function saveNow(){const ok=api.save();lastSave={day:S.day,min:S.min,ok};return ok;}
 function pauseMenu(msg){
  const sv=lastSave?(lastSave.ok?`<p class="mw-ok" role="status">✓ Partie sauvegardée (jour ${lastSave.day}, ${String(Math.floor(lastSave.min/60)).padStart(2,'0')} h ${String(lastSave.min%60).padStart(2,'0')}).</p>`:`<p class="mw-soon" role="alert">La sauvegarde a échoué : le navigateur refuse d'enregistrer (navigation privée ou stockage plein).</p>`):'';
- api.panel('Menu',`<p>Jour ${S.day} · ${esc(api.timeStr())} · ${esc(fmt(S.money))}</p>${msg||''}${sv}<div class="mw-btns v">
+ api.panel('Menu',`<p>${esc(api.timeStr())} · ${esc(fmt(S.money))}</p>${msg||''}${sv}<div class="mw-btns v">
   <button type="button" class="btn" data-mw="resume">Reprendre</button>
-  <button type="button" class="btn ghost" data-mw="save">💾 Sauvegarder la partie</button>
-  <button type="button" class="btn ghost" data-mw="quit">🏠 Retour à l'accueil (sauvegarde automatique)</button>
+  <button type="button" class="btn ghost" data-mw="save">Sauvegarder la partie</button>
+  <button type="button" class="btn ghost" data-mw="quit">Retour à l'accueil (la partie est sauvegardée)</button>
   ${typeof MWGD!=='undefined'?'<button type="button" class="btn ghost" data-mw="guide">Guide du mécanicien (H)</button>':''}
   ${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}
-  <button type="button" class="btn ghost" data-mw="new">Recommencer une partie…</button></div>
+  <button type="button" class="btn ghost" data-mw="new">Recommencer une nouvelle carrière…</button></div>
   <p class="hint">La partie se sauvegarde aussi toute seule toutes les 30 secondes et quand vous revenez à l'accueil. Pour la reprendre : bouton « Carrière de mécanicien » de l'accueil.</p>
   <p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · H : guide · Échap : menu.</p>`,
   {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){saveNow();pauseMenu();}
    else if(a==='guide'){api.closePanel();try{MWGD.open();}catch(e){console.error(e);}}
    else if(a==='quality'){api.decor.cycleQuality();api.closePanel();pauseMenu();}
    else if(a==='quit'){saveNow();api.closePanel();api.close();}
-   else if(a==='new') api.panel('Recommencer ?',`<p>Votre progression sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, recommencer</button><button type="button" class="btn ghost" data-mw="no">Non, revenir au menu</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}else if(b==='no') pauseMenu();}});}});}
+   else if(a==='new') api.panel('Nouvelle carrière ?',`<p>Vous repartez de zéro : apprenti au Garage du Coin, 300 €. Votre partie actuelle (jour ${S.day}, ${esc(fmt(S.money))}) sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, nouvelle carrière</button><button type="button" class="btn ghost" data-mw="no">Non, revenir au menu</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}else if(b==='no') pauseMenu();}});}});}
 api.menu=pauseMenu;
 /* accueil : le bouton « Carrière de mécanicien » indique la partie sauvegardée */
 function homeSub(){try{const el=document.getElementById('hMecaSub');if(!el) return;if(!el.dataset.def) el.dataset.def=el.textContent;
  const o=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');
- el.textContent=o&&o.day?`Reprendre votre partie : jour ${o.day}, ${fmt(o.money||0)}.`:el.dataset.def;}catch(e){}}
+ el.textContent=o&&o.day?`Reprendre votre partie : jour ${o.day}, ${fmt(o.money||0)}.`:el.dataset.def;
+ const nb=document.getElementById('hMecaNew');if(nb){nb.hidden=!(o&&o.day);nb.dataset.arm='';nb.querySelector('b').textContent='Nouvelle carrière de mécanicien';}}catch(e){}}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#hMecaNew');if(!b) return;
+ if(b.dataset.arm!=='1'){b.dataset.arm='1';b.querySelector('b').textContent='Cliquez encore pour effacer la partie et recommencer';clearTimeout(b._t);b._t=setTimeout(()=>{b.dataset.arm='';b.querySelector('b').textContent='Nouvelle carrière de mécanicien';},5000);return;}
+ b.dataset.arm='';api.openNew();});
 function toggleMap(on){ensureUI();if(panelSt) return;mapOpen=on===undefined?!mapOpen:on;ui.map.hidden=!mapOpen;setPaused();if(mapOpen){sizeBig();drawBig();}}
 function sizeBig(){const s=Math.max(200,Math.min(ui.map.clientWidth-24,ui.map.clientHeight-110));ui.big.width=ui.big.height=Math.round(s);ui.big.style.width=ui.big.style.height=Math.round(s)+'px';}
 
@@ -606,6 +610,7 @@ function deactivate(){
 const onBlur=()=>{keys={};js.x=js.y=0;};
 const onHide=()=>{if(active&&S) api.save();};
 let rsT=0;const onResize=()=>{clearTimeout(rsT);rsT=setTimeout(fit,60);fit();};
+api.openNew=()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){}if(!active) api.open();api.reset();};
 api.open=()=>{
  ensureUI();
  if(!R){try{R=new T.WebGLRenderer({canvas:ui.cv,antialias:!isPhone(),powerPreference:'high-performance'});}catch(e){R=null;alert('La vue 3D n\'est pas disponible sur cet appareil.');return;}

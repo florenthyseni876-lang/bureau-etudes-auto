@@ -156,7 +156,8 @@ const invFind=(k,id,job)=>inv().findIndex(it=>it.k===k&&it.id===id&&(job==null||
 /* ═══════════ Voitures clientes ═══════════ */
 function wearOf(p,km){return clamp(Math.round(km/p.vie*60*(.4+rnd()*.8)),0,70);}
 function chooseJob(e,o,mdl){
- const cap=empMax(e),stretch=rnd()<.1?1:0,ok=id=>{const p=PARTS[id];return p.niv<=Math.max(cap,1)&&lv(p.comp)+stretch>=p.niv&&appl(mdl,id);};
+ const cap=empMax(e),stretch=J().stats.rendues>0&&rnd()<.1?1:0, /* jamais de travail « au-dessus » pour la toute première voiture */
+ ok=id=>{const p=PARTS[id];return p.niv<=Math.max(cap,1)&&lv(p.comp)+stretch>=p.niv&&appl(mdl,id);};
  if(o.travaux){const l=o.travaux.filter(id=>PARTS[id]);return {type:'travaux',ordre:l,nom:o.nom||l.map(id=>PARTS[id].nom).join(', ')};}
  if(o.tpl){const t=TPL.find(x=>x[0]===o.tpl);if(t) return {type:'travaux',ordre:t[2].slice(),nom:t[1]};}
  if(o.symp){const y=SYMP.find(x=>x.id===o.symp);if(y) return {type:'symptome',symp:y,ordre:[],nom:y.txt};}

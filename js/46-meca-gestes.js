@@ -147,7 +147,8 @@ function newRig(c){
  /* coordonnées horizontales locales de la voiture (lx = gauche, lz = avant) → monde */
  r.W=(lx,ly,lz)=>new T.Vector3(p.x+r.cosr*lx+r.sinr*lz,ly+.22,p.z-r.sinr*lx+r.cosr*lz); /* ly = hauteur au-dessus du sol (le sol est à y = 0,22) */
  r.add=t=>{r.tg.push(t);return t;};
- r.A=n=>{const a=MWCARS.anchor(g,n);return a||new T.Vector3();};
+ /* point d'ancrage : ceux de la carrosserie, sinon ceux du moteur de la baie (alternateur, bobines, distribution…), construits à l'ouverture du capot */
+ r.A=n=>{const a=MWCARS.anchor(g,n);if(a) return a;const b=g.userData.bay,v=b&&b.userData&&b.userData.anchors&&b.userData.anchors[n];return v?v.clone():new T.Vector3();};
  r.gy=()=>g.position.y;   /* hauteur de la voiture (pont) */
  r.F=GS(c);
  return r;}
@@ -174,12 +175,18 @@ function aimUpdate(){
  AIM=null;if(!R||MW.paused||MW.player().inCar) return;
  const cam=MW.cam;cam.getWorldDirection(tmpV2);const cp=cam.position;let bs=9,bt=null;
  for(const t of R.tg){
-  if(t.vis&&!t.vis()) continue;
-  const o=typeof t.o==='function'?t.o():t.o;if(!o||!visOf(o)) continue;
+  const hid=!!(t.vis&&!t.vis());
+  /* l'objet lui-même peut être caché (vis retirée, couvercle déposé, plaquette sortie) : on vise son emplacement tant que son support est visible */
+  const o=typeof t.o==='function'?t.o():t.o;if(!o||!visOf(o.parent||o)) continue;
   if(!worldOf(t,tmpV)) continue;
   tmpV3.copy(tmpV).sub(cp);const d=tmpV3.length();if(d>REACH||d<.05) continue;tmpV3.divideScalar(d);
   const ang=Math.acos(clamp01((tmpV3.dot(tmpV2)+1)/2)*2-1),thr=Math.atan2(t.r||.08,d)+.045;
-  const sc=ang/thr;if(sc<1&&sc<bs){bs=sc;bt=t;}}
+  let sc=ang/thr;if(!(sc<1&&sc<bs)) continue;
+  const ac=actsOf(t);if(!ac.length) continue; /* rien à faire ici : ne masque pas une cible voisine */
+  if(hid&&!ac.some(x=>!x.why&&!x.insp)) continue; /* cible cachée (pièce déposée…) : visable seulement pour y faire quelque chose */
+  if(ac.some(x=>!x.insp&&!x.why&&(x.tool===tool||x.tool2===tool))) sc*=.35; /* préférence : ce qui accepte l'outil en main */
+  else if(ac.every(x=>x.insp||x.why)) sc=Math.min(.999,sc*1.6+.15); /* seulement inspecter ou bloqué : passe après */
+  if(sc<bs){bs=sc;bt=t;}}
  if(bt){const a=pickAct(bt);if(a) AIM={t:bt,a};}}
 
 function hintUpdate(){
@@ -203,7 +210,11 @@ function checkAct(a){
 function warn(t){MW.toast(t,'warn');snd('err');}
 function startAct(){
  if(!AIM||H) return;const {t,a}=AIM;
- const why=checkAct(a);if(why){warn(why);return;}
+ let why=checkAct(a);
+ /* aide active : le bon outil et la bonne douille sont pris automatiquement (le joueur apprend en voyant lesquels) */
+ if(why&&!a.why&&aideOn()&&a.tool&&TOOL[a.tool]){const need=a.tool!==tool&&!(a.tool2&&a.tool2===tool);if(need) setTool(a.tool);if(a.sock&&TOOL[tool].sock&&sock!==a.sock) setSock(a.sock);
+  why=checkAct(a);if(!why) MW.toast(`Outil pris : ${toolName(tool,TOOL[tool].sock?sock:0)}${TOOL[a.tool].key?' (touche '+TOOL[a.tool].key+')':''}.`,'info');}
+ if(why){warn(why);return;}
  if(a.gate&&!a.gate()) {snd('err');return;}
  if(a.hold>0||a.cont){H={t,a,p:0,sn:0,k:0};if(a.start) a.start();return;}
  finish(t,a);}
@@ -221,7 +232,10 @@ function spend(a){ /* temps de jeu : chaque geste avance l'horloge ; le budget b
  if(a.ph){const k=a.ph[0]+':'+a.ph[1];F.min[k]=(F.min[k]||0)+a.min;}}
 function rest(c,id,ph,m){const F=GS(c),k=id+':'+ph,s=F.min[k]||0;delete F.min[k];return Math.max(0,m-s);}
 const api={};
-function holdTick(dt){
+let lastHT=0;
+function holdTick(dt0){
+ /* temps réel (et non le pas d'image plafonné) : un geste maintenu dure le même temps même quand l'ordinateur affiche peu d'images */
+ const now=performance.now(),dt=dt0>0?Math.min(.25,Math.max(dt0,(now-(lastHT||now))/1000)):0;lastHT=now;
  if(!H){setHold(0);return;}
  const {t,a}=H;
  if(!eDown||!AIM||AIM.t!==t||AIM.a.key!==a.key||MW.paused||checkAct(a)){ if(a.cancel) a.cancel(H); H=null;setHold(0);vmWork(0);return;}
@@ -570,6 +584,8 @@ function buildVidange(R){
  const bacW=R.W(pl.x,.07,pl.z);
  const bac=grp(0,0,0);bac.add(bx(.55,.12,.4,C.blue,0,.06,0));bac.add(bx(.5,.01,.35,0x0b1020,0,.116,0));
  const lvl=cy(.22,.02,oilCol(uo),0,.04,0);lvl.scale.set(1.1,1,.75);bac.add(lvl);bac.visible=false;R.fl.add(bac);bac.position.copy(R.W(pl.x,.0,pl.z));bac.rotation.y=R.p.ry;
+ /* point de visée toujours visible : le bac lui-même est caché tant qu'il n'est pas posé (sinon on ne peut jamais le placer) */
+ const bacAt=new T.Object3D();bacAt.position.copy(bac.position);R.fl.add(bacAt);
  const stream=cy(.005,1,oilCol(uo),0,0,0);stream.visible=false;R.root.add(stream);
  /* huile de la voiture : couleur selon l'usure (noire si vieille) */
  /* bouchon de remplissage et jauge (baie) */
@@ -585,7 +601,7 @@ function buildVidange(R){
  R.blk.hood.push(()=>O.fun?"Retirez l'entonnoir.":null);
  const lw=()=>lifted()?null:'Levez le pont.',lf=()=>lifted()?null:'lift';
  /* ── bac ── */
- R.add({id:'bac',o:bac,off:new T.Vector3(0,.1,0),r:.3,vis:()=>lifted(),name:()=>O.bac?'Bac de vidange':'Sol sous le carter',acts:()=>[O.bac?
+ R.add({id:'bac',o:bacAt,off:new T.Vector3(0,.1,0),r:.35,vis:()=>lifted(),name:()=>O.bac?'Bac de vidange':'Sol sous le carter',acts:()=>[O.bac?
   {key:'bacoff',lab:'Retirer le bac de vidange',tool:'main',ord:56,exp:wantAny(),why:O.plug===0||O.plug===1?"Le bouchon est ouvert : l'huile coule.":(O.on?"L'huile coule encore.":null),do:()=>{O.bac=0;}}
   :{key:'bacon',lab:'Placer le bac sous le carter',tool:'bac',ord:29,exp:(wantO()&&O.drain<1)||(wantF()&&(O.filt==='on'||O.filt==='loose')),why:lw(),fix:lf(),do:()=>{O.bac=1;}}]});
  /* ── bouchon de vidange ── */
@@ -705,7 +721,7 @@ function buildGeneric(R,sp){
   return a;}}));
  /* couvercle (boîte à air, carter, boîte de vitesses…) */
  if(cover) R.add({id:'cv:'+id,o:cover.o,r:.1,vis:visOK,name:sp.cover.name,acts:()=>[S.cv?{key:'cvo'+id,lab:'Déposer '+sp.cover.name.toLowerCase(),tool:'main',hold:.6,snd:'clunk',ord:33+(sp.ord||0),exp:w(),min:1,ph:ph0('dep'),why:S.f.some(x=>x)?'Retirez d\'abord les fixations.':need(),do:()=>{S.cv=0;}}
-  :{key:'cvi'+id,lab:'Reposer '+sp.cover.name.toLowerCase(),tool:'main',hold:.6,snd:'clunk',ord:56+(sp.ord||0),exp:1,min:1,ph:ph0('pose'),why:S.x.some(x=>x===1)?'Posez d\'abord la pièce neuve.':null,do:()=>{S.cv=1;}}]});
+  :{key:'cvi'+id,lab:'Reposer '+sp.cover.name.toLowerCase(),tool:'main',hold:.6,snd:'clunk',ord:56+(sp.ord||0),exp:1,min:1,ph:ph0('pose'),why:S.x.some(x=>x===1)?'Posez d\'abord la pièce neuve.':(w()&&S.x.every(x=>x===0)?'Changez d\'abord la pièce avant de remonter.':null),do:()=>{S.cv=1;}}]});
  /* pièce(s) */
  unit.forEach(un=>R.add({id:'pt:'+id+':'+un.i,o:un.base,r:sp.r||.1,vis:()=>visOK()&&(!sp.cover||!S.cv||S.x[un.i]),name:()=>{const n=pname(c,id).replace(/ \(.*/,'');return units>1?`${n} ${un.i+1}/${units}`:(S.x[un.i]===2?n+' (neuve)':S.x[un.i]===1?'Emplacement vide':n);},acts:()=>{
   const a=[],x=S.x[un.i],fixOff=S.f.every(v=>!v)&&(!sp.cover||!S.cv);
@@ -739,7 +755,7 @@ const SPECS=[
  {id:'demarreur',host:R=>engSep(R,'starter'),at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.e.clone().add(V3(0,-.05,.1)):LOCAL(R,'bay',0,.2,0);},nfix:3,fixAt:[[.05,.1,.0],[-.05,.1,.0],[0,.05,.08]],sock:'start',fixName:'Fixation du démarreur',fixLab:'Dévisser',vis:R=>c4(R),depLab:'Déposer le démarreur',poseLab:'Monter le démarreur neuf',r:.12,ord:4},
  {id:'injecteurs',kind:'rail',host:R=>engSep(R,'inj'),at:R=>LOCAL(R,'coils',0,.05,0),nfix:2,fixAt:[[.15,.0,0],[-.15,.0,0]],sock:'inj',fixName:"Fixation de la rampe",fixLab:'Dévisser',vis:R=>c4(R),depLab:'Sortir la rampe et les injecteurs',poseLab:'Monter les injecteurs neufs',r:.14,ord:5},
  {id:'courroie_dist',kind:'belt',at:R=>{const b=bayG(R);return LOCAL(R,'timing',0,0,0);},nfix:4,fixAt:[[.08,.08,.0],[-.08,.08,.0],[.08,-.06,.0],[-.08,-.06,.0]],sock:'clip',fixName:'Vis du carter de distribution',fixLab:'Dévisser',vis:R=>c4(R),cover:{name:'Carter de distribution',host:R=>engSep(R,'timingCover'),at:R=>LOCAL(R,'timing',0,0,0)},depLab:'Déposer la courroie, le galet et la pompe',poseLab:'Poser le kit de distribution neuf',poseTool:'cle_dyn',poseSock:'tens',r:.14,ord:6},
- {id:'embrayage',kind:'clutch',at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.e.clone():LOCAL(R,'bay',0,.2,0);},nfix:4,fixAt:[[.1,.08,.1],[-.1,.08,.1],[.1,-.08,.1],[-.1,-.08,.1]],sock:'gear',fixName:'Vis de la boîte de vitesses',fixLab:'Dévisser',vis:R=>c4(R),cover:{name:'Boîte de vitesses',host:R=>bayPart(R,'gearbox'),at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.c.clone():LOCAL(R,'bay',0,.2,0);}},depLab:"Déposer l'embrayage",poseLab:"Poser l'embrayage neuf (centrage)",r:.16,ord:7},
+ {id:'embrayage',kind:'clutch',at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.e.clone():LOCAL(R,'bay',0,.2,0);},nfix:4,fixAt:[[.1,.08,.1],[-.1,.08,.1],[.1,-.08,.1],[-.1,-.08,.1]],sock:'gear',fixName:'Vis de la boîte de vitesses',fixLab:'Dévisser',vis:R=>liftedNow(R.c)&&!!bayG(R),cover:{name:'Boîte de vitesses',host:R=>bayPart(R,'gearbox'),at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.c.clone():LOCAL(R,'bay',0,.2,0);}},depLab:"Déposer l'embrayage",poseLab:"Poser l'embrayage neuf (centrage)",r:.16,ord:7},
  {id:'sonde_lambda',kind:'lambda',at:R=>{const e=R.A('exhaust');return V3(e.x,e.y+.04,R.u.L?-R.u.L*.05:0);},vis:R=>liftedNow(R.c),nfix:1,fixAt:[[0,.0,.06]],fixTool:'pinces',fixName:'Connecteur de la sonde',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'sonde',depLab:'Dévisser la sonde lambda',poseLab:'Visser la sonde neuve',poseTool:'cliquet',poseSock:'sonde',r:.1,ord:8},
  {id:'ampoules',kind:'bulb',at:R=>V3(R.u.W*.3,.68,(R.u.L||4)/2-.12),nfix:2,fixAt:[[.05,.0,-.03],[-.05,.0,-.03]],fixTool:'tournevis',fixName:'Clip du cache de phare',fixLab:'Déclipser le cache',fixRe:'Reclipser le cache',bin:'clip',depLab:"Sortir l'ampoule grillée",poseLab:"Monter l'ampoule neuve",r:.1,ord:9},
  {id:'essuie',kind:'wiper',at:R=>{const a=R.A('cabin');return V3(-.1,.98,a.z+.8);},nfix:1,fixAt:[[.0,.03,.0]],fixTool:'main',fixName:"Bras d'essuie-glace",fixLab:'Relever le bras',fixRe:'Rabaisser le bras',depLab:'Déclipser et sortir le balai',poseLab:'Clipser le balai neuf',r:.2,ord:10},
@@ -861,6 +877,7 @@ function malusTxt(c){const g=c.g||{},b=g.bin||{},l=Object.keys(b).filter(k=>b[k]
 const pontD=c=>{const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) return 1e9;const q=MW.player();return Math.hypot(q.x-p.x,q.z-p.z);};
 function buildRig(c){
  const r=newRig(c);if(!r) return null;R=r;
+ r.bayAt=!!r.g.userData.bay; /* sans moteur dans la baie, les cibles du capot seraient mal placées : on reconstruit à son arrivée */
  for(const b of BUILD) try{b(r);}catch(e){console.error('rig '+(b.name||''),e);}
  vmEnsure();vmSet();syncAll(true);return r;}
 let fr=0,aimI=null;
@@ -871,6 +888,7 @@ function tick(dt){
  if(!act){if(R) freeRig();if(UI){for(const k of ['tb','info','hold','hint','aux','bin']) UI[k].hidden=true;}return;}
  const pl=MW.player(),cars=MWJ.jobs(),essai=MWJ.state().essai;
  if(R&&(!cars.includes(R.c)||!MWJ.mesh(R.c)||pontD(R.c)>8.5||essai)) freeRig();
+ if(R&&!R.bayAt&&R.g.userData.bay&&!H){const c=R.c;freeRig();buildRig(c);} /* le capot vient de s'ouvrir : cibles du moteur à leur vraie place */
  if(!R&&!pl.inCar&&!essai){let b=null,bd=5.2;for(const c of cars){const d=pontD(c);if(d<bd&&MWJ.mesh(c)){bd=d;b=c;}}if(b) buildRig(b);}
  ensureUI();if(!UI) return;
  UI.tb.hidden=!R||MW.paused;
@@ -930,7 +948,8 @@ function init(){
 let wired=false;
 function wire(){
  if(wired) return;wired=true;
- aimI=MW.addInteract({id:'mg:aim',x:0,z:0,r:1.2,label:()=>AIM?AIM.a.lab:'',when:()=>!!AIM&&on()&&!MW.paused,use:()=>{if(!on()) return;eDown=true;startAct();}});
+ aimI=MW.addInteract({id:'mg:aim',x:0,z:0,r:1.2,label:()=>{if(!AIM) return '';const a=AIM.a;if(a.why) return a.lab+' (impossible pour l\'instant)';const w=checkAct(a);if(!w||aideOn()) return a.lab;
+  const t=a.tool!==tool&&!(a.tool2&&a.tool2===tool)?TOOL[a.tool]:null;return `${a.lab} — prenez d'abord ${t?t.nom.toLowerCase()+(t.key?' ('+t.key+')':''):''}${t&&a.sock?', ':''}${a.sock&&(t||sock!==a.sock)?'douille de '+a.sock+' (R)':''}`;},when:()=>!!AIM&&on()&&!MW.paused,use:()=>{if(!on()) return;eDown=true;startAct();}});
  window.addEventListener('keydown',e=>{if(e.key&&e.key.toLowerCase()==='e'&&!e.repeat) eDown=true;},true);
  window.addEventListener('keyup',e=>{if(e.key&&e.key.toLowerCase()==='e') onRelease();},true);
  window.addEventListener('blur',()=>onRelease());
@@ -938,7 +957,7 @@ function wire(){
  if(be){be.addEventListener('pointerdown',()=>{eDown=true;});for(const t of ['pointerup','pointercancel','pointerleave']) be.addEventListener(t,()=>onRelease());}
  const lk=document.getElementById('mwLook');
  if(lk) lk.addEventListener('wheel',e=>{if(!on()||!R) return;e.preventDefault();const i=TOOLS.findIndex(t=>t.id===tool);setTool(TOOLS[(i+(e.deltaY>0?1:-1)+TOOLS.length)%TOOLS.length].id);},{passive:false});
- MW.on('key',(k,e)=>{if(!on()) return;if(k==='g') settings();else if(k==='r') cycleSock(1);else{if(e&&e.shiftKey) return; /* Maj + chiffre : pièce de l'inventaire */
+ MW.on('key',(k,e)=>{if(!on()) return;if(k==='g') settings();else if(k==='r'){const a=AIM&&AIM.a;if(a&&a.sock&&sock!==a.sock){setSock(a.sock);snd('tool');MW.toast(`Douille de ${a.sock} prise.`,'info');}else cycleSock(1);}else{if(e&&e.shiftKey) return; /* Maj + chiffre : pièce de l'inventaire */
   const m=e&&e.code&&/^(?:Digit|Numpad)(\d)$/.exec(e.code),d=m?m[1]:k;const t=TOOLS.find(x=>x.key===d);if(t&&R) setTool(t.id);}});
  MW.addButton('gestes','Gestes (G)',()=>{if(MW.S) settings();});}
 MW.on('start',()=>{wire();init();});
@@ -953,6 +972,9 @@ Object.assign(api,{
  ensure:c=>{if(!R||R.c!==c){if(R) freeRig();buildRig(c);}return R;},
  acts:c=>{if(!R||R.c!==c) api.ensure(c);const out=[];for(const t of R.tg){for(const a of actsOf(t)) out.push({id:t.id,key:a.key,lab:a.lab,tool:a.tool,sock:a.sock,hold:a.hold,why:a.why||null,exp:!!a.exp,ord:a.ord});}return out;},
  /* exécute (sans attendre) l'action « key » de la cible « id » ; renvoie le message de refus éventuel */
+ aimDbg:()=>{if(!R) return [];const cam=MW.cam,d0=new T.Vector3(),cp=cam.position,v=new T.Vector3(),w=new T.Vector3();cam.getWorldDirection(d0);const out=[];
+  for(const t of R.tg){const o=typeof t.o==='function'?t.o():t.o;if(!o) continue;if(!worldOf(t,v)) continue;w.copy(v).sub(cp);const d=w.length();w.divideScalar(d);const ang=Math.acos(clamp01((w.dot(d0)+1)/2)*2-1),thr=Math.atan2(t.r||.08,d)+.045;
+   if(ang/thr<3) out.push({id:t.id,sc:+(ang/thr).toFixed(2),d:+d.toFixed(2),vis:t.vis?!!t.vis():true,pvis:visOf(o.parent||o),acts:actsOf(t).map(x=>x.key+(x.why?'!':''))});}return out.sort((a,b)=>a.sc-b.sc).slice(0,6);},
  run:(id,key,o)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return 'cible introuvable : '+id;const a=actsOf(t).find(x=>!key||x.key===key);if(!a) return 'aucune action';
   if(!(o&&o.strict)){if(a.tool&&TOOL[a.tool]) tool=a.tool;if(a.sock) sock=a.sock;}
   if(!(o&&o.force)){const w=checkAct(a);if(w) return w;}

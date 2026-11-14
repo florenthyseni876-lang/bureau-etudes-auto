@@ -89,6 +89,14 @@ module.exports = async function mecaBougiesCourroie(page, env) {
   await cliquer(page, '.mw-pn [data-mw="quit"]');
   await attendreCondition(page, () => { const r = document.getElementById('mwRoot'), h = document.getElementById('hMeca'); return (!r || r.hidden || getComputedStyle(r).display === 'none') && h && h.offsetParent !== null; }, "le menu ne revient pas à l'accueil", 10000);
   verifier(/Reprendre votre partie/.test(await e(() => document.getElementById('hMecaSub').textContent)), "l'accueil ne propose pas de reprendre la partie sauvegardée");
+  // nouvelle carrière depuis l'accueil : deux clics (confirmation), la partie repart de zéro
+  await attendreVisible(page, '#hMecaNew', "l'accueil ne propose pas de nouvelle carrière de mécanicien");
+  await cliquer(page, '#hMecaNew');
+  verifier(/Cliquez encore/.test(await e(() => document.querySelector('#hMecaNew b').textContent)), "le bouton « Nouvelle carrière » ne demande pas de confirmation");
+  await cliquer(page, '#hMecaNew');
+  await attendreVisible(page, '#mwRoot', "la nouvelle carrière ne s'ouvre pas");
+  const neuf = await e(() => ({ jour: __mw.S.day, argent: __mw.S.money, emploi: MWC.employer().id }));
+  verifier(neuf.jour === 1 && neuf.argent === 300 && neuf.emploi === 'aucun', `la nouvelle carrière ne repart pas de zéro (${JSON.stringify(neuf)})`);
   return `bougies essence (${b1.cyl} cylindres) et diesel (${b2.cyl}), courroie en ${l3.length} gestes, menu : sauvegarde et accueil`;
 };
 
