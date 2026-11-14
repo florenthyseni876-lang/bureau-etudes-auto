@@ -384,7 +384,7 @@ function buildCommon(R){
  R.add({id:'door',o:dn,r:.28,name:'Portière conducteur',acts:()=>[{key:'door',lab:'Habitacle : valise, essai sur route, rendre la voiture',ord:99,exp:jobDone(c)&&!c.st.capot&&!c.st.lifted&&!blocage(c).length,do:()=>{MWJ.openPoint(c.id,'cabine');}}]});
  /* pédale de frein (à pomper après un travail sur les freins) */
  const pd=new T.Object3D();pd.position.set(R.A('cabin').x+.0,.32,R.A('cabin').z+.5);R.root.add(pd);
- R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:1,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
+ R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:!liftedNow(c)&&!blocage(c).filter(x=>!/pédale/.test(x)).length,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
  R.procs.push({id:'common',vis:(R2,inst)=>{R2.binSync();},free:()=>{}});
 }
 BUILD.push(buildCommon);
@@ -437,11 +437,11 @@ function buildWheels(R){
      if(st===3&&!lifted) a.push(Object.assign({key:'nl'+S+i,lab:"Desserrer l'écrou au sol",hold:.55,snd:'impact',ord:5,exp:needWheel(R,S),do:()=>{w.n[i]=1;}},T2));
      else if(st===3) a.push(Object.assign({key:'nx'+S+i,lab:"Retirer l'écrou",hold:.5,snd:'impact',ord:20,why:'Desserrez les écrous au sol avant de lever la voiture : la roue tourne dans le vide.',do:()=>{}},T2));
      else if(st===1&&lifted) a.push(Object.assign({key:'nr'+S+i,lab:"Retirer l'écrou",hold:.5,snd:'impact',ord:20,exp:needWheel(R,S),do:()=>{w.n[i]=0;binAdd('ecrou');}},T2));
-     else if(st===1) a.push(Object.assign({key:'nt'+S+i,lab:"Resserrer l'écrou",hold:.5,snd:'impact',ord:200,do:()=>{w.n[i]=3;}},T2));
+     else if(st===1){a.push(Object.assign({key:'nr'+S+i,lab:"Retirer l'écrou",hold:.5,snd:'impact',ord:20,exp:needWheel(R,S),why:'Levez le pont.',fix:'lift',do:()=>{}},T2));a.push(Object.assign({key:'nt'+S+i,lab:"Resserrer l'écrou",hold:.5,snd:'impact',ord:200,do:()=>{w.n[i]=3;}},T2));}
      else if(st===0) a.push(Object.assign({key:'nv'+S+i,lab:"Visser l'écrou",hold:.5,snd:'impact',ord:62,exp:1,why:w.o?"Reposez d'abord la roue.":null,do:()=>{w.n[i]=2;binTake('ecrou');}},T2));
      else{const nxt=order.find(k=>w.n[k]===2);
       a.push({key:'nq'+S+i,lab:'Serrer au couple (en étoile)',tool:'cle_dyn',sock:sk,hold:.9,snd:'click',ord:75+order.indexOf(i)*.1,exp:1,sub:`Serrage en étoile : écrou ${order.indexOf(i)+1} sur ${N}`,
-       why:lifted?'Serrez les roues au sol : baissez le pont.':(nxt!==i?"Serrez en étoile (en diagonale) : un autre écrou d'abord.":null),do:()=>{w.n[i]=3;}});}
+       fix:lifted?'lower':null,why:lifted?'Serrez les roues au sol : baissez le pont.':(nxt!==i?"Serrez en étoile (en diagonale) : un autre écrou d'abord.":null),do:()=>{w.n[i]=3;}});}
      return a;}});});
   R.add({id:'wheel:'+S,o:wh,r:.34,vis:()=>true,name:()=>w.o?`Roue ${SIDE_NOM[S]} déposée`:`Roue ${SIDE_NOM[S]}`,
    acts:()=>{
@@ -519,7 +519,7 @@ function buildBrakes(R){
   const cartPos=()=>R.cart.localToWorld(new T.Vector3(-.28+.17*(slot%4),.835,.12-.1*Math.floor(slot/4)));
   const dOldOut=null;
   const nm=(t)=>`${t} · ${SIDE_NOM[S]}`;
-  const hot=(id,obj,off,r,name,acts,vis)=>R.add({id,o:obj,off,r,name,acts,vis:vis||(()=>R.wh[S]&&wst(c,S).o===1)});
+  const hot=(id,obj,off,r,name,acts,vis)=>R.add({id,o:obj,off,r,name,acts:()=>acts().map(a=>{if(!a.insp&&!wst(c,S).o&&!a.why){a.why='Déposez d\'abord la roue.';}return a;}),vis:vis||(()=>R.wh[S]&&wst(c,S).o===1)});
   const gate=(id)=>levelOK(c,id);
   const wantP=()=>wantedAny(c,[pidOf(S,'plaq')]),wantD=()=>wantedAny(c,[pidOf(S,'disq')]),wantB=()=>wantP()||wantD();
   const skB=sockOf(c,'bolt'),skR=sockOf(c,'brk');
