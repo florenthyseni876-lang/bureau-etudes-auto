@@ -48,7 +48,8 @@ const ACH=['Un particulier','Un étudiant bricoleur','Un garagiste du quartier',
 const st=()=>{const s=MW.S;if(!s) return {ann:[],ventes:0,gain:0,renov:0,seq:0};if(!s.occ) s.occ={ann:[],ventes:0,gain:0,renov:0,seq:0};return s.occ;};
 const P=id=>MWJ.PARTS[id];
 const rule=it=>R[it.id]||{f:.08,t:'fer'};
-const pv=it=>+it.pv>0?+it.pv:P(it.id).prix;
+const pv=it=>+it.pv>0?+it.pv:it.k==='neuve'&&+it.paye>0?+it.paye:P(it.id).prix;
+const vole=it=>it.k==='neuve'&&it.src==='etagere'; /* pièce neuve du stock de l'employeur */
 const inv=()=>MWJ.inv();
 const bloq=it=>!!(MWJ.rendBloq&&MWJ.rendBloq(it));
 const nomIt=it=>`${P(it.id).nom}${it.car?' ('+it.car+')':''}`;
@@ -56,23 +57,25 @@ const nomIt=it=>`${P(it.id).nom}${it.car?' ('+it.car+')':''}`;
 function scrap(it){const r=rule(it);return r.f>0?Math.max(1,Math.round(pv(it)*r.f)):0;}
 function scrapLbl(it){const r=rule(it);return MAT[r.t]||MAT.fer;}
 /* prix d'occasion : moitié du neuf pour une pièce comme neuve, décroît avec l'usure ; une pièce remise en état vaut 35 % de plus */
-function occOK(it){const r=rule(it);return !!r.o&&it.u<=r.o;}
-function occV(it){if(!occOK(it)) return 0;const k=Math.pow(1-it.u/100,.8)*.5*(it.ren?1.35:1);return Math.max(scrap(it)+2,Math.round(pv(it)*k));}
+function occOK(it){if(it.k==='neuve') return true;const r=rule(it);return !!r.o&&it.u<=r.o;}
+function occV(it){if(it.k==='neuve') return Math.round(pv(it)*.7);if(!occOK(it)) return 0;const k=Math.pow(1-it.u/100,.8)*.5*(it.ren?1.35:1);return Math.max(scrap(it)+2,Math.round(pv(it)*k));}
 function renOK(it){const r=rule(it).r;return !!r&&!it.ren&&it.u>=20;}
 const renCost=it=>Math.max(3,Math.round(pv(it)*rule(it).r.kit));
-function valTxt(it){const o=occV(it),f=scrap(it),r=rule(it);let t=`Ferraille : ${f?fmt(f):'0 €'}.`;
+function valTxt(it){if(it.k==='neuve') return `Pièce neuve dans sa boîte : environ ${fmt(occV(it))} en vente entre particuliers.${vole(it)?' Elle appartient à votre employeur : la revendre, c\'est du vol.':''}`;
+ const o=occV(it),f=scrap(it),r=rule(it);let t=`Ferraille : ${f?fmt(f):'0 €'}.`;
  if(o) t+=` Occasion : environ ${fmt(o)}.`;else if(r.o) t+=` Trop usée pour l'occasion (maxi ${r.o} % d'usure)${renOK(it)?' : remettez-la en état à l\'établi':''}.`;
  return t;}
 
 function list(i,niv){
  const it=inv()[i],n=NIV[niv]||NIV.juste,s=st();
- if(!it||it.k!=='usagee') return false;
+ if(!it||(it.k!=='usagee'&&it.k!=='neuve')) return false;
  if(bloq(it)){MW.toast('Ce client veut récupérer cette pièce : vous ne pouvez pas la vendre.','warn');return false;}
  if(!occOK(it)){MW.toast('Pièce trop usée pour l\'occasion : vendez-la à la ferraille.','warn');return false;}
  if(s.ann.length>=ANN_MAX){MW.toast(`Vous avez déjà ${ANN_MAX} annonces en cours.`,'warn');return false;}
  const prix=Math.round(occV(it)*n.k);
  inv().splice(i,1);MWJ.invUI();
  s.ann.push({id:'a'+(++s.seq),it,prix,niv:niv in NIV?niv:'juste',jour:MW.S.day});
+ if(vole(it)&&typeof MWA!=='undefined') MWA.stock(it,prix); /* le patron finira peut-être par s'en apercevoir */
  MW.toast(`Annonce publiée : ${P(it.id).nom} à ${fmt(prix)}. La pièce reste rangée à l'atelier en attendant l'acheteur.`,'good');return true;}
 function unlist(id){
  const s=st(),k=s.ann.findIndex(a=>a.id===id);if(k<0) return false;
@@ -108,17 +111,17 @@ function tick(force){
 const btn=(a,t,cls,dis)=>`<button type="button" class="btn sm${cls?' '+cls:''}" data-mw="occ:${a}"${dis?' disabled':''}>${t}</button>`;
 let choix=null; /* pièce dont on choisit le prix */
 function etabliHTML(){
- const s=st(),us=inv().map((it,i)=>({it,i})).filter(x=>x.it.k==='usagee');
+ const s=st(),us=inv().map((it,i)=>({it,i})).filter(x=>x.it.k==='usagee'||x.it.k==='neuve');
  let h=`<h3 class="mw-h3">Revendre les anciennes pièces</h3><p class="hint">Une pièce encore bonne se vend d'occasion à des particuliers. Les autres partent à la ferraille (chez Pièces Auto Express). Certaines se remettent en état ici pour se revendre plus cher.</p>`;
  if(!us.length) h+='<p>Aucune pièce usagée dans votre inventaire. Les pièces que vous déposez sur les voitures y arrivent.</p>';
  for(const {it,i} of us){const p=P(it.id),bl=bloq(it),o=occV(it),r=rule(it).r;
-  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${esc(nomIt(it))}</b><span class="mw-tag${bl?' warn':it.ren?' ok':''}">${bl?'À rendre au client':it.ren?'Remise en état':'Usure '+it.u+' %'}</span></div><small>${esc(valTxt(it))}</small>`;
+  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${esc(nomIt(it))}</b><span class="mw-tag${bl||vole(it)?' warn':it.ren||it.k==='neuve'?' ok':''}">${bl?'À rendre au client':it.k==='neuve'?(vole(it)?'Neuve · stock du patron':'Neuve'):it.ren?'Remise en état':'Usure '+it.u+' %'}</span></div><small>${esc(valTxt(it))}</small>`;
   if(!bl){let b='';
    if(choix===i&&o) b+=Object.keys(NIV).map(k=>btn(`list:${i}:${k}`,`${NIV[k].nom} : ${fmt(Math.round(o*NIV[k].k))}`)).join('')+btn('cancel','Annuler','ghost');
-   else{if(o) b+=btn('pick:'+i,'Mettre en vente','',s.ann.length>=ANN_MAX);
+   else{if(o) b+=btn('pick:'+i,vole(it)?'Revendre en douce':'Mettre en vente',vole(it)?'warn':'',s.ann.length>=ANN_MAX);
     if(renOK(it)) b+=btn('ren:'+i,`Remettre en état (${r.min} min, kit ${fmt(renCost(it))})`,'ghost',MWJ.level(p.comp)<p.niv||MW.S.money<renCost(it));}
    if(b) h+=`<div class="mw-btns">${b}</div>`;
-   if(renOK(it)&&MWJ.level(p.comp)<p.niv&&choix!==i) h+=`<small>Remise en état : ${esc(MWJ.SK_NOM?MWJ.SK_NOM[p.comp]:p.comp)} niveau ${p.niv} requis.</small>`;}
+   if(it.k==='usagee'&&renOK(it)&&MWJ.level(p.comp)<p.niv&&choix!==i) h+=`<small>Remise en état : ${esc(MWJ.SK_NOM?MWJ.SK_NOM[p.comp]:p.comp)} niveau ${p.niv} requis.</small>`;}
   h+='</div>';}
  h+=annHTML(true);return h;}
 function annHTML(btns){

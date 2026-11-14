@@ -189,7 +189,7 @@ function makeCar(o){
  const c={id:'j'+(++j.seq),zone:z.id,pont,client:(NZ&&NZ.client)||pick(CIV)+' '+pick(NOMS),marque:mod[0],modele:mod[1],kind:mod[2],mdl:mod[3]||null,an:an,color:(NZ&&NZ.color!=null)?NZ.color:pick(COLS),
   plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
   rend:o.rend!=null?!!o.rend:(!NZ&&j.stats.rendues>=3&&Math.random()<.2),arrive:absT(),ot0:openT(),promis:openT()+Math.max(150,Math.round(mo*2+60)),type:jb.type,ordre:jb.ordre,symp:jb.symp?{id:jb.symp.id,txt:jb.symp.txt,c:jb.symp.c,dn:jb.symp.dn}:null,nom:jb.nom,
-  parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
+  parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},reemp:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
  j.cars.push(c);buildMesh(c);moveInteracts(c);hudJobs();
  if(!o.silencieux){MW.toast(`${c.client} dépose sa ${c.marque} ${c.modele} (pont n° ${pont+1}) : « ${jb.symp?jb.symp.txt:jb.nom} »${c.rend?' Il veut récupérer ses anciennes pièces.':''}`,'info');}
  MW.emit('jobNew',c);return c;}
@@ -265,12 +265,19 @@ function doDep(c,id){
  if(inv().length>=INV_MAX) return warn('Inventaire plein : jetez ou revendez des pièces usagées.');
  {const m=Math.max(4,Math.round(p.mo*.4));MW.addMin(GM(c,id,'dep',m));NG(c,'dep',p,m);}c.rem[id]=1;if(!c.insp[id]){c.insp[id]=1;}
  invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id,pv:pprice(c,p),car:voit(c),rend:c.rend?1:undefined});MW.toast(`${pn(c,p)} déposé(e) : rangé(e) dans l'inventaire${c.rend?' (le client veut la récupérer)':''}.`,'info');return true;}
+/* pièce de réemploi : pièce durable (pneus, batterie, disques, amortisseurs, alternateur, démarreur, injecteurs) d'une AUTRE voiture,
+   remise en état ou usée à 60 % au plus, que son client ne réclame pas. Jamais d'huile, de filtres ni de plaquettes d'occasion. */
+const REEMP=['pneus','batterie','disq_av','disq_ar','amort','alternateur','demarreur','injecteurs'];
+const reempFind=(c,id)=>REEMP.includes(id)?inv().findIndex(it=>it.k==='usagee'&&it.id===id&&it.job!==c.id&&!rendBloq(it)&&(it.ren||it.u<=60)):-1;
+const newFind=(c,id)=>{const i=invFind('neuve',id);return i>=0?i:reempFind(c,id);};
 function doPose(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
- const i=invFind('neuve',id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express.`);
- const it=inv()[i];invDel(i);{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(GM(c,id,'pose',m));NG(c,'pose',p,m);}
+ const i=newFind(c,id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express (ou une pièce d'occasion en bon état).`);
+ const it=inv()[i];invDel(i);const re=it.k==='usagee'?it:null;{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(GM(c,id,'pose',m));NG(c,'pose',p,m);}
  if(it.src==='achat') c.avance=R2(c.avance+(it.paye||0));
- delete c.rem[id];c.done[id]=1;c.parts[id].u=0;MW.toast(id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'?`${pn(c,p)} : ${nf(MWCARS.oilL(c.mdl),2)} l versés, niveau au repère maxi.`:`${pn(c,p)} : monté(e).`,'good');MW.emit('partFitted',c,id);return true;}
+ delete c.rem[id];c.done[id]=1;c.parts[id].u=re?re.u:0;if(!c.reemp) c.reemp={};if(re) c.reemp[id]={u:re.u,ren:!!re.ren};else delete c.reemp[id];
+ if(re){MW.toast(`${pn(c,p)} : pièce de réemploi montée (${re.ren?'remise en état, ':''}usure ${re.u} %).`,'good');MW.emit('partFitted',c,id);return true;}
+ MW.toast(id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'?`${pn(c,p)} : ${nf(MWCARS.oilL(c.mdl),2)} l versés, niveau au repère maxi.`:`${pn(c,p)} : monté(e).`,'good');MW.emit('partFitted',c,id);return true;}
 function doRem(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;const i=invFind('usagee',id,c.id);
  if(i<0) return warn("L'ancienne pièce n'est plus dans votre inventaire.");
@@ -353,10 +360,12 @@ function blocage(c){
  const r=Object.keys(c.rem);if(r.length) l.push('une pièce est démontée ('+r.map(id=>pn(c,id).toLowerCase()).join(', ')+')');
  if(MG()) l.push(...MG().blocage(c));return l;}
 function evalJob(c){
- const e=emp()||{},lines=[],comp={};let pieces=0,mo=0;const need=[],extra=[],inut=[];
+ const e=emp()||{},lines=[],comp={};let pieces=0,mo=0,hon=0;const need=[],extra=[],inut=[],vol=[];
+ const F=(!c.noir&&c.fraud)||{},RE=c.reemp||{};
  for(const id in c.done){const p=PARTS[id],ord=c.ordre.includes(id),cul=c.symp&&c.symp.c===id,usee=c.parts[id].u0>=SEUIL;
-  if(ord||cul) need.push(id);else if(usee) extra.push(id);else{inut.push(id);continue;}
-  const prix=R2(pprice(c,p)*1.3*c.fp);lines.push({id,nom:pn(c,p),prix,mo:p.mo,extra:!(ord||cul)});pieces+=prix;mo+=p.mo;
+  if(ord||cul) need.push(id);else if(usee) extra.push(id);else{if(RE[id]) vol.push(id);else inut.push(id);continue;}
+  const base=R2(pprice(c,p)*1.3*c.fp),re=!!RE[id],ph=re?R2(base*.6):base,prix=re&&F.neuf?base:ph;
+  lines.push({id,nom:pn(c,p)+(re&&!F.neuf?' (pièce de réemploi)':''),prix,mo:p.mo,extra:!(ord||cul),re});pieces+=prix;hon+=ph;mo+=p.mo;
   comp[p.comp]=(comp[p.comp]||0)+Math.round(p.mo*.35*(1+.25*(p.niv-1)));}
  const manque=c.ordre.filter(id=>!c.done[id]),nonResolu=!!(c.symp&&!c.done[c.symp.c]);
  let diag=0;if(c.symp&&!nonResolu){diag=15;mo+=15;comp.diagnostic=(comp.diagnostic||0)+c.symp.dn*15;}
@@ -364,16 +373,22 @@ function evalJob(c){
  const late=Math.max(0,openT()-c.promis),retard=Math.min(2,Math.floor(late/30)*.5);
  const rendMiss=c.rend&&!c.noir?Object.keys(c.done).filter(id=>invFind('usagee',id,c.id)<0):[];
  let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-Math.min(2,rendMiss.length)-(MG()?MG().malus(c):0);if(nonResolu) n=1;
+ if(c.caught) n=1; /* arnaque découverte au comptoir */
  const note=Math.round(clamp(n,1,5)),mult=note>=4?1:note===3?.8:.5;
  for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
- if(nonResolu){pieces=0;mo=0;lines.length=0;}
- const mainOeuvre=R2(mo/60*c.taux),facture=R2(pieces+mainOeuvre);
- return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,rendMiss,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
+
+ let moF=0;if(!nonResolu) for(const id of (F.fant||[])) if(!c.done[id]&&PARTS[id]&&c.parts[id]&&!c.parts[id].na){const p=PARTS[id],prix=R2(pprice(c,p)*1.3*c.fp);lines.push({id,nom:pn(c,p),prix,mo:p.mo,fant:1});pieces+=prix;moF+=p.mo;}
+ if(nonResolu){pieces=0;mo=0;hon=0;moF=0;lines.length=0;}
+ const honMO=R2(mo/60*c.taux),mainOeuvre=R2((mo+moF)/60*c.taux*(F.mo&&!nonResolu?1.35:1)),facture=R2(pieces+mainOeuvre);
+ const kinds=[];if(F.neuf&&lines.some(l=>l.re)) kinds.push('neuf');if(F.mo&&!nonResolu) kinds.push('mo');if(moF) kinds.push('fant');if(vol.length) kinds.push('vol');
+ const fraude={kinds,gain:R2(facture-hon-honMO),vol};
+ return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,rendMiss,fraude,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
 function payOf(job){
  if(typeof MWC!=='undefined'&&MWC&&typeof MWC.payFor==='function'){try{const v=MWC.payFor(job);if(typeof v==='number'&&isFinite(v)) return R2(Math.max(0,v));}catch(e){}}
  const e=emp()||{};return e.paie==='mois'?0:R2(job.mainOeuvre*.4);}
 function done(c){
  if(typeof c==='string') c=carById(c);if(!c||!MW.S) return null;
+ if(!c.noir&&typeof MWA!=='undefined') MWA.counter(c); /* le client relit la facture au comptoir */
  const e=c.noir?{id:'noir'}:(emp()||{}),ev=evalJob(c),s=MW.S,j=J();
  const job={id:c.id,client:c.client,voiture:voit(c),plaque:c.plaque,km:c.km,travaux:Object.keys(c.done),symptome:c.symp?c.symp.txt:null,facture:ev.facture,pieces:ev.pieces,mainOeuvre:ev.mainOeuvre,
   note:ev.note,competences:ev.comp,employeur:e.id||null,jour:s.day,zone:c.zone,heure:hm(s.min),resolu:!ev.nonResolu};
@@ -387,6 +402,7 @@ function done(c){
  j.stats.rendues++;j.stats.note+=ev.note;j.stats.gain=R2(j.stats.gain+tot);
  j.hist.unshift({jour:s.day,client:c.client,voiture:voit(c),facture:ev.facture,pay:job.pay,note:ev.note});while(j.hist.length>15) j.hist.pop();
  if(c.rend&&!c.noir){let n=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&inv()[i].job===c.id){inv().splice(i,1);n++;}if(n){job.rendues=n;invUI();}}
+ if(!c.noir&&typeof MWA!=='undefined') MWA.after(c,job,ev);
  removeCar(c,true);j.next=Math.max(j.next,absT()+rint(4,10));hudJobs();
  MW.emit('jobDone',job,ev.note);return job;}
 
@@ -402,9 +418,9 @@ function rowHTML(c,p){
  if(ord) tag='<span class="mw-tag">Demandé</span>';
  if(c.done[p.id]){tag='<span class="mw-tag ok">Remplacé</span>';}
  else if(c.rem[p.id]){tag+='<span class="mw-tag warn">Démonté</span>';
-  const have=invFind('neuve',p.id)>=0;
-  b=btn('pose:'+p.id,'Monter la pièce neuve','',!have)+btn('rem:'+p.id,"Remettre l'ancienne",'ghost');
-  if(!have) info=`<small class="mw-need">Pièce neuve nécessaire (étagère ou magasin).</small>`;}
+  const neuf=invFind('neuve',p.id)>=0,have=neuf||reempFind(c,p.id)>=0;
+  b=btn('pose:'+p.id,neuf||!have?'Monter la pièce neuve':'Monter la pièce d\'occasion','',!have)+btn('rem:'+p.id,"Remettre l'ancienne",'ghost');
+  if(!have) info=`<small class="mw-need">Pièce neuve nécessaire (étagère ou magasin)${REEMP.includes(p.id)?', ou une pièce d\'occasion en bon état':''}.</small>`;}
  else if(!a.ok){info=`<small class="mw-lock">${esc(a.why)}</small>`;}
  else{if(!c.insp[p.id]) b+=btn('insp:'+p.id,'Inspecter','ghost');b+=btn('dep:'+p.id,'Démonter','');}
  if(c.insp[p.id]&&!c.done[p.id]){
@@ -447,7 +463,8 @@ function rendreUI(c){
  if(b.length){show('Rendre la voiture',`<p>Impossible de rendre la voiture : ${esc(b.join(' ; '))}.</p><div class="mw-btns"><button type="button" class="btn" data-mw="back">Retour</button></div>`,a=>{if(a==='back') openPoint(c.id,'cabine');});return;}
  const ev=evalJob(c);let h=`<p>${esc(c.client)} vient récupérer sa ${esc(voit(c))} (${esc(c.plaque)}).</p>`;
  if(c.noir) h+=`<p>${c.noir.service?'Service rendu à la voisine : pas de paiement.':'Prix convenu en liquide : <b>'+fmt(c.noir.prix||0)+'</b> (sans facture).'}</p>`; /* noir */
- else if(ev.lines.length) h+=`<table class="mw-fac"><tbody>${ev.lines.map(l=>`<tr><td>${esc(l.nom)}${l.extra?' <small>(en plus)</small>':''}</td><td>${fmt(l.prix)}</td></tr>`).join('')}<tr><td>Main-d'œuvre (${nf(ev.mainOeuvre/c.taux*60)} min)</td><td>${fmt(ev.mainOeuvre)}</td></tr><tr class="t"><td>Total</td><td>${fmt(ev.facture)}</td></tr></tbody></table>`;
+ else if(ev.lines.length) h+=`<table class="mw-fac"><tbody>${ev.lines.map(l=>`<tr><td>${esc(l.nom)}${l.extra?' <small>(en plus)</small>':''}${l.fant?' <small class="mw-fr">(non changé)</small>':''}</td><td>${fmt(l.prix)}</td></tr>`).join('')}<tr><td>Main-d'œuvre (${nf(ev.mainOeuvre/c.taux*60)} min)${c.fraud&&c.fraud.mo?' <small class="mw-fr">(gonflée)</small>':''}</td><td>${fmt(ev.mainOeuvre)}</td></tr><tr class="t"><td>Total</td><td>${fmt(ev.facture)}</td></tr></tbody></table>`;
+ if(!c.noir&&!ev.nonResolu&&typeof MWA!=='undefined') h+=MWA.invoiceHTML(c,ev);
  const w=[];if(ev.nonResolu) w.push('La panne signalée n\'est pas réparée : le client ne paiera rien et sera très mécontent.');
  if(ev.manque.length) w.push('Travaux demandés non faits : '+ev.manque.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.inut.length) w.push('Pièces remplacées pour rien (non facturées) : '+ev.inut.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
@@ -459,6 +476,7 @@ function rendreUI(c){
  h+=`<div class="mw-btns"><button type="button" class="btn" data-mw="ok">Rendre les clés</button><button type="button" class="btn ghost" data-mw="back">Retour</button></div>`;
  show('Rendre la voiture',h,a=>{
   if(a==='back'){openPoint(c.id,'cabine');return;}
+  if(a.startsWith('fr:')&&typeof MWA!=='undefined'){MWA.toggle(c,a.slice(3));rendreUI(c);return;}
   if(a==='ok'){const job=done(c);if(!job) return;
    const cp=Object.keys(job.competences).filter(k=>job.competences[k]>0).map(k=>`${SK_NOM[k]} +${job.competences[k]}`).join(', ');
    show('Voiture rendue',`<p class="mw-note">${stars(job.note)}</p><p>${esc(job.client)} ${job.note>=4?'est ravi(e) !':job.note===3?'repart satisfait(e).':'n\'est pas content(e).'}</p><p>${job.noir?'Prix convenu':'Facture'} : <b>${fmt(job.facture)}</b> · ${job.noir?'en liquide pour vous':'votre paie'} : <b>${fmt(job.pay)}</b>${job.pourboire?' (pourboire compris)':''}${job.avance?' · pièces avancées remboursées : '+fmt(job.avance):''}</p><p>Réputation ${job.rep>=0?'+':'−'}${nf(Math.abs(job.rep),1)}${cp?' · expérience : '+esc(cp):''}</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Continuer</button></div>`,()=>{});}});}
@@ -524,6 +542,7 @@ function carnet(){
  h+=`<h3 class="mw-h3">Expérience</h3><div class="mw-chips">${SKILLS.map(k=>`<span class="mw-tag">${SK_NOM[k]} ${lv(k)}</span>`).join('')}</div>`;
  h+=`<h3 class="mw-h3">Bilan</h3><p>${j.stats.rendues} voiture(s) rendue(s)${j.stats.rendues?' · note moyenne '+nf(j.stats.note/j.stats.rendues,1)+' / 5':''} · réputation ${nf(s.rep||0,1)} / 100 · gains ${fmt(j.stats.gain)}</p>`;
  if(typeof MWO!=='undefined') h+=MWO.carnetHTML();
+ if(typeof MWA!=='undefined') h+=MWA.carnetHTML();
  if(typeof MWN!=='undefined'&&MWN.carnetHTML) h+=MWN.carnetHTML(); /* noir : section « Travail au noir » */
  if(j.hist.length) h+=`<small>${j.hist.slice(0,5).map(x=>`Jour ${x.jour} : ${esc(x.voiture)} · ${stars(x.note)} · ${fmt(x.pay)}`).join('<br>')}</small>`;
  show('Carnet',h,a=>{const [k,id]=a.split(':');if(k==='item') itemPanel(+id);else if(k==='noir'&&typeof MWN!=='undefined') MWN.act(id);},{wide:true});}
@@ -600,9 +619,9 @@ MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
- L:{doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
+ L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),rendBloq,etabli,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();

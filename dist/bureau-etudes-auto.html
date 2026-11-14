@@ -1024,6 +1024,8 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-pb .btn{align-self:flex-start}
 .mw-btns{display:flex;flex-wrap:wrap;gap:8px}.mw-btns.v{flex-direction:column;align-items:stretch}.mw-btns.v .btn{align-self:stretch}
 .mw-soon{color:#ffd466;background:rgba(255,184,0,.12);padding:8px 10px;border-radius:3px}
+.mw-pb .btn.warn{background:#7a3b12;border-color:#ff9a3c;color:#ffe3c7}.mw-fr{color:#ff9a3c}
+.mw-fr-d{border:1px dashed rgba(255,154,60,.45);border-radius:3px;padding:6px 10px}.mw-fr-d>summary{cursor:pointer;color:#ffb36b;font-weight:600}.mw-fr-d[open]>summary{margin-bottom:8px}.mw-fr-d .mw-soon{margin-top:8px}
 .mw-map{position:absolute;inset:0;background:#14233a;display:flex;flex-direction:column;align-items:center;gap:6px;padding:max(8px,env(safe-area-inset-top,0px)) 12px 8px;touch-action:auto}
 .mw-map .mw-ph{align-self:stretch;border:0;padding:4px 0}
 .mw-map canvas{border:2px solid #ffb800;max-width:100%}
@@ -7236,7 +7238,7 @@ function makeCar(o){
  const c={id:'j'+(++j.seq),zone:z.id,pont,client:(NZ&&NZ.client)||pick(CIV)+' '+pick(NOMS),marque:mod[0],modele:mod[1],kind:mod[2],mdl:mod[3]||null,an:an,color:(NZ&&NZ.color!=null)?NZ.color:pick(COLS),
   plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
   rend:o.rend!=null?!!o.rend:(!NZ&&j.stats.rendues>=3&&Math.random()<.2),arrive:absT(),ot0:openT(),promis:openT()+Math.max(150,Math.round(mo*2+60)),type:jb.type,ordre:jb.ordre,symp:jb.symp?{id:jb.symp.id,txt:jb.symp.txt,c:jb.symp.c,dn:jb.symp.dn}:null,nom:jb.nom,
-  parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
+  parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},reemp:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
  j.cars.push(c);buildMesh(c);moveInteracts(c);hudJobs();
  if(!o.silencieux){MW.toast(`${c.client} dépose sa ${c.marque} ${c.modele} (pont n° ${pont+1}) : « ${jb.symp?jb.symp.txt:jb.nom} »${c.rend?' Il veut récupérer ses anciennes pièces.':''}`,'info');}
  MW.emit('jobNew',c);return c;}
@@ -7312,12 +7314,19 @@ function doDep(c,id){
  if(inv().length>=INV_MAX) return warn('Inventaire plein : jetez ou revendez des pièces usagées.');
  {const m=Math.max(4,Math.round(p.mo*.4));MW.addMin(GM(c,id,'dep',m));NG(c,'dep',p,m);}c.rem[id]=1;if(!c.insp[id]){c.insp[id]=1;}
  invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id,pv:pprice(c,p),car:voit(c),rend:c.rend?1:undefined});MW.toast(`${pn(c,p)} déposé(e) : rangé(e) dans l'inventaire${c.rend?' (le client veut la récupérer)':''}.`,'info');return true;}
+/* pièce de réemploi : pièce durable (pneus, batterie, disques, amortisseurs, alternateur, démarreur, injecteurs) d'une AUTRE voiture,
+   remise en état ou usée à 60 % au plus, que son client ne réclame pas. Jamais d'huile, de filtres ni de plaquettes d'occasion. */
+const REEMP=['pneus','batterie','disq_av','disq_ar','amort','alternateur','demarreur','injecteurs'];
+const reempFind=(c,id)=>REEMP.includes(id)?inv().findIndex(it=>it.k==='usagee'&&it.id===id&&it.job!==c.id&&!rendBloq(it)&&(it.ren||it.u<=60)):-1;
+const newFind=(c,id)=>{const i=invFind('neuve',id);return i>=0?i:reempFind(c,id);};
 function doPose(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
- const i=invFind('neuve',id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express.`);
- const it=inv()[i];invDel(i);{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(GM(c,id,'pose',m));NG(c,'pose',p,m);}
+ const i=newFind(c,id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express (ou une pièce d'occasion en bon état).`);
+ const it=inv()[i];invDel(i);const re=it.k==='usagee'?it:null;{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(GM(c,id,'pose',m));NG(c,'pose',p,m);}
  if(it.src==='achat') c.avance=R2(c.avance+(it.paye||0));
- delete c.rem[id];c.done[id]=1;c.parts[id].u=0;MW.toast(id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'?`${pn(c,p)} : ${nf(MWCARS.oilL(c.mdl),2)} l versés, niveau au repère maxi.`:`${pn(c,p)} : monté(e).`,'good');MW.emit('partFitted',c,id);return true;}
+ delete c.rem[id];c.done[id]=1;c.parts[id].u=re?re.u:0;if(!c.reemp) c.reemp={};if(re) c.reemp[id]={u:re.u,ren:!!re.ren};else delete c.reemp[id];
+ if(re){MW.toast(`${pn(c,p)} : pièce de réemploi montée (${re.ren?'remise en état, ':''}usure ${re.u} %).`,'good');MW.emit('partFitted',c,id);return true;}
+ MW.toast(id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'?`${pn(c,p)} : ${nf(MWCARS.oilL(c.mdl),2)} l versés, niveau au repère maxi.`:`${pn(c,p)} : monté(e).`,'good');MW.emit('partFitted',c,id);return true;}
 function doRem(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;const i=invFind('usagee',id,c.id);
  if(i<0) return warn("L'ancienne pièce n'est plus dans votre inventaire.");
@@ -7400,10 +7409,12 @@ function blocage(c){
  const r=Object.keys(c.rem);if(r.length) l.push('une pièce est démontée ('+r.map(id=>pn(c,id).toLowerCase()).join(', ')+')');
  if(MG()) l.push(...MG().blocage(c));return l;}
 function evalJob(c){
- const e=emp()||{},lines=[],comp={};let pieces=0,mo=0;const need=[],extra=[],inut=[];
+ const e=emp()||{},lines=[],comp={};let pieces=0,mo=0,hon=0;const need=[],extra=[],inut=[],vol=[];
+ const F=(!c.noir&&c.fraud)||{},RE=c.reemp||{};
  for(const id in c.done){const p=PARTS[id],ord=c.ordre.includes(id),cul=c.symp&&c.symp.c===id,usee=c.parts[id].u0>=SEUIL;
-  if(ord||cul) need.push(id);else if(usee) extra.push(id);else{inut.push(id);continue;}
-  const prix=R2(pprice(c,p)*1.3*c.fp);lines.push({id,nom:pn(c,p),prix,mo:p.mo,extra:!(ord||cul)});pieces+=prix;mo+=p.mo;
+  if(ord||cul) need.push(id);else if(usee) extra.push(id);else{if(RE[id]) vol.push(id);else inut.push(id);continue;}
+  const base=R2(pprice(c,p)*1.3*c.fp),re=!!RE[id],ph=re?R2(base*.6):base,prix=re&&F.neuf?base:ph;
+  lines.push({id,nom:pn(c,p)+(re&&!F.neuf?' (pièce de réemploi)':''),prix,mo:p.mo,extra:!(ord||cul),re});pieces+=prix;hon+=ph;mo+=p.mo;
   comp[p.comp]=(comp[p.comp]||0)+Math.round(p.mo*.35*(1+.25*(p.niv-1)));}
  const manque=c.ordre.filter(id=>!c.done[id]),nonResolu=!!(c.symp&&!c.done[c.symp.c]);
  let diag=0;if(c.symp&&!nonResolu){diag=15;mo+=15;comp.diagnostic=(comp.diagnostic||0)+c.symp.dn*15;}
@@ -7411,16 +7422,22 @@ function evalJob(c){
  const late=Math.max(0,openT()-c.promis),retard=Math.min(2,Math.floor(late/30)*.5);
  const rendMiss=c.rend&&!c.noir?Object.keys(c.done).filter(id=>invFind('usagee',id,c.id)<0):[];
  let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-Math.min(2,rendMiss.length)-(MG()?MG().malus(c):0);if(nonResolu) n=1;
+ if(c.caught) n=1; /* arnaque découverte au comptoir */
  const note=Math.round(clamp(n,1,5)),mult=note>=4?1:note===3?.8:.5;
  for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
- if(nonResolu){pieces=0;mo=0;lines.length=0;}
- const mainOeuvre=R2(mo/60*c.taux),facture=R2(pieces+mainOeuvre);
- return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,rendMiss,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
+
+ let moF=0;if(!nonResolu) for(const id of (F.fant||[])) if(!c.done[id]&&PARTS[id]&&c.parts[id]&&!c.parts[id].na){const p=PARTS[id],prix=R2(pprice(c,p)*1.3*c.fp);lines.push({id,nom:pn(c,p),prix,mo:p.mo,fant:1});pieces+=prix;moF+=p.mo;}
+ if(nonResolu){pieces=0;mo=0;hon=0;moF=0;lines.length=0;}
+ const honMO=R2(mo/60*c.taux),mainOeuvre=R2((mo+moF)/60*c.taux*(F.mo&&!nonResolu?1.35:1)),facture=R2(pieces+mainOeuvre);
+ const kinds=[];if(F.neuf&&lines.some(l=>l.re)) kinds.push('neuf');if(F.mo&&!nonResolu) kinds.push('mo');if(moF) kinds.push('fant');if(vol.length) kinds.push('vol');
+ const fraude={kinds,gain:R2(facture-hon-honMO),vol};
+ return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,rendMiss,fraude,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
 function payOf(job){
  if(typeof MWC!=='undefined'&&MWC&&typeof MWC.payFor==='function'){try{const v=MWC.payFor(job);if(typeof v==='number'&&isFinite(v)) return R2(Math.max(0,v));}catch(e){}}
  const e=emp()||{};return e.paie==='mois'?0:R2(job.mainOeuvre*.4);}
 function done(c){
  if(typeof c==='string') c=carById(c);if(!c||!MW.S) return null;
+ if(!c.noir&&typeof MWA!=='undefined') MWA.counter(c); /* le client relit la facture au comptoir */
  const e=c.noir?{id:'noir'}:(emp()||{}),ev=evalJob(c),s=MW.S,j=J();
  const job={id:c.id,client:c.client,voiture:voit(c),plaque:c.plaque,km:c.km,travaux:Object.keys(c.done),symptome:c.symp?c.symp.txt:null,facture:ev.facture,pieces:ev.pieces,mainOeuvre:ev.mainOeuvre,
   note:ev.note,competences:ev.comp,employeur:e.id||null,jour:s.day,zone:c.zone,heure:hm(s.min),resolu:!ev.nonResolu};
@@ -7434,6 +7451,7 @@ function done(c){
  j.stats.rendues++;j.stats.note+=ev.note;j.stats.gain=R2(j.stats.gain+tot);
  j.hist.unshift({jour:s.day,client:c.client,voiture:voit(c),facture:ev.facture,pay:job.pay,note:ev.note});while(j.hist.length>15) j.hist.pop();
  if(c.rend&&!c.noir){let n=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&inv()[i].job===c.id){inv().splice(i,1);n++;}if(n){job.rendues=n;invUI();}}
+ if(!c.noir&&typeof MWA!=='undefined') MWA.after(c,job,ev);
  removeCar(c,true);j.next=Math.max(j.next,absT()+rint(4,10));hudJobs();
  MW.emit('jobDone',job,ev.note);return job;}
 
@@ -7449,9 +7467,9 @@ function rowHTML(c,p){
  if(ord) tag='<span class="mw-tag">Demandé</span>';
  if(c.done[p.id]){tag='<span class="mw-tag ok">Remplacé</span>';}
  else if(c.rem[p.id]){tag+='<span class="mw-tag warn">Démonté</span>';
-  const have=invFind('neuve',p.id)>=0;
-  b=btn('pose:'+p.id,'Monter la pièce neuve','',!have)+btn('rem:'+p.id,"Remettre l'ancienne",'ghost');
-  if(!have) info=`<small class="mw-need">Pièce neuve nécessaire (étagère ou magasin).</small>`;}
+  const neuf=invFind('neuve',p.id)>=0,have=neuf||reempFind(c,p.id)>=0;
+  b=btn('pose:'+p.id,neuf||!have?'Monter la pièce neuve':'Monter la pièce d\'occasion','',!have)+btn('rem:'+p.id,"Remettre l'ancienne",'ghost');
+  if(!have) info=`<small class="mw-need">Pièce neuve nécessaire (étagère ou magasin)${REEMP.includes(p.id)?', ou une pièce d\'occasion en bon état':''}.</small>`;}
  else if(!a.ok){info=`<small class="mw-lock">${esc(a.why)}</small>`;}
  else{if(!c.insp[p.id]) b+=btn('insp:'+p.id,'Inspecter','ghost');b+=btn('dep:'+p.id,'Démonter','');}
  if(c.insp[p.id]&&!c.done[p.id]){
@@ -7494,7 +7512,8 @@ function rendreUI(c){
  if(b.length){show('Rendre la voiture',`<p>Impossible de rendre la voiture : ${esc(b.join(' ; '))}.</p><div class="mw-btns"><button type="button" class="btn" data-mw="back">Retour</button></div>`,a=>{if(a==='back') openPoint(c.id,'cabine');});return;}
  const ev=evalJob(c);let h=`<p>${esc(c.client)} vient récupérer sa ${esc(voit(c))} (${esc(c.plaque)}).</p>`;
  if(c.noir) h+=`<p>${c.noir.service?'Service rendu à la voisine : pas de paiement.':'Prix convenu en liquide : <b>'+fmt(c.noir.prix||0)+'</b> (sans facture).'}</p>`; /* noir */
- else if(ev.lines.length) h+=`<table class="mw-fac"><tbody>${ev.lines.map(l=>`<tr><td>${esc(l.nom)}${l.extra?' <small>(en plus)</small>':''}</td><td>${fmt(l.prix)}</td></tr>`).join('')}<tr><td>Main-d'œuvre (${nf(ev.mainOeuvre/c.taux*60)} min)</td><td>${fmt(ev.mainOeuvre)}</td></tr><tr class="t"><td>Total</td><td>${fmt(ev.facture)}</td></tr></tbody></table>`;
+ else if(ev.lines.length) h+=`<table class="mw-fac"><tbody>${ev.lines.map(l=>`<tr><td>${esc(l.nom)}${l.extra?' <small>(en plus)</small>':''}${l.fant?' <small class="mw-fr">(non changé)</small>':''}</td><td>${fmt(l.prix)}</td></tr>`).join('')}<tr><td>Main-d'œuvre (${nf(ev.mainOeuvre/c.taux*60)} min)${c.fraud&&c.fraud.mo?' <small class="mw-fr">(gonflée)</small>':''}</td><td>${fmt(ev.mainOeuvre)}</td></tr><tr class="t"><td>Total</td><td>${fmt(ev.facture)}</td></tr></tbody></table>`;
+ if(!c.noir&&!ev.nonResolu&&typeof MWA!=='undefined') h+=MWA.invoiceHTML(c,ev);
  const w=[];if(ev.nonResolu) w.push('La panne signalée n\'est pas réparée : le client ne paiera rien et sera très mécontent.');
  if(ev.manque.length) w.push('Travaux demandés non faits : '+ev.manque.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.inut.length) w.push('Pièces remplacées pour rien (non facturées) : '+ev.inut.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
@@ -7506,6 +7525,7 @@ function rendreUI(c){
  h+=`<div class="mw-btns"><button type="button" class="btn" data-mw="ok">Rendre les clés</button><button type="button" class="btn ghost" data-mw="back">Retour</button></div>`;
  show('Rendre la voiture',h,a=>{
   if(a==='back'){openPoint(c.id,'cabine');return;}
+  if(a.startsWith('fr:')&&typeof MWA!=='undefined'){MWA.toggle(c,a.slice(3));rendreUI(c);return;}
   if(a==='ok'){const job=done(c);if(!job) return;
    const cp=Object.keys(job.competences).filter(k=>job.competences[k]>0).map(k=>`${SK_NOM[k]} +${job.competences[k]}`).join(', ');
    show('Voiture rendue',`<p class="mw-note">${stars(job.note)}</p><p>${esc(job.client)} ${job.note>=4?'est ravi(e) !':job.note===3?'repart satisfait(e).':'n\'est pas content(e).'}</p><p>${job.noir?'Prix convenu':'Facture'} : <b>${fmt(job.facture)}</b> · ${job.noir?'en liquide pour vous':'votre paie'} : <b>${fmt(job.pay)}</b>${job.pourboire?' (pourboire compris)':''}${job.avance?' · pièces avancées remboursées : '+fmt(job.avance):''}</p><p>Réputation ${job.rep>=0?'+':'−'}${nf(Math.abs(job.rep),1)}${cp?' · expérience : '+esc(cp):''}</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Continuer</button></div>`,()=>{});}});}
@@ -7571,6 +7591,7 @@ function carnet(){
  h+=`<h3 class="mw-h3">Expérience</h3><div class="mw-chips">${SKILLS.map(k=>`<span class="mw-tag">${SK_NOM[k]} ${lv(k)}</span>`).join('')}</div>`;
  h+=`<h3 class="mw-h3">Bilan</h3><p>${j.stats.rendues} voiture(s) rendue(s)${j.stats.rendues?' · note moyenne '+nf(j.stats.note/j.stats.rendues,1)+' / 5':''} · réputation ${nf(s.rep||0,1)} / 100 · gains ${fmt(j.stats.gain)}</p>`;
  if(typeof MWO!=='undefined') h+=MWO.carnetHTML();
+ if(typeof MWA!=='undefined') h+=MWA.carnetHTML();
  if(typeof MWN!=='undefined'&&MWN.carnetHTML) h+=MWN.carnetHTML(); /* noir : section « Travail au noir » */
  if(j.hist.length) h+=`<small>${j.hist.slice(0,5).map(x=>`Jour ${x.jour} : ${esc(x.voiture)} · ${stars(x.note)} · ${fmt(x.pay)}`).join('<br>')}</small>`;
  show('Carnet',h,a=>{const [k,id]=a.split(':');if(k==='item') itemPanel(+id);else if(k==='noir'&&typeof MWN!=='undefined') MWN.act(id);},{wide:true});}
@@ -7647,9 +7668,9 @@ MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
- L:{doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
+ L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),rendBloq,etabli,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();
@@ -10998,7 +11019,7 @@ const wanted=(c,id)=>partOK(c,id)&&!c.done[id]&&(c.ordre.includes(id)||(c.symp&&
 const wantedAny=(c,ids)=>ids.some(id=>wanted(c,id));
 const pname=(c,id)=>MWJ.pn(c,id);
 const accOK=(c,id)=>{const a=L().acces(c,PARTS[id]);return a.ok?null:a.why;};
-const haveNew=(c,id)=>L().invFind('neuve',id)>=0;
+const haveNew=(c,id)=>L().newFind?L().newFind(c,id)>=0:L().invFind('neuve',id)>=0; /* neuve ou pièce de réemploi */
 const needNew=(c,id)=>haveNew(c,id)?null:`Il vous faut ${pname(c,id).toLowerCase()} neuf(ve) : prenez-le à l'étagère de l'atelier ou achetez-le chez Pièces Auto Express.`;
 const levelOK=(c,id)=>L().canDo(id,c)?null:`Réservé aux mécaniciens plus expérimentés : ${MWJ.SK_NOM[PARTS[id].comp].toLowerCase()} niveau ${PARTS[id].niv} requis (vous : niveau ${MWJ.level(PARTS[id].comp)}).`;
 function toolGate(c,id){const p=PARTS[id];return L().outilOK(p.outil,c)?null:`Il vous faut : ${MWJ.OUTILS[p.outil].nom.toLowerCase()} (en vente chez Pièces Auto Express).`;}
@@ -11900,7 +11921,8 @@ const ACH=['Un particulier','Un étudiant bricoleur','Un garagiste du quartier',
 const st=()=>{const s=MW.S;if(!s) return {ann:[],ventes:0,gain:0,renov:0,seq:0};if(!s.occ) s.occ={ann:[],ventes:0,gain:0,renov:0,seq:0};return s.occ;};
 const P=id=>MWJ.PARTS[id];
 const rule=it=>R[it.id]||{f:.08,t:'fer'};
-const pv=it=>+it.pv>0?+it.pv:P(it.id).prix;
+const pv=it=>+it.pv>0?+it.pv:it.k==='neuve'&&+it.paye>0?+it.paye:P(it.id).prix;
+const vole=it=>it.k==='neuve'&&it.src==='etagere'; /* pièce neuve du stock de l'employeur */
 const inv=()=>MWJ.inv();
 const bloq=it=>!!(MWJ.rendBloq&&MWJ.rendBloq(it));
 const nomIt=it=>`${P(it.id).nom}${it.car?' ('+it.car+')':''}`;
@@ -11908,23 +11930,25 @@ const nomIt=it=>`${P(it.id).nom}${it.car?' ('+it.car+')':''}`;
 function scrap(it){const r=rule(it);return r.f>0?Math.max(1,Math.round(pv(it)*r.f)):0;}
 function scrapLbl(it){const r=rule(it);return MAT[r.t]||MAT.fer;}
 /* prix d'occasion : moitié du neuf pour une pièce comme neuve, décroît avec l'usure ; une pièce remise en état vaut 35 % de plus */
-function occOK(it){const r=rule(it);return !!r.o&&it.u<=r.o;}
-function occV(it){if(!occOK(it)) return 0;const k=Math.pow(1-it.u/100,.8)*.5*(it.ren?1.35:1);return Math.max(scrap(it)+2,Math.round(pv(it)*k));}
+function occOK(it){if(it.k==='neuve') return true;const r=rule(it);return !!r.o&&it.u<=r.o;}
+function occV(it){if(it.k==='neuve') return Math.round(pv(it)*.7);if(!occOK(it)) return 0;const k=Math.pow(1-it.u/100,.8)*.5*(it.ren?1.35:1);return Math.max(scrap(it)+2,Math.round(pv(it)*k));}
 function renOK(it){const r=rule(it).r;return !!r&&!it.ren&&it.u>=20;}
 const renCost=it=>Math.max(3,Math.round(pv(it)*rule(it).r.kit));
-function valTxt(it){const o=occV(it),f=scrap(it),r=rule(it);let t=`Ferraille : ${f?fmt(f):'0 €'}.`;
+function valTxt(it){if(it.k==='neuve') return `Pièce neuve dans sa boîte : environ ${fmt(occV(it))} en vente entre particuliers.${vole(it)?' Elle appartient à votre employeur : la revendre, c\'est du vol.':''}`;
+ const o=occV(it),f=scrap(it),r=rule(it);let t=`Ferraille : ${f?fmt(f):'0 €'}.`;
  if(o) t+=` Occasion : environ ${fmt(o)}.`;else if(r.o) t+=` Trop usée pour l'occasion (maxi ${r.o} % d'usure)${renOK(it)?' : remettez-la en état à l\'établi':''}.`;
  return t;}
 
 function list(i,niv){
  const it=inv()[i],n=NIV[niv]||NIV.juste,s=st();
- if(!it||it.k!=='usagee') return false;
+ if(!it||(it.k!=='usagee'&&it.k!=='neuve')) return false;
  if(bloq(it)){MW.toast('Ce client veut récupérer cette pièce : vous ne pouvez pas la vendre.','warn');return false;}
  if(!occOK(it)){MW.toast('Pièce trop usée pour l\'occasion : vendez-la à la ferraille.','warn');return false;}
  if(s.ann.length>=ANN_MAX){MW.toast(`Vous avez déjà ${ANN_MAX} annonces en cours.`,'warn');return false;}
  const prix=Math.round(occV(it)*n.k);
  inv().splice(i,1);MWJ.invUI();
  s.ann.push({id:'a'+(++s.seq),it,prix,niv:niv in NIV?niv:'juste',jour:MW.S.day});
+ if(vole(it)&&typeof MWA!=='undefined') MWA.stock(it,prix); /* le patron finira peut-être par s'en apercevoir */
  MW.toast(`Annonce publiée : ${P(it.id).nom} à ${fmt(prix)}. La pièce reste rangée à l'atelier en attendant l'acheteur.`,'good');return true;}
 function unlist(id){
  const s=st(),k=s.ann.findIndex(a=>a.id===id);if(k<0) return false;
@@ -11960,17 +11984,17 @@ function tick(force){
 const btn=(a,t,cls,dis)=>`<button type="button" class="btn sm${cls?' '+cls:''}" data-mw="occ:${a}"${dis?' disabled':''}>${t}</button>`;
 let choix=null; /* pièce dont on choisit le prix */
 function etabliHTML(){
- const s=st(),us=inv().map((it,i)=>({it,i})).filter(x=>x.it.k==='usagee');
+ const s=st(),us=inv().map((it,i)=>({it,i})).filter(x=>x.it.k==='usagee'||x.it.k==='neuve');
  let h=`<h3 class="mw-h3">Revendre les anciennes pièces</h3><p class="hint">Une pièce encore bonne se vend d'occasion à des particuliers. Les autres partent à la ferraille (chez Pièces Auto Express). Certaines se remettent en état ici pour se revendre plus cher.</p>`;
  if(!us.length) h+='<p>Aucune pièce usagée dans votre inventaire. Les pièces que vous déposez sur les voitures y arrivent.</p>';
  for(const {it,i} of us){const p=P(it.id),bl=bloq(it),o=occV(it),r=rule(it).r;
-  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${esc(nomIt(it))}</b><span class="mw-tag${bl?' warn':it.ren?' ok':''}">${bl?'À rendre au client':it.ren?'Remise en état':'Usure '+it.u+' %'}</span></div><small>${esc(valTxt(it))}</small>`;
+  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${esc(nomIt(it))}</b><span class="mw-tag${bl||vole(it)?' warn':it.ren||it.k==='neuve'?' ok':''}">${bl?'À rendre au client':it.k==='neuve'?(vole(it)?'Neuve · stock du patron':'Neuve'):it.ren?'Remise en état':'Usure '+it.u+' %'}</span></div><small>${esc(valTxt(it))}</small>`;
   if(!bl){let b='';
    if(choix===i&&o) b+=Object.keys(NIV).map(k=>btn(`list:${i}:${k}`,`${NIV[k].nom} : ${fmt(Math.round(o*NIV[k].k))}`)).join('')+btn('cancel','Annuler','ghost');
-   else{if(o) b+=btn('pick:'+i,'Mettre en vente','',s.ann.length>=ANN_MAX);
+   else{if(o) b+=btn('pick:'+i,vole(it)?'Revendre en douce':'Mettre en vente',vole(it)?'warn':'',s.ann.length>=ANN_MAX);
     if(renOK(it)) b+=btn('ren:'+i,`Remettre en état (${r.min} min, kit ${fmt(renCost(it))})`,'ghost',MWJ.level(p.comp)<p.niv||MW.S.money<renCost(it));}
    if(b) h+=`<div class="mw-btns">${b}</div>`;
-   if(renOK(it)&&MWJ.level(p.comp)<p.niv&&choix!==i) h+=`<small>Remise en état : ${esc(MWJ.SK_NOM?MWJ.SK_NOM[p.comp]:p.comp)} niveau ${p.niv} requis.</small>`;}
+   if(it.k==='usagee'&&renOK(it)&&MWJ.level(p.comp)<p.niv&&choix!==i) h+=`<small>Remise en état : ${esc(MWJ.SK_NOM?MWJ.SK_NOM[p.comp]:p.comp)} niveau ${p.niv} requis.</small>`;}
   h+='</div>';}
  h+=annHTML(true);return h;}
 function annHTML(btns){
@@ -11992,6 +12016,135 @@ MW.on('open',()=>{choix=null;});
 return {R,scrap,scrapLbl,occV,occOK,valTxt,list,unlist,renov,renOK,tick,state:st,etabliHTML,carnetHTML,act,ANN_MAX};
 })();
 window.__mwo=MWO;
+
+/* ───────────── Mode « Mécanicien » — ARNAQUES ET HONNÊTETÉ ─────────────
+   Au moment de rendre la voiture (écran « Rendre la voiture » de js/41), on peut gonfler la facture :
+   - pièces de réemploi (occasion ou remises en état, montées faute de neuve) facturées au prix du neuf ;
+   - main-d'œuvre gonflée de 35 % ;
+   - pièces « fantômes » : facturées mais jamais changées ;
+   - échange discret (js/41) : remplacer une pièce en bon état du client par une pièce usée et garder la bonne ;
+   - vol de stock (js/48) : revendre les pièces neuves prises à l'étagère de son employeur.
+   Risques : le client relit la facture au comptoir (découverte immédiate : note 1, réputation), puis dans les jours qui suivent
+   un autre garage, le contrôle technique ou le patron peuvent découvrir le pot aux roses : remboursement et dédommagement
+   (à son compte), retenue sur salaire, avertissement puis licenciement (salarié), amende de la répression des fraudes en cas
+   de récidive. Chaque arnaque découverte fait monter les « soupçons » du quartier, qui rendent les suivantes plus risquées.
+   Salarié, seule votre part de main-d'œuvre profite d'une facture gonflée ; à votre compte, tout le surplus est pour vous.
+
+   ═══ API `MWA` ═══
+   MWA.state()            {pend:[arnaques non découvertes], susp (0 à 100), avert:{employeur:n}, fraudes, pris, gain, hist:[]}
+   MWA.toggle(c, k)       option de facture ('neuf' | 'mo' | 'fant:<pièce>') ; MWA.invoiceHTML(c, ev) section de l'écran de rendu
+   MWA.counter(c)         relecture au comptoir (appelé par js/41 avant le calcul de la facture) ; MWA.after(c, job, ev)
+   MWA.stock(it, prix)    vol de stock (appelé par js/48) ; MWA.day(force) examen quotidien (force : 'pris' | 'libre', tests)
+   MWA.risk(kinds)        {now, later} probabilités de découverte ; MWA.carnetHTML()
+   Événement émis : 'fraudCaught'(arnaque, sanction). */
+const MWA=(()=>{
+const R2=x=>Math.round(x*100)/100,fmt=x=>MW.fmt(x),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+/* probabilité de découverte : au comptoir (le client relit la facture) et plus tard (autre garage, contrôle technique, patron) */
+const P_NOW={neuf:.06,mo:.1,fant:.12},P_LATER={neuf:.3,mo:.2,fant:.45,vol:.25,stock:.35};
+const NOM={neuf:'pièces d\'occasion facturées neuves',mo:'main-d\'œuvre gonflée',fant:'pièces facturées sans être changées',vol:'pièce en bon état gardée, pièce usée montée',stock:'pièces neuves volées à l\'étagère'};
+const COMMENT={
+ neuf:'Son beau-frère, mécanicien, a reconnu des pièces d\'occasion facturées au prix du neuf.',
+ mo:'Il a comparé le temps facturé au barème du constructeur : presque deux fois trop.',
+ fant:'Au contrôle technique, on lui a montré que les pièces facturées n\'avaient jamais été changées.',
+ vol:'Un autre garage a trouvé une pièce usée là où la sienne était presque neuve.',
+ stock:'Le patron a fait l\'inventaire de l\'étagère : il manque des pièces neuves, et une annonce à votre nom les vend.'};
+const AMENDE=1500;
+
+const st=()=>{const s=MW.S;if(!s) return {pend:[],susp:0,avert:{},fraudes:0,pris:0,gain:0,hist:[]};
+ if(!s.arn) s.arn={pend:[],susp:0,avert:{},fraudes:0,pris:0,gain:0,hist:[]};return s.arn;};
+const emp=()=>{try{return typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null;}catch(e){return null;}};
+const compte=e=>!!(e&&(e.compte||e.net||e.id==='aucun'));
+const mult=()=>1+st().susp/50;
+function risk(kinds){
+ let a=1,b=1;for(const k of kinds){if(P_NOW[k]) a*=1-P_NOW[k];b*=1-(P_LATER[k]||.2);}
+ return {now:clamp((1-a)*mult(),0,.6),later:clamp((1-b)*(1+st().susp/100),0,.9)};}
+function addRep(d){const s=MW.S;s.rep=clamp(R2((s.rep||0)+d),0,100);}
+function hist(t){const a=st();a.hist.unshift({jour:MW.S.day,t});while(a.hist.length>8) a.hist.pop();}
+
+/* ── écran de rendu ── */
+function fr(c){if(!c.fraud) c.fraud={neuf:0,mo:0,fant:[]};if(!c.fraud.fant) c.fraud.fant=[];return c.fraud;}
+function toggle(c,k){const f=fr(c);
+ if(k==='neuf'||k==='mo') f[k]=f[k]?0:1;
+ else if(k.startsWith('fant:')){const id=k.slice(5),i=f.fant.indexOf(id);if(i>=0) f.fant.splice(i,1);else if(f.fant.length<3) f.fant.push(id);}}
+/* surplus d'une option : on recalcule la facture avec et sans */
+function delta(c,mod){const f=fr(c),keep=JSON.stringify(f);const a=MWJ.evalJob(c).facture;mod(f);const b=MWJ.evalJob(c).facture;c.fraud=JSON.parse(keep);return R2(b-a);}
+const fantCands=c=>MWJ.PARTS_LIST.filter(p=>!c.done[p.id]&&c.parts[p.id]&&!c.parts[p.id].na&&c.parts[p.id].u>=35).sort((a,b)=>c.parts[b.id].u-c.parts[a.id].u).slice(0,4);
+function invoiceHTML(c,ev){
+ const f=fr(c),e=emp(),own=compte(e),RE=c.reemp||{};
+ const tg=(k,on,t,plus)=>`<button type="button" class="btn sm${on?' warn':' ghost'}" data-mw="fr:${k}" aria-pressed="${on?'true':'false'}">${on?'✓ ':''}${t}${plus?` <small>(${plus>0?'+':''}${fmt(plus)})</small>`:''}</button>`;
+ let h=`<h3 class="mw-h3">Facturation</h3>`;
+ const re=Object.keys(RE).filter(id=>c.done[id]&&ev.lines.some(l=>l.id===id));
+ if(re.length) h+=`<p class="hint">Pièce(s) de réemploi montée(s) : la loi impose de les facturer moins cher que le neuf (ici −40 %).</p>`;
+ const b=[];
+ if(re.length) b.push(tg('neuf',f.neuf,'Facturer le réemploi au prix du neuf',f.neuf?0:delta(c,x=>{x.neuf=1;})));
+ b.push(tg('mo',f.mo,'Gonfler la main-d\'œuvre',f.mo?0:delta(c,x=>{x.mo=1;})));
+ for(const p of fantCands(c)){const on=f.fant.includes(p.id);b.push(tg('fant:'+p.id,on,`Facturer « ${esc(MWJ.pn(c,p))} » sans la changer`,on?0:delta(c,x=>{x.fant.push(p.id);})));}
+ h+=`<details class="mw-fr-d"${ev.fraude.kinds.length?' open':''}><summary>Arrondir la facture… (malhonnête)</summary><div class="mw-btns">${b.join('')}</div>`;
+ if(ev.fraude.kinds.length){const r=risk(ev.fraude.kinds.filter(k=>k!=='vol')),r2=risk(ev.fraude.kinds);
+  h+=`<p class="mw-soon">Surplus facturé : <b>${fmt(ev.fraude.gain)}</b>${own?' (pour vous)':' (pour le garage ; vous touchez votre part de main-d\'œuvre)'}. Risque que le client s'en aperçoive au comptoir : <b>${Math.round(r.now*100)} %</b>, dans les jours qui suivent : <b>${Math.round(r2.later*100)} %</b>. S'il découvre l'arnaque : ${own?'remboursement du double, réputation en chute, amende en cas de récidive':'retenue sur votre paie, avertissement, puis licenciement'}.</p>`;}
+ else h+=`<p class="hint">Facture honnête.${st().susp>=20?` Le quartier se méfie déjà de vous (soupçons ${Math.round(st().susp)} / 100).`:''}</p>`;
+ h+='</details>';
+ if(ev.fraude.vol.length) h+=`<p class="mw-soon">Échange discret : vous gardez ${esc(ev.fraude.vol.map(id=>MWJ.pn(c,id).toLowerCase()).join(', '))} du client, en bon état, et lui laissez une pièce plus usée (non facturée). Risque d'être découvert plus tard : ${Math.round(risk(['vol']).later*100)} %.</p>`;
+ return h;}
+
+/* ── au comptoir ── */
+function counter(c){
+ c.caught=0;if(!c.fraud||c.forceFree) return false;const ev=MWJ.evalJob(c),k=ev.fraude.kinds.filter(x=>P_NOW[x]);if(!k.length) return false;
+ if(Math.random()>=risk(k).now&&c.forceCaught!==true) return false;
+ c.fraud=null;c.caught=1;const a=st();a.pris++;a.susp=clamp(a.susp+15,0,100);addRep(-6);
+ const e=emp();if(e&&!compte(e)) a.avert[e.id]=(a.avert[e.id]||0)+1;
+ hist(`${c.client} a relevé l'arnaque au comptoir (${k.map(x=>NOM[x]).join(', ')}).`);
+ MW.toast(`${c.client} relit la facture et proteste : « Vous me prenez pour un pigeon ? » Il ne paie que le travail réel et le racontera à tout le quartier (réputation −6).`,'warn');
+ MW.emit('fraudCaught',{client:c.client,kinds:k,comptoir:true},'comptoir');
+ if(e&&!compte(e)) sanctionEmp(e,0);
+ return true;}
+function after(c,job,ev){
+ if(c.caught){job.arnaque='découverte';return;}
+ const k=ev.fraude.kinds;if(!k.length) return;
+ const a=st(),e=emp();a.fraudes++;a.gain=R2(a.gain+Math.max(0,ev.fraude.gain));job.arnaque=k.slice();
+ a.pend.push({due:MW.S.day+rint(1,5),client:c.client,voiture:job.voiture,kinds:k.slice(),gain:Math.max(0,ev.fraude.gain),emp:e?e.id:'aucun',own:compte(e)});}
+function stock(it,prix){
+ const a=st(),e=emp();a.fraudes++;a.gain=R2(a.gain+prix);
+ a.pend.push({due:MW.S.day+rint(1,4),client:e?e.nom:'le patron',voiture:'',kinds:['stock'],gain:prix,emp:e?e.id:'aucun',own:false});}
+
+/* ── sanctions ── */
+function sanctionEmp(e,retenue){
+ const a=st(),n=a.avert[e.id]||0;
+ if(retenue>0) MW.money(-retenue,'Retenue sur paie (arnaque découverte)');
+ if(n>=2&&typeof MWC!=='undefined'&&MWC.hire){MWC.hire('aucun');a.avert[e.id]=0;addRep(-5);
+  MW.panel('Licencié',`<p>Votre employeur vous convoque : « Deux fois, c'est une fois de trop. Vous rendez votre clé et vous ne remettez plus les pieds ici. »</p><p>Vous êtes licencié pour faute grave. Il faudra retrouver une place ailleurs… ou travailler à votre compte.</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Fermer</button></div>`);
+  hist('Licencié pour faute grave.');return 'licencié';}
+ MW.toast(`Avertissement de votre employeur${retenue>0?` et retenue de ${fmt(retenue)} sur votre paie`:''} : à la prochaine, c'est la porte.`,'warn');
+ return 'avertissement';}
+function discover(x){
+ const a=st(),n=x.kinds.length;a.pris++;a.susp=clamp(a.susp+20,0,100);addRep(-(5+3*n));let s;
+ const txt=x.kinds.map(k=>COMMENT[k]).join(' ');
+ if(x.own||x.kinds.includes('vol')&&x.emp==='aucun'){const r=R2(x.gain*2);MW.money(-r,'Remboursement et dédommagement : '+x.client);s=`remboursement et dédommagement de ${fmt(r)}`;
+  if(a.pris>=3||x.gain>=300){MW.money(-AMENDE,'Amende de la répression des fraudes');s+=` et amende de ${fmt(AMENDE)} de la répression des fraudes`;}}
+ else{a.avert[x.emp]=(a.avert[x.emp]||0)+1;const e=emp();
+  s=e&&e.id===x.emp?sanctionEmp(e,Math.round(x.gain)):'votre ancien patron porte plainte';
+  if(!(e&&e.id===x.emp)){MW.money(-Math.round(x.gain),'Dédommagement à votre ancien employeur');}}
+ hist(`${x.client}${x.voiture?' ('+x.voiture+')':''} : arnaque découverte, ${s}.`);
+ MW.toast(`Arnaque découverte ! ${x.kinds.includes('stock')?'':x.client+' revient furieux. '}${txt} Conséquence : ${s}, réputation −${5+3*n}.`,'warn');
+ MW.emit('fraudCaught',x,s);return s;}
+function day(force){
+ const a=st();a.susp=clamp(a.susp-1,0,100);let n=0;
+ for(const x of a.pend.slice()){if(!force&&x.due>MW.S.day) continue;
+  a.pend.splice(a.pend.indexOf(x),1);
+  const pr=force==='pris'?1:force==='libre'?0:risk(x.kinds).later;
+  if(Math.random()<pr){discover(x);n++;}else a.susp=clamp(a.susp-2,0,100);}
+ return n;}
+
+function carnetHTML(){
+ const a=st();if(!a.fraudes&&!a.pris) return '';
+ return `<h3 class="mw-h3">Honnêteté</h3><p>Soupçons dans le quartier : <b>${Math.round(a.susp)} / 100</b> · ${a.fraudes} arnaque(s), ${a.pris} découverte(s) · surplus empoché ${fmt(a.gain)}${a.pend.length?` · ${a.pend.length} client(s) qui pourraient encore s'en apercevoir`:''}.</p>${a.hist.length?`<small>${a.hist.slice(0,4).map(h=>`Jour ${h.jour} : ${esc(h.t)}`).join('<br>')}</small>`:''}`;}
+
+MW.on('day',()=>{try{if(MW.S) day(false);}catch(e){console.error(e);}});
+return {state:st,toggle,invoiceHTML,counter,after,stock,day,risk,carnetHTML,P_NOW,P_LATER,AMENDE};
+})();
+window.__mwa=MWA;
 
 /* ───────────── Rendu ───────────── */
 function renderKeys(){

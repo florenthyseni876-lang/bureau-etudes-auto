@@ -299,7 +299,7 @@ const wanted=(c,id)=>partOK(c,id)&&!c.done[id]&&(c.ordre.includes(id)||(c.symp&&
 const wantedAny=(c,ids)=>ids.some(id=>wanted(c,id));
 const pname=(c,id)=>MWJ.pn(c,id);
 const accOK=(c,id)=>{const a=L().acces(c,PARTS[id]);return a.ok?null:a.why;};
-const haveNew=(c,id)=>L().invFind('neuve',id)>=0;
+const haveNew=(c,id)=>L().newFind?L().newFind(c,id)>=0:L().invFind('neuve',id)>=0; /* neuve ou pièce de réemploi */
 const needNew=(c,id)=>haveNew(c,id)?null:`Il vous faut ${pname(c,id).toLowerCase()} neuf(ve) : prenez-le à l'étagère de l'atelier ou achetez-le chez Pièces Auto Express.`;
 const levelOK=(c,id)=>L().canDo(id,c)?null:`Réservé aux mécaniciens plus expérimentés : ${MWJ.SK_NOM[PARTS[id].comp].toLowerCase()} niveau ${PARTS[id].niv} requis (vous : niveau ${MWJ.level(PARTS[id].comp)}).`;
 function toolGate(c,id){const p=PARTS[id];return L().outilOK(p.outil,c)?null:`Il vous faut : ${MWJ.OUTILS[p.outil].nom.toLowerCase()} (en vente chez Pièces Auto Express).`;}
