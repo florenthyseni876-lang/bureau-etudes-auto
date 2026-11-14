@@ -145,7 +145,7 @@ function newRig(c){
  r.root.name='mg_root';g.add(r.root);r.fl.name='mg_floor';MW.scene.add(r.fl);
  r.cosr=Math.cos(p.ry);r.sinr=Math.sin(p.ry);
  /* coordonnées horizontales locales de la voiture (lx = gauche, lz = avant) → monde */
- r.W=(lx,ly,lz)=>new T.Vector3(p.x+r.cosr*lx+r.sinr*lz,ly,p.z-r.sinr*lx+r.cosr*lz);
+ r.W=(lx,ly,lz)=>new T.Vector3(p.x+r.cosr*lx+r.sinr*lz,ly+.22,p.z-r.sinr*lx+r.cosr*lz); /* ly = hauteur au-dessus du sol (le sol est à y = 0,22) */
  r.add=t=>{r.tg.push(t);return t;};
  r.A=n=>{const a=MWCARS.anchor(g,n);return a||new T.Vector3();};
  r.gy=()=>g.position.y;   /* hauteur de la voiture (pont) */
@@ -188,9 +188,9 @@ function hintUpdate(){
  for(const t of R.tg){for(const a of actsOf(t)){if(!a.exp) continue;
    if(!a.why){if(!best||a.ord<best.a.ord) best={t,a};}
    else if(a.fix) fixes.push({ord:a.ord,fix:a.fix});}}
- if(!best&&fixes.length){fixes.sort((x,y)=>x.ord-y.ord);const t=R.tg.find(q=>q.id===fixes[0].fix);if(t){const a=actsOf(t).find(x=>!x.why);if(a) best={t,a};}}
+ if(!best&&fixes.length){fixes.sort((x,y)=>x.ord-y.ord);const t=R.tg.find(q=>q.id===(fixes[0].fix==='lower'?'lift':fixes[0].fix));if(t){const a=actsOf(t).find(x=>!x.why);if(a) best={t,a};}}
  else if(best&&fixes.length){ /* une action bloquée plus tôt dans l'ordre passe devant : on l'aide à se débloquer */
-  fixes.sort((x,y)=>x.ord-y.ord);if(fixes[0].ord<best.a.ord){const t=R.tg.find(q=>q.id===fixes[0].fix);if(t){const a=actsOf(t).find(x=>!x.why);if(a) best={t,a};}}}
+  fixes.sort((x,y)=>x.ord-y.ord);if(fixes[0].ord<best.a.ord){const t=R.tg.find(q=>q.id===(fixes[0].fix==='lower'?'lift':fixes[0].fix));if(t){const a=actsOf(t).find(x=>!x.why);if(a) best={t,a};}}}
  HINT=best;}
 
 function checkAct(a){
@@ -347,10 +347,11 @@ const pidx=(c,id)=>{const i=c.ordre.indexOf(id);return i<0?(c.symp&&c.symp.c===i
 function floorSpot(R,o,i,h){const w=R.W(2.0+.5*(i%3),h||.02,-1.7-.45*Math.floor(i/3));attachTo(o,R.fl);tw(o,{p:[w.x,w.y,w.z],r:[0,R.p.ry,0]},.5);}
 
 /* ═══════════ Procédure commune : servante, bac magnétique, commande du pont, capot, portière, pédale ═══════════ */
+const jobDone=c=>c.ordre.length?c.ordre.every(id=>c.done[id]):!!(c.symp&&c.done[c.symp.c]);
 function buildCommon(R){
  const {c,g,u}=R,F=R.F;R.blk={lower:[],hood:[]};R.spotN=0;
  /* servante à outils avec bac magnétique */
- const cart=grp();const cp=R.W(2.25,0,-.85);cart.position.copy(cp);cart.rotation.y=R.p.ry;
+ const cart=grp();const cp=R.W(2.5,0,-.1);cart.position.copy(cp);cart.rotation.y=R.p.ry;
  cart.add(bx(.78,.62,.44,C.red,0,.46,0),bx(.8,.03,.46,C.dsteel,0,.78,0),bx(.74,.02,.4,C.dsteel,0,.46,.22));
  for(const [x,z] of [[-.34,-.17],[.34,-.17],[-.34,.17],[.34,.17]]) cart.add(cy(.05,.04,C.rubber,x,.07,z,'x'));
  for(const y of [.32,.46,.6]) cart.add(bx(.7,.012,.01,C.dsteel,0,y,.225));
@@ -363,7 +364,7 @@ function buildCommon(R){
   while(items.children.length) items.remove(items.children[0]);
   let i=0;for(const k in b) for(let j=0;j<b[k]&&i<16;j++,i++){const a=i*2.4,r=.02+.075*Math.sqrt(i/16);const big=k==='ecrou'||k==='bouchon';items.add(hex(big?.013:.008,big?.02:.03,0xc9ced3,Math.cos(a)*r,.845,Math.sin(a)*r,big?'y':'x'));}};
  /* commande du pont */
- const col=grp();col.position.copy(R.W(2.05,0,2.0));col.rotation.y=R.p.ry;
+ const col=grp();col.position.copy(R.W(2.1,0,2.7));col.rotation.y=R.p.ry;
  col.add(bx(.26,1.2,.2,C.yel,0,.6,0),bx(.2,.24,.04,C.dsteel,0,1.0,.11),cy(.025,.03,0x2fbf4a,-.05,1.02,.135,'z'),cy(.025,.03,0xd03030,.05,1.02,.135,'z'));
  R.fl.add(col);R.col=col;
  const lowerWhy=()=>{if(c.st.av||c.st.ar) return "Remontez d'abord les roues.";if(Object.keys(c.rem).some(id=>PARTS[id].zone==='dessous'||PARTS[id].zone==='roue')) return 'Une pièce est démontée sous la voiture.';
@@ -375,12 +376,12 @@ function buildCommon(R){
  const hood=g.getObjectByName('hood');
  if(hood){const hl=u.hoodLen||.9;
   R.add({id:'hood',o:hood,off:new T.Vector3(0,.03,hl*.78),r:.2,name:'Capot',
-   acts:()=>[c.st.capot?{key:'hclose',lab:'Fermer le capot',hold:.6,ord:90,snd:'clunk',
+   acts:()=>[c.st.capot?{key:'hclose',lab:'Fermer le capot',hold:.6,ord:90,exp:jobDone(c)&&!!c.g,snd:'clunk',
      why:Object.keys(c.rem).some(id=>PARTS[id].zone==='capot')?'Une pièce est démontée sous le capot.':(R.blk.hood.map(f=>f()).find(Boolean)||null),do:()=>{L().togCapot(c);}}
     :{key:'hopen',lab:'Ouvrir le capot (déverrouiller et lever)',hold:.6,ord:5,snd:'clunk',do:()=>{L().togCapot(c);}}]});}
  /* portière conducteur : habitacle (valise, essai, rendre la voiture) */
  const dn=new T.Object3D();dn.position.set((u.W||1.8)/2+.01,.98,R.A('cabin').z+.18);g.add(dn);R.root.add(dn);R.objs.door=dn;
- R.add({id:'door',o:dn,r:.28,name:'Portière conducteur',acts:()=>[{key:'door',lab:'Habitacle : valise, essai sur route, rendre la voiture',ord:99,do:()=>{MWJ.openPoint(c.id,'cabine');}}]});
+ R.add({id:'door',o:dn,r:.28,name:'Portière conducteur',acts:()=>[{key:'door',lab:'Habitacle : valise, essai sur route, rendre la voiture',ord:99,exp:jobDone(c)&&!c.st.capot&&!c.st.lifted&&!blocage(c).length,do:()=>{MWJ.openPoint(c.id,'cabine');}}]});
  /* pédale de frein (à pomper après un travail sur les freins) */
  const pd=new T.Object3D();pd.position.set(R.A('cabin').x+.0,.32,R.A('cabin').z+.5);R.root.add(pd);
  R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:1,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
@@ -585,6 +586,7 @@ function buildVidange(R){
  const cart=isCart(c),cap=oilCap(c),pl=R.A('oilPlug'),fa=R.A('oilFilter');
  const uo=c.parts.huile.u0!=null?c.parts.huile.u0:50,uf=c.parts.filtre_huile?c.parts.filtre_huile.u0:50;
  const wantO=()=>wanted(c,'huile'),wantF=()=>partOK(c,'filtre_huile')&&wanted(c,'filtre_huile'),wantAny=()=>wantO()||wantF()||F.p.huile||F.p.filtre_huile;
+ const needFill=()=>(!!c.done.huile||!!F.p.huile)&&!O.done;
  /* carter et bouchon */
  const pan=grp(pl.x,pl.y,pl.z);pan.add(bx(.46,.07,.3,0x2b2e33,0,.05,0,'p'),bx(.5,.012,.34,C.dsteel,0,.09,0));R.root.add(pan);
  const plug=hex(.017,.016,0xb9bec4,-.1,-.0,0);pan.add(plug);const plugAt=new T.Object3D();plugAt.position.set(-.1,-.01,0);pan.add(plugAt);
@@ -618,14 +620,14 @@ function buildVidange(R){
  /* ── bac ── */
  R.add({id:'bac',o:bac,off:new T.Vector3(0,.1,0),r:.3,vis:()=>lifted(),name:()=>O.bac?'Bac de vidange':'Sol sous le carter',acts:()=>[O.bac?
   {key:'bacoff',lab:'Retirer le bac de vidange',tool:'main',ord:56,exp:wantAny(),why:O.plug===0||O.plug===1?"Le bouchon est ouvert : l'huile coule.":(O.on?"L'huile coule encore.":null),do:()=>{O.bac=0;}}
-  :{key:'bacon',lab:'Placer le bac sous le carter',tool:'bac',ord:29,exp:wantAny(),why:lw(),fix:lf(),do:()=>{O.bac=1;}}]});
+  :{key:'bacon',lab:'Placer le bac sous le carter',tool:'bac',ord:29,exp:(wantO()&&O.drain<1)||(wantF()&&(O.filt==='on'||O.filt==='loose')),why:lw(),fix:lf(),do:()=>{O.bac=1;}}]});
  /* ── bouchon de vidange ── */
  R.add({id:'plug',o:plugAt,r:.05,vis:()=>lifted(),name:()=>'Bouchon de vidange du carter',acts:()=>{
   const bacw=O.bac?null:'Placez d\'abord le bac sous le carter.',a=[];
-  if(O.plug===2) a.push({key:'pl1',lab:'Desserrer le bouchon de vidange',tool:'cliquet',sock:skP,hold:1.4,snd:'ratchet',ord:30,exp:wantO(),min:3,ph:['huile','dep'],why:lw()||bacw||levelOK(c,'huile')||null,fix:lf(),do:()=>{O.plug=1;F.p.huile=1;}});
-  else if(O.plug===1) a.push({key:'pl0',lab:'Retirer le bouchon à la main : l\'huile s\'écoule',tool:'main',hold:.7,snd:'screw',ord:31,exp:wantO(),min:3,ph:['huile','dep'],why:bacw,do:()=>{O.plug=0;O.on=1;binAdd('bouchon');}});
-  else if(O.plug===0) a.push({key:'pl3',lab:'Reposer le bouchon avec un joint neuf',tool:'main',hold:1.0,snd:'screw',ord:50,exp:1,min:2,ph:['huile','pose'],why:O.on?"Attendez : l'huile s'écoule encore.":null,do:()=>{O.plug=3;binTake('bouchon');}});
-  else if(O.plug===3) a.push({key:'pl2',lab:'Serrer le bouchon au couple',tool:'cle_dyn',sock:skP,hold:1.0,snd:'click',ord:51,exp:1,min:2,ph:['huile','pose'],do:()=>{O.plug=2;}});
+  if(O.plug===2) a.push({key:'pl1',lab:'Desserrer le bouchon de vidange',tool:'cliquet',sock:skP,hold:1.4,snd:'ratchet',ord:30,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:lw()||bacw||levelOK(c,'huile')||null,fix:lf(),do:()=>{O.plug=1;F.p.huile=1;}});
+  else if(O.plug===1) a.push({key:'pl0',lab:'Retirer le bouchon à la main : l\'huile s\'écoule',tool:'main',hold:.7,snd:'screw',ord:31,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:bacw,do:()=>{O.plug=0;O.on=1;binAdd('bouchon');}});
+  else if(O.plug===0) a.push({key:'pl3',lab:'Reposer le bouchon avec un joint neuf',tool:'main',hold:1.0,snd:'screw',ord:50,exp:1,min:2,ph:['huile','pose'],why:O.on?"Attendez : l'huile s'écoule encore.":needNew(c,'huile'),do:()=>{O.plug=3;binTake('bouchon');}});
+  else if(O.plug===3) a.push({key:'pl2',lab:'Serrer le bouchon au couple',tool:'cle_dyn',sock:skP,hold:1.0,snd:'click',ord:51,exp:1,min:2,ph:['huile','pose'],do:()=>{O.plug=2;if(doDepL(R,'huile')) doPoseL(R,'huile');}});
   else a.push({key:'plin',lab:'Inspecter le carter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'huile');inspMsg(R,'huile');}});
   if(O.plug===2) a.push({key:'plinsp',lab:"Inspecter l'huile",insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'huile');inspMsg(R,'huile');}});
   return a;}});
@@ -644,23 +646,23 @@ function buildVidange(R){
  const topWhy=()=>lifted()?'Baissez le pont avant de remplir.':(c.st.capot?null:'Ouvrez le capot.');
  const topFix=()=>lifted()?'lower':(c.st.capot?null:'hood');
  R.add({id:'oilcap',o:capO,r:.07,vis:baySt,name:'Bouchon de remplissage d\'huile',acts:()=>[O.cap?
-  {key:'co',lab:'Ouvrir le bouchon de remplissage',tool:'main',hold:.5,snd:'screw',ord:72,exp:(wantO()&&O.plug===2)||(!!F.p.huile&&!c.done.huile),sub:`Moteur ${(c.mdl&&MWCARS.get(c.mdl).eng.visc)||''} · ${nf(cap,2)} l`,why:topWhy()||(O.plug!==2?"Remontez et serrez d'abord le bouchon de vidange.":(O.filt==='off'?"Remontez d'abord le filtre à huile.":null)),fix:topFix(),do:()=>{O.cap=0;}}
-  :(O.fun?{key:'cf',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:O.done,do:()=>{O.fun=0;}}:{key:'cc',lab:'Refermer le bouchon de remplissage',tool:'main',hold:.5,snd:'screw',ord:76,exp:O.done,why:null,do:()=>{O.cap=1;}})]
-  .concat(!O.cap&&!O.fun?[{key:'fu',lab:"Placer l'entonnoir",tool:'entonnoir',ord:73,exp:!O.done,do:()=>{O.fun=1;}}]:[]).concat(O.cap&&!O.fun?[]:[])});
- R.add({id:'fun',o:fun,r:.1,vis:()=>baySt()&&!!O.fun,name:'Entonnoir',acts:()=>[{key:'pour',lab:'Verser l\'huile (maintenir E)',tool:'bidon',cont:1,snd:'pour',ord:74,exp:!O.done,sub:()=>`Moteur : ${nf(cap,2)} l · versé : ${nf(O.pour,2)} l`,
-  why:O.plug!==2?'Le bouchon de vidange doit être serré avant de remplir.':null,
+  {key:'co',lab:'Ouvrir le bouchon de remplissage',tool:'main',hold:.5,snd:'screw',ord:72,exp:needFill()&&O.plug===2,sub:`Moteur ${(c.mdl&&MWCARS.get(c.mdl).eng.visc)||''} · ${nf(cap,2)} l`,why:topWhy()||(O.plug!==2?"Remontez et serrez d'abord le bouchon de vidange.":(O.filt==='off'?"Remontez d'abord le filtre à huile.":null)),fix:topFix(),do:()=>{O.cap=0;}}
+  :(O.fun?{key:'cf',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;}}:{key:'cc',lab:'Refermer le bouchon de remplissage',tool:'main',hold:.5,snd:'screw',ord:76,exp:!!O.done,why:null,do:()=>{O.cap=1;}})]
+  .concat(!O.cap&&!O.fun?[{key:'fu',lab:"Placer l'entonnoir",tool:'entonnoir',ord:73,exp:needFill(),do:()=>{O.fun=1;}}]:[]).concat(O.cap&&!O.fun?[]:[])});
+ R.add({id:'fun',o:fun,r:.1,vis:()=>baySt()&&!!O.fun,name:'Entonnoir',acts:()=>[{key:'pour',lab:'Verser l\'huile (maintenir E)',tool:'bidon',cont:1,snd:'pour',ord:74,exp:needFill(),sub:()=>`Moteur : ${nf(cap,2)} l · versé : ${nf(O.pour,2)} l`,
+  why:!O.fun?"Placez d'abord l'entonnoir dans l'orifice de remplissage.":(O.plug!==2?'Le bouchon de vidange doit être serré avant de remplir.':null),
   start:()=>{},tick:(dt)=>{O.pour+=dt*.55;auxPour(O,cap);},prog:()=>clamp01(O.pour/cap),
-  release:()=>{auxSet('');if(O.pour>=cap*.93&&!O.done){O.done=1;doPoseL(R,'huile');if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}}else if(O.pour<cap*.93) MW.toast(`Il en faut encore : ${nf(cap,2)} l au total.`,'info');
+  release:()=>{auxSet('');if(O.pour>=cap*.93&&!O.done){O.done=1;if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}}else if(O.pour<cap*.93) MW.toast(`Il en faut encore : ${nf(cap,2)} l au total.`,'info');
    else if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}},cancel:()=>{auxSet('');}},
-  O.fun&&{key:'fun0',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:O.done,do:()=>{O.fun=0;}}].filter(Boolean)});
- R.add({id:'dip',o:dipO,r:.06,vis:baySt,name:'Jauge à huile',acts:()=>[{key:'dp',lab:'Retirer et lire la jauge',tool:'main',ord:77,exp:O.done,why:c.st.capot?null:'Ouvrez le capot.',do:()=>{O.dip=1;const lv=O.pour/cap,pos=clamp01((lv-.5)/.6);
+  O.fun&&{key:'fun0',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;}}].filter(Boolean)});
+ R.add({id:'dip',o:dipO,r:.06,vis:baySt,name:'Jauge à huile',acts:()=>[{key:'dp',lab:'Retirer et lire la jauge',tool:'main',ord:77,exp:!!O.done&&!O.dip,why:c.st.capot?null:'Ouvrez le capot.',do:()=>{O.dip=1;const lv=O.pour/cap,pos=clamp01((lv-.5)/.6);
   auxSet(`<b>Jauge à huile</b><div class="mg-dip"><i style="bottom:${Math.round(pos*100)}%"></i><span class="mx">MAXI</span><span class="mn">MINI</span></div><small>${lv<.9?'Niveau bas : complétez.':lv>1.1?'Niveau trop haut.':'Niveau correct.'}</small>`);setTimeout(()=>auxSet(''),4500);}}]});
  /* ── visuel et écoulement ── */
  const tick=(R2,dt)=>{
-  if(O.on&&O.bac){O.drain=Math.min(1,O.drain+dt/DRAIN_T);if(O.drain>=1){O.on=0;MW.toast(`Huile vidangée : ${nf(cap,1)} l récupérés dans le bac.`,'info');doDepL(R2,'huile');syncAll(false);}}
+  if(O.on&&O.bac){O.drain=Math.min(1,O.drain+dt/DRAIN_T);if(O.drain>=1){O.on=0;MW.toast(`Huile vidangée : ${nf(cap,1)} l récupérés dans le bac.`,'info');syncAll(false);}}
   if(O.on&&!O.bac) O.on=0;
   const flow=O.on?Math.pow(1-O.drain,.6):0;stream.visible=O.on&&flow>.03;
-  if(stream.visible){const top=R2.g.localToWorld(pl.clone().add(V3(-.1,0,0))),h=Math.max(.2,top.y-.12);stream.parent!==R2.fl&&R2.fl.add(stream);stream.position.set(top.x,top.y-h/2,top.z);stream.scale.set(.5+flow*1.3,h,.5+flow*1.3);if(rnd()<dt*3) snd('drip');}
+  if(stream.visible){const top=R2.g.localToWorld(pl.clone().add(V3(-.1,0,0))),h=Math.max(.2,top.y-.36);stream.parent!==R2.fl&&R2.fl.add(stream);stream.position.set(top.x,top.y-h/2,top.z);stream.scale.set(.5+flow*1.3,h,.5+flow*1.3);if(rnd()<dt*3) snd('drip');}
   lvl.scale.y=.2+O.drain*5;lvl.position.y=.03+O.drain*.04;
  };
  R.procs.push({id:'vidange',tick,vis:(R2,inst)=>{
@@ -800,7 +802,7 @@ function blocage(c){
  if(n) l.push('des écrous de roue ne sont pas serrés au couple');
  const off=Object.keys(g.w).filter(S=>g.w[S].o);if(off.length) l.push('une roue est déposée');
  if(g.pump) l.push("la pédale de frein n'a pas été pompée");
- const o=g.o;if(o){if(o.bac) l.push('le bac de vidange est resté sous la voiture');if(!o.cap) l.push("le bouchon de remplissage d'huile est ouvert");if(o.fun) l.push("l'entonnoir est resté sur le moteur");}
+ const o=g.o;if(o){if(o.bac) l.push('le bac de vidange est resté sous la voiture');if(!o.cap) l.push("le bouchon de remplissage d'huile est ouvert");if(c.done.huile&&!o.done) l.push("le moteur n'a pas été rempli d'huile");if(o.fun) l.push("l'entonnoir est resté sur le moteur");}
  if(g.s) for(const id in g.s){const sp=SPECS.find(x=>x.id===id);if(!sp) continue;const req=(sp.nfix||0)-(sp.optFix||0);if(g.s[id].f.slice(0,req).some(v=>!v)) l.push('des fixations ne sont pas remontées ('+id.replace('_',' ')+')');if(g.s[id].cv===0) l.push('un couvercle est déposé');}
  return l;}
 function malus(c){const g=c.g;if(!g||!on()) return 0;let m=0;const b=g.bin||{};for(const k in b) if(k!=='ecrou'||true) m+=b[k]||0;if(g.o&&g.o.over) m+=1;return Math.min(3,m);}
@@ -827,7 +829,7 @@ function tick(dt){
  /* soulève les processus (écoulement d'huile) */
  for(const pr of R.procs) if(pr.tick) try{pr.tick(R,MW.paused?0:dt);}catch(e){console.error(e);}
  /* collision douce : on ne traverse pas une voiture posée au sol */
- if(!liftedNow(R.c)&&!pl.inCar){const q=pl,dx=q.x-R.p.x,dz=q.z-R.p.z,lx=dx*R.cosr-dz*R.sinr,lz=dx*R.sinr+dz*R.cosr,hw=(R.u.W||1.8)/2+.3,hl=(R.u.L||4)/2+.25;
+ if(!liftedNow(R.c)&&!pl.inCar){const q=pl,dx=q.x-R.p.x,dz=q.z-R.p.z,lx=dx*R.cosr-dz*R.sinr,lz=dx*R.sinr+dz*R.cosr,hw=(R.u.W||1.8)/2+.14,hl=(R.u.L||4)/2+.2;
   if(Math.abs(lx)<hw&&Math.abs(lz)<hl){const kx=hw-Math.abs(lx),kz=hl-Math.abs(lz);let nx=lx,nz=lz;if(kx<kz) nx=Math.sign(lx||1)*hw;else nz=Math.sign(lz||1)*hl;
    MW.teleport(R.p.x+R.cosr*nx+R.sinr*nz,R.p.z-R.sinr*nx+R.cosr*nz);}}
  if(++fr%6===0) hintUpdate();
@@ -838,10 +840,10 @@ function tick(dt){
 }
 let ring=null;
 function ringUpdate(){
- if(!ring){ring=new T.Mesh(new T.TorusGeometry(.06,.006,8,24),mat(0xffd23a,'v'));ring.renderOrder=998;MW.scene.add(ring);}
+ if(!ring){ring=new T.Mesh(new T.TorusGeometry(.035,.003,8,24),mat(0xffd23a,'v'));ring.renderOrder=998;MW.scene.add(ring);}
  if(!aideOn()||!HINT||!R||MW.paused||!(HINT.t.vis?HINT.t.vis():true)){ring.visible=false;return;}
  if(!worldOf(HINT.t,tmpV)){ring.visible=false;return;}
- ring.visible=true;ring.position.copy(tmpV);ring.quaternion.copy(MW.cam.quaternion);const k=(HINT.t.r||.08)/.06*(1+.12*Math.sin(performance.now()/180));ring.scale.setScalar(Math.max(.6,Math.min(3,k*1.1)));}
+ ring.visible=true;ring.position.copy(tmpV);ring.quaternion.copy(MW.cam.quaternion);const k=(HINT.t.r||.08)/.035*(1+.12*Math.sin(performance.now()/180));ring.scale.setScalar(Math.max(.8,Math.min(6,k)));}
 
 /* ═══════════ Réglages (touche G) et branchements ═══════════ */
 function settings(){
@@ -880,6 +882,7 @@ Object.assign(api,{
  acts:c=>{if(!R||R.c!==c) api.ensure(c);const out=[];for(const t of R.tg){for(const a of actsOf(t)) out.push({id:t.id,key:a.key,lab:a.lab,tool:a.tool,sock:a.sock,hold:a.hold,why:a.why||null,exp:!!a.exp,ord:a.ord});}return out;},
  /* exécute (sans attendre) l'action « key » de la cible « id » ; renvoie le message de refus éventuel */
  run:(id,key,o)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return 'cible introuvable : '+id;const a=actsOf(t).find(x=>!key||x.key===key);if(!a) return 'aucune action';
+  if(!(o&&o.strict)){if(a.tool&&TOOL[a.tool]) tool=a.tool;if(a.sock) sock=a.sock;}
   if(!(o&&o.force)){const w=checkAct(a);if(w) return w;}
   if(a.cont){a.start&&a.start();a.tick&&a.tick(.0,{});for(let i=0;i<400&&!(a.auto&&a.auto());i++){a.tick&&a.tick(.05,{});if(a.prog&&a.prog()>=1.0) break;}a.release&&a.release();syncAll(true);return null;}
   finish(t,a);return null;},
