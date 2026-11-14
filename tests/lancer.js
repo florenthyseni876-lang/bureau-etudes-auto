@@ -158,7 +158,9 @@ async function main() {
   const sortir = l => { console.log(l); lignes.push(l); };
   const debutSuite = Date.now();
   const scenarios = chargerScenarios();
-  const aExecuter = scenarios.filter(s => complet || !s.lourd);
+  // SCENARIOS="12|19" : ne lancer que les fichiers dont le nom correspond (mise au point)
+  const choisi = s => !process.env.SCENARIOS || new RegExp(process.env.SCENARIOS).test(s.fichier);
+  const aExecuter = scenarios.filter(s => (complet || !s.lourd) && choisi(s));
 
   sortir(`Bureau d'Études Auto : tests « ${arg} » (${aExecuter.length} scénario(s) sur ${scenarios.length})`);
   sortir('');
@@ -182,6 +184,7 @@ async function main() {
 
   try {
     for (const s of scenarios) {
+      if (!choisi(s)) continue;
       if (!complet && s.lourd) {
         ignores++;
         sortir(`  IGNORÉ  ${s.titre} (mode rapide)`);

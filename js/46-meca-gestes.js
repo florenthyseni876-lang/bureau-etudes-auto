@@ -263,6 +263,10 @@ function infoUI(){
  u.info.hidden=!vis;
  /* aide : prochaine étape */
  let hh='';if(aideOn()&&HINT){const nm=typeof HINT.t.name==='function'?HINT.t.name():HINT.t.name;hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${HINT.a.tool?' · '+esc(toolName(HINT.a.tool,HINT.a.sock)):''}`;}
+ /* pièce déposée sans pièce neuve en poche : on le dit toujours, même sans l'aide (c'est l'étape qui bloque le plus souvent) */
+ if(R&&R.c&&R.c.rem){const miss=Object.keys(R.c.rem).filter(id=>!haveNew(R.c,id));
+  if(miss.length){const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
+   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.`;}}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}
 function auxSet(h){const u=ensureUI();if(!u) return;if(!h){u.aux.hidden=true;return;}u.aux.innerHTML=h;u.aux.hidden=false;}

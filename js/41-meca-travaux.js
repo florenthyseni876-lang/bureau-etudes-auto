@@ -188,10 +188,10 @@ function makeCar(o){
  const L=()=>String.fromCharCode(65+rint(0,25));
  const c={id:'j'+(++j.seq),zone:z.id,pont,client:(NZ&&NZ.client)||pick(CIV)+' '+pick(NOMS),marque:mod[0],modele:mod[1],kind:mod[2],mdl:mod[3]||null,an:an,color:(NZ&&NZ.color!=null)?NZ.color:pick(COLS),
   plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
-  arrive:absT(),ot0:openT(),promis:openT()+Math.max(150,Math.round(mo*2+60)),type:jb.type,ordre:jb.ordre,symp:jb.symp?{id:jb.symp.id,txt:jb.symp.txt,c:jb.symp.c,dn:jb.symp.dn}:null,nom:jb.nom,
+  rend:o.rend!=null?!!o.rend:(!NZ&&j.stats.rendues>=3&&Math.random()<.2),arrive:absT(),ot0:openT(),promis:openT()+Math.max(150,Math.round(mo*2+60)),type:jb.type,ordre:jb.ordre,symp:jb.symp?{id:jb.symp.id,txt:jb.symp.txt,c:jb.symp.c,dn:jb.symp.dn}:null,nom:jb.nom,
   parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
  j.cars.push(c);buildMesh(c);moveInteracts(c);hudJobs();
- if(!o.silencieux){MW.toast(`${c.client} dépose sa ${c.marque} ${c.modele} (pont n° ${pont+1}) : « ${jb.symp?jb.symp.txt:jb.nom} »`,'info');}
+ if(!o.silencieux){MW.toast(`${c.client} dépose sa ${c.marque} ${c.modele} (pont n° ${pont+1}) : « ${jb.symp?jb.symp.txt:jb.nom} »${c.rend?' Il veut récupérer ses anciennes pièces.':''}`,'info');}
  MW.emit('jobNew',c);return c;}
 function removeCar(c,silent){
  const j=J(),i=j.cars.indexOf(c);if(i>=0) j.cars.splice(i,1);
@@ -264,7 +264,7 @@ function doDep(c,id){
  const p=PARTS[id];if(c.done[id]||c.rem[id]) return false;if(!gesteOK(c,p)) return false;
  if(inv().length>=INV_MAX) return warn('Inventaire plein : jetez ou revendez des pièces usagées.');
  {const m=Math.max(4,Math.round(p.mo*.4));MW.addMin(GM(c,id,'dep',m));NG(c,'dep',p,m);}c.rem[id]=1;if(!c.insp[id]){c.insp[id]=1;}
- invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id});MW.toast(`${pn(c,p)} déposé(e) : rangé(e) dans l'inventaire.`,'info');return true;}
+ invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id,pv:pprice(c,p),car:voit(c),rend:c.rend?1:undefined});MW.toast(`${pn(c,p)} déposé(e) : rangé(e) dans l'inventaire${c.rend?' (le client veut la récupérer)':''}.`,'info');return true;}
 function doPose(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
  const i=invFind('neuve',id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express.`);
@@ -362,12 +362,13 @@ function evalJob(c){
  let diag=0;if(c.symp&&!nonResolu){diag=15;mo+=15;comp.diagnostic=(comp.diagnostic||0)+c.symp.dn*15;}
  for(const k in c.comp) comp[k]=(comp[k]||0)+c.comp[k];
  const late=Math.max(0,openT()-c.promis),retard=Math.min(2,Math.floor(late/30)*.5);
- let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-(MG()?MG().malus(c):0);if(nonResolu) n=1;
+ const rendMiss=c.rend&&!c.noir?Object.keys(c.done).filter(id=>invFind('usagee',id,c.id)<0):[];
+ let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-Math.min(2,rendMiss.length)-(MG()?MG().malus(c):0);if(nonResolu) n=1;
  const note=Math.round(clamp(n,1,5)),mult=note>=4?1:note===3?.8:.5;
  for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
  if(nonResolu){pieces=0;mo=0;lines.length=0;}
  const mainOeuvre=R2(mo/60*c.taux),facture=R2(pieces+mainOeuvre);
- return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
+ return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,rendMiss,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
 function payOf(job){
  if(typeof MWC!=='undefined'&&MWC&&typeof MWC.payFor==='function'){try{const v=MWC.payFor(job);if(typeof v==='number'&&isFinite(v)) return R2(Math.max(0,v));}catch(e){}}
  const e=emp()||{};return e.paie==='mois'?0:R2(job.mainOeuvre*.4);}
@@ -385,6 +386,7 @@ function done(c){
  const tot=R2(job.pay+refund);if(tot) MW.money(tot,c.noir?'Travail au noir (liquide) : '+voit(c):'Voiture rendue : '+voit(c));
  j.stats.rendues++;j.stats.note+=ev.note;j.stats.gain=R2(j.stats.gain+tot);
  j.hist.unshift({jour:s.day,client:c.client,voiture:voit(c),facture:ev.facture,pay:job.pay,note:ev.note});while(j.hist.length>15) j.hist.pop();
+ if(c.rend&&!c.noir){let n=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&inv()[i].job===c.id){inv().splice(i,1);n++;}if(n){job.rendues=n;invUI();}}
  removeCar(c,true);j.next=Math.max(j.next,absT()+rint(4,10));hudJobs();
  MW.emit('jobDone',job,ev.note);return job;}
 
@@ -450,6 +452,8 @@ function rendreUI(c){
  if(ev.manque.length) w.push('Travaux demandés non faits : '+ev.manque.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.inut.length) w.push('Pièces remplacées pour rien (non facturées) : '+ev.inut.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.retard) w.push('Voiture rendue en retard.');
+ if(ev.rendMiss&&ev.rendMiss.length) w.push('Le client voulait récupérer ses anciennes pièces, il en manque : '+ev.rendMiss.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
+ else if(c.rend&&!c.noir) h+='<p class="hint">Vous lui rendez aussi ses anciennes pièces, comme il l\'a demandé.</p>';
  if(MG()&&MG().malus(c)) w.push(MG().malusTxt(c));
  if(w.length) h+=`<p class="mw-soon">${w.map(esc).join('<br>')}</p>`;
  h+=`<div class="mw-btns"><button type="button" class="btn" data-mw="ok">Rendre les clés</button><button type="button" class="btn ghost" data-mw="back">Retour</button></div>`;
@@ -478,30 +482,33 @@ function etagere(zid){
  show('Étagère de pièces',h,fn,{keep:true,wide:true});}
 function etabli(zid){
  const e=emp(),has=Object.keys(J().outils).filter(k=>J().outils[k]),prov=e&&e.zone!=='garage1'&&!aSonCompte(e);
- const nu=inv().filter(it=>it.k==='usagee').length;
+ const nu=inv().filter(it=>it.k==='usagee'&&!rendBloq(it)).length;
  let h=`<p>Établi de ${esc(MW.zone(zid).nom)}.</p><p><b>Votre caisse à outils :</b><br>${has.map(k=>esc(OUTILS[k].nom)).join('<br>')}${prov?'<br><span class="hint">L\'atelier fournit aussi la clé dynamométrique et la valise de diagnostic.</span>':''}</p>`;
  h+=`<div class="mw-btns">${btn('bac','Jeter les pièces usagées au bac ('+nu+')','ghost',!nu)}${btn('carnet','Ouvrir le carnet','ghost')}</div>`;
- show('Établi',h,a=>{if(a==='bac'){for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee') inv().splice(i,1);invUI();MW.toast('Pièces usagées jetées.','info');etabli(zid);}else if(a==='carnet') carnet();});}
+ if(typeof MWO!=='undefined') h+=MWO.etabliHTML();
+ show('Établi',h,a=>{if(a==='bac'){for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&!rendBloq(inv()[i])) inv().splice(i,1);invUI();MW.toast('Pièces usagées jetées.','info');etabli(zid);}else if(a==='carnet') carnet();else if(a.startsWith('occ:')&&typeof MWO!=='undefined'){MWO.act(a.slice(4));if(MW.S) etabli(zid);}},{keep:true,wide:true});}
 let shopTab='pieces';
-const scrapV=it=>Math.max(1,Math.round(PARTS[it.id].prix*.12));
+const scrapV=it=>typeof MWO!=='undefined'?MWO.scrap(it):Math.max(1,Math.round(PARTS[it.id].prix*.12));
+const rendBloq=it=>!!(it.rend&&J().cars.some(c=>c.id===it.job));
 function shop(keep){
  const money=MW.S.money;let h=`<div class="mw-btns">${btn('tab:pieces','Pièces',shopTab==='pieces'?'':'ghost')}${btn('tab:outils','Outils',shopTab==='outils'?'':'ghost')}${btn('tab:ferraille','Ferraille',shopTab==='ferraille'?'':'ghost')}${typeof MWN!=='undefined'&&MWN.shopHTML?btn('tab:noir','Matériel du noir',shopTab==='noir'?'':'ghost'):''}</div><p class="hint">Vous avez ${fmt(money)} · inventaire ${inv().length}/${INV_MAX}. Pièces avancées pour un client : remboursées à la facture.</p>`;
  if(shopTab==='pieces') h+=PLIST.map(p=>`<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b><span class="mw-tag">${fmt(p.prix)}</span></div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv}</small><div class="mw-btns">${btn('buy:'+p.id,'Acheter','',money<p.prix)}</div></div>`).join('');
  else if(shopTab==='outils') h+=Object.keys(OUTILS).filter(k=>OUTILS[k].prix).map(k=>{const o=OUTILS[k],has=J().outils[k];return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(o.nom)}</b><span class="mw-tag${has?' ok':''}">${has?'Acheté':fmt(o.prix)}</span></div><small>${k==='cle_dyn'?'Pour la distribution, les amortisseurs et l\'embrayage.':'Pour lire les codes défaut (électricité niveau 2).'}</small><div class="mw-btns">${btn('tool:'+k,'Acheter','',!!has||money<o.prix)}</div></div>`;}).join('');
  else if(shopTab==='noir'&&typeof MWN!=='undefined') h+=MWN.shopHTML(); /* noir */
  else{const us=inv().map((it,i)=>({it,i})).filter(x=>x.it.k==='usagee');
-  h+=us.length?us.map(x=>`<div class="mw-prt"><div class="mw-prt-h"><b>${esc(PARTS[x.it.id].nom)}</b><span class="mw-tag">${fmt(scrapV(x.it))}</span></div><div class="mw-btns">${btn('sell:'+x.i,'Vendre à la ferraille')}</div></div>`).join('')+`<div class="mw-btns">${btn('sellall','Tout vendre ('+fmt(us.reduce((a,x)=>a+scrapV(x.it),0))+')')}</div>`:'<p>Aucune pièce usagée à revendre. Les pièces déposées sur les voitures finissent ici.</p>';}
+  const ok=us.filter(x=>!rendBloq(x.it));h+=`<p class="hint">Ferraille au poids, consigne des pièces d'échange standard, plomb des batteries. Huile, filtres en papier et pneus partent au recyclage sans rien rapporter. Pour mieux vendre une pièce encore bonne : mettez-la en vente d'occasion depuis l'établi.</p>`;
+  h+=us.length?us.map(x=>{const bl=rendBloq(x.it);return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(PARTS[x.it.id].nom)}</b><span class="mw-tag${bl?' warn':''}">${bl?'À rendre au client':fmt(scrapV(x.it))}</span></div>${typeof MWO!=='undefined'?`<small>${esc(MWO.scrapLbl(x.it))}</small>`:''}<div class="mw-btns">${btn('sell:'+x.i,scrapV(x.it)?'Vendre à la ferraille':'Déposer au recyclage','',bl)}</div></div>`;}).join('')+`<div class="mw-btns">${btn('sellall','Tout vendre ('+fmt(ok.reduce((a,x)=>a+scrapV(x.it),0))+')','',!ok.length)}</div>`:'<p>Aucune pièce usagée à revendre. Les pièces déposées sur les voitures finissent ici.</p>';}
  show('Pièces Auto Express',h,a=>{const [k,id]=a.split(':');
   if(k==='tab'){shopTab=id;}
   else if(k==='noir'&&typeof MWN!=='undefined'){MWN.shopAct(id);}
   else if(k==='buy'){const p=PARTS[id];if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else if(MW.S.money<p.prix) MW.toast("Pas assez d'argent.",'warn');else{invAdd({k:'neuve',id,src:'achat',paye:p.prix});MW.money(-p.prix,p.nom);}}
   else if(k==='tool'){const o=OUTILS[id];if(MW.S.money>=o.prix&&!J().outils[id]){J().outils[id]=1;MW.money(-o.prix,o.nom);}else MW.toast("Pas assez d'argent.",'warn');}
-  else if(k==='sell'){const i=+id,it=inv()[i];if(it&&it.k==='usagee'){const v=scrapV(it);invDel(i);MW.money(v,'Ferraille : '+PARTS[it.id].nom);}}
-  else if(k==='sellall'){let t=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'){t+=scrapV(inv()[i]);inv().splice(i,1);}invUI();if(t) MW.money(t,'Ferraille');}
+  else if(k==='sell'){const i=+id,it=inv()[i];if(it&&it.k==='usagee'&&!rendBloq(it)){const v=scrapV(it);invDel(i);if(v) MW.money(v,'Ferraille : '+PARTS[it.id].nom);else MW.toast(PARTS[it.id].nom+' : déposé(e) au recyclage.','info');}}
+  else if(k==='sellall'){let t=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&!rendBloq(inv()[i])){t+=scrapV(inv()[i]);inv().splice(i,1);}invUI();if(t) MW.money(t,'Ferraille');}
   shop(true);},{keep:true,wide:true});}
 function itemPanel(i){
  const it=inv()[i];if(!it) return;const p=PARTS[it.id];
- const d=it.k==='neuve'?`Pièce neuve${it.src==='achat'?' achetée ('+fmt(it.paye||0)+')':' prise à l\'étagère de l\'atelier'}.`:`Pièce usagée déposée (usure ${it.u} %).`;
+ const d=it.k==='neuve'?`Pièce neuve${it.src==='achat'?' achetée ('+fmt(it.paye||0)+')':' prise à l\'étagère de l\'atelier'}.`:`Pièce usagée${it.ren?' remise en état':''} déposée${it.car?' sur une '+it.car:''} (usure ${it.u} %).${rendBloq(it)?' Le client veut la récupérer : gardez-la jusqu\'au rendu de sa voiture.':''}${typeof MWO!=='undefined'?' '+MWO.valTxt(it):''}`;
  show(p.nom,`<p>${esc(d)}</p><p class="hint">${esc(SK_NOM[p.comp])} niveau ${p.niv} · ${p.mo} min de main-d'œuvre. Elle se monte depuis la voiture concernée.</p><div class="mw-btns">${btn('jeter','Jeter','ghost')}<button type="button" class="btn" data-mw="close">Fermer</button></div>`,a=>{if(a==='jeter'){invDel(i);MW.closePanel();}});}
 
 /* ── carnet ── */
@@ -510,12 +517,13 @@ function carnet(){
  let h=`<h3 class="mw-h3">Ordres en cours</h3>`;
  if(!j.cars.length) h+=`<p>${e?'Aucun client pour le moment. Les voitures arrivent de 8 h à 19 h.':'Vous n\'êtes employé nulle part : pas de clients.'}</p>`;
  for(const c of j.cars){const pr=c.ordre.length?c.ordre.filter(id=>c.done[id]).length+'/'+c.ordre.length:(c.symp&&c.done[c.symp.c]?'réparé':'à diagnostiquer'),late=openT()>c.promis;
-  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${c.noir?'Cour (noir)':'Pont '+(c.pont+1)} · ${esc(voit(c))}</b><span class="mw-tag${late?' warn':''}">${esc(pr)}</span></div><small>${esc(c.client)} · ${esc(c.plaque)} · ${esc(c.an?c.an+' · ':'')}${nf(c.km)} km</small><div>${esc(demande(c))}</div>${c.codes?`<small>Valise : ${c.codes.map(esc).join(' ; ')}</small>`:''}${c.clues.length?`<small>Indices : ${c.clues.map(esc).join(' ')}</small>`:''}<small>${late?'En retard sur la promesse faite au client.':'Promis dans environ '+nf(Math.max(0,c.promis-openT()))+' min de travail.'}</small></div>`;}
+  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${c.noir?'Cour (noir)':'Pont '+(c.pont+1)} · ${esc(voit(c))}</b><span class="mw-tag${late?' warn':''}">${esc(pr)}</span></div><small>${esc(c.client)} · ${esc(c.plaque)} · ${esc(c.an?c.an+' · ':'')}${nf(c.km)} km</small><div>${esc(demande(c))}</div>${c.rend&&!c.noir?'<small>Le client veut récupérer ses anciennes pièces.</small>':''}${c.codes?`<small>Valise : ${c.codes.map(esc).join(' ; ')}</small>`:''}${c.clues.length?`<small>Indices : ${c.clues.map(esc).join(' ')}</small>`:''}<small>${late?'En retard sur la promesse faite au client.':'Promis dans environ '+nf(Math.max(0,c.promis-openT()))+' min de travail.'}</small></div>`;}
  h+=`<h3 class="mw-h3">Inventaire (${inv().length}/${INV_MAX})</h3>`;
  h+=inv().length?`<div class="mw-chips">${inv().map((it,i)=>`<button type="button" class="mw-tag ${it.k==='neuve'?'ok':'warn'}" data-mw="item:${i}">${esc(PARTS[it.id].nom)} (${it.k==='neuve'?'neuf':'usagé'})</button>`).join('')}</div>`:'<p>Vide.</p>';
  h+=`<h3 class="mw-h3">Outils</h3><p>${Object.keys(j.outils).filter(k=>j.outils[k]).map(k=>esc(OUTILS[k].nom)).join(' · ')}</p>`;
  h+=`<h3 class="mw-h3">Expérience</h3><div class="mw-chips">${SKILLS.map(k=>`<span class="mw-tag">${SK_NOM[k]} ${lv(k)}</span>`).join('')}</div>`;
  h+=`<h3 class="mw-h3">Bilan</h3><p>${j.stats.rendues} voiture(s) rendue(s)${j.stats.rendues?' · note moyenne '+nf(j.stats.note/j.stats.rendues,1)+' / 5':''} · réputation ${nf(s.rep||0,1)} / 100 · gains ${fmt(j.stats.gain)}</p>`;
+ if(typeof MWO!=='undefined') h+=MWO.carnetHTML();
  if(typeof MWN!=='undefined'&&MWN.carnetHTML) h+=MWN.carnetHTML(); /* noir : section « Travail au noir » */
  if(j.hist.length) h+=`<small>${j.hist.slice(0,5).map(x=>`Jour ${x.jour} : ${esc(x.voiture)} · ${stars(x.note)} · ${fmt(x.pay)}`).join('<br>')}</small>`;
  show('Carnet',h,a=>{const [k,id]=a.split(':');if(k==='item') itemPanel(+id);else if(k==='noir'&&typeof MWN!=='undefined') MWN.act(id);},{wide:true});}
@@ -529,7 +537,7 @@ function ensureBar(){
 function invUI(){
  const b=ensureBar();if(!b||!MW.S) return;let h='';const a=inv();
  for(let i=0;i<INV_MAX;i++){const it=a[i];
-  if(it){const p=PARTS[it.id];h+=`<button type="button" class="mw-slot ${it.k}" data-i="${i}" title="${esc(p.nom+(it.k==='neuve'?' (neuf)':' (usagé)'))}"><b>${esc(p.ab)}</b><i>${it.k==='neuve'?'neuf':'usé'}</i></button>`;}
+  if(it){const p=PARTS[it.id];h+=`<button type="button" class="mw-slot ${it.k}" data-i="${i}" title="${esc(p.nom+(it.k==='neuve'?' (neuf)':' (usagé)'))}"><b>${esc(p.ab)}</b><i>${it.k==='neuve'?'neuf':rendBloq(it)?'client':it.ren?'rénové':'usé'}</i></button>`;}
   else h+='<span class="mw-slot vide"></span>';}
  b.innerHTML=h;}
 function hudJobs(){
@@ -594,7 +602,7 @@ regPoints();
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),rendBloq,etabli,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();
