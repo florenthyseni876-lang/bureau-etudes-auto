@@ -566,6 +566,7 @@ function track(){
 /* ═══════════ 9. Moteur réel dans la baie ═══════════ */
 const ECACHE={};let engBuilt=0;
 const SKIP_PART=/Ligne d'échappement|Catalyseur|Huile moteur|Filtre à huile|Sonde lambda/;
+const SEPK=[[/^Alternateur/,'alternator'],[/^Démarreur/,'starter'],[/^Courroie d'accessoires/,'belt'],[/Carter de distribution/,'timingCover'],[/^Bobines|préchauffage/,'coils'],[/injecteurs|^Injecteur|Rampe/,'inj']];
 /* construit (ou réutilise) la géométrie du moteur du jeu pour ce moteur : fusionnée par matériau, en mm, centrée */
 function engineParts(car){
  const e=car.eng;let c=ECACHE[e.id];if(c){c.refs++;return c;}
@@ -580,10 +581,17 @@ function engineParts(car){
  }finally{for(const k in S) if(!(k in snap)) delete S[k];Object.assign(S,snap);M.E=keepE;M.C=keepC;E3=keepE3;ui.sel=keepSel;ui.eview=keepView;}
  const anchors={},names=[[/^Alternateur/,'alternator'],[/Bouchon de remplissage/,'oilCap'],[/Bobines|préchauffage|Allumeur/,'coils'],[/Carter de distribution/,'timing'],[/Collecteur d'admission/,'intake'],[/Turbocompresseur/,'turbo'],
   [/^Démarreur/,'starter'],[/Carter d'huile/,'oilPan'],[/^Courroie d'accessoires/,'belt'],[/Couvre-culasse/,'valveCover']];
- let cover=null,plenum=null;
+ let cover=null,plenum=null;const sep={},coilPts=[];
  for(const p of parts){
   if(SKIP_PART.test(p.name)){for(const me of p.meshes) me.userData.skip=true;continue;}
   for(const [re,k] of names) if(re.test(p.name)&&p.pin&&!anchors[k]) anchors[k]=root.localToWorld(p.pin.clone());
+  /* [MWG] pièces mobiles : maillages mis à part (js/46 les dépose réellement) ; les bobines / bougies de préchauffage ne donnent que leurs positions */
+  {const sk=SEPK.find(a=>a[0].test(p.name));
+   if(sk){const L=sep[sk[1]]||(sep[sk[1]]=[]);
+    for(const me of p.meshes){if(!me.isMesh) continue;me.userData.skip=true;
+     if(sk[1]==='coils'){const gp=me.geometry.parameters;if(gp&&gp.radiusTop!=null&&(gp.radiusTop===13||gp.radiusTop===6)) coilPts.push({p:me.getWorldPosition(new T.Vector3()),a:new T.Vector3(0,1,0).applyQuaternion(me.getWorldQuaternion(new T.Quaternion())),r:gp.radiusTop,h:gp.height});continue;}
+     const gg=me.geometry.clone();gg.applyMatrix4(me.matrixWorld);const m=me.material;L.push({g:gg,color:m.color.getHex(),rough:m.roughness,metal:m.metalness});}
+    continue;}}
   if(/Couvre-culasse/.test(p.name)){const b=new T.Box3();for(const me of p.meshes) b.expandByObject(me);cover=cover?cover.union(b):b;}
   if(/Collecteur d'admission/.test(p.name)){const b=new T.Box3();for(const me of p.meshes) b.expandByObject(me);plenum=plenum?plenum.union(b):b;}}
  const bk=new Map();
@@ -594,8 +602,8 @@ function engineParts(car){
  const buckets=[],bb=new T.Box3();
  for(const b of bk.values()){const g=merge(b.list);g.computeBoundingBox();bb.union(g.boundingBox);buckets.push({g,color:b.color,rough:Math.max(.42,b.rough||.6),metal:Math.min(.32,b.metal||0)});}
  root.traverse(o=>{if(o.geometry) o.geometry.dispose();});
- c=ECACHE[e.id]={buckets,bb,anchors,cover,plenum,refs:1,n:car.eng.n,lay:car.eng.lay};engBuilt++;return c;}
-function engineRelease(id){const c=ECACHE[id];if(!c) return;if(--c.refs>0) return;for(const b of c.buckets) b.g.dispose();delete ECACHE[id];}
+ c=ECACHE[e.id]={buckets,bb,anchors,cover,plenum,refs:1,n:car.eng.n,lay:car.eng.lay,sep,coilPts};engBuilt++;return c;}
+function engineRelease(id){const c=ECACHE[id];if(!c) return;if(--c.refs>0) return;for(const b of c.buckets) b.g.dispose();for(const k in c.sep) for(const b of c.sep[k]) b.g.dispose();delete ECACHE[id];}
 const EMAT=new Map();
 const emat=b=>{const k=b.color+'|'+b.rough+'|'+b.metal;let m=EMAT.get(k);if(!m){m=new T.MeshStandardMaterial({color:new T.Color(b.color).multiplyScalar(1.7),roughness:Math.max(.5,b.rough),metalness:Math.min(.2,b.metal)});EMAT.set(k,m);}return m;};
 const BAYM={
@@ -626,6 +634,7 @@ function engineMesh(car,o){
  const hw=G.hw,front=!G.rearLid,lidLo=G.lidLo,lidHi=G.lidHi,gc=G.gc;
  const ud={anchors:{},fit:null,eng:null,dispose:null};g.userData=ud;
  const acc={};const add=(k,geo)=>{(acc[k]||(acc[k]=[])).push(geo);};
+ const PT={},pt=(n,k,geo)=>{(PT[n]||(PT[n]=[])).push([k,geo]);}; /* [MWG] pièces amovibles : maillages à part (js/46) */
  const th=car.ev?PI:car.loc==='front'?(car.ori==='T'?PI:PI/2):car.loc==='rear'?-PI/2:(car.ori==='T'?PI:PI/2);
  const fw=V3(Math.cos(th),0,-Math.sin(th)),trans=Math.abs(fw.x)>.5;
  let eg=null,bb=new T.Box3(),parts=null;
@@ -637,6 +646,7 @@ function engineMesh(car,o){
  if(!car.ev){
   parts=engineParts(car);ud.eng=parts;eg=new T.Group();eg.rotation.y=th;
   for(const b of parts.buckets) eg.add(mesh(b.g,emat(b)));
+  for(const k in parts.sep){if(k==='coils') continue;const sg=new T.Group();sg.name='sp_'+k;for(const b of parts.sep[k]) sg.add(mesh(b.g,emat(b)));eg.add(sg);}
   eg.scale.setScalar(.001);eg.updateMatrixWorld(true);bb.setFromObject(eg);
   const sz=bb.getSize(V3(0,0,0)),sx=sz.x,sy=sz.y,sz2=sz.z;
   const f=Math.max(.55,Math.min(1,availX/sx,availY/sy,availZ/sz2));
@@ -654,8 +664,8 @@ function engineMesh(car,o){
  const lx=hw-.4,zF=lidHi-.12;
  /* boîte de vitesses */
  if(!car.ev){
-  if(trans){const gx=(fw.x>0?bb.max.x:bb.min.x)+fw.x*gbL/2;add('alu',bxg(gbL,.36,Math.min(bs.z*1.02,.44),gx,bc.y-.02,bc.z));add('alu',cyx(.17,.12,20,(fw.x>0?bb.max.x:bb.min.x)+fw.x*.04,bc.y-.02,bc.z));}
-  else{const gz=(fw.z>0?bb.max.z:bb.min.z)+fw.z*.17;add('alu',bxg(.34,.34,.34,bc.x,bc.y-.04,gz));add('alu',cyz(.17,.1,20,bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z)+fw.z*.04));}}
+  if(trans){const gx=(fw.x>0?bb.max.x:bb.min.x)+fw.x*gbL/2;pt('gearbox','alu',bxg(gbL,.36,Math.min(bs.z*1.02,.44),gx,bc.y-.02,bc.z));pt('gearbox','alu',cyx(.17,.12,20,(fw.x>0?bb.max.x:bb.min.x)+fw.x*.04,bc.y-.02,bc.z));ud.gear={c:V3(gx,bc.y-.02,bc.z),ax:V3(fw.x>0?1:-1,0,0),L:gbL,e:V3((fw.x>0?bb.max.x:bb.min.x),bc.y-.02,bc.z)};}
+  else{const gz=(fw.z>0?bb.max.z:bb.min.z)+fw.z*.17;pt('gearbox','alu',bxg(.34,.34,.34,bc.x,bc.y-.04,gz));pt('gearbox','alu',cyz(.17,.1,20,bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z)+fw.z*.04));ud.gear={c:V3(bc.x,bc.y-.04,gz),ax:V3(0,0,fw.z>0?1:-1),L:.34,e:V3(bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z))};}}
  /* plancher, tablier, traverse, charnières */
  add('floor',bxg(2*(hw-.12),.02,lidHi-lidLo,0,gc+.06,(lidLo+lidHi)/2));
  add('floor',bxg(2*(hw-.1),Math.max(.2,minTop-gc),.03,0,gc+(minTop-gc)/2,lidLo+.012));
@@ -672,17 +682,17 @@ function engineMesh(car,o){
  const sx2=bb.max.x+.1,sx1=bb.min.x-.1;
  const bx=Math.min(hw-.3,Math.max(sx2+.1,lx*.8)),ax=-Math.min(hw-.3,Math.max(-sx1+.1,lx*.8));
  const batZ=front?zF-.2:(lidLo+lidHi)/2+.2,batY=Math.max(gc+.16,front?.58:gc+.2);
- add('plas',bxg(.24,.18,.17,bx,batY,batZ));add('red',cyg(.014,.014,.025,8,bx-.08,batY+.1,batZ-.04));add('blk',cyg(.014,.014,.025,8,bx+.08,batY+.1,batZ-.04));
- add('grey',bxg(.26,.012,.03,bx,batY+.09,batZ));
+ pt('battery','plas',bxg(.24,.18,.17,bx,batY,batZ));pt('battery','red',cyg(.014,.014,.025,8,bx-.08,batY+.1,batZ-.04));pt('battery','blk',cyg(.014,.014,.025,8,bx+.08,batY+.1,batZ-.04));
+ pt('battery','grey',bxg(.26,.012,.03,bx,batY+.09,batZ));
  const abZ=front?zF-.22:(lidLo+lidHi)/2-.2,abY=front?.62:gc+.25;
- if(!car.ev){add('plas',bxg(.32,.17,.22,ax,abY,abZ));add('hose',tf(new T.CylinderGeometry(.045,.045,.34,12),ax+.04,abY,abZ+.22,PI/2,0,0));}
+ if(!car.ev){pt('airbox','plas',bxg(.32,.17,.22,ax,abY,abZ));pt('airbox','hose',tf(new T.CylinderGeometry(.045,.045,.34,12),ax+.04,abY,abZ+.22,PI/2,0,0));}
  if(!car.ev){const ip=parts&&parts.anchors.intake?ep(parts.anchors.intake):V3(bc.x,bb.max.y-.05,bc.z);
   const cv=new T.CatmullRomCurve3([V3(ax,abY+.02,abZ-.1),V3((ax+ip.x)/2,abY+.08,abZ-.1),V3(ip.x,Math.min(ip.y,minTop-.08),ip.z)]);add('hose',new T.TubeGeometry(cv,12,.032,8,false));}
  const vz=front?lidLo+.14:(lidLo+lidHi)/2,vx=front?Math.min(hw-.45,Math.max(.25,bb.max.x*.0+.3)):-.4;
- add('tank',bxg(.17,.17,.12,vx,minTop-.17,vz));add('capY',cyg(.03,.03,.025,12,vx,minTop-.065,vz));
+ pt('coolant','tank',bxg(.17,.17,.12,vx,minTop-.17,vz));pt('coolant','capY',cyg(.03,.03,.025,12,vx,minTop-.065,vz));
  add('hose',new T.TubeGeometry(new T.CatmullRomCurve3([V3(vx,minTop-.24,vz),V3(vx*.6,gc+.5,vz+.15),V3(bc.x*.5,bc.y+.1,bc.z)]),10,.012,6,false));
- const wz=front?zF-.02:(lidLo+lidHi)/2-.05;add('tank',bxg(.14,.2,.16,-(hw-.34),front?.5:gc+.2,wz));add('capB',cyg(.028,.028,.03,12,-(hw-.34),(front?.5:gc+.2)+.115,wz));
- const bfx=.36,bfy=Math.min(minTop-.1,.78);add('hose',cyz(.1,.12,18,.32,bfy-.12,lidLo+.1));add('tank',bxg(.09,.09,.07,bfx,bfy,lidLo+.1));add('capY',cyg(.02,.02,.02,10,bfx,bfy+.055,lidLo+.1));
+ const wz=front?zF-.02:(lidLo+lidHi)/2-.05;pt('washer','tank',bxg(.14,.2,.16,-(hw-.34),front?.5:gc+.2,wz));pt('washer','capB',cyg(.028,.028,.03,12,-(hw-.34),(front?.5:gc+.2)+.115,wz));
+ const bfx=.36,bfy=Math.min(minTop-.1,.78);add('hose',cyz(.1,.12,18,.32,bfy-.12,lidLo+.1));pt('brakeFluid','tank',bxg(.09,.09,.07,bfx,bfy,lidLo+.1));pt('brakeFluid','capY',cyg(.02,.02,.02,10,bfx,bfy+.055,lidLo+.1));
  /* cache-moteur et bouchons */
  let covBox=null;
  if(!car.ev&&parts){
@@ -694,8 +704,8 @@ function engineMesh(car,o){
    const pl=new T.Mesh(new T.PlaneGeometry(w*.9,d*.88),coverTex(car));pl.rotation.x=-PI/2;pl.position.set(cc.x,topY+.0085,cc.z);pl.name='cover';g.add(pl);}}
  const A=ud.anchors,setA=(k,v)=>{A[k]=v.clone();};
  const ocp=parts&&parts.anchors.oilCap?ep(parts.anchors.oilCap):V3(bc.x,bb.max.y,bc.z);
- setA('oilCap',ocp);if(!car.ev) add('capY',cyg(.034,.034,.022,14,ocp.x,ocp.y+.012,ocp.z));
- const dp=ocp.clone().add(V3(.0,-.02,front?.1:-.1));setA('dipstick',dp);if(!car.ev){add('capY',new T.TorusGeometry(.016,.006,6,12).rotateX(PI/2).translate(dp.x,dp.y+.02,dp.z));add('hose',cyg(.004,.004,.2,6,dp.x,dp.y-.08,dp.z));}
+ setA('oilCap',ocp);if(!car.ev) pt('oilCap','capY',cyg(.034,.034,.022,14,ocp.x,ocp.y+.012,ocp.z));
+ const dp=ocp.clone().add(V3(.0,-.02,front?.1:-.1));setA('dipstick',dp);if(!car.ev){pt('dipstick','capY',new T.TorusGeometry(.016,.006,6,12).rotateX(PI/2).translate(dp.x,dp.y+.02,dp.z));pt('dipstick','hose',cyg(.004,.004,.2,6,dp.x,dp.y-.08,dp.z));}
  setA('alternator',parts&&parts.anchors.alternator?ep(parts.anchors.alternator):V3(bb.min.x,bc.y,bc.z));
  setA('coils',parts&&parts.anchors.coils?ep(parts.anchors.coils):bc);setA('timing',parts&&parts.anchors.timing?ep(parts.anchors.timing):bc);
  setA('battery',V3(bx,batY,batZ));setA('airbox',V3(ax,abY,abZ));setA('coolant',V3(vx,minTop-.17,vz));setA('washer',V3(-(hw-.34),front?.5:gc+.2,wz));setA('brakeFluid',V3(bfx,bfy,lidLo+.1));
@@ -703,6 +713,8 @@ function engineMesh(car,o){
  if(front) setA('radiator',V3(0,gc+.4,lidHi-.065));
  /* regroupe par matériau */
  for(const k in acc){const m=mesh(merge(acc[k]),BAYM[k]());m.name='bay_'+k;g.add(m);}
+ ud.parts={};for(const n in PT){const gr=new T.Group();gr.name='p_'+n;for(const [k,geo] of PT[n]) gr.add(mesh(geo,BAYM[k]()));g.add(gr);ud.parts[n]=gr;}
+ ud.ep=ep;ud.th=th;ud.fw=fw;ud.bbox=bb;ud.coils=parts?(parts.coilPts||[]).map(q=>({p:ep(q.p),a:q.a.clone().applyAxisAngle(V3(0,1,0),th).normalize(),r:q.r*.001*(fit.f||1),h:q.h*.001*(fit.f||1)})):[];ud.sepKeys=parts?Object.keys(parts.sep||{}):[];ud.minTop=minTop;
  if(eg){eg.name='engine';g.add(eg);}
  /* tient-il dans la baie ? */
  const zb0=lidLo,zb1=lidHi,xb=hw-.1;
@@ -710,7 +722,7 @@ function engineMesh(car,o){
  fit.size={x:bs.x,y:bs.y,z:bs.z};
  if(!car.ev) fit.ok=bb.min.x>=-xb-.001&&bb.max.x<=xb+.001&&bb.min.y>=gc-.001&&bb.max.y<=minTop+.001&&bb.min.z>=zb0-.001&&bb.max.z<=zb1+.001;
  ud.fit=fit;
- ud.dispose=()=>{g.traverse(m=>{if(m.isMesh&&m.parent===g&&m.geometry&&m.name.indexOf('bay_')===0) m.geometry.dispose();if(m.name==='cover'&&m.geometry) m.geometry.dispose();});if(!car.ev) engineRelease(car.eng.id);if(g.parent) g.parent.remove(g);};
+ ud.dispose=()=>{for(const n in ud.parts) ud.parts[n].traverse(m=>{if(m.isMesh&&m.geometry) m.geometry.dispose();});g.traverse(m=>{if(m.isMesh&&m.parent===g&&m.geometry&&m.name.indexOf('bay_')===0) m.geometry.dispose();if(m.name==='cover'&&m.geometry) m.geometry.dispose();});if(!car.ev) engineRelease(car.eng.id);if(g.parent) g.parent.remove(g);};
  return g;}
 const bayBuilt=g=>!!(g&&g.userData&&g.userData.bay);
 

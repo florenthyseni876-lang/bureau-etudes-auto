@@ -115,6 +115,10 @@ const rnd=Math.random,rint=(a,b)=>a+Math.floor(rnd()*(b-a+1));
 const pick=a=>a[Math.floor(rnd()*a.length)];
 const R2=x=>Math.round(x*100)/100;
 const fmt=x=>MW.fmt(x);
+/* ── [MWG] points d'accroche des gestes réalistes (js/46-meca-gestes.js) ── */
+const MG=()=>typeof MWG!=='undefined'&&MWG&&MWG.on?MWG:null;
+const GM=(c,id,ph,m)=>{const g=MG();return g&&g.fin?g.rest(c,id,ph,m):m;}; /* minutes restantes à ajouter (les gestes ont déjà fait avancer l'horloge) */
+const LH=c=>{const g=MG();return g?g.lift(c):1;}; /* hauteur du pont élévateur */
 
 /* ═══════════ État ═══════════ */
 function J(){const s=MW.S;if(!s.jobs) s.jobs={};const j=s.jobs;
@@ -202,7 +206,7 @@ const ptsOf=c=>{try{if(c.mdl&&typeof MWCARS!=='undefined'&&MWCARS.get(c.mdl)) re
 function buildMesh(c){
  const z=MW.zone(c.zone);if(!z||!z.ponts||!z.ponts[c.pont]) return;const p=z.ponts[c.pont],T=MW.THREE;
  const old=RT[c.id];if(old) MW.scene.remove(old.g);
- const g=MW.carMesh({color:c.color,kind:c.kind,model:c.mdl,plate:c.plaque}),d=dimOf(c),r={g,hood:g.getObjectByName('hood'),y:.22+(c.st.lifted?1:0),ha:c.st.capot?-1:0,disc:{},mk:{}};
+ const g=MW.carMesh({color:c.color,kind:c.kind,model:c.mdl,plate:c.plaque}),d=dimOf(c),r={g,hood:g.getObjectByName('hood'),y:.22+(c.st.lifted?LH(c):0),ha:c.st.capot?-1:0,disc:{},mk:{}};
  g.position.set(p.x,r.y,p.z);g.rotation.y=p.ry;MW.scene.add(g);
  if(r.hood) r.hood.rotation.x=r.ha;
  for(const n of ['wFL','wFR','wRL','wRR']){const w=g.getObjectByName(n);if(!w) continue;
@@ -214,11 +218,11 @@ function buildMesh(c){
   for(const n of ['FL','FR','RL','RR']){const a=ud['hub'+n].position;mkr(n,Math.sign(a.x)*(d[1]/2+.05),a.y*2+.1,a.z);}}
  else{mkr('capot',0,1.15,d[0]/2-.45);mkr('cabine',d[1]/2+.05,1.0,0);mkr('dessous',0,.3,0);
  for(const [n,sx,sz] of [['FL',1,1],['FR',-1,1],['RL',1,-1],['RR',-1,-1]]) mkr(n,sx*(d[1]/2+.05),.85,sz*d[0]*.3);}
- RT[c.id]=r;applyVisual(c,true);}
+ RT[c.id]=r;applyVisual(c,true);if(MG()) MG().mesh(c);}
 function applyVisual(c,snap){
  const r=RT[c.id];if(!r) return;
- if(snap){r.y=.22+(c.st.lifted?1:0);r.ha=c.st.capot?-1:0;r.g.position.y=r.y;if(r.hood) r.hood.rotation.x=r.ha;}
- for(const n of ['FL','FR','RL','RR']){const off=n[0]==='F'?c.st.av:c.st.ar,w=r.g.getObjectByName('w'+n);if(w) w.visible=!off;if(r.disc['w'+n]) r.disc['w'+n].visible=!!off;}
+ if(snap){r.y=.22+(c.st.lifted?LH(c):0);r.ha=c.st.capot?-1:0;r.g.position.y=r.y;if(r.hood) r.hood.rotation.x=r.ha;}
+ for(const n of ['FL','FR','RL','RR']){const off=n[0]==='F'?c.st.av:c.st.ar,w=r.g.getObjectByName('w'+n);if(w&&!(MG()&&MG().ownW(c))) w.visible=!off;if(r.disc['w'+n]) r.disc['w'+n].visible=!!off;}
  if(r.mk.dessous) r.mk.dessous.visible=!!c.st.lifted;}
 function moveInteracts(c){
   const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) return;const d=dimOf(c),pt=ptsOf(c),f={x:Math.sin(p.ry),z:Math.cos(p.ry)},l={x:Math.cos(p.ry),z:-Math.sin(p.ry)};
@@ -229,7 +233,7 @@ function moveInteracts(c){
  set('FL',d[1]/2+.8,d[0]*.3);set('FR',-(d[1]/2+.8),d[0]*.3);set('RL',d[1]/2+.8,-d[0]*.3);set('RR',-(d[1]/2+.8),-d[0]*.3);}
 function animate(dt){
  for(const id in RT){const r=RT[id],c=carById(id);if(!c){continue;}
-  if(!(ess&&ess.c===c)){const ty=.22+(c.st.lifted?1:0);if(Math.abs(r.y-ty)>.002){r.y+=clamp(ty-r.y,-dt*.9,dt*.9);r.g.position.y=r.y;}}
+  if(!(ess&&ess.c===c)){const ty=.22+(c.st.lifted?LH(c):0);if(Math.abs(r.y-ty)>.002){r.y+=clamp(ty-r.y,-dt*.9,dt*.9);r.g.position.y=r.y;}}
   if(r.hood){const ta=c.st.capot?-1:0;if(Math.abs(r.ha-ta)>.002){r.ha+=clamp(ta-r.ha,-dt*2.5,dt*2.5);r.hood.rotation.x=r.ha;}}}}
 
 /* ═══════════ Accès, gestes ═══════════ */
@@ -257,12 +261,12 @@ function doInspect(c,id){
 function doDep(c,id){
  const p=PARTS[id];if(c.done[id]||c.rem[id]) return false;if(!gesteOK(c,p)) return false;
  if(inv().length>=INV_MAX) return warn('Inventaire plein : jetez ou revendez des pièces usagées.');
- {const m=Math.max(4,Math.round(p.mo*.4));MW.addMin(m);NG(c,'dep',p,m);}c.rem[id]=1;if(!c.insp[id]){c.insp[id]=1;}
+ {const m=Math.max(4,Math.round(p.mo*.4));MW.addMin(GM(c,id,'dep',m));NG(c,'dep',p,m);}c.rem[id]=1;if(!c.insp[id]){c.insp[id]=1;}
  invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id});MW.toast(`${pn(c,p)} déposé(e) : rangé(e) dans l'inventaire.`,'info');return true;}
 function doPose(c,id){
  const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
  const i=invFind('neuve',id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express.`);
- const it=inv()[i];invDel(i);{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(m);NG(c,'pose',p,m);}
+ const it=inv()[i];invDel(i);{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(GM(c,id,'pose',m));NG(c,'pose',p,m);}
  if(it.src==='achat') c.avance=R2(c.avance+(it.paye||0));
  delete c.rem[id];c.done[id]=1;c.parts[id].u=0;MW.toast(id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'?`${pn(c,p)} : ${nf(MWCARS.oilL(c.mdl),2)} l versés, niveau au repère maxi.`:`${pn(c,p)} : monté(e).`,'good');MW.emit('partFitted',c,id);return true;}
 function doRem(c,id){
@@ -344,7 +348,8 @@ function quote(ids,kind,taux,extraMin){
 /* ═══════════ Évaluation et rendu ═══════════ */
 function blocage(c){
  const l=[];if(c.st.capot) l.push('le capot est ouvert');if(c.st.av||c.st.ar) l.push('des roues sont déposées');if(c.st.lifted) l.push('le pont est levé');
- const r=Object.keys(c.rem);if(r.length) l.push('une pièce est démontée ('+r.map(id=>pn(c,id).toLowerCase()).join(', ')+')');return l;}
+ const r=Object.keys(c.rem);if(r.length) l.push('une pièce est démontée ('+r.map(id=>pn(c,id).toLowerCase()).join(', ')+')');
+ if(MG()) l.push(...MG().blocage(c));return l;}
 function evalJob(c){
  const e=emp()||{},lines=[],comp={};let pieces=0,mo=0;const need=[],extra=[],inut=[];
  for(const id in c.done){const p=PARTS[id],ord=c.ordre.includes(id),cul=c.symp&&c.symp.c===id,usee=c.parts[id].u0>=SEUIL;
@@ -355,7 +360,7 @@ function evalJob(c){
  let diag=0;if(c.symp&&!nonResolu){diag=15;mo+=15;comp.diagnostic=(comp.diagnostic||0)+c.symp.dn*15;}
  for(const k in c.comp) comp[k]=(comp[k]||0)+c.comp[k];
  const late=Math.max(0,openT()-c.promis),retard=Math.min(2,Math.floor(late/30)*.5);
- let n=5-manque.length*1.5-Math.min(3,inut.length)-retard;if(nonResolu) n=1;
+ let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-(MG()?MG().malus(c):0);if(nonResolu) n=1;
  const note=Math.round(clamp(n,1,5)),mult=note>=4?1:note===3?.8:.5;
  for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
  if(nonResolu){pieces=0;mo=0;lines.length=0;}
@@ -421,7 +426,8 @@ function openPoint(cid,kind,keep){
   h+=`<div class="mw-btns">${btn('valise','Valise de diagnostic','ghost')}${btn('essai','Essai sur route','ghost')}${btn('rendre','Rendre la voiture','')}</div>`;
   if(c.codes) h+=`<p><b>Valise :</b><br>${c.codes.map(esc).join('<br>')}</p>`;
   if(c.clues.length) h+=`<p><b>Indices relevés :</b><br>${c.clues.map(esc).join('<br>')}</p>`;}
- const l=PLIST.filter(p=>!(c.parts[p.id]&&c.parts[p.id].na)).filter(p=>kind==='capot'?p.zone==='capot':kind==='dessous'?p.zone==='dessous':kind==='cabine'?p.zone==='cabine':(p.zone==='roue'&&(p.ax==='*'||p.ax===ax)));
+
+ const l=(kind==='cabine'&&MG()&&MG().on(true))?[]:PLIST.filter(p=>!(c.parts[p.id]&&c.parts[p.id].na)).filter(p=>kind==='capot'?p.zone==='capot':kind==='dessous'?p.zone==='dessous':kind==='cabine'?p.zone==='cabine':(p.zone==='roue'&&(p.ax==='*'||p.ax===ax)));
  h+=l.map(p=>rowHTML(c,p)).join('');
  show(`${PT_NOM[kind]} · ${voit(c)}`,h,a=>pointAct(cid,kind,a),{keep});}
 function pointAct(cid,kind,a){
@@ -442,6 +448,7 @@ function rendreUI(c){
  if(ev.manque.length) w.push('Travaux demandés non faits : '+ev.manque.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.inut.length) w.push('Pièces remplacées pour rien (non facturées) : '+ev.inut.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.retard) w.push('Voiture rendue en retard.');
+ if(MG()&&MG().malus(c)) w.push(MG().malusTxt(c));
  if(w.length) h+=`<p class="mw-soon">${w.map(esc).join('<br>')}</p>`;
  h+=`<div class="mw-btns"><button type="button" class="btn" data-mw="ok">Rendre les clés</button><button type="button" class="btn ghost" data-mw="back">Retour</button></div>`;
  show('Rendre la voiture',h,a=>{
@@ -539,7 +546,7 @@ function regPoints(only){ /* noir : `only` = une zone sans pont élévateur (cou
    for(const k of ['capot','cabine','dessous','FL','FR','RL','RR']){
     const id='mj:'+z.id+':'+i+':'+k,o=MW.addInteract({id,x:p.x,z:p.z,r:1.25,
      label:()=>{const c=carAt(z.id,i);return c?`${PT_NOM[k]} · ${voit(c)}`:'';},
-     when:()=>{if(ess) return false;const c=carAt(z.id,i);return !!c&&(k!=='dessous'||!!c.st.lifted);},
+     when:()=>{if(ess||MG()&&MG().on(true)) return false;const c=carAt(z.id,i);return !!c&&(k!=='dessous'||!!c.st.lifted);},
      use:()=>{const c=carAt(z.id,i);if(c) openPoint(c.id,k);}});
     PTS[z.id+':'+i+':'+k]=o;}});
   if(!z.etagere||only) continue;
@@ -582,7 +589,9 @@ MW.addButton('carnet','Carnet (Tab)',()=>{if(MW.S) carnet();});
 MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
-const api={modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
+const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
+ L:{doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
+ modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
  state:()=>J(),act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;

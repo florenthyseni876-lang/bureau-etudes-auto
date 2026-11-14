@@ -439,7 +439,7 @@ function toggleCar(){
  else api.toast('Votre voiture est trop loin.','info');}
 api.player=()=>({x:P.x,z:P.z,ry:P.ry,inCar:P.inCar,zone:zoneCur?zoneCur.id:null,zoneObj:zoneCur,pitch:P.pitch});
 api.playerCar=()=>({mesh:carObj,x:S.car.x,z:S.car.z,ry:S.car.ry,speed:car.v});
-api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;}};
+api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;/* [MWG] pitch facultatif */if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;}};
 api.setMarker=(t,label)=>{if(!S) return;S.marker=t;S.markerLabel=label||null;placeBeacon();};
 function markerPos(){const m=S&&S.marker;if(!m) return null;if(typeof m==='string'){const z=zById[m];return z?{x:z.porte.x,z:z.porte.z}:null;}return typeof m.x==='number'?m:null;}
 function placeBeacon(){if(!beacon) return;const p=markerPos();beacon.visible=!!p;if(p){beacon.position.x=p.x;beacon.position.z=p.z;}}
@@ -548,7 +548,7 @@ function frame(t){
  // caméra
  if(P.inCar){const fx=Math.sin(S.car.ry),fz=Math.cos(S.car.ry),tx=S.car.x-fx*7.5,tz=S.car.z-fz*7.5,k=camInit?1-Math.exp(-7*dt):1;
   camPos.x+=(tx-camPos.x)*k;camPos.y=3.4;camPos.z+=(tz-camPos.z)*k;camInit=true;cam.position.copy(camPos);cam.lookAt(S.car.x+fx*5,1.3,S.car.z+fz*5);}
- else{camInit=false;cam.position.set(P.x,1.7,P.z);cam.rotation.set(P.pitch,P.ry+PI,0);}
+ else{camInit=false;cam.position.set(P.x,api.eyeY||1.7,P.z);cam.rotation.set(P.pitch,P.ry+PI,0);/* [MWG] hauteur des yeux */}
  if(decorOn){try{api.decor.frame(dt,t,(S.min+acc)/60);}catch(e){console.error(e);decorOn=false;}}else updateSky();
  if(beacon&&beacon.visible) beacon.material.opacity=.2+.12*Math.sin(t/300);
  // HUD

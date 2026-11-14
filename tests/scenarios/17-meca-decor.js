@@ -33,8 +33,10 @@ module.exports = async function mecaDecor(page, env) {
   verifier(/Qualité graphique/.test(l0), `l'option « Qualité graphique » est absente du menu pause (${l0})`);
   const vus = new Set([l0.replace(/ \(auto\)/, '')]);
   for (let i = 0; i < 3; i++) {
+    // sous forte charge, le menu se referme puis se rouvre : on attend qu'il soit de nouveau là
+    await attendreVisible(page, '.mw-pn [data-mw="quality"]', 'bouton de qualité absent', 20000);
     await cliquer(page, '.mw-pn [data-mw="quality"]', 'bouton de qualité absent');
-    await attendre(200);
+    await attendreCondition(page, () => !!document.querySelector('.mw-pn [data-mw="quality"]'), 'le menu pause ne revient pas', 20000);
     vus.add((await lib()).replace(/ \(auto\)/, ''));
   }
   verifier(vus.size === 3, `le bouton ne parcourt pas les trois niveaux (${[...vus].join(' / ')})`);

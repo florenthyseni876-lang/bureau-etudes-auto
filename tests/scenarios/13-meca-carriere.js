@@ -10,6 +10,7 @@ module.exports = async function mecaCarriere(page, env) {
   await cliquer(page, '#hMeca');
   await attendreVisible(page, '#mwRoot', "le mode Mécanicien ne s'ouvre pas");
   await page.waitForFunction(() => window.__mw && window.__mw.S && typeof MWC !== 'undefined', null, { timeout: 15000 });
+  await page.evaluate(() => { if (typeof MWG !== 'undefined') MWG.set({ classic: true }); }); // menus classiques de js/41 (gestes réalistes : scénario 16)
   await attendre(500);
 
   // se placer devant l'objet d'interaction d'une zone et appuyer sur E
