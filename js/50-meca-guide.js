@@ -10,9 +10,10 @@ const K=t=>`<kbd>${t}</kbd>`;
 const ol=a=>`<ol class="mw-gd-ol">${a.map(x=>`<li>${x}</li>`).join('')}</ol>`;
 const ul=a=>`<ul class="mw-gd-ul">${a.map(x=>`<li>${x}</li>`).join('')}</ul>`;
 const job=(titre,comp,pieces,outils,etapes,note)=>`<details class="mw-gd-j"><summary><b>${titre}</b> <small>${comp}</small></summary>
- <p><b>Pièces à prendre à l'étagère :</b> ${pieces}</p><p><b>Outils :</b> ${outils}</p>${ol(etapes)}${note?`<p class="hint">${note}</p>`:''}</details>`;
-const T={main:`Mains ${K(1)}`,cliquet:`Cliquet ${K(2)}`,filtre:`Clé à filtre ${K(3)}`,tournevis:`Tournevis ${K(4)}`,boul:`Boulonneuse ${K(5)}`,dyn:`Clé dynamométrique ${K(6)}`,
- bac:`Bac ${K(7)}`,bidon:`Bidon ${K(8)}`,ent:`Entonnoir ${K(9)}`,pinces:`Pinces ${K(0)}`,presse:'Presse (molette)',ser:'Seringue (molette)',douille:`taille de douille ${K('R')}`};
+ <p><b>Pièces à prendre à l'étagère :</b> ${pieces}</p><p><b>Outils, à prendre à la servante :</b> ${outils}</p>${ol(etapes)}${note?`<p class="hint">${note}</p>`:''}</details>`;
+/* outils : à prendre à la servante, puis en main avec la touche de leur case dans l'inventaire */
+const T={main:`Mains libres ${K('V')}`,cliquet:'<b>Cliquet</b>',filtre:'<b>Clé à filtre</b>',tournevis:'<b>Tournevis</b>',boul:'<b>Boulonneuse</b>',dyn:'<b>Clé dynamométrique</b>',
+ bac:'<b>Bac de vidange</b>',bidon:"<b>Bidon d'atelier</b>",ent:'<b>Entonnoir</b>',pinces:'<b>Pinces</b>',presse:'<b>Repousse-piston</b>',ser:"<b>Seringue d'aspiration</b>",douille:`taille de douille ${K('R')}`};
 const LEVER=`Visez la <b>commande du pont élévateur</b> (boîtier sur la colonne) et maintenez ${K('E')} : <i>Lever le pont</i>.`;
 const BAISSER=`Commande du pont, maintenir ${K('E')} : <i>Baisser le pont</i>.`;
 const CAPOT=`Visez l'avant de la voiture, maintenez ${K('E')} : <i>Ouvrir le capot</i>.`;
@@ -30,21 +31,23 @@ const CH=[
  <h4>Les touches</h4>${ul([
   `${K('Z')}${K('Q')}${K('S')}${K('D')} (ou ${K('W')}${K('A')}${K('S')}${K('D')}, ou les flèches) : marcher · ${K('Maj')} : courir · souris : regarder (cliquez dans le jeu pour la capturer).`,
   `${K('E')} : agir sur ce que vous visez. <b>Maintenez ${K('E')}</b> pour dévisser, serrer ou verser : une jauge ronde se remplit.`,
-  `${K(1)} à ${K(0)} : choisir l'outil (barre à droite) · ${K('R')} : prendre la douille demandée par ce que vous visez (sinon : douille suivante). Tant que l'aide est active, ${K('E')} prend tout seul le bon outil et la bonne douille.`,
-  `${K('Maj')} + ${K(1)} à ${K(0)} : prendre en main la pièce de l'emplacement 1 à 10 de l'inventaire (barre du bas) · ${K('X')} : pièce suivante · ${K('V')} : la ranger.`,
+  `${K(1)} à ${K(0)}, ${K(')')} et ${K('=')} : prendre en main l'objet (outil ou pièce) de la case 1 à 12 de l'inventaire · molette ou ${K('X')} : objet suivant · ${K('V')} : mains libres.`,
+  `${K('R')} : prendre la douille demandée par ce que vous visez (sinon : douille suivante). Tant que l'aide est active, ${K('E')} prend tout seul en main le bon outil… s'il est dans votre inventaire.`,
   `${K('Tab')} : carnet (ordres, inventaire, expérience) · ${K('M')} : carte · ${K('C')} : carrière · ${K('G')} : réglages des gestes · ${K('H')} : ce guide · ${K('Échap')} : pause.`])}
  <h4>Une voiture, du début à la fin</h4>${ol([
   `<b>Lisez l'ordre</b> : le client annonce le travail (bandeau à gauche et carnet ${K('Tab')}). S'il décrit un symptôme, il faut d'abord trouver la panne (niveau 2).`,
+  `<b>Prenez les outils</b> à la <b>servante</b>, le chariot rouge à côté du pont (visez-la, ${K('E')}) ou à l'établi. Vous n'avez rien dans les poches : le bouton <i>Prendre les outils de l'ordre</i> prend ceux du travail en cours. Rangez-les ensuite pour libérer de la place.`,
   `<b>Prenez les pièces neuves</b> à l'<b>étagère</b> de l'atelier (${K('E')} devant l'étagère). Le bouton <i>Prendre les pièces des ordres en cours</i> prend tout d'un coup. Sans la pièce neuve sur vous, rien ne se remonte : le bandeau du haut vous le rappelle.`,
   `<b>Travaillez</b> : visez une pièce, son nom s'affiche avec le geste possible et l'outil demandé. Le bandeau « Étape suivante » vous guide (réglable avec ${K('G')}).`,
   `<b>Rendez la voiture</b> : ${RENDRE}`])}
  <h4>L'inventaire (barre du bas)</h4>${ul([
-  `12 places. <span class="mw-gd-v">Vert</span> : pièce neuve · <span class="mw-gd-o">orange</span> : pièce usagée déposée.`,
-  `Un clic (ou ${K('Maj')}+chiffre) prend la pièce en main : c'est elle qui sera montée en priorité. Un 2e clic ouvre sa fiche (jeter, valeur).`,
+  `<b>Un seul inventaire pour tout</b> : 12 cases pour les outils et les pièces. <span class="mw-gd-v">Vert</span> : pièce neuve · <span class="mw-gd-o">orange</span> : pièce usagée · gris : outil.`,
+  `Le chiffre en haut de chaque case est sa touche. Un clic (ou la touche) prend l'objet en main : l'outil pour travailler, ou la pièce, qui sera montée en priorité. Un 2e clic ouvre sa fiche.`,
+  `Le bac de vidange et l'entonnoir quittent l'inventaire quand vous les posez, et y reviennent quand vous les reprenez.`,
   `Les pièces usagées se vendent à la ferraille ou d'occasion (établi) : voir niveau 5.`])}
  <h4>Si vous êtes bloqué</h4>${ul([
   `Visez l'élément : le message orange dit exactement ce qui manque (« Levez le pont », « Il faut une douille de 17 », « Prenez la pièce neuve »…).`,
-  `Mauvais outil ? Regardez la barre d'outils : l'outil attendu est mis en évidence. Sur un clavier AZERTY, les chiffres marchent sans ${K('Maj')}.`,
+  `Mauvais outil ? Le message dit lequel prendre et sur quelle touche il est, ou qu'il faut aller le chercher à la servante. Sur un clavier AZERTY, les chiffres marchent sans ${K('Maj')}.`,
   `Vous préférez des menus ? ${K('G')} → <i>Menus classiques</i> : chaque point de la voiture ouvre une liste de boutons (Démonter, Monter…).`])}`},
 {t:'Niveau 1 · Entretien',h:()=>`
  <p>Les premiers travaux : vidange, filtres, ampoules, essuie-glaces, batterie, pneus. Tous les travaux de niveau 1 sont confiés dès le premier jour.</p>

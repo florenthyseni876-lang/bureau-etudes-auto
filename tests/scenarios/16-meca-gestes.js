@@ -81,7 +81,7 @@ module.exports = async function mecaGestes(page, env) {
   await attendreLevage(true);
   await e(() => MWG.run('bac', 'bacon'));
   const mauvais = await e(() => { MWG.setTool('main'); return MWG.run('plug', 'pl1', { strict: true }); });
-  verifier(/Il faut .*cliquet/.test(mauvais || ''), `mauvais outil : message inattendu (${mauvais})`);
+  verifier(/(Il faut|Il vous faut|Prenez) .*cliquet/.test(mauvais || ''), `mauvais outil : message inattendu (${mauvais})`);
   const mauvaise = await e(() => { const a = MWG.acts(__mwj.jobs()[0]).find(x => x.id === 'plug' && x.key === 'pl1'); MWG.setTool('cliquet', a.sock === 8 ? 10 : 8); return MWG.run('plug', 'pl1', { strict: true }); });
   verifier(/douille de \d+/.test(mauvaise || ''), `mauvaise douille : message inattendu (${mauvaise})`);
   verifier(await e(() => __mwj.jobs()[0].g.o.plug === 2), 'un geste refusé a quand même desserré le bouchon');

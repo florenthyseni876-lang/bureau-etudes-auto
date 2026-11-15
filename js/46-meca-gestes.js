@@ -202,7 +202,11 @@ function hintUpdate(){
 
 function checkAct(a){
  if(a.why) return a.why;
- if(a.tool&&a.tool!==tool&&!(a.tool2&&a.tool2===tool)) return `Il faut ${toolName(a.tool,a.sock)} : choisissez-le dans la barre d'outils (touche ${TOOL[a.tool].key||'molette'}).`;
+ if(a.tool&&a.tool!==tool&&!(a.tool2&&a.tool2===tool)){
+  if(a.tool==='main') return "Il faut avoir les mains libres (touche V) ou tenir la pièce.";
+  const ids=[a.tool].concat(a.tool2?[a.tool2]:[]),i=ids.map(t=>MWJ.toolIdx(t)).find(x=>x>=0);
+  if(i!=null&&i>=0) return `Prenez ${toolName(MWJ.inv()[i].id,a.sock)} en main : touche ${MWJ.SLOTK[i]}.`;
+  return `Il vous faut ${toolName(a.tool,a.sock)} : allez le chercher à la servante (chariot rouge près du pont) ou à l'établi.`;}
  if(a.sock&&TOOL[tool].sock&&sock!==a.sock) return `Il faut une douille de ${a.sock} (vous avez la ${sock}) : touche R ou le bouton de douille.`;
  return null;}
 
@@ -212,8 +216,10 @@ function startAct(){
  if(!AIM||H) return;const {t,a}=AIM;
  let why=checkAct(a);
  /* aide active : le bon outil et la bonne douille sont pris automatiquement (le joueur apprend en voyant lesquels) */
- if(why&&!a.why&&aideOn()&&a.tool&&TOOL[a.tool]){const need=a.tool!==tool&&!(a.tool2&&a.tool2===tool);if(need) setTool(a.tool);if(a.sock&&TOOL[tool].sock&&sock!==a.sock) setSock(a.sock);
-  why=checkAct(a);if(!why) MW.toast(`Outil pris : ${toolName(tool,TOOL[tool].sock?sock:0)}${TOOL[a.tool].key?' (touche '+TOOL[a.tool].key+')':''}.`,'info');}
+ if(why&&!a.why&&aideOn()&&a.tool&&TOOL[a.tool]){const need=a.tool!==tool&&!(a.tool2&&a.tool2===tool);
+  if(need){if(a.tool==='main') MWJ.hands();else if(!MWJ.holdTool(a.tool)&&a.tool2) MWJ.holdTool(a.tool2);}
+  if(a.sock&&TOOL[tool].sock&&sock!==a.sock) setSock(a.sock);
+  why=checkAct(a);if(!why&&need) MW.toast(`En main : ${toolName(tool,TOOL[tool].sock?sock:0)}.`,'info');}
  if(why){warn(why);return;}
  if(a.gate&&!a.gate()) {snd('err');return;}
  if(a.hold>0||a.cont){H={t,a,p:0,sn:0,k:0};if(a.start) a.start();return;}
@@ -261,8 +267,7 @@ function toolUI(){
  const u=ensureUI();if(!u) return;
  const h=aideOn()&&HINT&&HINT.a.tool;
  const key=tool+'|'+sock+'|'+h;if(key===lastTb) return;lastTb=key;
- let s='';for(const t of TOOLS){s+=`<button type="button" class="mg-t${t.id===tool?' on':''}${h===t.id?' hint':''}" data-t="${t.id}" title="${esc(t.nom)}"><b>${t.key||'·'}</b><span>${esc(t.nom.replace('Cliquet + douille','Cliquet').replace('Clé dynamométrique','Clé dynamo.').replace('Bac de vidange','Bac').replace('Bidon de liquide','Bidon').replace('Repousse-piston / presse','Presse').replace('Seringue d\'aspiration','Seringue'))}</span></button>`;}
- s+=`<button type="button" class="mg-t sock${HINT&&HINT.a.sock&&HINT.a.sock!==sock&&aideOn()?' hint':''}" data-t="sock" title="Taille de douille (touche R)"><b>R</b><span>Douille ${sock}</span></button>`;
+ let s='';if(TOOL[tool]&&TOOL[tool].sock) s=`<button type="button" class="mg-t sock${HINT&&HINT.a.sock&&HINT.a.sock!==sock&&aideOn()?' hint':''}" data-t="sock" title="Taille de douille (touche R)"><b>R</b><span>Douille ${sock}</span></button>`;
  u.tb.innerHTML=s;}
 let lastInfo='';
 function infoUI(){
@@ -276,7 +281,8 @@ function infoUI(){
  if(h!==lastInfo){lastInfo=h;u.info.innerHTML=h;}
  u.info.hidden=!vis;
  /* aide : prochaine étape */
- let hh='';if(aideOn()&&HINT){const nm=typeof HINT.t.name==='function'?HINT.t.name():HINT.t.name;hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${HINT.a.tool?' · '+esc(toolName(HINT.a.tool,HINT.a.sock)):''}`;}
+ let hh='';if(aideOn()&&HINT){const nm=typeof HINT.t.name==='function'?HINT.t.name():HINT.t.name;const ht=HINT.a.tool,miss=ht&&ht!=='main'&&MWJ.toolIdx(ht)<0&&!(HINT.a.tool2&&MWJ.toolIdx(HINT.a.tool2)>=0);
+  hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${ht?' · '+esc(toolName(ht,HINT.a.sock)):''}${miss?' <b>(à prendre à la servante, le chariot rouge)</b>':''}`;}
  /* pièce déposée sans pièce neuve en poche : on le dit toujours, même sans l'aide (c'est l'étape qui bloque le plus souvent) */
  if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
   if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
@@ -340,6 +346,8 @@ function buildCommon(R){
  /* un manche d'outil sur le plateau, pour l'ambiance */
  cart.add(bx(.04,.03,.22,C.yel,.28,.81,.0),bx(.05,.03,.12,C.alu,-.28,.81,-.05));
  const items=grp();cart.add(items);R.fl.add(cart);R.cart=cart;R.binItems=items;
+ /* la servante se vise : on y prend et on y range les outils (ils ne sont pas dans les poches du joueur) */
+ R.add({id:'servante',o:cart,off:new T.Vector3(0,.8,0),r:.4,name:'Servante à outils',acts:()=>[{key:'srv',lab:'Prendre ou ranger des outils',ord:999,do:()=>MWJ.servante(c.zone)}]});
  R.binSig='';
  R.binSync=()=>{const b=F.bin,n=Math.min(16,Object.keys(b).reduce((s,k)=>s+b[k],0)),sig=n+'|'+JSON.stringify(b);if(sig===R.binSig) return;R.binSig=sig;
   while(items.children.length) items.remove(items.children[0]);
@@ -644,8 +652,8 @@ function buildVidange(R){
  const lw=()=>lifted()?null:'Levez le pont.',lf=()=>lifted()?null:'lift';
  /* ── bac ── */
  R.add({id:'bac',o:bacAt,off:new T.Vector3(0,.1,0),r:.35,vis:()=>lifted(),name:()=>O.bac?'Bac de vidange':'Sol sous le carter',acts:()=>[O.bac?
-  {key:'bacoff',lab:'Retirer le bac de vidange',tool:'main',ord:56,exp:wantAny(),why:O.plug===0||O.plug===1?"Le bouchon est ouvert : l'huile coule.":(O.on?"L'huile coule encore.":null),do:()=>{O.bac=0;}}
-  :{key:'bacon',lab:'Placer le bac sous le carter',tool:'bac',ord:29,exp:(wantO()&&O.drain<1)||(wantF()&&(O.filt==='on'||O.filt==='loose')),why:lw(),fix:lf(),do:()=>{O.bac=1;}}]});
+  {key:'bacoff',lab:'Retirer le bac de vidange',tool:'main',ord:56,exp:wantAny(),why:O.plug===0||O.plug===1?"Le bouchon est ouvert : l'huile coule.":(O.on?"L'huile coule encore.":(MWJ.inv().length>=MWJ.INV_MAX&&MWJ.toolIdx('bac')<0?'Inventaire plein : libérez une place pour reprendre le bac.':null)),do:()=>{O.bac=0;MWJ.toolTake('bac');}}
+  :{key:'bacon',lab:'Placer le bac sous le carter',tool:'bac',ord:29,exp:(wantO()&&O.drain<1)||(wantF()&&(O.filt==='on'||O.filt==='loose')),why:lw(),fix:lf(),do:()=>{O.bac=1;MWJ.toolPut('bac');}}]});
  /* ── bouchon de vidange ── */
  R.add({id:'plug',o:plugAt,r:.05,vis:()=>lifted(),name:()=>'Bouchon de vidange du carter',acts:()=>{
   const bacw=O.bac?null:'Placez d\'abord le bac sous le carter.',a=[];
@@ -672,14 +680,14 @@ function buildVidange(R){
  const topFix=()=>lifted()?'lower':(c.st.capot?null:'hood');
  R.add({id:'oilcap',o:capO,r:.07,vis:baySt,name:'Bouchon de remplissage d\'huile',acts:()=>[O.cap?
   {key:'co',lab:'Ouvrir le bouchon de remplissage',tool:'main',hold:.5,snd:'screw',ord:72,exp:needFill()&&O.plug===2,sub:`Moteur ${(c.mdl&&MWCARS.get(c.mdl).eng.visc)||''} · ${nf(cap,2)} l`,why:topWhy()||(O.plug!==2?"Remontez et serrez d'abord le bouchon de vidange.":(O.filt==='off'?"Remontez d'abord le filtre à huile.":null)),fix:topFix(),do:()=>{O.cap=0;}}
-  :(O.fun?{key:'cf',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;}}:{key:'cc',lab:'Refermer le bouchon de remplissage',tool:'main',hold:.5,snd:'screw',ord:76,exp:!!O.done,why:null,do:()=>{O.cap=1;}})]
-  .concat(!O.cap&&!O.fun?[{key:'fu',lab:"Placer l'entonnoir",tool:'entonnoir',ord:73,exp:needFill(),do:()=>{O.fun=1;}}]:[]).concat(O.cap&&!O.fun?[]:[])});
+  :(O.fun?{key:'cf',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;MWJ.toolTake('entonnoir');}}:{key:'cc',lab:'Refermer le bouchon de remplissage',tool:'main',hold:.5,snd:'screw',ord:76,exp:!!O.done,why:null,do:()=>{O.cap=1;}})]
+  .concat(!O.cap&&!O.fun?[{key:'fu',lab:"Placer l'entonnoir",tool:'entonnoir',ord:73,exp:needFill(),do:()=>{O.fun=1;MWJ.toolPut('entonnoir');}}]:[]).concat(O.cap&&!O.fun?[]:[])});
  R.add({id:'fun',o:fun,r:.1,vis:()=>baySt()&&!!O.fun,name:'Entonnoir',acts:()=>[{key:'pour',lab:'Verser l\'huile (maintenir E)',tool:'bidon',cont:1,snd:'pour',ord:74,exp:needFill(),sub:()=>`Moteur : ${nf(cap,2)} l · versé : ${nf(O.pour,2)} l`,
   why:!O.fun?"Placez d'abord l'entonnoir dans l'orifice de remplissage.":(O.plug!==2?'Le bouchon de vidange doit être serré avant de remplir.':null),
   start:()=>{},tick:(dt)=>{O.pour+=dt*.55;auxPour(O,cap);},prog:()=>clamp01(O.pour/cap),
   release:()=>{auxSet('');if(O.pour>=cap*.93&&!O.done){O.done=1;if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}}else if(O.pour<cap*.93) MW.toast(`Il en faut encore : ${nf(cap,2)} l au total.`,'info');
    else if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}},cancel:()=>{auxSet('');}},
-  O.fun&&{key:'fun0',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;}}].filter(Boolean)});
+  O.fun&&{key:'fun0',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;MWJ.toolTake('entonnoir');}}].filter(Boolean)});
  R.add({id:'dip',o:dipO,r:.06,vis:baySt,name:'Jauge à huile',acts:()=>[{key:'dp',lab:'Retirer et lire la jauge',tool:'main',ord:77,exp:!!O.done&&!O.dip,why:c.st.capot?null:'Ouvrez le capot.',do:()=>{O.dip=1;const lv=O.pour/cap,pos=clamp01((lv-.5)/.6);
   auxSet(`<b>Jauge à huile</b><div class="mg-dip"><i style="bottom:${Math.round(pos*100)}%"></i><span class="mx">MAXI</span><span class="mn">MINI</span></div><small>${lv<.9?'Niveau bas : complétez.':lv>1.1?'Niveau trop haut.':'Niveau correct.'}</small>`);setTimeout(()=>auxSet(''),4500);}}]});
  /* ── visuel et écoulement ── */
@@ -932,7 +940,7 @@ function tick(dt){
  if(R&&!R.bayAt&&R.g.userData.bay&&!H){const c=R.c;freeRig();buildRig(c);} /* le capot vient de s'ouvrir : cibles du moteur à leur vraie place */
  if(!R&&!pl.inCar&&!essai){let b=null,bd=5.2;for(const c of cars){const d=pontD(c);if(d<bd&&MWJ.mesh(c)){bd=d;b=c;}}if(b) buildRig(b);}
  ensureUI();if(!UI) return;
- UI.tb.hidden=!R||MW.paused;
+ UI.tb.hidden=!R||MW.paused||!(TOOL[tool]&&TOOL[tool].sock);
  if(!R){UI.info.hidden=true;UI.hold.hidden=true;UI.hint.hidden=true;return;}
  /* soulève les processus (écoulement d'huile) */
  for(const pr of R.procs) if(pr.tick) try{pr.tick(R,MW.paused?0:dt);}catch(e){console.error(e);}
@@ -997,9 +1005,10 @@ function wire(){
  const be=document.getElementById('mwBtnE');
  if(be){be.addEventListener('pointerdown',()=>{eDown=true;});for(const t of ['pointerup','pointercancel','pointerleave']) be.addEventListener(t,()=>onRelease());}
  const lk=document.getElementById('mwLook');
- if(lk) lk.addEventListener('wheel',e=>{if(!on()||!R) return;e.preventDefault();const i=TOOLS.findIndex(t=>t.id===tool);setTool(TOOLS[(i+(e.deltaY>0?1:-1)+TOOLS.length)%TOOLS.length].id);},{passive:false});
- MW.on('key',(k,e)=>{if(!on()) return;if(k==='g') settings();else if(k==='r'){const a=AIM&&AIM.a;if(a&&a.sock&&sock!==a.sock){setSock(a.sock);snd('tool');MW.toast(`Douille de ${a.sock} prise.`,'info');}else cycleSock(1);}else{if(e&&e.shiftKey) return; /* Maj + chiffre : pièce de l'inventaire */
-  const m=e&&e.code&&/^(?:Digit|Numpad)(\d)$/.exec(e.code),d=m?m[1]:k;const t=TOOLS.find(x=>x.key===d);if(t&&R) setTool(t.id);}});
+ if(lk) lk.addEventListener('wheel',e=>{if(!on()) return;e.preventDefault();MWJ.takeNext(e.deltaY>0?1:-1);},{passive:false}); /* molette : objet suivant de l'inventaire */
+ MW.on('key',(k,e)=>{if(!on()) return;if(k==='g') settings();else if(k==='r'){const a=AIM&&AIM.a;if(a&&a.sock&&sock!==a.sock){setSock(a.sock);snd('tool');MW.toast(`Douille de ${a.sock} prise.`,'info');}else cycleSock(1);MWJ.invUI();}});
+ /* l'outil en main suit l'objet choisi dans l'inventaire (un seul inventaire pour les pièces et les outils) */
+ MW.on('held',it=>{const t=it&&it.k==='outil'&&TOOL[it.id]?it.id:'main';if(t!==tool){tool=t;vmSet();snd('tool');}lastTb='';});
  MW.addButton('gestes','Gestes (G)',()=>{if(MW.S) settings();});}
 MW.on('start',()=>{wire();init();});
 MW.on('open',()=>{wire();ensureUI();});

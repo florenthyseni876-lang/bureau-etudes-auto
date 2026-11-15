@@ -2,7 +2,7 @@
 const { attendre, attendreVisible, attendreCondition, cliquer, verifier, verifierTextes, verifierPasDeDebordement } = require('../outils.js');
 
 // Mode Mécanicien (prise en main) : touches d'outils sur clavier AZERTY, pièces neuves à prendre annoncées dès le début,
-// étagère « Prendre les pièces des ordres en cours », pièce en main (Maj + chiffre, X, V), guide du mécanicien (H, niveaux 0 à 5).
+// servante à outils, étagère « Prendre les pièces des ordres en cours », un seul inventaire (1 à 0, X, V), guide du mécanicien (H, niveaux 0 à 5).
 module.exports = async function mecaGuide(page, env) {
   await page.goto(env.url);
   await attendreVisible(page, '#hMeca', "le bouton « Carrière de mécanicien » est absent de l'accueil");
@@ -24,11 +24,26 @@ module.exports = async function mecaGuide(page, env) {
   await attendreCondition(page, () => /Pièce neuve à aller chercher : .*Huile.*Filtre à huile|Pièce neuve à aller chercher : .*Filtre à huile.*Huile/.test(__bandeau()),
     "le bandeau n'annonce pas l'huile et le filtre à prendre avant la vidange", 10000);
 
-  // 2. clavier AZERTY : la touche « 2 » donne « é » sans Maj, l'outil doit quand même changer (position de la touche)
+  // 2. pas d'outil dans les poches : on vise la servante (chariot rouge), E, « Prendre les outils de l'ordre »
   await touche('é', 'Digit2');
-  verifier(await e(() => MWG.curTool()) === 'cliquet', "la touche 2 d'un clavier AZERTY ne choisit pas le cliquet");
+  verifier(await e(() => MWG.curTool()) === 'main', "un outil est en main alors que l'inventaire est vide");
+  await e(() => { const r = MWG.rig(), v = new THREE.Vector3(); r.cart.getWorldPosition(v); v.y += .8; const p = r.p;
+    const x = v.x + Math.sin(p.ry) * 1.2, z = v.z + Math.cos(p.ry) * 1.2; __mw.teleport(x, z, Math.atan2(v.x - x, v.z - z), Math.atan2(v.y - 1.7, Math.hypot(v.x - x, v.z - z))); });
+  await attendreCondition(page, () => { const a = MWG.aim(); return a && a.t.id === 'servante'; }, 'la servante ne se vise pas', 8000);
+  await page.keyboard.press('e');
+  await attendreVisible(page, '.mw-pn [data-mw="need"]', "la servante ne propose pas les outils de l'ordre");
+  await cliquer(page, '.mw-pn [data-mw="need"]');
+  const outils = await e(() => __mw.S.inv.filter(it => it.k === 'outil').map(it => it.id));
+  verifier(['bac', 'cliquet', 'cle_dyn', 'entonnoir', 'bidon', 'cle_filtre'].every(t => outils.includes(t)), `les outils de la vidange ne sont pas pris (${outils})`);
+  await page.keyboard.press('Escape');
+  await attendreCondition(page, () => !__mw.paused, 'la servante ne se ferme pas', 8000);
+  // clavier AZERTY : la touche « 2 » donne « é » sans Maj, elle prend quand même l'objet de la case 2 (position de la touche)
+  await touche('é', 'Digit2');
+  verifier(await e(() => MWG.curTool() === __mw.S.inv[1].id && __mwj.held() === __mw.S.inv[1]), "la touche 2 d'un clavier AZERTY ne prend pas l'outil de la case 2");
   await touche('(', 'Digit5');
-  verifier(await e(() => MWG.curTool()) === 'boulonneuse', "la touche 5 d'un clavier AZERTY ne choisit pas la boulonneuse");
+  verifier(await e(() => MWG.curTool() === __mw.S.inv[4].id), "la touche 5 d'un clavier AZERTY ne prend pas l'outil de la case 5");
+  await touche('v', 'KeyV');
+  verifier(await e(() => MWG.curTool()) === 'main', 'V ne libère pas les mains');
 
   // 3. étagère : « Prendre les pièces des ordres en cours »
   await e(() => { const s = __mwj.shelf('garage1'); __mw.teleport(s.x, s.z, 0, 0); });
@@ -36,19 +51,19 @@ module.exports = async function mecaGuide(page, env) {
   await page.keyboard.press('e');
   await attendreVisible(page, '.mw-pn', "l'étagère ne s'ouvre pas");
   await cliquer(page, '.mw-pn [data-mw="need"]', 'bouton « Prendre les pièces des ordres en cours » absent');
-  const inv = await e(() => __mw.S.inv.map(it => it.k + ':' + it.id).sort().join(','));
+  const inv = await e(() => __mw.S.inv.filter(it => it.k !== 'outil').map(it => it.k + ':' + it.id).sort().join(','));
   verifier(inv === 'neuve:filtre_huile,neuve:huile', `les pièces des ordres ne sont pas prises (${inv})`);
   await page.keyboard.press('Escape');
   await attendreCondition(page, () => !__mw.paused, "l'étagère ne se ferme pas", 8000);
   await e(() => { const c = __mwj.jobs()[0], p = __mw.zone(c.zone).ponts[c.pont]; __mw.teleport(p.x + Math.cos(p.ry) * 1.7, p.z - Math.sin(p.ry) * 1.7, p.ry - Math.PI / 2, 0); MWG.ensure(c); });
   await attendreCondition(page, () => /Étape suivante/.test(__bandeau()) && !/Pièce neuve à aller chercher/.test(__bandeau()), 'le bandeau réclame encore des pièces déjà prises', 10000);
 
-  // 4. pièce en main : Maj + 1, X, V, et montage prioritaire de la pièce tenue
-  await touche('1', 'Digit1', true);
-  verifier(await e(() => __mwj.held() === __mw.S.inv[0]), 'Maj + 1 ne prend pas la 1re pièce en main');
+  // 4. objet en main : 1, X, V, et montage prioritaire de la pièce tenue
+  await touche('&', 'Digit1');
+  verifier(await e(() => __mwj.held() === __mw.S.inv[0]), "la touche 1 ne prend pas l'objet de la case 1");
   verifier(await e(() => /En main/.test(document.getElementById('mwRoot').textContent) && !!document.querySelector('.mw-slot.sel')), "la pièce en main n'est pas affichée");
   await touche('x', 'KeyX');
-  verifier(await e(() => __mwj.held() === __mw.S.inv[1]), 'X ne passe pas à la pièce suivante');
+  verifier(await e(() => __mwj.held() === __mw.S.inv[1]), "X ne passe pas à l'objet suivant");
   await touche('v', 'KeyV');
   verifier(await e(() => __mwj.held() === null), 'V ne range pas la pièce');
   const pose = await e(() => {
@@ -73,7 +88,7 @@ module.exports = async function mecaGuide(page, env) {
     await verifierTextes(page, `guide niveau ${n}`);
     await verifierPasDeDebordement(page, `guide niveau ${n}`);
   }
-  return 'touches AZERTY, pièces annoncées avant la vidange, étagère en un clic, pièce en main (Maj+chiffre, X, V), guide niveaux 0 à 5';
+  return 'touches AZERTY, pièces annoncées avant la vidange, étagère en un clic, servante, un seul inventaire (1 à 0, X, V), guide niveaux 0 à 5';
 };
 
 module.exports.titre = 'mécanicien : prise en main (guide 0 à 5, touches d\'inventaire, pièces à prendre)';
