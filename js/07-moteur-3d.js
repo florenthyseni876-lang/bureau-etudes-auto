@@ -339,7 +339,11 @@ function build3D(){
     dTube(pBr,mRub,[rotB(bb,Lx-60,deck+headH+44,0),V(Lx-52,Math.max(a0.y,en.y)+40,(a0.z+en.z)*.5),V(Lx-48,en.y+34,en.z*.9),en.clone().add(V(0,8,0))],8.5,null,true);}
   if(E.sc){const pS=P('Compresseur volumétrique',`${SCT[S.scType].n}, entraîné par courroie, ${nf(S.boost,2)} bar`);box(0,plTop.x,plTop.y+46,plTop.z,Lx*.55,86,130,mAlu,pS);for(let i=0;i<5;i++) box(0,plTop.x-Lx*.2+i*Lx*.1,plTop.y+92,plTop.z,8,10,130,mSteel,pS);cylX(-50,plTop.x-Lx*.27,plTop.y+46,plTop.z,14,mSteel,pS);}
   const beltP=[];
-  if(!ecu&&!dz){const pK=P('Carburateur',"Dose l'essence par dépression, sans électronique");box(0,plTop.x,plTop.y+32,plTop.z,80,64,80,mAlu,pK);cyl(V(plTop.x,plTop.y+64,plTop.z),V(plTop.x,plTop.y+116,plTop.z),110,mBlk,pK);pK.pin=V(plTop.x,plTop.y+116,plTop.z);}
+  if(!ecu&&!dz){const pK=P('Carburateur',"Dose l'essence par dépression, sans électronique");box(0,plTop.x,plTop.y+32,plTop.z,80,64,80,mAlu,pK);cyl(V(plTop.x,plTop.y+64,plTop.z),V(plTop.x,plTop.y+116,plTop.z),110,mBlk,pK);pK.pin=V(plTop.x,plTop.y+116,plTop.z);
+    {const cx=plTop.x,cy=plTop.y,cz=plTop.z;dg(pK,mAlu,D.box(V(cx+48,cy+34,cz),26,40,52));dCyl(pK,mSteel,V(cx+48,cy+54,cz),V(cx+48,cy+62,cz),12,12);
+     dg(pK,mBlk,D.cyl(V(cx,cy+116,cz),V(cx,cy+124,cz),112,112,30));dCyl(pK,mSteel,V(cx-110,cy+120,cz),V(cx+110,cy+120,cz),2.4,2.4);
+     dg(pK,mSteel,D.box(V(cx,cy+30,cz-46),8,10,38));dCyl(pK,mSteel,V(cx,cy+42,cz-62),V(cx,cy+42,cz-40),4,4);dTube(pK,mSteel,[V(cx+48,cy+60,cz),V(cx+60,cy+90,cz-30),V(cx+70,cy+80,cz-80),V(cx+90,cy+30,cz-110)],4.2);
+     for(let i=0;i<4;i++){const a=i/4*2*Math.PI+.78;dHex(pK,mSteel,V(cx+Math.cos(a)*34,cy+66,cz+Math.sin(a)*34),UP,4.5,4);}}}
   else{
     if(dz){const pIn=P("Entrée d'air sans papillon","Un diesel ne règle pas l'air : sa puissance dépend seulement de la quantité de gazole injectée. Seul un volet d'arrêt et la vanne EGR équipent l'admission.");cylX(tb.x-28,tb.x+28,tb.y,tb.z,36,mAlu,pIn);cylX(tb.x-32,tb.x-28,tb.y,tb.z,41,mSteel,pIn);
       if(ecu){const pE=P('Vanne EGR',"Réinjecte une partie des gaz d'échappement à l'admission pour limiter les oxydes d'azote");box(0,tb.x,tb.y+48,tb.z,46,40,46,mAlu,pE);dCyl(pE,mCon,V(tb.x,tb.y+68,tb.z),V(tb.x,tb.y+98,tb.z),14,14);dg(pE,mCon,D.box(V(tb.x+16,tb.y+90,tb.z),10,14,16));dCyl(pE,mSteel,V(tb.x,tb.y+98,tb.z),V(tb.x,tb.y+104,tb.z),6,6);}}
@@ -351,7 +355,7 @@ function build3D(){
     if(S.fuelSys==='mono'){const pM=P('Injecteur monopoint','Un seul injecteur, monté sur le boîtier papillon');cyl(V(tb.x-10,tb.y+30,tb.z-14),V(tb.x-10,tb.y+62,tb.z-22),9,mSteel,pM);}
     if(E.turbo){
       const pCh=P("Tuyau d'air comprimé",dz?"Du compresseur au collecteur d'admission":'Du compresseur au papillon'),pIc=S.intercooler!=='none'?P(S.intercooler==='air'?'Échangeur air/air':'Échangeur air/eau',"Refroidit l'air comprimé : plus dense, moins de cliquetis"):null,icP=V(-300,deck*.3,0);
-      if(pIc) box(0,icP.x,icP.y,icP.z,60,190,400,mAlu,pIc);
+      if(pIc){box(0,icP.x,icP.y,icP.z,60,190,400,mAlu,pIc);for(let i=0;i<12;i++) dg(pIc,mBlk,D.box(V(icP.x-30.6,icP.y-85+i*15.5,icP.z),1.4,7,372));for(const sd of [-1,1]){dg(pIc,mIron,D.box(V(icP.x,icP.y,icP.z+sd*205),64,194,18));dCyl(pIc,mAlu,V(icP.x,icP.y+60,icP.z+sd*214),V(icP.x,icP.y+60,icP.z+sd*226),24,22);}}
       compOut.forEach(co=>{const rear=co.x>Lx,zo=rear?0:flat?co.z*.5:(co.z||1)*1.22+Math.sign(co.z||1)*14,yo=flat?-32:10;
         const via=rear?[V(co.x,tb.y+140,0),V(Lx*.5,tb.y+150,0),V(-110,tb.y+125,0)]:[V(co.x-45,co.y+yo,zo),V(-150,co.y+yo,zo)];
         if(pIc) tube([co].concat(via,[V(icP.x+30,icP.y+70,rear?0:clamp(zo,-175,175))]),26,mAlu,pCh,false,true);
