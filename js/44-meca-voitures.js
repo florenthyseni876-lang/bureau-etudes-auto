@@ -263,6 +263,25 @@ function merge(list){
   off+=cnt;g.dispose();}
  const o=new T.BufferGeometry();o.setAttribute('position',new T.Float32BufferAttribute(pos,3));o.setAttribute('normal',new T.Float32BufferAttribute(nor,3));
  o.setIndex(new T.BufferAttribute(off>65000?new Uint32Array(idx):new Uint16Array(idx),1));return o;}
+/* idem, avec couleur par sommet : list = [{g, color (hex), rough, metal}] ; regroupe par classe de rugosité et de métal, d'où très peu de maillages */
+function mergeVC(list,mul){
+ const cls=new Map(),c=new T.Color();
+ for(const it of list){
+  const r=it.rough==null?.6:it.rough,m=it.metal||0,rk=r<.5?.5:r<.7?.6:.8,mk=m>=.6?.2:m>=.3?.1:.02,key=rk+'|'+mk;
+  let b=cls.get(key);if(!b){b={rough:rk,metal:mk,list:[]};cls.set(key,b);}
+  const g=it.g,n=g.attributes.position.count,col=new Float32Array(n*3);c.setHex(it.color).multiplyScalar(mul||1);
+  for(let i=0;i<n;i++){col[3*i]=c.r;col[3*i+1]=c.g;col[3*i+2]=c.b;}
+  g.setAttribute('color',new T.BufferAttribute(col,3));b.list.push(g);}
+ const out=[];
+ for(const b of cls.values()){
+  const pos=[],nor=[],cl=[],idx=[];let off=0;
+  for(const g of b.list){const p=g.attributes.position.array,n=g.attributes.normal?g.attributes.normal.array:null,cc=g.attributes.color.array,cnt=g.attributes.position.count;
+   for(let i=0;i<p.length;i++){pos.push(p[i]);nor.push(n?n[i]:0);cl.push(cc[i]);}
+   if(g.index){const a=g.index.array;for(let i=0;i<a.length;i++) idx.push(a[i]+off);}else for(let i=0;i<cnt;i++) idx.push(off+i);
+   off+=cnt;g.dispose();}
+  const o=new T.BufferGeometry();o.setAttribute('position',new T.Float32BufferAttribute(pos,3));o.setAttribute('normal',new T.Float32BufferAttribute(nor,3));o.setAttribute('color',new T.Float32BufferAttribute(cl,3));
+  o.setIndex(new T.BufferAttribute(off>65000?new Uint32Array(idx):new Uint16Array(idx),1));out.push({g:o,color:0xffffff,rough:b.rough,metal:b.metal,vc:true});}
+ return out;}
 /* surface lissée : anneaux de points (x,y) successifs le long de z ; `closed` : l'anneau se referme (sinon « U » ouvert) */
 function loft(rings){
  const K=rings[0].pts.length,pos=[],idx=[];
@@ -620,22 +639,21 @@ function engineParts(car){
    if(sk){const L=sep[sk[1]]||(sep[sk[1]]=[]);
     for(const me of p.meshes){if(!me.isMesh) continue;me.userData.skip=true;
      if(sk[1]==='coils'){const gp=me.geometry.parameters;if(gp&&gp.radiusTop!=null&&(gp.radiusTop===13||gp.radiusTop===6)) coilPts.push({p:me.getWorldPosition(new T.Vector3()),a:new T.Vector3(0,1,0).applyQuaternion(me.getWorldQuaternion(new T.Quaternion())),r:gp.radiusTop,h:gp.height});continue;}
-     const gg=me.geometry.clone();gg.applyMatrix4(me.matrixWorld);const m=me.material;L.push({g:gg,color:m.color.getHex(),rough:m.roughness,metal:m.metalness});}
+     const gg=me.geometry.clone();gg.applyMatrix4(me.matrixWorld);if(!gg.attributes.normal) gg.computeVertexNormals();const m=me.material;L.push({g:gg,color:m.color.getHex(),rough:m.roughness,metal:m.metalness});}
     continue;}}
   if(/Couvre-culasse/.test(p.name)){const b=new T.Box3();for(const me of p.meshes) b.expandByObject(me);cover=cover?cover.union(b):b;}
   if(/Collecteur d'admission/.test(p.name)){const b=new T.Box3();for(const me of p.meshes) b.expandByObject(me);plenum=plenum?plenum.union(b):b;}}
- const bk=new Map();
+ const items=[];
  root.traverse(o=>{if(!o.isMesh||o.userData.skip||!o.material||o.material.transparent) return;
-  const m=o.material,key=m.color.getHex()+'|'+Math.round((m.roughness||0)*20)+'|'+Math.round((m.metalness||0)*10);
-  let b=bk.get(key);if(!b){b={key,color:m.color.getHex(),rough:m.roughness,metal:m.metalness,list:[]};bk.set(key,b);}
-  const g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal) g.computeVertexNormals();b.list.push(g);});
- const buckets=[],bb=new T.Box3();
- for(const b of bk.values()){const g=merge(b.list);g.computeBoundingBox();bb.union(g.boundingBox);buckets.push({g,color:b.color,rough:Math.max(.42,b.rough||.6),metal:Math.min(.32,b.metal||0)});}
+  const m=o.material,g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal) g.computeVertexNormals();items.push({g,color:m.color.getHex(),rough:m.roughness,metal:m.metalness});});
+ const buckets=mergeVC(items,.55),bb=new T.Box3();
+ for(const b of buckets){b.g.computeBoundingBox();bb.union(b.g.boundingBox);}
+ for(const k in sep) sep[k]=mergeVC(sep[k],.55);
  root.traverse(o=>{if(o.geometry) o.geometry.dispose();});
  c=ECACHE[e.id]={buckets,bb,anchors,cover,plenum,refs:1,n:car.eng.n,lay:car.eng.lay,sep,coilPts};engBuilt++;return c;}
 function engineRelease(id){const c=ECACHE[id];if(!c) return;if(--c.refs>0) return;for(const b of c.buckets) b.g.dispose();for(const k in c.sep) for(const b of c.sep[k]) b.g.dispose();delete ECACHE[id];}
 const EMAT=new Map();
-const emat=b=>{const k=b.color+'|'+b.rough+'|'+b.metal;let m=EMAT.get(k);if(!m){m=new T.MeshStandardMaterial({color:new T.Color(b.color).multiplyScalar(1.7),roughness:Math.max(.5,b.rough),metalness:Math.min(.2,b.metal)});EMAT.set(k,m);}return m;};
+const emat=b=>{const k=b.color+'|'+b.rough+'|'+b.metal+(b.vc?'v':'');let m=EMAT.get(k);if(!m){m=new T.MeshStandardMaterial(b.vc?{vertexColors:true,roughness:Math.max(.5,b.rough),metalness:Math.min(.2,b.metal)}:{color:new T.Color(b.color).multiplyScalar(1.7),roughness:Math.max(.5,b.rough),metalness:Math.min(.2,b.metal)});EMAT.set(k,m);}return m;};
 const BAYM={
  plas:()=>mat('bplas',()=>new T.MeshLambertMaterial({color:0x343840,emissive:0x101214})),blk:()=>mat('bblk',()=>new T.MeshLambertMaterial({color:0x1b1d20,emissive:0x0a0b0c,side:T.DoubleSide})),
  grey:()=>mat('bgrey',()=>new T.MeshPhongMaterial({color:0x737982,shininess:35,specular:0x333333})),alu:()=>mat('balu',()=>new T.MeshPhongMaterial({color:0xaab1b9,shininess:60,specular:0x666666})),
