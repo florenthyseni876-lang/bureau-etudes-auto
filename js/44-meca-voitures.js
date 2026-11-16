@@ -359,13 +359,13 @@ function setNight(n){if(n===nightOn) return;nightOn=n;
 const GEO={};
 /* roue : pneu (profil avec flanc bombé) + jante (tonneau + rayons), axe x, face vers +x */
 function wheelGeo(t,style,rimC){
- const key=[t.w,t.a,t.rim,style,rimC].join('|');if(GEO[key]) return GEO[key];
+ const key=[t.w,t.a,t.rim,style,rimC,qSeg(30,15)].join('|');if(GEO[key]) return GEO[key];
  const {w,rimR,rt}=t,sw=rt-rimR,R=rimR-.004;
  const P=(r,y)=>new T.Vector2(r,y);
  const prof=[P(rimR+.002,-w*.36),P(rimR+sw*.2,-w*.485),P(rimR+sw*.55,-w*.515),P(rt-.022,-w*.47),P(rt-.005,-w*.40),P(rt,-w*.30),P(rt,w*.30),P(rt-.005,w*.40),P(rt-.022,w*.47),P(rimR+sw*.55,w*.515),P(rimR+sw*.2,w*.485),P(rimR+.002,w*.36),P(rimR-.004,w*.30),P(rimR-.004,-w*.30),P(rimR+.002,-w*.36)];
- const tire=new T.LatheGeometry(prof,30);tire.rotateZ(-PI/2);
+ const tire=new T.LatheGeometry(prof,qSeg(30,15));tire.rotateZ(-PI/2);
  const rw=Math.min(w*.82,.28),yo=rw/2-.03,hubR=.052,parts=[];
- const barrel=new T.LatheGeometry([P(R*.78,-rw/2),P(R*.96,-rw/2+.012),P(R,-rw/2+.03),P(R,rw/2-.02),P(R*.995,rw/2-.006),P(R*.97,rw/2)],28);parts.push(barrel);
+ const barrel=new T.LatheGeometry([P(R*.78,-rw/2),P(R*.96,-rw/2+.012),P(R,-rw/2+.03),P(R,rw/2-.02),P(R*.995,rw/2-.006),P(R*.97,rw/2)],qSeg(28,14));parts.push(barrel);
  const sp=(n,wid,len0,r0,off)=>{for(let i=0;i<n;i++){const a=i/n*TAU+(off||0),rc=(r0+len0)/2;parts.push(tf(new T.BoxGeometry((len0-r0),.024,wid),Math.cos(a)*rc,yo,Math.sin(a)*rc,0,-a,0));}};
  if(style==='steel'){
   parts.push(cyg(R*.93,R*.93,.012,28,0,rw/2-.09,0));parts.push(cyg(R*.55,R*.55,.01,24,0,rw/2-.083,0));
@@ -635,7 +635,7 @@ function engineParts(car){
   M.E=computeEngine(S);if(!S.oilInt){S.oilInt=M.E.oilRec;M.E=computeEngine(S);}
   ui.eview='3d';
   E3={scene:new T.Scene(),root:null,parts:[],anim:null,sig:'',R:600,hl:new T.MeshStandardMaterial({color:0xffb800}),shown:[],pinEls:[],cv:null,renderer:null,w:0,h:0};
-  build3D();root=E3.root;parts=E3.parts;root.updateMatrixWorld(true);
+  window.__sansAretes=true;try{build3D();}finally{window.__sansAretes=false;}root=E3.root;parts=E3.parts;root.updateMatrixWorld(true);
  }finally{for(const k in S) if(!(k in snap)) delete S[k];Object.assign(S,snap);M.E=keepE;M.C=keepC;E3=keepE3;ui.sel=keepSel;ui.eview=keepView;}
  const anchors={},names=[[/^Alternateur/,'alternator'],[/Bouchon de remplissage/,'oilCap'],[/Bobines|préchauffage|Allumeur/,'coils'],[/Carter de distribution/,'timing'],[/Collecteur d'admission/,'intake'],[/Turbocompresseur/,'turbo'],
   [/^Démarreur/,'starter'],[/Carter d'huile/,'oilPan'],[/^Courroie d'accessoires/,'belt'],[/Couvre-culasse/,'valveCover']];

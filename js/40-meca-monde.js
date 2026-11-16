@@ -569,10 +569,13 @@ function updateSky(){
  if(lampMat) lampMat.color.setHex(dayF<.45?0xffe49a:0x7e786a);}
 
 /* ═══════════ Boucle ═══════════ */
-let R=null,raf=0,last=0,saveT=0,mapT=0,hudTime='',hudMoney='',camPos=new T.Vector3(),camInit=false;
+let R=null,raf=0,last=0,saveT=0,mapT=0,rdT=0,hudTime='',hudMoney='',camPos=new T.Vector3(),camInit=false;
 function fit(){if(!ui||!R) return;const w=Math.max(2,ui.r.clientWidth),h=Math.max(2,ui.r.clientHeight);R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();if(mapOpen){sizeBig();drawBig();}}
 function frame(t){
  if(!active) return;raf=requestAnimationFrame(frame);
+ /* onglet caché : rien à calculer ni à dessiner ; écrans rapides (120 Hz et plus) : limité à 60 images par seconde */
+ if(document.hidden){last=t;return;}
+ if(t-last<14.5&&last>0) return;
  const dt=Math.min(.05,Math.max(0,(t-last)/1000));last=t;
  if(!api.paused){
   acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}
@@ -590,7 +593,9 @@ function frame(t){
  const ts=api.timeStr();if(ts!==hudTime){hudTime=ts;ui.time.textContent=ts;}
  const ms=fmt(S.money);if(ms!==hudMoney){hudMoney=ms;ui.money.textContent=ms;}
  if(P.inCar){ui.speed.hidden=false;ui.speed.textContent=Math.round(Math.abs(car.v)*3.6)+' km/h';}else if(!ui.speed.hidden) ui.speed.hidden=true;
- if(t-mapT>120){mapT=t;drawMini();if(mapOpen) drawBig();}
+ if(t-mapT>(mapOpen?120:260)){mapT=t;drawMini();if(mapOpen) drawBig();}
+ /* jeu en pause derrière un panneau : la vue ne bouge plus, on la redessine à 10 images par seconde seulement */
+ if(api.paused&&t-rdT<100){emit('tick',dt);return;}rdT=t;
  R.render(sceneObj,cam);
  if(api.afterRender){try{api.afterRender(R);}catch(e){api.afterRender=null;console.error(e);}} /* [finition] 2e passe : mains et outil au 1er plan */
  emit('tick',dt);}
@@ -626,7 +631,7 @@ let rsT=0;const onResize=()=>{clearTimeout(rsT);rsT=setTimeout(fit,60);fit();};
 api.openNew=()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){}if(!active) api.open();api.reset();};
 api.open=()=>{
  ensureUI();
- if(!R){try{R=new T.WebGLRenderer({canvas:ui.cv,antialias:!isPhone(),powerPreference:'high-performance'});}catch(e){R=null;alert('La vue 3D n\'est pas disponible sur cet appareil.');return;}
+ if(!R){try{R=new T.WebGLRenderer({canvas:ui.cv,antialias:!isPhone()&&(navigator.hardwareConcurrency||4)>4,powerPreference:'high-performance'});}catch(e){R=null;alert('La vue 3D n\'est pas disponible sur cet appareil.');return;}
   R.setPixelRatio(Math.min(window.devicePixelRatio||1,isPhone()?1.5:1.5));
   if(api.decor&&api.decor.renderer) try{api.decor.renderer(R);}catch(e){console.error(e);}}
  if(!built){buildWorld();regZoneInteracts();}

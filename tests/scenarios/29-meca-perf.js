@@ -33,13 +33,18 @@ module.exports = async function mecaPerf(page, env) {
     }, nom);
   };
   const res = [];
-  res.push(await mesure('rue', () => { __mw.S.min = 12 * 60; __mw.teleport(-26, 8, -1.57, 0); }));
-  res.push(await mesure('carrefour', () => { __mw.S.min = 17 * 60; __mw.teleport(0, -14, 0, 0); }));
-  res.push(await mesure('garage', () => {
+  // les trois situations dans chacune des trois qualités (la qualité automatique est coupée le temps de la mesure)
+  const garage = () => {
     MWC.hire('meca'); __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12;
     const c = __mwj.spawn({ tpl: 'vidange', force: true, rend: false }), p = __mw.zone(c.zone).ponts[c.pont];
     __mw.teleport(p.x + Math.cos(p.ry) * 1.7, p.z - Math.sin(p.ry) * 1.7, p.ry - Math.PI / 2, 0); MWG.ensure(c); MWG.run('hood', 'hopen');
-  }));
+  };
+  for (const niv of ['basse', 'moyenne', 'haute']) {
+    await e((n) => { MWD.Q.auto = false; MWD.setQuality(n, false); }, niv);
+    res.push(await mesure(niv + ' rue', () => { __mw.S.min = 12 * 60; __mw.teleport(-26, 8, -1.57, 0); }, niv === 'basse' ? 4000 : 2500));
+    res.push(await mesure(niv + ' carrefour', () => { __mw.S.min = 17 * 60; __mw.teleport(0, -14, 0, 0); }, niv === 'basse' ? 4000 : 2500));
+    res.push(await mesure(niv + ' garage', garage, niv === 'basse' ? 4000 : 2500));
+  }
   for (const r of res) {
     verifier(r.images > 0, `aucune image mesurée (${r.nom})`);
     verifier(r.appels < 400, `trop d'appels de dessin (${r.nom}) : ${r.appels}`);

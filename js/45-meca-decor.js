@@ -204,9 +204,13 @@ const gIco=det=>{const k='i'+det;let g=GCACHE.get(k);if(!g){g=new T.IcosahedronG
 const M4=new T.Matrix4(),Q4=new T.Quaternion(),E4=new T.Euler(),V3=new T.Vector3(),S3=new T.Vector3(),N3=new T.Matrix3(),PV=new T.Vector3(),NV=new T.Vector3();
 const compose=(x,y,z,sx,sy,sz,ry,rx,rz)=>{E4.set(rx||0,ry||0,rz||0,'YXZ');Q4.setFromEuler(E4);return M4.compose(V3.set(x,y,z),Q4,S3.set(sx,sy,sz));};
 class Batch{
- constructor(key,mat,layer){this.key=key;this.mat=mat;this.layer=layer;this.p=[];this.n=[];this.u=[];this.c=[];this.i=[];this.ts=mat.userData.ts||4;}
+ constructor(key,mat,layer,chunk){this.key=key;this.mat=mat;this.layer=layer;this.chunk=!!chunk;this.cell=/:plain$/.test(key)?90:CELL;this.cells=new Map();this.sel(0,0);this.ts=mat.userData.ts||4;}
+ /* découpage en cases de CELL mètres : chaque case devient un maillage à part, écarté du dessin (et des ombres) quand il est hors champ */
+ sel(x,z){const C=this.cell,k=this.chunk?Math.floor(x/C)+','+Math.floor(z/C):'0';let c=this.cells.get(k);if(!c){c={p:[],n:[],u:[],c:[],i:[]};this.cells.set(k,c);}this.p=c.p;this.n=c.n;this.u=c.u;this.c=c.c;this.i=c.i;return this;}
+ get empty(){for(const c of this.cells.values()) if(c.p.length) return false;return true;}
  /* ajoute une géométrie transformée par m ; own=true : garde les UV de la géométrie ; sinon projection monde (continu entre boîtes voisines) */
  add(g,m,col,own,uvr){
+  if(this.chunk) this.sel(m.elements[12],m.elements[14]);
   const pa=g.attributes.position,na=g.attributes.normal,ua=g.attributes.uv,n=pa.count,base=this.p.length/3,cc=col==null?[1,1,1]:(typeof col==='number'?lincol(col):col),ts=this.ts,flip=m.determinant()<0;
   N3.getNormalMatrix(m);
   for(let i=0;i<n;i++){
@@ -225,7 +229,7 @@ class Batch{
  quad(w,h,x,y,z,ry,col,uvr,rx,dbl){const g=QUAD;this.add(g,compose(x,y,z,w,h,1,ry,rx||0,0),col,true,uvr);
   if(dbl) this.add(g,compose(x,y,z,w,h,1,(ry||0)+PI,rx?-rx:0,0),col,true,uvr);return this;}
  /* triangle avec normale orientée selon hint */
- tri(a,b,c,col,uv,hint){const e1=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],e2=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+ tri(a,b,c,col,uv,hint){if(this.chunk) this.sel((a[0]+b[0]+c[0])/3,(a[2]+b[2]+c[2])/3);const e1=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],e2=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
   let nx=e1[1]*e2[2]-e1[2]*e2[1],ny=e1[2]*e2[0]-e1[0]*e2[2],nz=e1[0]*e2[1]-e1[1]*e2[0];const l=Math.hypot(nx,ny,nz)||1;nx/=l;ny/=l;nz/=l;
   let flip=false;if(hint&&nx*hint[0]+ny*hint[1]+nz*hint[2]<0){flip=true;nx=-nx;ny=-ny;nz=-nz;}
   const cc=col==null?[1,1,1]:(typeof col==='number'?lincol(col):col),base=this.p.length/3,vs=flip?[a,c,b]:[a,b,c],us=uv?(flip?[uv[0],uv[2],uv[1]]:uv):[[0,0],[1,0],[0,1]];
@@ -244,19 +248,23 @@ D.L=(b,x,z,ry,y0)=>{const C=Math.cos(ry||0),S=Math.sin(ry||0),Y=y0||0,w=(lx,lz)=
   rcyl:(rt,rb,h,seg,lx,ly,lz,c,rrx,rrz)=>{const p=w(lx,lz);b.cyl(rt,rb,h,seg,p[0],Y+ly,p[1],c,rrx,rrz,ry);},
   rbox:(sx,sy,sz,lx,ly,lz,c,rry,rrx,rrz)=>{const p=w(lx,lz);b.box(sx,sy,sz,p[0],Y+ly,p[1],c,(ry||0)+(rry||0),rrx,rrz);}};};
 const QUAD=(()=>{const g=new T.PlaneGeometry(1,1);return g;})();
-const BATCH=new Map();
-D.B=(layer,mat)=>{const k=layer+':'+mat;let b=BATCH.get(k);if(!b){b=new Batch(k,D.mat(mat),layer);BATCH.set(k,b);}return b;};
-function meshOf(b){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(b.p,3));g.setAttribute('normal',new T.Float32BufferAttribute(b.n,3));
- g.setAttribute('uv',new T.Float32BufferAttribute(b.u,2));g.setAttribute('color',new T.Float32BufferAttribute(b.c,3));g.setIndex(b.i);g.computeBoundingSphere();
+const BATCH=new Map(),CELL=130,CHUNK_MIN=12000;
+D.B=(layer,mat)=>{const k=layer+':'+mat;let b=BATCH.get(k);if(!b){b=new Batch(k,D.mat(mat),layer,true);BATCH.set(k,b);}return b;};
+function meshOf(b,c){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(c.p,3));g.setAttribute('normal',new T.Float32BufferAttribute(c.n,3));
+ g.setAttribute('uv',new T.Float32BufferAttribute(c.u,2));g.setAttribute('color',new T.Float32BufferAttribute(c.c,3));g.setIndex(c.i);g.computeBoundingSphere();
  const m=new T.Mesh(g,b.mat);m.name=b.key;m.castShadow=!!b.mat.userData.cast&&b.layer!=='far';m.receiveShadow=!!b.mat.userData.recv;
- if(b.mat.transparent) m.renderOrder=3;D.tris+=b.i.length/3;b.p=b.n=b.u=b.c=b.i=[];return m;}
+ if(b.mat.transparent) m.renderOrder=3;D.tris+=c.i.length/3;c.p=c.n=c.u=c.c=c.i=[];return m;}
+/* un lot léger (< CHUNK_MIN triangles) reste d'un seul tenant : plus d'appels de dessin que de gain d'écartement sinon */
+const meshesOf=b=>{const cs=[...b.cells.values()].filter(c=>c.p.length),out=[];let tr=0;for(const c of cs) tr+=c.i.length/3;
+ if(b.chunk&&cs.length>1&&tr<CHUNK_MIN){const m={p:[],n:[],u:[],c:[],i:[]};for(const c of cs){const o=m.p.length/3;for(const k of ['p','n','u','c']) for(const v of c[k]) m[k].push(v);for(const v of c.i) m.i.push(v+o);}cs.length=0;cs.push(m);}
+ for(const c of cs) out.push(meshOf(b,c));b.cells.clear();b.sel(0,0);return out;};
 D.tris=0;
 D.finish=()=>{const out={core:new T.Group(),detail:new T.Group(),far:new T.Group()};
- for(const b of BATCH.values()){if(!b.p.length) continue;out[b.layer].add(meshOf(b));}
+ for(const b of BATCH.values()){if(b.empty) continue;for(const m of meshesOf(b)) out[b.layer].add(m);}
  BATCH.clear();return out;};
 /* groupe indépendant (éléments ajoutés après la construction, ou mobiles) : fn(B) avec B(nomMatériau) → lot de géométries */
 D.group=fn=>{const bs=new Map(),B=m=>{let b=bs.get(m);if(!b){b=new Batch('dyn:'+m,D.mat(m),'core');bs.set(m,b);}return b;};fn(B);
- const g=new T.Group();for(const b of bs.values()) if(b.p.length) g.add(meshOf(b));return g;};
+ const g=new T.Group();for(const b of bs.values()) for(const m of meshesOf(b)) g.add(m);return g;};
 
 /* ═══════════ Ciel, lumières, cycle jour / nuit ═══════════ */
 const L3=hex=>new T.Color(hex).convertSRGBToLinear();
@@ -291,30 +299,39 @@ function makeSky(){
 /* ═══════════ Qualité ═══════════ */
 const QS=['basse','moyenne','haute'],QKEY='bea.meca.q';
 const QN={basse:'Basse',moyenne:'Moyenne',haute:'Haute'};
-const Q={level:'moyenne',auto:true,soft:false,bad:0,n:0,sum:0,wait:90,msg:false};
+const Q={level:'moyenne',auto:true,soft:false,igpu:false,res:1,good:0,bad:0,n:0,sum:0,wait:90,msg:false};
 function readQ(){try{const v=localStorage.getItem(QKEY);return QS.includes(v)?v:null;}catch(e){return null;}}
+/* niveau de départ selon la machine : téléphone, rendu logiciel ou très petite configuration → basse ; portable modeste ou carte graphique intégrée → moyenne */
 function autoLevel(){if(Q.soft) return 'basse';let ph=false;try{ph=isPhone();}catch(e){}if(ph) return 'basse';
- let low=false;try{low=(navigator.hardwareConcurrency||4)<=4||(navigator.deviceMemory||8)<=4;}catch(e){}return low?'moyenne':'haute';}
+ let c=8,m=8;try{c=navigator.hardwareConcurrency||4;m=navigator.deviceMemory||8;}catch(e){}
+ if(c<=2||m<=2) return 'basse';
+ return (c<=4||m<=4||Q.igpu)?'moyenne':'haute';}
 let RN=null,CX=null,groups=null,fill=null;
 D.setQuality=(lv,persist)=>{Q.level=lv;
  if(persist){Q.auto=false;try{localStorage.setItem(QKEY,lv);}catch(e){}}
  if(!RN||!CX) return;
- const dpr=window.devicePixelRatio||1;RN.setPixelRatio(Q.soft?.7:lv==='haute'?Math.min(dpr,1.5):lv==='moyenne'?Math.min(dpr,1.25):1);
- CX.sun.castShadow=lv==='haute';
+ const dpr=window.devicePixelRatio||1;
+ /* résolution : base selon la qualité, multipliée par l'échelle dynamique Q.res (baisse seule si les images par seconde chutent) */
+ RN.setPixelRatio(Math.max(.4,(Q.soft?.7:lv==='haute'?Math.min(dpr,1.5):lv==='moyenne'?Math.min(dpr,1.15):Math.min(dpr,.85))*Q.res));
+ CX.sun.castShadow=lv==='haute';RN.shadowMap.autoUpdate=false;RN.shadowMap.needsUpdate=true;shT=1e9;
  if(groups){groups.detail.visible=lv!=='basse';groups.far.visible=lv!=='basse';}
  if(skyU) skyU.uK.value.w=lv==='basse'?0:.5;
  for(const k in TXC) if(TXC[k].anisotropy!==(lv==='haute'?4:lv==='moyenne'?2:1)){TXC[k].anisotropy=lv==='haute'?4:lv==='moyenne'?2:1;TXC[k].needsUpdate=true;}
- if(CX.scene.fog){CX.scene.fog.near=lv==='basse'?45:60;CX.scene.fog.far=lv==='basse'?220:lv==='moyenne'?300:340;}
- try{if(MW.fit) MW.fit();}catch(e){}};
+ if(CX.scene.fog){const fg=CX.scene.fog;fg.near=lv==='basse'?28:lv==='moyenne'?50:60;fg.far=lv==='basse'?150:lv==='moyenne'?250:330;
+  /* plan lointain de la caméra juste derrière le brouillard : tout ce qui est au-delà est écarté sans être dessiné */
+  const far=fg.far+25;if(CX.cam&&CX.cam.far!==far){CX.cam.far=far;CX.cam.updateProjectionMatrix();}if(skyMesh) skyMesh.scale.setScalar(far*.95/440);}
+ try{if(MW.fit) MW.fit();}catch(e){}
+ /* redimensionner vide le canevas : on redessine tout de suite pour éviter une image blanche */
+ try{RN.render(CX.scene,CX.cam);}catch(e){}};
 D.qualityLabel=()=>'Qualité graphique : '+QN[Q.level]+(Q.auto?' (auto)':'');
-D.cycleQuality=()=>{const i=QS.indexOf(Q.level);D.setQuality(QS[(i+1)%3],true);};
+D.cycleQuality=()=>{const i=QS.indexOf(Q.level);Q.res=1;D.setQuality(QS[(i+1)%3],true);};
 
 /* ═══════════ Rendu, lumière, boucle ═══════════ */
-D.renderer=R=>{RN=R;try{const gl=R.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info');Q.soft=/swiftshader|llvmpipe|software|softpipe/i.test(e?String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)):'');}catch(err){}
+D.renderer=R=>{RN=R;try{const gl=R.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info'),nom=e?String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)):'';Q.soft=/swiftshader|llvmpipe|software|softpipe/i.test(nom);Q.igpu=/intel|mali|adreno|powervr|videocore|apple gpu|microsoft basic|uhd|iris/i.test(nom)&&!/arc|rtx|radeon rx/i.test(nom);}catch(err){}
  R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1;
  R.shadowMap.enabled=true;R.shadowMap.type=T.PCFShadowMap;};
 const sunDir=new T.Vector3(),moonDir=new T.Vector3(),tmpC=new T.Color(),tmpC2=new T.Color(),lastTgt=new T.Vector3(1e9,0,1e9);
-let TL={A:null,B:null},clock=0,lampMat=null,glowMat=null,zonesG=[];
+let parkT=0,shT=0,TL={A:null,B:null},clock=0,lampMat=null,glowMat=null,zonesG=[];
 D.registerTL=(a,b)=>{TL.A=a;TL.B=b;};
 D.frame=(dt,t,h,P,quick)=>{
  if(!CX) return;
@@ -342,6 +359,8 @@ D.frame=(dt,t,h,P,quick)=>{
  // ombres : zone autour du joueur
  const px=Math.round(P.x/2)*2,pz=Math.round(P.z/2)*2;
  dl.target.position.set(px,0,pz);dl.position.set(px+sunDir.x*110,sunDir.y*110,pz+sunDir.z*110);dl.target.updateMatrixWorld();
+ /* la carte d'ombres n'est recalculée qu'environ 12 fois par seconde (elle coûte une passe de dessin complète) */
+ if(dl.castShadow&&RN&&(shT+=dt)>.08){shT=0;RN.shadowMap.needsUpdate=true;}
  // lampadaires, fenêtres, enseignes
  const lamp=sm(.20,.02,alt);
  if(lampMat) lampMat.emissiveIntensity=lamp*1.6;
@@ -357,10 +376,14 @@ D.frame=(dt,t,h,P,quick)=>{
  let ins=0;for(const z of zonesG){const dx=Math.max(Math.abs(P.x-z.x)-z.w/2,0),dz=Math.max(Math.abs(P.z-z.z)-z.d/2,0),d=Math.hypot(dx,dz);ins=Math.max(ins,1-clamp01(d/7));}
  fill.intensity=ins*(.32+.2*night);
  if(groups&&groups.anim) groups.anim(dt,P,h,night);
- // qualité automatique
- if(Q.auto&&!quick){if(Q.wait>0) Q.wait--;else{Q.sum+=dt;Q.n++;if(Q.n>=70){const avg=Q.sum/Q.n;Q.sum=0;Q.n=0;
-   if(avg>.042){if(++Q.bad>=2&&Q.level!=='basse'){const i=QS.indexOf(Q.level);D.setQuality(QS[i-1],false);Q.bad=0;Q.wait=120;if(!Q.msg){Q.msg=true;try{MW.toast('Qualité graphique réduite pour garder un jeu fluide (réglable dans le menu pause).','info');}catch(e){}}}}
-   else Q.bad=0;}}}
+ /* voitures garées : dessinées seulement dans un rayon qui dépend de la qualité */
+ if(D.parked&&(parkT=(parkT+1)%6)===0){const r=Q.level==='haute'?140:100,r2=r*r;for(const p of D.parked){const dx=p.x-P.x,dz=p.z-P.z;p.g.visible=dx*dx+dz*dz<r2;}}
+ // qualité automatique : d'abord la résolution dynamique (échelle de rendu), puis le niveau si cela ne suffit pas
+ if(Q.auto&&!quick){if(Q.wait>0) Q.wait--;else{Q.sum+=dt;Q.n++;if(Q.n>=50){const avg=Q.sum/Q.n;Q.sum=0;Q.n=0;
+   if(avg>.040){Q.good=0;
+    if(Q.res>.62){Q.res=Math.max(.6,Q.res*.82);Q.wait=40;D.setQuality(Q.level,false);}
+    else if(++Q.bad>=2&&Q.level!=='basse'){const i=QS.indexOf(Q.level);Q.res=Math.min(1,Q.res*1.25);D.setQuality(QS[i-1],false);Q.bad=0;Q.wait=100;if(!Q.msg){Q.msg=true;try{MW.toast('Qualité graphique réduite pour garder un jeu fluide (réglable dans le menu pause).','info');}catch(e){}}}}
+   else{Q.bad=0;if(avg<.021&&Q.res<1){if(++Q.good>=4){Q.good=0;Q.res=Math.min(1,Q.res*1.12);Q.wait=40;D.setQuality(Q.level,false);}}else Q.good=0;}}}}
 };
 /* correction des couleurs des matériaux créés ailleurs (hex sRGB → linéaire) */
 const SIGNM=[];
@@ -387,6 +410,7 @@ D.build=ctx=>{
  if(D.city) D.city(ctx,D);
  if(D.garages) D.garages(ctx,D);
  groups=D.finish();groups.anim=D.animFn||null;
+ for(const p of D.parked||[]){groups[p.layer].add(p.g);}
  groups.core.name='decor-core';groups.detail.name='decor-detail';groups.far.name='decor-far';
  S.add(groups.core,groups.detail,groups.far);
  lampMat=MT.lamph||null;glowMat=MT.glowm||null;
