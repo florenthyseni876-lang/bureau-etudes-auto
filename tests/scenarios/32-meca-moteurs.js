@@ -71,7 +71,9 @@ module.exports = async function mecaMoteurs(page, env) {
         if (!t.inBay) bad.push(`${id} : cible ${t.id} hors du compartiment moteur (${t.l})`);
         if (t.centre) bad.push(`${id} : cible ${t.id} au centre de la voiture`);
         if (t.dist > .06) bad.push(`${id} : cible ${t.id} flotte à ${Math.round(t.dist * 100)} cm de toute pièce dessinée (${t.l})`);
-        if (t.vu < 1) bad.push(`${id} : cible ${t.id} cachée (invisible depuis les positions de joueur) (${t.l})`);
+        // une fixation minuscule peut être cachée par le bord de la baie si la pièce elle-même se voit
+        const frere = /^fx:/.test(t.id) && r.res.some(q => /^(pt|cv):/.test(q.id) && q.id.split(':')[1] === t.id.split(':')[1] && q.vu >= 1);
+        if (t.vu < 1 && !frere) bad.push(`${id} : cible ${t.id} cachée (invisible depuis les positions de joueur) (${t.l})`);
       }
     }
     bilan.push(`${id} : ${n} cibles`);
