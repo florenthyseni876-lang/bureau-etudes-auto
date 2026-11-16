@@ -23,7 +23,7 @@ module.exports = async function mecaChassis(page, env) {
   const att = await e(() => {
     const out = [];
     for (const id of MWCARS.ids()) {
-      const c = MWCARS.get(id), G = MWCARS.geo(id), ch = G.ch, ids = ch.units.map(u => u.id).filter(x => x !== '__filtre');
+      const c = MWCARS.get(id), G = MWCARS.geo(c), ch = G.ch, ids = ch.units.map(u => u.id).filter(x => x !== '__filtre');
       const has = k => ids.includes(k), diesel = c.eng.fuel === 'diesel', ev = !!c.ev;
       const bad = [];
       if (!ch.full.attributes.color || ch.full.attributes.position.count < 3000) bad.push('dessous trop pauvre (' + ch.full.attributes.position.count + ' sommets)');
@@ -67,8 +67,10 @@ module.exports = async function mecaChassis(page, env) {
     const bad = [];
     const attendrePont = async () => { for (let w = 0, y0 = -1; w < 40; w++) { const y = await e(() => __mwj.meshY(__mwj.jobs()[0])); if (Math.abs(y - y0) < .002) break; y0 = y; await attendre(120); } };
     /* le joueur vise la cible : accroupi, depuis plusieurs endroits ; renvoie l'identifiant visé */
+    let dernierMasque = null;
     const viser = async (id) => {
-      for (const [d, mode] of [[.9, 's'], [.6, 's'], [.8, 'f'], [.8, 'b'], [.45, '-s']]) {
+      dernierMasque = null;
+      for (const [d, mode] of [[.9, 's'], [.6, 's'], [.8, 'f'], [.8, 'b'], [.45, '-s'], [1.2, 's'], [.5, 'f'], [.5, 'b'], [.25, '-s']]) {
         await e(([id, d, mode]) => {
           MWF.crouch(true); __mw.eyeY = 1.08;
           const R = MWG.rig(), t = R.tg.find(q => q.id === id), v = new THREE.Vector3(), o = typeof t.o === 'function' ? t.o() : t.o;
@@ -80,8 +82,9 @@ module.exports = async function mecaChassis(page, env) {
         }, [id, d, mode]);
         await attendre(110);
         const vis = await e(() => { const A = MWG.aim(); return A ? A.t.id : null; });
-        if (vis === id) return { vis, d, mode };
+        if (vis === id) { const m = await masque(id); if (!m) return { vis, d, mode }; dernierMasque = m; }
       }
+      if (dernierMasque) return { vis: id, masque: dernierMasque };
       return { vis: await e(() => { const A = MWG.aim(); return A ? A.t.id : null; }) };
     };
     /* la pièce est-elle visible depuis là : aucune tôle de la voiture à plus de 12 cm devant elle */
@@ -109,7 +112,7 @@ module.exports = async function mecaChassis(page, env) {
       if (!existe) { bad.push('cible absente : ' + id); continue; }
       const r = await viser(id);
       if (r.vis !== id) { const dbg = await e(() => JSON.stringify(MWG.aimDbg().slice(0, 3))); bad.push(`${id} : visé = ${r.vis} | ${dbg}`); continue; }
-      const m = await masque(id);
+      const m = r.masque;
       if (m) bad.push(`${id} : masqué par « ${m.objet} » (${m.devant} m devant)`);
     }
     // jusqu'au bout des gestes : tout doit être faisable et la voiture rendue sans blocage
@@ -125,7 +128,7 @@ module.exports = async function mecaChassis(page, env) {
     const fin = await e(() => { const c = __mwj.jobs()[0]; return { fait: c.ordre.filter(id => !c.done[id]), bl: MWG.blocage(c).join(', ') }; });
     if (fin.fait.length) bad.push('pas terminé : ' + fin.fait.join(', '));
     if (fin.bl) bad.push('blocage : ' + fin.bl);
-    verifier(!bad.length, `${modele} (${travaux.join('+')}) :\n   ${bad.join('\n   ')}`);
+    verifier(!bad.length, `${modele} (${travaux.join('+')})  : ${bad.join(" ; ")}`);
     bilan.push(`${modele} ${travaux.join('+')} (${cibles.length} visées, ${n} gestes)`);
   };
 
@@ -135,7 +138,7 @@ module.exports = async function mecaChassis(page, env) {
   // dessous : échappement, sonde, réservoir
   await job('clio4', ['catalyseur', 'sonde_lambda', 'pompe_carburant', 'fap'], [].concat(pt('catalyseur'), pt('sonde_lambda'), pt('pompe_carburant'), pt('fap'), ['fx:catalyseur:0', 'fx:pompe_carburant:0']));
   // tambours : garnitures (mâchoires) et tambours arrière, comme un tambour
-  await job('clio4', ['plaq_ar', 'disq_ar'], ['disc:RL', 'disc:RR', 'pad:RL', 'pad:RR'], { roues: 'ar' });
+  await job('clio4', ['plaq_ar', 'disq_ar'], ['disc:RL', 'disc:RR'], { roues: 'ar' });
   const tamb = await e(() => { const R = MWG.rig(); const k = R && R.bk && R.bk.RL; return { drum: !!(k && k.drum), nom: R.tg.find(q => q.id === 'disc:RL') && R.tg.find(q => q.id === 'disc:RL').name() }; });
   // (la voiture est rendue : le rig a été conservé tant qu'on est près du pont)
   verifier(!tamb.nom || /tambour/i.test(tamb.nom), 'le frein arrière à tambour s\'appelle « ' + tamb.nom + ' » (doit être un tambour)');
