@@ -102,6 +102,7 @@ module.exports = async function mecaRendu(page, env) {
       const mats = await e(() => {
         const g = __mwj.mesh(__mwj.jobs()[0]), cols = new Set();
         for (const o of g.children) if (o.isMesh && o.material && o.material.color && !o.name) cols.add(o.material.color.getHex());
+        const u = g.userData.under; if (u) { const c = u.geometry.attributes.color, k = new Set(); for (let i = 0; i < c.count; i++) k.add([c.getX(i), c.getY(i), c.getZ(i)].map(v => Math.round(v * 255)).join()); cols.add('dessous'); return cols.size - 1 + Math.min(k.size, 40); } /* le dessous (js/44c) est un seul maillage coloré par sommet : on compte ses couleurs */
         return cols.size;
       });
       verifier(mats >= 12, `le dessous et la carrosserie n'ont pas assez de matières distinctes (${mats})`);

@@ -213,7 +213,7 @@ function lampCfg(c,g){
  const an=g.userData.anchors||{},bay=an.bay?an.bay.position:V(0,0,1.5),sg=bay.z>=0?1:-1,y0=g.position.y;
  const zb=bay.z;
  if(c.st.lifted&&c.st.capot) return {x:-1.25,z:zb-sg*.75,h:y0+.55,tx:0,ty:y0+.35,tz:zb*.55,lx:-.95,lz:zb*.25,ly:y0+.5};
- if(c.st.lifted) return {x:-1.3,z:0,h:1.15,tx:0,ty:y0+.3,tz:0,lx:-.5,lz:0,ly:1.35};
+ if(c.st.lifted) return {x:-1.3,z:0,h:1.15,tx:0,ty:y0+.3,tz:0,lx:-1.05,lz:0,ly:1.4};   /* la lumière part du projecteur, à côté de la voiture : elle éclaire le dessous en biais, sans brûler ce qui est juste au-dessus */
  if(c.st.capot) return {x:-1.2,z:zb+sg*.45,h:1.55,tx:0,ty:y0+.75,tz:zb,lx:-.45,lz:zb+sg*.15,ly:1.75};
  return null;}
 const lv=V(0,0,0),la=V(0,0,0);
@@ -237,6 +237,23 @@ function lampTick(dt){
  if(!cfg&&lampCol&&lampK<.03){const D=(typeof MWD!=='undefined'&&MWD.ctx),i=D&&D.walls?D.walls.indexOf(lampCol):-1;if(i>=0) D.walls.splice(i,1);lampCol=null;}
 }
 
+/* ═══════════ Regard : se baisser pour voir le dessous (touche X, ou bouton tactile) ═══════════
+   Debout, les yeux sont à 1,70 m, presque à la hauteur du bas de caisse d'une voiture levée (≈ 1,8 m) : on ne voit le dessous que
+   de côté. Accroupi, ils descendent à 1,08 m : on regarde vers le haut, sous le berceau, l'échappement, les trains. */
+const EYE0=1.7,EYE_CROUCH=1.08;
+let crouch=false,eyeK=0,crTip=false;
+function setCrouch(v){crouch=!!v;}
+function crouchTick(dt){
+ const R=typeof MWG!=='undefined'&&MWG.rig?MWG.rig():null;
+ const can=!!R&&MWG.on()&&!MW.paused&&!MW.player().inCar;
+ if(!can) crouch=false;
+ const tg=crouch?1:0;if(Math.abs(tg-eyeK)>.002){eyeK+=(tg-eyeK)*Math.min(1,dt*8);MW.eyeY=EYE0-(EYE0-EYE_CROUCH)*eyeK;}
+ else if(eyeK!==tg){eyeK=tg;MW.eyeY=tg?EYE_CROUCH:0;}}
+MW.on('key',k=>{if(k==='x'&&typeof MWG!=='undefined'&&MWG.rig&&MWG.rig()&&MWG.on()){setCrouch(!crouch);}});
+MW.on('geste',(c,key)=>{if(key==='raise'&&!crTip){crTip=true;try{MW.toast('Astuce : touche X (ou bouton « Se baisser ») pour vous accroupir et regarder le dessous de la voiture.','info');}catch(e){}}});
+try{MW.addButton('baisser','Se baisser (X)',()=>{if(typeof MWG!=='undefined'&&MWG.rig&&MWG.rig()) setCrouch(!crouch);});}catch(e){}
+api.crouch=v=>{if(v!=null) setCrouch(v);return crouch;};
+
 /* ═══════════ Collisions : voitures posées sur les ponts (le joueur passe sous une voiture levée) ═══════════ */
 const carCol=new Map();
 function colTick(){
@@ -256,7 +273,7 @@ function colTick(){
  }
  for(const [id,e] of carCol) if(!live.has(id)){const i=walls.indexOf(e.r);if(i>=0) walls.splice(i,1);carCol.delete(id);}}
 let ft=0;
-MW.on('tick',dt=>{try{lampTick(dt);if(++ft%4===0) colTick();}catch(e){if(!api._err){api._err=1;console.error('MWF',e);}}});
+MW.on('tick',dt=>{try{lampTick(dt);crouchTick(dt);if(++ft%4===0) colTick();}catch(e){if(!api._err){api._err=1;console.error('MWF',e);}}});
 MW.on('start',()=>{carCol.clear();lampCol=null;});
 api.lamp=()=>({on:lampK>.5,k:lampK,light:LL,group:LG,car:lampCar});
 api.cols=()=>carCol.size;

@@ -358,8 +358,8 @@ function setNight(n){if(n===nightOn) return;nightOn=n;
 /* ═══════════ 6. Carrosserie, roues, détails d'un modèle (géométries partagées, mises en cache) ═══════════ */
 const GEO={};
 /* roue : pneu (profil avec flanc bombé) + jante (tonneau + rayons), axe x, face vers +x */
-function wheelGeo(t,style,rimC){
- const key=[t.w,t.a,t.rim,style,rimC,qSeg(30,15)].join('|');if(GEO[key]) return GEO[key];
+function wheelGeo(t,style,rimC,nn){
+ nn=nn||5;const key=[t.w,t.a,t.rim,style,rimC,nn,qSeg(30,15)].join('|');if(GEO[key]) return GEO[key];
  const {w,rimR,rt}=t,sw=rt-rimR,R=rimR-.004;
  const P=(r,y)=>new T.Vector2(r,y);
  const prof=[P(rimR+.002,-w*.36),P(rimR+sw*.2,-w*.485),P(rimR+sw*.55,-w*.515),P(rt-.022,-w*.47),P(rt-.005,-w*.40),P(rt,-w*.30),P(rt,w*.30),P(rt-.005,w*.40),P(rt-.022,w*.47),P(rimR+sw*.55,w*.515),P(rimR+sw*.2,w*.485),P(rimR+.002,w*.36),P(rimR-.004,w*.30),P(rimR-.004,-w*.30),P(rimR+.002,-w*.36)];
@@ -375,9 +375,12 @@ function wheelGeo(t,style,rimC){
  else if(style==='a7'){sp(7,.052,R*.96,hubR,0);}
  else sp(5,.07,R*.96,hubR,0);
  if(style!=='steel'){parts.push(cyg(hubR+.012,hubR+.016,.034,20,0,yo,0));parts.push(cyg(.012,.012,.036,8,0,yo+.01,0));}
- for(let i=0;i<5;i++){const a=i/5*TAU;parts.push(cyg(.009,.009,.016,6,Math.cos(a)*.04,yo+.012,Math.sin(a)*.04));}
+ /* écrous : au même endroit que ceux du geste de dépose (js/46) ; le maillage « rimBare » en est dépourvu (js/46 le pose pendant qu'on travaille sur la voiture) */
+ const bare=merge(parts.map(g=>g.clone()));bare.rotateZ(-PI/2);
+ for(let i=0;i<nn;i++){const a=i/nn*TAU+.31;parts.push(cyg(.0145,.0145,.026,6,Math.cos(a)*.056,yo+.038,Math.sin(a)*.056));}
+ if(style!=='steel') parts.push(cyg(.007,.007,.03,6,Math.cos(TAU*.62)*(R*.9),yo-.02,Math.sin(TAU*.62)*(R*.9)));   /* valve */
  const rim=merge(parts);rim.rotateZ(-PI/2);
- return (GEO[key]={tire,rim,rw,style});}
+ return (GEO[key]={tire,rim,rimBare:bare,rw,style});}
 function brakeGeo(car,front){
  const b=car.brk,d=(front?b.fd:b.rd)/2000,kind=front?b.f:b.r,key='brk|'+kind+'|'+d+'|'+(car.cat==='sport'?1:0);if(GEO[key]) return GEO[key];
  const disc=[],cal=[];
@@ -411,7 +414,7 @@ function buildGeo(car){
  const lidLo=rearLid?zr+L*(1-(sh.lidR||.93)):zc,lidHi=rearLid?zrb-.02:zf-.13;
  const ring=(z,open)=>{
   const {wf,vf}=endF(z),ytc=top(z),ytf=Math.max(ytc,Math.min(ytc+.3,gdz(z))),ybz=yb(z),ym=(ybz+ytc)/2,hh=ytf-ybz,vs=Math.min(1,hh/.4);
-  const yF=yfl(z)+.11,R=[[.6*hw,yF],[.86*hw,ybz],[.972*hw,ybz+Math.min(.04,hh*.3)],[hw,ybz+.14*hh],[hw,ybz+.78*hh],[.978*hw,ytf-.034*vs],[.9*hw,ytf-.006],[.64*hw,ytf],[.6*hw,ytc]];
+  const yF=yfl(z)+.11,R=[[.6*hw,yF],[.62*hw,ybz],[.86*hw,ybz],[.972*hw,ybz+Math.min(.04,hh*.3)],[hw,ybz+.14*hh],[hw,ybz+.78*hh],[.978*hw,ytf-.034*vs],[.9*hw,ytf-.006],[.64*hw,ytf],[.6*hw,ytc]];
   const f=p=>[p[0]*wf,ym+(p[1]-ym)*vf],r=R.map(f),pts=[];
   for(let i=R.length-1;i>=0;i--) pts.push([-r[i][0],r[i][1]]);
   for(let i=0;i<R.length;i++) pts.push(r[i]);
@@ -426,7 +429,7 @@ function buildGeo(car){
  const paint=[],dark=[],trim=[],chrome=[],glass=[],head=[],tail=[],amber=[],inter=[],steel=[],ubel=[],sub=[],uexA=[],ualuA=[];
  paint.push(loft(rings));
  /* dessous sombre (plancher, voûtes de roues) */
- {const ur=zs.map(z=>{const {wf}=endF(z),y=yb(z)-.002,yF=yfl(z)+.108;return {z,pts:[[-.86*hw*wf,y],[-.6*hw*wf,yF],[.6*hw*wf,yF],[.86*hw*wf,y]],closed:false};});ubel.push(loft(ur));}
+ {const ur=zs.map(z=>{const {wf}=endF(z),y=yb(z)-.002,yF=yfl(z)+.108;return {z,pts:[[-.86*hw*wf,y],[-.62*hw*wf,y],[-.62*hw*wf,yF],[.62*hw*wf,yF],[.62*hw*wf,y],[.86*hw*wf,y]],closed:false};});ubel.push(loft(ur));}   /* passage de roue en boîte : paroi verticale côté intérieur (on y voit l'amortisseur et le ressort) */
  /* habitacle : coque peinte */
  const ptsR=[[zrb,top(zrb)],[lerp(zrb,zRr,.25),lerp(top(zrb),H,sh.rb)],[zRr,H-.03],[lerp(zRr,zRf,.5),H],[zRf,H-.012],[lerp(zRf,zc,.55),lerp(H-.012,top(zc),.4+sh.fb*.2)],[zc,top(zc)]];
  const roofY=curveFn(ptsR),c=.05;
@@ -488,14 +491,8 @@ function buildGeo(car){
  /* plaques françaises (plans, texture ajoutée à l'instance) */
  const pyF=Math.max(gc+.3,(yb(zf-.15)+top(zf-.15))/2-.04),pyR=(top(zr+.12)+yb(zr+.12))/2+.03;
  const plateF={x:0,y:pyF,z:surf(true,0,pyF,pyF)+.004},plateR={x:0,y:pyR,z:surf(false,0,pyR,pyR)-.004};
- /* dessous : échappement, réservoir, train arrière, boîte, arbre de transmission */
- const exX=hw*.42,exZ0=car.loc==='front'?zc-.35:zrb+.4;
- uexA.push(cyz(.03,L*.0+Math.abs(exZ0-(zr+.25)),12,exX,.1,(exZ0+zr+.25)/2));
- uexA.push(cyz(.085,.55,14,exX,.12,zr+.5));uexA.push(cyz(.034,.12,10,exX,.14,zr+.06));
- trim.push(cyz(.045,.12,12,exX,.14,zr+.04));
- dark.push(bxg(W*.52,.12,.62,0,.1,arz+.2+(car.loc==='front'?.0:.2)));   /* réservoir : plastique noir */
- steel.push(cyx(.03,W*.8,10,0,.18,arz));if(car.drive!=='fwd'){steel.push(cyz(.045,Math.abs(afz-arz)*.7,10,0,.12,(afz+arz)/2));ualuA.push(bxg(.3,.18,.26,0,.16,arz+.02));}   /* pont arrière en fonte d'alu */
- steel.push(bxg(W*.62,.04,.12,0,.12,afz-.3));steel.push(bxg(W*.62,.04,.12,0,.12,afz+.15));
+ /* dessous (échappement, réservoir, trains, boîte…) : js/44c, un seul maillage coloré par sommet */
+ const exX=hw*.42;
  /* intérieur sommaire */
  const zSeat=zc-(car.loc==='front'?.86:.55)-(car.body==='mid'?.35:0),sx=.36,sy=.4;
  const seat=(x,z)=>{inter.push(bxg(.5,.13,.5,x,sy,z));inter.push(bxg(.5,.55,.12,x,sy+.33,z-.27,-.18,0,0));inter.push(bxg(.22,.14,.09,x,sy+.68,z-.31,-.18,0,0));};
@@ -549,41 +546,11 @@ function buildGeo(car){
   under:[0,gc,(afz+arz)/2],oilPlug:[0,gc-.02,eZ],oilFilter:[.2,gc+.0,eZ],battery:[.55,.55,bayZ+(car.loc==='front'?.35:0)],airbox:[-.5,.62,bayZ+.3],exhaust:[exX,.14,zr+.02],fuelCap:[fuelX,hb-.2,fuelZ],
   coolant:[.3,.8,bayZ-.2],washer:[-.6,.55,bayZ+.35],brakeFluid:[.36,.78,lidLo+.06],radiator:[0,.5,lidHi-.1],oilCap:[0,.95,bayZ],dipstick:[.2,.8,bayZ],alternator:[.3,.4,bayZ+.1],
   hoodPivot:[0,pivY,lidLo],cabin:[sx,.95,zSeat],headL:headPos,tailL:tailPos,wiperD:wiperPos.slice(0,3)};
- /* [finition] dessous détaillé : carter, berceau, bras de suspension, barre antiroulis, ressorts, cardans, catalyseur, réservoir */
- const ualu=[],uex=[],dirF=car.loc==='front'?1:-1;
- const bar2=(arr,x1,y1,z1,x2,y2,z2,w,h)=>{const dx=x2-x1,dy=y2-y1,dz=z2-z1,len=Math.hypot(dx,dy,dz)||.01;arr.push(bxg(w,h,len,(x1+x2)/2,(y1+y2)/2,(z1+z2)/2,-Math.asin(dy/len),Math.atan2(dx,dz),0));};
- {const yb=gc+.04,hxF=hw-tF.w/2-.02,hxR=hw-tR.w/2-.02;
-  if(!car.ev){
-   ualu.push(bxg(.3,.13,.52,0,gc+.045,eZ));ualu.push(bxg(.34,.03,.56,0,gc+.1,eZ));
-   steel.push(cyg(.016,.016,.02,6,0,gc-.025,eZ,0,0,0));
-   ualu.push(bxg(.26,.12,.3,0,gc+.05,eZ-dirF*.5));
-   uex.push(cyz(.07,.42,14,exX,gc+.03,exZ0));uex.push(bxg(.2,.012,.5,exX,gc+.1,exZ0));
-   uex.push(cyz(.034,Math.abs(exZ0-(eZ+dirF*.2)),10,exX*.8,gc+.04,(exZ0+eZ+dirF*.2)/2));
-   ualu.push(cyz(.062,.3,14,exX*.8,gc+.045,eZ+dirF*.42));   /* catalyseur en inox */
-  }
-  for(const sg of [-1,1]){
-   sub.push(bxg(.07,.08,.95,sg*.4,yb,afz+.02));
-   bar2(steel,sg*.36,yb-.02,afz-.32,sg*(hxF-.06),yb-.01,afz-.02,.06,.04);
-   bar2(steel,sg*.36,yb-.02,afz+.34,sg*(hxF-.06),yb-.01,afz+.03,.06,.04);
-   steel.push(cyg(.052,.052,.26,10,sg*(hxF-.16),gc+.27,afz,0,0,0));
-   steel.push(cyg(.012,.012,.2,6,sg*(hxF-.12),gc+.15,afz+.26,0,0,0));
-   bar2(steel,sg*.22,gc+.04,arz-.04,sg*(hxR-.05),gc+.06,arz-.18,.05,.04);
-   bar2(steel,sg*.22,gc+.05,arz+.2,sg*(hxR-.05),gc+.06,arz+.12,.05,.04);
-   steel.push(cyg(.058,.058,.28,10,sg*(hxR-.18),gc+.28,arz-.06,0,0,0));
-   if(car.drive!=='rwd') bar2(steel,sg*.18,gc+.06,afz-.05,sg*(hxF-.06),gc+.1,afz,.035,.035);
-   if(car.drive!=='fwd') bar2(steel,sg*.15,gc+.06,arz+.02,sg*(hxR-.06),gc+.1,arz,.035,.035);
-  }
-  steel.push(cyx(.011,hxF*1.7,8,0,gc+.05,afz+.3));
-  sub.push(bxg(.62,.05,.1,0,yb,afz-.4));sub.push(bxg(.62,.05,.1,0,yb,afz+.45));   /* traverses du berceau avant */
-  sub.push(bxg(.5,.045,.08,0,gc+.05,arz-.3));sub.push(bxg(.5,.045,.08,0,gc+.05,arz+.3));   /* berceau arrière */
-  sub.push(bxg(.26,.08,Math.abs(arz-afz)*.8,0,gc+.075,(afz+arz)/2));   /* tunnel de transmission */
-  for(const sg of [-1,1]) sub.push(bxg(.07,.08,Math.abs(arz-afz)*.7,sg*(hw-.3),gc+.03,(afz+arz)/2));   /* bas de caisse */
-  const tkz=arz+.62;dark.push(bxg(W*.6,.1,.72,0,gc+.055,tkz));
-  for(const dz of [-.26,.26]) steel.push(bxg(W*.6+.02,.02,.045,0,gc+.04,tkz+dz));
-  uex.push(cyg(.085,.085,.55,14,exX,gc,zr+.62,PI/2,0,0));
- }
+ const eZc=car.loc==='front'?(car.ori==='T'?zc+.3:zc+.5):bayZ;
+ const CH=MWCH.build(car,{gc,hw,W,L,tF,tR,afz,arz,zf,zr,wxF:hw-tF.w/2-.015,wxR:hw-tR.w/2-.015,eZ:eZc,exX,zc,fuelZ,ubel});
+ for(const k in CH.anchors) anchors[k]=CH.anchors[k];
  const interX=merge(inter),interF=merge(inter.concat(cardP)),trimX=merge(trim.concat(wiper)),trimF=merge(trim.concat(wiper,bladeD)),doorZ=[dz0,dRear];
- return (GEO[car.id]={ubel:merge(ubel),sub:merge(sub),ualu:merge(ualu.concat(ualuA)),uex:merge(uex.concat(uexA)),paint:merge(paint),dark:merge(dark),trim:trimF,trimX,interX,chrome:merge(chrome),glass:merge(glass),head:merge(head),tail:merge(tail),amber:merge(amber),inter:interF,steel:merge(steel),
+ return (GEO[car.id]={ch:CH,paint:merge(paint),dark:merge(dark),trim:trimF,trimX,interX,chrome:merge(chrome),glass:merge(glass),head:merge(head),tail:merge(tail),amber:merge(amber),inter:interF,
   hoodTop,hoodUnder,hLen,lidLo,lidHi,pivY,anchors,plateF,plateR,wx:{F:hw-tF.w/2-.015,R:hw-tR.w/2-.015},afz,arz,tF,tR,hw,zf,zr,top,roofY,zc,zrb,rearLid,bayZ,sx,gc,hb,hn,
   doorZ,sill,doorTop,ybw,winTop,sideX,zS,zE,zSeat,dashY,sy,handleZ:handles[0],wiperTh:wiperPos[3],lw,fuelZ});}
 
@@ -615,7 +582,7 @@ function makeCar(car,o){
  const G=buildGeo(car),g=new T.Group();g.name='car_'+car.id;
  const pal=COLS_CAT[car.cat]||COLS_CAT.pop,color=o.color!=null?o.color:pal[Math.floor(rndf()*pal.length)],pm=paintMat(color);
  g.add(mesh(G.paint,pm));g.add(mesh(G.dark,MATS.dark()));g.add(mesh(G.trim,MATS.trim()));g.add(mesh(G.glass,MATS.glass()));
- g.add(mesh(G.head,MATS.head()));g.add(mesh(G.tail,MATS.tail()));g.add(mesh(G.amber,MATS.amber()));g.add(mesh(G.inter,MATS.inter()));g.add(mesh(G.steel,MATS.steel()));if(G.ualu.attributes.position.count) g.add(mesh(G.ualu,MATS.cast()));g.add(mesh(G.ubel,MATS.under()));if(G.sub.attributes.position.count) g.add(mesh(G.sub,MATS.sub()));g.add(mesh(G.uex,MATS.exh()));
+ g.add(mesh(G.head,MATS.head()));g.add(mesh(G.tail,MATS.tail()));g.add(mesh(G.amber,MATS.amber()));g.add(mesh(G.inter,MATS.inter()));const under=mesh(G.ch.full,MWCH.mat());under.name='dessous';g.add(under);
  if(G.chrome.attributes.position.count) g.add(mesh(G.chrome,MATS.chrome()));
  /* capot (charnière à l'arrière du capot) */
  const hood=new T.Group();hood.name='hood';hood.position.set(0,G.pivY,G.lidLo);hood.add(mesh(G.hoodTop,pm));hood.add(mesh(G.hoodUnder,MATS.hoodUnder()));g.add(hood);
@@ -623,13 +590,14 @@ function makeCar(car,o){
  const text=o.plate||plateFromPool(),pmat=plateMat(text),pf=mesh(GEOM_PLATE,pmat),pr=mesh(GEOM_PLATE,pmat);
  pf.position.set(G.plateF.x,G.plateF.y,G.plateF.z);pr.position.set(G.plateR.x,G.plateR.y,G.plateR.z);pr.rotation.y=PI;g.add(pf,pr);
  /* roues et freins */
- const wg=(front,s)=>{const t=front?G.tF:G.tR,wgo=wheelGeo(t,car.rim,car.rimC);return {t,wgo};};
+ const nn=(car.cat==='pop'&&car.body!=='sedan'&&car.kind==='citadine')?4:5;   /* nombre d'écrous par roue (comme js/46) */
+ const wg=(front,s)=>{const t=front?G.tF:G.tR,wgo=wheelGeo(t,car.rim,car.rimC,nn);return {t,wgo};};
  const rimMat=car.rim==='steel'?MATS.steelw():car.rimC==='graph'?MATS.graph():MATS.alu(),brakes={};
  for(const [n,fr,sg] of [['FL',1,1],['FR',1,-1],['RL',0,1],['RR',0,-1]]){
   const {t,wgo}=wg(fr),w=new T.Group();w.name='w'+n;w.rotation.order='YXZ';
   const wx=sg*(fr?G.wx.F:G.wx.R),wz=fr?G.afz:G.arz;w.position.set(wx,t.rt,wz);
   const tire=mesh(wgo.tire,MATS.rubber()),rim=mesh(wgo.rim,rimMat);if(sg<0){tire.rotation.y=PI;rim.rotation.y=PI;}
-  w.add(tire,rim);g.add(w);
+  w.userData.geo=wgo;w.add(tire,rim);g.add(w);
   const bg=brakeGeo(car,!!fr),b=new T.Group();b.name='brake'+n;b.position.set(wx,t.rt,wz);if(sg<0) b.rotation.y=PI;
   const d=mesh(bg.disc,bg.d?(car.brk[fr?'f':'r']==='drum'?MATS.drum():MATS.disc()):MATS.disc());d.position.x=-.05;b.add(d);
   if(bg.cal){const c=mesh(bg.cal,car.cat==='sport'?MATS.caliperR():car.cat==='prem'?MATS.caliperB():MATS.caliperD());c.position.x=-.05;b.add(c);}
@@ -640,7 +608,7 @@ function makeCar(car,o){
  /* béquille de capot */
  const rod=mesh(GEOM_ROD,MATS.steel());rod.visible=false;g.add(rod);
  g.userData={mdl:car.id,L:car.L,W:car.W,H:car.H,WB:car.WB,kind:car.kind,loc:car.loc,wheelR:G.tF.rt,wheelRR:G.tR.rt,trackF:2*G.wx.F,trackR:2*G.wx.R,hoodLen:G.hLen,bayZ:G.bayZ,anchors,
-  plates:[pf,pr],plate:text,hood,rod,brakes,color,car,bay:null,_age:0,_seen:false,_ang:99,G};
+  plates:[pf,pr],plate:text,hood,rod,brakes,under,color,car,bay:null,_age:0,_seen:false,_ang:99,G};
  if(o.bay!==false) LIVE.add(g);
  return g;}
 
