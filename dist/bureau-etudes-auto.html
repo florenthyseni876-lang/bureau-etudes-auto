@@ -10270,7 +10270,7 @@ function engineMesh(car,o){
  pt('battery','lead',bxg(.28,.012,.025,bx,batY+.1,batZ+.02));pt('battery','lead',cyg(.005,.005,.2,6,bx+.125,batY,batZ+.02));pt('battery','lead',cyg(.005,.005,.2,6,bx-.125,batY,batZ+.02));
  pt('battery','cabR',tf(new T.TubeGeometry(new T.CatmullRomCurve3([V3(bx-.08,batY+.125,batZ-.04),V3(bx-.08,batY+.15,batZ-.12),V3(bx*.5,batY+.1,batZ-.2)]),10,.008,6,false),0,0,0));
  pt('battery','blk',tf(new T.TubeGeometry(new T.CatmullRomCurve3([V3(bx+.08,batY+.125,batZ-.04),V3(bx+.1,batY+.08,batZ-.12),V3(bx+.06,batY,batZ-.2)]),10,.008,6,false),0,0,0));
- const abZ=front?zF-.22:(lidLo+lidHi)/2-.2,abY=front?.62:gc+.25;
+ const abZ=front?zF-.22:(lidLo+lidHi)/2-.2,abY=front?.62:Math.min(minTop-.22,gc+.42);
  if(!car.ev){add('floor',bxg(.38,.025,.28,ax,abY-.1,abZ));pt('airbox','abox',bxg(.32,.17,.22,ax,abY,abZ));pt('airbox','abl',bxg(.325,.02,.225,ax,abY+.085,abZ));
   for(const sx of [-.13,.13]) for(const sz of [-.09,.09]) pt('airbox','clip',bxg(.03,.022,.022,ax+sx,abY+.098,abZ+sz));
   for(const sz of [-.06,0,.06]) pt('airbox','abl',bxg(.26,.008,.012,ax,abY+.097,abZ+sz));
@@ -10302,7 +10302,7 @@ function engineMesh(car,o){
  ud.dirs={};ud.names={};
  if(parts&&parts.spots) for(const k in parts.spots){const q=parts.spots[k];if(k==='coils'||k==='oilCap') continue;A[k]=ep(q.p);ud.names[k]=[q.name,q.desc];ud.dirs[k]=q.d.clone().applyAxisAngle(V3(0,1,0),th);}
  if(A.dip) A.dipstick=A.dip.clone();
- if(!car.ev&&!A.maf){const mp=V3(ax+.04,abY+.052,abZ+.3);A.maf=mp;pt('maf','grey',bxg(.07,.04,.075,mp.x,mp.y-.012,mp.z));pt('maf','blk',bxg(.03,.028,.03,mp.x,mp.y+.03,mp.z));pt('maf','clip',bxg(.07,.008,.012,mp.x,mp.y+.01,mp.z+.045));}
+ if(!car.ev&&!A.maf){const mp=V3(ax+.04,abY+.052,abZ+(front?.2:.3));A.maf=mp;pt('maf','grey',bxg(.07,.04,.075,mp.x,mp.y-.012,mp.z));pt('maf','blk',bxg(.03,.028,.03,mp.x,mp.y+.03,mp.z));pt('maf','clip',bxg(.07,.008,.012,mp.x,mp.y+.01,mp.z+.045));}
  if(!A.egr&&A.throttle) A.egr=A.throttle.clone();
  setA('battery',V3(bx,batY,batZ));setA('airbox',V3(ax,abY,abZ));setA('coolant',V3(vx,minTop-.17,vz));setA('washer',V3(-(hw-.34),front?.5:gc+.2,wz));setA('brakeFluid',V3(bfx,bfy,lidLo+.1));
  setA('bay',V3(0,gc+.06,G.bayZ));setA('hoodPivot',V3(0,G.pivY,lidLo));
