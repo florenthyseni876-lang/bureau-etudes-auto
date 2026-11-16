@@ -1,5 +1,5 @@
 /* Service hors connexion : fichier généré par outils/build.py, ne pas modifier sw.js à la main. */
-const VERSION='bea-9f344a37b3';
+const VERSION='bea-bed01d3311';
 const FICHIERS=[
   './',
   'index.html',
@@ -44,6 +44,7 @@ const FICHIERS=[
   'js/41-meca-travaux.js',
   'js/42-meca-carriere.js',
   'js/43-meca-noir.js',
+  'js/44c-meca-chassis.js',
   'js/44-meca-voitures.js',
   'js/45-meca-decor.js',
   'js/45b-meca-ville.js',
