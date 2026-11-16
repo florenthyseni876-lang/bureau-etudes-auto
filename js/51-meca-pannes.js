@@ -97,7 +97,7 @@ const SYMP=[
  ess:{ralenti:`Au ralenti : cliquetis léger dans la partie haute du moteur.`},cod:[],cause:'Huile épuisée.'},
 {id:'reprise',txt:'Il manque de reprise et consomme un peu plus.',c:'filtre_air',red:['bougies','debitmetre'],dn:1,
  ins:{filtre_air:`Filtre noir de poussière, plié, presque bouché.`,bougies:`Bougies correctes, légèrement grises.`,debitmetre:`Connecteur propre, rien d'anormal à l'œil.`},
- ess:{accel:`En accélérant : le moteur répond mollement, surtout à pleine charge.`},cod:[],cause:'Filtre à air bouché.'},
+ ess:{accel:`En accélérant : le moteur répond mollement, surtout à pleine charge.`},cod:[],fx:{debitmetre:`P0101 : performance du débitmètre d'air (un filtre bouché fausse la mesure).`},cause:'Filtre à air bouché.'},
 {id:'moisi',txt:'Une odeur de moisi sort de la ventilation et les vitres s\'embuent.',c:'filtre_hab',red:[],dn:1,ins:{filtre_hab:`Filtre gris et humide, feuilles et odeur de moisi.`},cod:[],cause:`Filtre d'habitacle saturé.`},
 /* — électricité, démarrage, charge — */
 {id:'demarre',txt:'Elle démarre mal le matin, le démarreur tourne mollement.',c:'batterie',red:['alternateur'],dn:1,
@@ -136,7 +136,7 @@ const SYMP=[
  ess:{ralenti:`Au ralenti : régime instable, odeur d'essence à l'échappement.`},cod:[`P0130 : circuit de la sonde lambda défectueux (banc 1).`,`P0133 : réponse lente de la sonde lambda.`],cause:`Sonde lambda encrassée : le mélange n'est plus corrigé.`},
 {id:'debitmetre',txt:'Il manque de puissance, le ralenti est irrégulier et le voyant moteur est allumé.',c:'debitmetre',red:['filtre_air','vanne_egr','sonde_lambda'],dn:3,
  ins:{debitmetre:`Élément chaud encrassé : il mesure moins d'air qu'il n'en passe.`,filtre_air:`Filtre un peu sale, mais l'air passe.`,vanne_egr:`Vanne mobile, pas collée.`,sonde_lambda:`Sonde correcte au contrôle.`},
- ess:{ralenti:`Au ralenti : régime irrégulier.`,accel:`En accélérant : creux et manque de reprise (mode dégradé).`},cod:[`P0101 : performance du débitmètre d'air (plage de mesure).`],cause:`Débitmètre d'air encrassé.`},
+ ess:{ralenti:`Au ralenti : régime irrégulier.`,accel:`En accélérant : creux et manque de reprise (mode dégradé).`},cod:[`P0101 : performance du débitmètre d'air (plage de mesure).`],fx:{vanne_egr:`P0401 : débit de recirculation des gaz (EGR) insuffisant (peut venir d'un débit d'air mal mesuré).`},cause:`Débitmètre d'air encrassé.`},
 {id:'fumee',txt:'Fumée noire et consommation en hausse.',c:'injecteurs',red:['filtre_air','bougies','vanne_egr'],f:'diesel',dn:4,
  ins:{injecteurs:`Rampe sèche, aucune fuite extérieure : les injecteurs fuient à l'intérieur.`,filtre_air:`Filtre sale mais pas bouché.`,bougies:`Bougies de préchauffage en état.`,vanne_egr:`Vanne un peu encrassée mais mobile.`},
  ess:{ralenti:`Au ralenti : irrégulier, fumée noire à l'échappement.`,accel:`En accélérant : fumée noire épaisse.`},cod:[`P0301 : raté de combustion, cylindre 1.`,`P0303 : raté de combustion, cylindre 3.`],cause:'Injecteurs encrassés.'},
@@ -166,7 +166,7 @@ const SYMP=[
  ess:{accel:`En accélérant : sifflement de sirène, pas de poussée, fumée bleutée.`,vitesse:`À vitesse stabilisée : la puissance s'effondre dès qu'on appuie.`},cod:[`P0299 : pression de suralimentation insuffisante.`],cause:'Turbo usé qui laisse passer huile et air.'},
 {id:'cata',txt:`Elle s'essouffle en côte, ça sent l'œuf pourri et ça cliquette sous le plancher.`,c:'catalyseur',red:['sonde_lambda'],dn:3,
  ins:{catalyseur:`Céramique brisée : ça cliquette quand on tape sur le boîtier.`,sonde_lambda:`Sonde correcte, signaux nets.`},
- ess:{accel:`En côte : puissance limitée, odeur d'œuf pourri.`,ralenti:`Au ralenti : cliquetis sous le plancher.`},cod:[`P0420 : efficacité du catalyseur sous le seuil (banc 1).`],cause:'Catalyseur détruit (échappement colmaté).'},
+ ess:{accel:`En côte : puissance limitée, odeur d'œuf pourri.`,ralenti:`Au ralenti : cliquetis sous le plancher.`},cod:[`P0420 : efficacité du catalyseur sous le seuil (banc 1).`],fx:{sonde_lambda:`P0136 : circuit de la sonde lambda aval défectueux (souvent une conséquence du catalyseur).`},cause:'Catalyseur détruit (échappement colmaté).'},
 /* — refroidissement — */
 {id:'surchauffe',txt:'Le moteur chauffe vite : la durite du haut est brûlante et celle du bas reste froide.',c:'thermostat',red:['pompe_eau','ventilateur','radiateur'],dn:3,
  ins:{thermostat:`Boîtier suintant, clapet resté fermé : la durite du bas reste froide.`,pompe_eau:`Pompe sans jeu, aucune trace de fuite.`,ventilateur:`Le ventilateur se déclenche bien.`,radiateur:`Propre, chaud en haut seulement : il ne reçoit pas de liquide.`},
@@ -208,7 +208,7 @@ const SYMP=[
 {id:'patine',txt:'Ça patine en côte et ça sent le brûlé.',c:'embrayage',red:[],dn:3,
  ins:{embrayage:`Friction brûlée, disque fendu ; la pédale accroche très haut.`},
  ess:{accel:`En accélérant : le régime monte sans que la voiture avance, odeur de brûlé.`},cod:[],cause:'Embrayage usé qui patine.'},
-{id:'bimasse',txt:'Des claquements et des vibrations au ralenti, et une secousse à chaque arrêt du moteur.',c:'volant_bimasse',red:['embrayage','courroie_acc','courroie_dist'],ch:['embrayage'],dn:5,
+{id:'bimasse',txt:'Des claquements et des vibrations au ralenti, et une secousse à chaque arrêt du moteur.',c:'volant_bimasse',red:['courroie_acc','courroie_dist'],ch:['embrayage'],dn:5,
  ins:{volant_bimasse:`Jeu angulaire excessif entre les deux masses, graisse rejetée.`,embrayage:`Disque usé : il se change avec le volant (même dépose de boîte).`,courroie_acc:`Courroie correcte.`,courroie_dist:`Distribution silencieuse.`},
  ess:{ralenti:`Au ralenti : claquement sourd régulier, vibrations dans le plancher.`,demarrage:`À l'arrêt du moteur : grosse secousse.`},cod:[],cause:'Volant bimasse usé : on change aussi le kit embrayage.'}
 ];

@@ -315,7 +315,8 @@ function syncAll(instant){if(!R) return;for(const pr of R.procs) try{pr.vis&&pr.
 const BUILD=[];                       /* constructeurs de procédures : (R) => void */
 const liftedNow=c=>!!c.st.lifted;
 const partOK=(c,id)=>!!c.parts[id]&&!c.parts[id].na;
-const wanted=(c,id)=>partOK(c,id)&&!c.done[id]&&(c.ordre.includes(id)||(c.symp&&c.symp.c===id)||!!(c.g&&c.g.p[id]));
+const chainWanted=(c,id)=>{const y=c.symp&&MWJ.symDef(c);return !!(y&&y.ch&&y.ch.includes(id)&&c.insp[id]);}; /* dégât en chaîne déjà inspecté (js/51) */
+const wanted=(c,id)=>partOK(c,id)&&!c.done[id]&&(c.ordre.includes(id)||(c.symp&&c.symp.c===id)||chainWanted(c,id)||!!(c.g&&c.g.p[id]));
 const wantedAny=(c,ids)=>ids.some(id=>wanted(c,id));
 const pname=(c,id)=>MWJ.pn(c,id);
 const accOK=(c,id)=>{const a=L().acces(c,PARTS[id]);return a.ok?null:a.why;};

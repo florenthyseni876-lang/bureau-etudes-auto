@@ -335,7 +335,7 @@ function codesOf(c){
  const y=symDef(c),l=[],add=t=>{if(t&&!l.includes(t)) l.push(t);};
  for(const q of PLIST){const pr=c.parts[q.id];if(!pr||pr.na||c.done[q.id]) continue;
   if(y&&y.c===q.id&&y.cod){if(pr.u>=60) for(const t of y.cod) add(t);continue;}
-  if(q.code&&pr.u>=60) add(q.code);}
+  if(q.code&&pr.u>=SEUIL) add(q.code);} /* seule une pièce vraiment usée laisse un code : les autres restent muettes */
  if(y&&y.fx) for(const id in y.fx){const pr=c.parts[id];if(pr&&!pr.na&&!c.done[id]&&pr.u>=40) add(y.fx[id]);}
  return l;}
 function doValise(c){
@@ -485,7 +485,7 @@ function rowHTML(c,p){
  else{if(!c.insp[p.id]) b+=btn('insp:'+p.id,'Inspecter','ghost');b+=btn('dep:'+p.id,'Démonter','');}
  if(c.insp[p.id]&&!c.done[p.id]){
   const it=(symDef(c)||{}).ins&&symDef(c).ins[p.id];
-  if(p.hid) info+=`<small>${esc(c.vu?(u>=60?codeTxt(c,p):'Mesures normales à la valise.'):"Rien d'anormal à l'œil nu : seule la valise de diagnostic peut le dire.")}</small>`+(it?`<small>${esc(it)}</small>`:'');
+  if(p.hid) info+=`<small>${esc(c.vu?(u>=SEUIL?codeTxt(c,p):'Mesures normales à la valise.'):"Rien d'anormal à l'œil nu : seule la valise de diagnostic peut le dire.")}</small>`+(it?`<small>${esc(it)}</small>`:'');
   else info+=`<div class="mw-usure"><i style="width:${u}%" class="${u>=SEUIL?'r':u>=55?'o':'v'}"></i></div><small>${esc(inspLine(c,p.id).replace(/^usure/,'Usure'))}</small>`;}
  const need=[];if(p.niv>lv(p.comp)||!canDo(p.id,c)) need.push(`niveau ${p.niv} en ${SK_NOM[p.comp].toLowerCase()}`);if(!outilOK(p.outil,c)) need.push(OUTILS[p.outil].nom.toLowerCase());
 
