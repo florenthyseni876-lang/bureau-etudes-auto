@@ -194,7 +194,7 @@ function bakeCar(opts,x,z,ry,layer){
 H.bakeCar=bakeCar;
 {const rm=D.rng(909),COL=[0xb03030,0x2a4a8a,0xe0e0e0,0x202428,0x3a7a4a,0xd8a020,0x8a8f98,0x6a2a5a,0xc4c4c0],KIND=['citadine','berline','suv','citadine','berline','utilitaire'];let n=0;
  const doors=zones.filter(z=>z.porte).map(z=>z.porte);
- const spot=(x,z,ry,len)=>{if(Math.hypot(x+23.5,z-5.4)<8||!free(x,z,len?2.3:1,len?1:2.3,.2)) return;if(doors.some(p=>Math.hypot(p.x-x,p.z-z)<9)) return;
+ const spot=(x,z,ry,len)=>{if(Math.hypot(x+23.5,z-5.4)<8||(Math.abs(z-5.4)<3.6&&x>-32&&x<12)||!free(x,z,len?2.3:1,len?1:2.3,.2)) return;if(doors.some(p=>Math.hypot(p.x-x,p.z-z)<9)) return;
   const k=pick(KIND);if(bakeCar({kind:k,color:pick(COL)},x,z,ry,'detail')){addCol(x,z,len?4.8:2.1,len?2.1:4.8);n++;}};
  for(const r of RZ) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*30+30){if(near(t,RX,20)||rm()<.45||n>=16) continue;spot(t,r+sd*5.55,sd>0?PI/2:-PI/2,1);}
  for(const r of RX) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*40+40){if(near(t,RZ,20)||rm()<.5||n>=16) continue;spot(r+sd*5.55,t,sd<0?0:PI,0);}}

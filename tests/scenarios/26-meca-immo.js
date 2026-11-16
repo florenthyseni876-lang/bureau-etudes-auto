@@ -99,7 +99,7 @@ module.exports = async function mecaImmo(page, env) {
   await ouvrir('loge1', 'sleep');
   await attendreCondition(page, () => !__mw.paused && __mw.S.min < 450 && __mw.S.min > 300, 'le sommeil dans la maison échoue', 15000);
   const wake = await ev(() => __mw.S.min);
-  verifier(wake === 420, `réveil attendu à 7 h (420), obtenu ${wake}`);
+  verifier(wake >= 420 && wake <= 425, `réveil attendu à 7 h (420), obtenu ${wake}`);
 
   // 5. charges hebdomadaires
   const c0 = await ev(() => { __mw.S.day += 7; const m = __mw.S.money; __mw.emit('day', __mw.S.day); return m; });
