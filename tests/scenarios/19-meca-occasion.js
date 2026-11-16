@@ -36,7 +36,7 @@ module.exports = async function mecaOccasion(page, env) {
 
   // 3. remise en état de l'alternateur (électricité niveau 3) puis vente d'occasion
   await clic('occ:ren:0');
-  const r = await e(() => { const it = __mw.S.inv.find(x => x.id === 'alternateur'); return { ren: it.ren, u: it.u, o: __mwo.occV(it), m: __mw.S.money }; });
+  const r = await e(() => { const it = __mw.S.inv.find(x => x.id === 'alternateur'); return { ren: it.ren, u: it.u, o: __mwo.occV(it), m: __mw.S.money - __mwo.state().gain }; }); // sans les ventes d'occasion faites pendant les 90 min de travail
   verifier(r.ren === 1 && r.u === 25 && r.o > 80 && r.m < 1000, `remise en état incorrecte (${JSON.stringify(r)})`);
   await verifierTextes(page, 'établi (revente)');
   await clic('occ:pick:0');

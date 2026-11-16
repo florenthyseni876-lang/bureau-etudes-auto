@@ -12248,11 +12248,19 @@ const SPECS=[
  {id:'essuie',kind:'wiper',at:R=>{const a=R.A('cabin');return V3(-.1,.98,a.z+.8);},nfix:1,fixAt:[[.0,.03,.0]],fixTool:'main',fixName:"Bras d'essuie-glace",fixLab:'Relever le bras',fixRe:'Rabaisser le bras',depLab:'Déclipser et sortir le balai',poseLab:'Clipser le balai neuf',r:.2,ord:10},
  {id:'filtre_hab',kind:'cab',at:R=>{const a=R.A('cabin');return V3(a.x-.5,.5,a.z+.45);},nfix:2,fixAt:[[.08,.0,.0],[-.08,.0,.0]],fixTool:'main',fixName:'Trappe de la boîte à gants',fixLab:'Ouvrir la trappe',fixRe:'Refermer la trappe',depLab:"Sortir le filtre d'habitacle",poseLab:"Poser le filtre d'habitacle neuf",r:.14,ord:11}];
 const c4=R=>!!R.c.st.capot&&!!bayG(R);
+/* pièces utiles sur cette voiture : celles de l'ordre, du symptôme (coupable, suspects, indices, dégâts en chaîne) et celles déjà
+   touchées. Construire les 30+ pièces génériques pour chaque voiture coûtait ~150 appels de dessin dans le garage. */
+function relevant(c){
+ const s=new Set(c.ordre);let y=null;try{y=MWJ.symDef(c);}catch(e){}
+ if(c.symp) s.add(c.symp.c);
+ if(y){for(const k of ['c']) if(y[k]) s.add(y[k]);for(const k of ['red','ch']) for(const id of (y[k]||[])) s.add(id);for(const id in (y.ins||{})) s.add(id);}
+ for(const id in c.done) s.add(id);for(const id in c.rem) s.add(id);const g=c.g;if(g&&g.s) for(const id in g.s) s.add(id);if(g&&g.p) for(const id in g.p) s.add(id);
+ return s;}
 function buildOthers(R){
- const c=R.c;
+ const c=R.c,rel=relevant(c);
  for(const sp of SPECS){
   if(sp.id==='bougies'||sp.id==='courroie_acc') continue; /* gestes détaillés : buildPlugsBelt */
-  if(!partOK(c,sp.id)) continue;
+  if(!partOK(c,sp.id)||!rel.has(sp.id)) continue;
   if(sp.id==='batterie'){const s2=Object.assign({},sp,{kind:'bat'});buildGeneric(R,Object.assign(s2,{kind:'bat'}));continue;}
   buildGeneric(R,sp);}
 }
