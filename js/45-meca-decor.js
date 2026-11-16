@@ -204,9 +204,9 @@ const gIco=det=>{const k='i'+det;let g=GCACHE.get(k);if(!g){g=new T.IcosahedronG
 const M4=new T.Matrix4(),Q4=new T.Quaternion(),E4=new T.Euler(),V3=new T.Vector3(),S3=new T.Vector3(),N3=new T.Matrix3(),PV=new T.Vector3(),NV=new T.Vector3();
 const compose=(x,y,z,sx,sy,sz,ry,rx,rz)=>{E4.set(rx||0,ry||0,rz||0,'YXZ');Q4.setFromEuler(E4);return M4.compose(V3.set(x,y,z),Q4,S3.set(sx,sy,sz));};
 class Batch{
- constructor(key,mat,layer,chunk){this.key=key;this.mat=mat;this.layer=layer;this.chunk=!!chunk;this.cells=new Map();this.sel(0,0);this.ts=mat.userData.ts||4;}
+ constructor(key,mat,layer,chunk){this.key=key;this.mat=mat;this.layer=layer;this.chunk=!!chunk;this.cell=/:plain$/.test(key)?90:CELL;this.cells=new Map();this.sel(0,0);this.ts=mat.userData.ts||4;}
  /* découpage en cases de CELL mètres : chaque case devient un maillage à part, écarté du dessin (et des ombres) quand il est hors champ */
- sel(x,z){const k=this.chunk?Math.floor(x/CELL)+','+Math.floor(z/CELL):'0';let c=this.cells.get(k);if(!c){c={p:[],n:[],u:[],c:[],i:[]};this.cells.set(k,c);}this.p=c.p;this.n=c.n;this.u=c.u;this.c=c.c;this.i=c.i;return this;}
+ sel(x,z){const C=this.cell,k=this.chunk?Math.floor(x/C)+','+Math.floor(z/C):'0';let c=this.cells.get(k);if(!c){c={p:[],n:[],u:[],c:[],i:[]};this.cells.set(k,c);}this.p=c.p;this.n=c.n;this.u=c.u;this.c=c.c;this.i=c.i;return this;}
  get empty(){for(const c of this.cells.values()) if(c.p.length) return false;return true;}
  /* ajoute une géométrie transformée par m ; own=true : garde les UV de la géométrie ; sinon projection monde (continu entre boîtes voisines) */
  add(g,m,col,own,uvr){
@@ -248,7 +248,7 @@ D.L=(b,x,z,ry,y0)=>{const C=Math.cos(ry||0),S=Math.sin(ry||0),Y=y0||0,w=(lx,lz)=
   rcyl:(rt,rb,h,seg,lx,ly,lz,c,rrx,rrz)=>{const p=w(lx,lz);b.cyl(rt,rb,h,seg,p[0],Y+ly,p[1],c,rrx,rrz,ry);},
   rbox:(sx,sy,sz,lx,ly,lz,c,rry,rrx,rrz)=>{const p=w(lx,lz);b.box(sx,sy,sz,p[0],Y+ly,p[1],c,(ry||0)+(rry||0),rrx,rrz);}};};
 const QUAD=(()=>{const g=new T.PlaneGeometry(1,1);return g;})();
-const BATCH=new Map(),CELL=130,CHUNK_MIN=3500;
+const BATCH=new Map(),CELL=130,CHUNK_MIN=12000;
 D.B=(layer,mat)=>{const k=layer+':'+mat;let b=BATCH.get(k);if(!b){b=new Batch(k,D.mat(mat),layer,true);BATCH.set(k,b);}return b;};
 function meshOf(b,c){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(c.p,3));g.setAttribute('normal',new T.Float32BufferAttribute(c.n,3));
  g.setAttribute('uv',new T.Float32BufferAttribute(c.u,2));g.setAttribute('color',new T.Float32BufferAttribute(c.c,3));g.setIndex(c.i);g.computeBoundingSphere();
@@ -317,7 +317,7 @@ D.setQuality=(lv,persist)=>{Q.level=lv;
  if(groups){groups.detail.visible=lv!=='basse';groups.far.visible=lv!=='basse';}
  if(skyU) skyU.uK.value.w=lv==='basse'?0:.5;
  for(const k in TXC) if(TXC[k].anisotropy!==(lv==='haute'?4:lv==='moyenne'?2:1)){TXC[k].anisotropy=lv==='haute'?4:lv==='moyenne'?2:1;TXC[k].needsUpdate=true;}
- if(CX.scene.fog){const fg=CX.scene.fog;fg.near=lv==='basse'?35:lv==='moyenne'?50:60;fg.far=lv==='basse'?175:lv==='moyenne'?260:330;
+ if(CX.scene.fog){const fg=CX.scene.fog;fg.near=lv==='basse'?28:lv==='moyenne'?50:60;fg.far=lv==='basse'?150:lv==='moyenne'?250:330;
   /* plan lointain de la caméra juste derrière le brouillard : tout ce qui est au-delà est écarté sans être dessiné */
   const far=fg.far+25;if(CX.cam&&CX.cam.far!==far){CX.cam.far=far;CX.cam.updateProjectionMatrix();}if(skyMesh) skyMesh.scale.setScalar(far*.95/440);}
  try{if(MW.fit) MW.fit();}catch(e){}};
@@ -329,7 +329,7 @@ D.renderer=R=>{RN=R;try{const gl=R.getContext(),e=gl.getExtension('WEBGL_debug_r
  R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1;
  R.shadowMap.enabled=true;R.shadowMap.type=T.PCFShadowMap;};
 const sunDir=new T.Vector3(),moonDir=new T.Vector3(),tmpC=new T.Color(),tmpC2=new T.Color(),lastTgt=new T.Vector3(1e9,0,1e9);
-let shT=0,TL={A:null,B:null},clock=0,lampMat=null,glowMat=null,zonesG=[];
+let parkT=0,shT=0,TL={A:null,B:null},clock=0,lampMat=null,glowMat=null,zonesG=[];
 D.registerTL=(a,b)=>{TL.A=a;TL.B=b;};
 D.frame=(dt,t,h,P,quick)=>{
  if(!CX) return;
@@ -374,6 +374,8 @@ D.frame=(dt,t,h,P,quick)=>{
  let ins=0;for(const z of zonesG){const dx=Math.max(Math.abs(P.x-z.x)-z.w/2,0),dz=Math.max(Math.abs(P.z-z.z)-z.d/2,0),d=Math.hypot(dx,dz);ins=Math.max(ins,1-clamp01(d/7));}
  fill.intensity=ins*(.32+.2*night);
  if(groups&&groups.anim) groups.anim(dt,P,h,night);
+ /* voitures garées : dessinées seulement dans un rayon qui dépend de la qualité */
+ if(D.parked&&(parkT=(parkT+1)%6)===0){const r=Q.level==='haute'?140:100,r2=r*r;for(const p of D.parked){const dx=p.x-P.x,dz=p.z-P.z;p.g.visible=dx*dx+dz*dz<r2;}}
  // qualité automatique : d'abord la résolution dynamique (échelle de rendu), puis le niveau si cela ne suffit pas
  if(Q.auto&&!quick){if(Q.wait>0) Q.wait--;else{Q.sum+=dt;Q.n++;if(Q.n>=50){const avg=Q.sum/Q.n;Q.sum=0;Q.n=0;
    if(avg>.040){Q.good=0;
@@ -406,6 +408,7 @@ D.build=ctx=>{
  if(D.city) D.city(ctx,D);
  if(D.garages) D.garages(ctx,D);
  groups=D.finish();groups.anim=D.animFn||null;
+ for(const p of D.parked||[]){groups[p.layer].add(p.g);}
  groups.core.name='decor-core';groups.detail.name='decor-detail';groups.far.name='decor-far';
  S.add(groups.core,groups.detail,groups.far);
  lampMat=MT.lamph||null;glowMat=MT.glowm||null;

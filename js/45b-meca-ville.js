@@ -185,11 +185,15 @@ for(const [x,z,s] of ctx.trees) tree(x,z,s);
 /* ═══════ Voitures garées (fusionnées en un maillage) ═══════ */
 function bakeCar(opts,x,z,ry,layer){
  let g;try{g=MW.carMesh(opts);}catch(e){return null;}if(!g) return null;g.position.set(x,0,z);g.rotation.y=ry;g.updateMatrixWorld(true);
- const b=D.B(layer||'detail','car'),c=new T.Color();
- g.traverse(o=>{if(!o.isMesh||o.visible===false||!o.geometry||!o.geometry.attributes.position) return;const geo=o.geometry;if(!geo.attributes.normal) geo.computeVertexNormals();
-  const m=Array.isArray(o.material)?o.material[0]:o.material;c.copy(m&&m.color?m.color:new T.Color(0x808080));if(!(m&&m.userData&&m.userData.lin)) c.convertSRGBToLinear();
-  if(m&&m.emissive&&(m.emissive.r+m.emissive.g+m.emissive.b)>.05){const e=m.emissive.clone();if(!(m.userData&&m.userData.lin)) e.convertSRGBToLinear();c.r=Math.min(1,c.r+e.r);c.g=Math.min(1,c.g+e.g);c.b=Math.min(1,c.b+e.b);}
-  b.add(geo,o.matrixWorld,[c.r,c.g,c.b],true);});
+ const c=new T.Color();
+ /* chaque voiture garée est un petit groupe indépendant : écarté du dessin quand il est loin ou hors champ (voir MWD.frame) ;
+    les freins (cachés derrière les jantes) ne sont pas cuits */
+ const gr=D.group(B=>{const b=B('car');
+  g.traverse(o=>{if(!o.isMesh||o.visible===false||!o.geometry||!o.geometry.attributes.position) return;if(o.parent&&/^brake/.test(o.parent.name)) return;const geo=o.geometry;if(!geo.attributes.normal) geo.computeVertexNormals();
+   const m=Array.isArray(o.material)?o.material[0]:o.material;c.copy(m&&m.color?m.color:new T.Color(0x808080));if(!(m&&m.userData&&m.userData.lin)) c.convertSRGBToLinear();
+   if(m&&m.emissive&&(m.emissive.r+m.emissive.g+m.emissive.b)>.05){const e=m.emissive.clone();if(!(m.userData&&m.userData.lin)) e.convertSRGBToLinear();c.r=Math.min(1,c.r+e.r);c.g=Math.min(1,c.g+e.g);c.b=Math.min(1,c.b+e.b);}
+   b.add(geo,o.matrixWorld,[c.r,c.g,c.b],true);});});
+ (D.parked||(D.parked=[])).push({g:gr,x,z,layer:layer||'detail'});
  return g;}
 H.bakeCar=bakeCar;
 {const rm=D.rng(909),COL=[0xb03030,0x2a4a8a,0xe0e0e0,0x202428,0x3a7a4a,0xd8a020,0x8a8f98,0x6a2a5a,0xc4c4c0],KIND=['citadine','berline','suv','citadine','berline','utilitaire'];let n=0;
