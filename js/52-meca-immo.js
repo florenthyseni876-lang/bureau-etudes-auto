@@ -123,6 +123,18 @@ MW.on('day',d=>{
  if(tot>0){MW.money(-tot,'Charges de vos biens');o.hist.push({day:d,total:tot,det});while(o.hist.length>8) o.hist.shift();
   if(MW.S.money<0) MW.toast('Votre compte est à découvert : les charges de vos biens pèsent lourd.','crit');}});
 
+/* nom de la marque choisi au bureau d'études de l'usine (gardé avec la partie) */
+api.brand=v=>{const o=I();if(!o) return '';if(typeof v==='string') o.brand=v.slice(0,30);return o.brand||'';};
+/* fonde la marque dans l'usine `id` : l'usine devient le siège (niveau d'usine de départ `fac`) ; renvoie vrai si fondée */
+api.found=(id,nom)=>{
+ const p=BY[id],o=I();if(!p||p.kind!=='usine'||!o||!o.owned[id]) return false;
+ nom=(nom&&nom.trim())||o.brand||'Automobiles Nouvelles';const keep=o.owned[id];
+ try{if(MWC.foundOk(p.capital)&&MWU.inside()) MWU.leave();}catch(e){} /* on quitte la salle avant de partir : la partie est sauvegardée devant la porte */
+ delete o.owned[id];let ok=false;
+ try{ok=MWC.foundBrand(nom,{fac:p.fac,capital:p.capital,usine:{id,nom:p.nom}});}catch(e){console.error(e);}
+ if(!ok) o.owned[id]=keep;else o.brand='';
+ return ok;};
+
 /* ═══ Panneaux ═══ */
 const row=(a,b)=>`<div class="mw-row"><span>${a}</span><b>${b}</b></div>`;
 const btn=(a,l,cls,dis)=>`<button type="button" class="btn${cls?' '+cls:''}" data-mw="${a}"${dis?' disabled':''}>${l}</button>`;
@@ -141,10 +153,12 @@ function perks(p,mode){
   l.push(p.clients);
   l.push('Vous travaillez à votre compte : vous encaissez les factures et payez vos pièces');}
  if(p.kind==='usine'){
-  let nf='';try{nf=FAC[p.fac][0];}catch(e){nf='niveau '+p.fac;}
-  l.push(`Votre marque démarre avec une usine de niveau ${p.fac} (${nf})`);
-  l.push('Une usine plus grande que celle du terrain industriel, déjà équipée');
-  l.push('Apport personnel exigé réduit à '+fmt(p.capital)+' : le bâtiment fait partie de votre capital');}
+  let nf='',cap=0;try{nf=FAC[p.fac][0];cap=FAC[p.fac][1];}catch(e){nf='niveau '+p.fac;}
+  l.push(`Niveau d’usine de départ : ${p.fac} (${nf}), capacité ${cap.toLocaleString('fr-FR')} voitures par an`);
+  l.push('Visitable : chaîne d’assemblage, bureau d’études, stock de pièces, expédition');
+  l.push('Charges : '+fmt(p.charges)+' par semaine tant que vous restez mécanicien');
+  l.push('Apport personnel exigé réduit à '+fmt(p.capital)+' : le bâtiment fait partie de votre capital');
+  l.push('Conditions de fondation : réputation et poste (voir ci-dessous)');}
  return l;}
 function sheet(p,z,w){
  const o=I(),mode=w?w.mode:null;
@@ -168,9 +182,10 @@ function offer(p,z){
  if(!ok) h+='<p class="mw-soon">Vous ne remplissez pas encore toutes les conditions. Avancez dans votre carrière puis revenez.</p>';
  else if(s.money<apport(p)) h+=`<p class="hint">Il vous faut au moins ${esc(fmt(apport(p)))} pour l’apport d’un achat à crédit.</p>`;
  h+=`<p class="hint">Crédit : apport de 20 % (${esc(fmt(apport(p)))}), le reste (${esc(fmt(pret(p)))}) prêté par la banque sur ${p.credit} jours, remboursé chaque jour comme vos autres prêts.</p>`;
- h+=`<div class="mw-btns">${btn('cash','Acheter comptant ('+esc(fmt(p.prix))+')','',!ok||s.money<p.prix)}${btn('credit','Acheter à crédit (apport '+esc(fmt(apport(p)))+')','',!ok||s.money<apport(p))}${p.loyer?btn('rent','Louer ('+esc(fmt(p.loyer))+' par semaine)','',!ok||s.money<caution(p)):''}${btn('close','Fermer','ghost')}</div>`;
+ h+=`<div class="mw-btns">${btn('cash','Acheter comptant ('+esc(fmt(p.prix))+')','',!ok||s.money<p.prix)}${btn('credit','Acheter à crédit (apport '+esc(fmt(apport(p)))+')','',!ok||s.money<apport(p))}${p.loyer?btn('rent','Louer ('+esc(fmt(p.loyer))+' par semaine)','',!ok||s.money<caution(p)):''}${p.kind==='usine'?btn('visit','Visiter l’usine'):''}${btn('close','Fermer','ghost')}</div>`;
  MW.panel(z.nom+' · À vendre',h,{wide:true,onClick:a=>{
-  if(a==='cash'||a==='credit'||a==='rent'){if(api.buy(p.id,a)){fiche(z);}}}});}
+  if(a==='cash'||a==='credit'||a==='rent'){if(api.buy(p.id,a)){fiche(z);}}
+  else if(a==='visit'){MW.closePanel();try{MWU.enter(p.id);}catch(e){}}}});}
 function mine(p,z,w){
  const o=I(),s=MW.S;let h=sheet(p,z,w),btns='';
  if(p.kind==='logement'){
@@ -188,9 +203,9 @@ function mine(p,z,w){
  if(p.kind==='usine'){
   let lines=[],okF=false;try{lines=MWC.foundLines(p.capital);okF=MWC.foundOk(p.capital);}catch(e){}
   h+='<h3 class="mw-h3">Fonder votre marque ici</h3><ul class="mw-cond">'+lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')+'</ul>';
-  if(okF) h+='<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="" placeholder="Automobiles ..."></label>';
+  if(okF) h+='<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="'+esc(api.brand())+'" placeholder="Automobiles ..."></label>';
   else h+='<p class="hint">Quand vous remplirez ces conditions, l’usine sera le siège de votre marque. Les investisseurs complètent votre apport comme pour le terrain industriel.</p>';
-  btns+=btn('found','Fonder ma marque dans cette usine','',!okF);}
+  btns+=btn('visit','Visiter l’usine')+btn('found','Fonder ma marque dans cette usine','',!okF);}
  btns+=(w.mode==='loc'?btn('sell','Résilier le bail (caution rendue : '+esc(fmt(caution(p)))+')','ghost'):btn('sell','Revendre ('+esc(fmt(value(p.id)))+')','ghost'))+btn('biens','Mes biens','ghost')+btn('close','Fermer','ghost');
  h+=`<div class="mw-btns">${btns}</div>`;
  MW.panel(z.nom,h,{wide:true,onClick:a=>{
@@ -202,9 +217,8 @@ function mine(p,z,w){
   else if(a==='stopwork'){MWC.stopWork();fiche(z);}
   else if(a==='sell'){if(api.sell(p.id)){MW.closePanel();}else fiche(z);}
   else if(a==='biens') carnet();
-  else if(a==='found'){const inp=document.getElementById('mwBrand'),nom=(inp&&inp.value.trim())||'Automobiles Nouvelles',o2=I(),keep=o2.owned[p.id];
-   delete o2.owned[p.id];let ok=false;try{ok=MWC.foundBrand(nom,{fac:p.fac,capital:p.capital});}catch(e){console.error(e);}
-   if(!ok){o2.owned[p.id]=keep;fiche(z);}}}});}
+  else if(a==='found'){const inp=document.getElementById('mwBrand');api.found(p.id,inp&&inp.value.trim());if(own(p.id)) fiche(z);}
+  else if(a==='visit'){MW.closePanel();try{MWU.enter(p.id);}catch(e){}}}});}
 let pend=null;
 MW.on('slept',()=>{
  if(!pend) return;const p=BY[pend],w=own(pend);pend=null;if(!p||!w||!p.repos) return;

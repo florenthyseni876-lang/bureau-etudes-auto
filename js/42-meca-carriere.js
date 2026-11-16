@@ -489,7 +489,7 @@ api.workAt=zid=>{const c=C();c.ownZone=zid;hire('proprio');};
 api.stopWork=()=>{if(C().emp==='proprio') resign();};
 function land(z){
  const c=C(),s=MW.S;
- if(c.emp==='fondateur'){MW.panel(z.nom,`<p>Votre marque <b>${esc(c.founded||'')}</b> est fondée. Retrouvez-la depuis l'écran d'accueil du jeu (« Continuer »).</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`);return;}
+ if(c.emp==='fondateur'){MW.panel(z.nom,`<p>Votre marque <b>${esc(c.founded||'')}</b> est fondée${c.foundedIn?' ('+esc(c.foundedIn.usine)+', usine de niveau '+c.foundedIn.fac+')':''}. Retrouvez-la depuis l'écran d'accueil du jeu (« Continuer »).</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`);return;}
  const lines=foundLines();
  const ok=foundOk();
  MW.panel(z.nom,`<p>Un grand terrain industriel est à vendre. Vous y installeriez l'atelier de votre propre marque d'automobiles (une usine de taille moyenne y est déjà construite) : votre apport personnel (et vos éventuelles dettes) deviennent ceux de l'entreprise, et le jeu passe en mode constructeur.</p><p class="hint">Concevoir et lancer un premier modèle de nos jours coûte plusieurs dizaines de millions. Des investisseurs, séduits par votre parcours, complètent donc votre apport : leur contribution est proportionnelle à votre réputation et à votre grade (ingénieur confirmé, chef de projet, directeur technique) ou à votre expérience de patron de garage. Pour vous, aujourd'hui : <b>${esc(fmt(investors()))}</b> (réputation ${Math.round(rep())}).</p><ul class="mw-cond">${lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')}</ul>${ok?`<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="" placeholder="Automobiles ..."></label>`:''}<div class="mw-btns">${btn('found','Acheter le terrain et fonder ma marque','',!ok)}${btn('close','Fermer','ghost')}</div>`,
@@ -501,10 +501,18 @@ function foundBrand(nom,o){
  const y=Math.min(new Date().getFullYear(),2030),cash=perso+apport;
  MW.closePanel();
  MW.money(-perso,'Apport au capital de '+nom);
- c.loans=[];c.emp='fondateur';c.founded=nom;c.mission=null;
+ c.loans=[];c.emp='fondateur';c.founded=nom;c.mission=null;c.foundedIn={usine:o.usine?o.usine.nom:'le terrain industriel',fac:o.fac!=null?o.fac:FOUND.fac,apport:perso,investisseurs:apport,day:s.day};
  MW.emit('founded',nom);MW.save();MW.suspend();
  api.startConstructor({co:nom,y,cash,debt,fac:o.fac!=null?o.fac:FOUND.fac,rep:Math.round(30+clamp(rep(),0,100)*.2)});
+ try{welcome(nom,c.foundedIn,cash);}catch(e){console.error(e);}
  return true;}
+/* message d'accueil de la marque : ce qui vient de se passer, ce que vous gardez, comment revenir au mode Mécanicien */
+function welcome(nom,fi,cash){
+ if(typeof document==='undefined'||!fi) return;
+ let fn='',cap=0;try{fn=FAC[fi.fac][0];cap=FAC[fi.fac][1];}catch(e){}
+ const d=document.createElement('div');d.id='mwWelcome';d.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(6,12,20,.78);display:flex;align-items:center;justify-content:center;padding:16px';
+ d.innerHTML=`<div role="dialog" style="max-width:560px;max-height:92vh;overflow:auto;background:#12202f;color:#eef3f8;border:1px solid #3a5a7a;border-radius:10px;padding:22px;font:16px/1.45 Arial,sans-serif"><h2 style="margin:0 0 8px;font-size:24px">Votre marque est fondée</h2><p><b>${esc(nom)}</b> s'installe dans <b>${esc(fi.usine)}</b>. Vous passez de la carrière de mécanicien à celle de constructeur.</p><ul style="padding-left:20px"><li>Usine de départ : <b>${esc(fn)}</b> (niveau ${fi.fac}), ${cap.toLocaleString('fr-FR')} voitures par an.</li><li>Capital : <b>${esc(fmt(cash))}</b> (votre épargne ${esc(fmt(fi.apport))} et ${esc(fmt(fi.investisseurs))} d'investisseurs).</li><li>Vous gardez votre réputation, vos diplômes et vos compétences de mécanicien.</li></ul><p style="opacity:.85">Pour retrouver la ville, revenez à l'écran d'accueil du jeu puis « Carrière de mécanicien » : votre partie y est sauvegardée, et le Garage du Coin vous reprend comme mécanicien (sans l'usine, qui appartient à la marque). Votre marque se retrouve par « Continuer ».</p><button type="button" id="mwWelcomeOk" style="margin-top:8px;padding:10px 22px;font-size:16px;border:0;border-radius:6px;background:#e86a1c;color:#fff;cursor:pointer">Commencer</button></div>`;
+ document.body.appendChild(d);d.querySelector('#mwWelcomeOk').onclick=()=>d.remove();}
 api.foundBrand=foundBrand;
 api.startConstructor=function(o){
  o=o||{};
@@ -545,7 +553,8 @@ MW.on('start',()=>{
  const c=C();lastGoal='';hideBanner();
  for(const [k] of COMPS) c.lv[k]=level(k);
  applyCar();refresh();});
-MW.on('open',()=>{hideBanner();applyCar();lastGoal='';refresh();});
+MW.on('open',()=>{hideBanner();applyCar();lastGoal='';refresh();
+ const c=C();if(c.emp==='fondateur'&&c.founded&&!c.t.foundHint){c.t.foundHint=1;say('Votre marque '+c.founded+' est fondée. Vous pouvez redevenir mécanicien : le Garage du Coin vous reprend.','info');}});
 MW.on('enterZone',id=>{if(id==='garage1') lastGoal='';});
 MW.on('key',k=>{if(k==='c') careerPanel();});
 MW.addButton('career','Carrière (C)',careerPanel);
