@@ -44,7 +44,8 @@ for(const rx of RX) for(const rz of RZ){
 
 /* ═══════ Mobilier : lampadaires, feux, panneaux ═══════ */
 const lampPts=[];
-function lamp(x,z,tx,tz){const lay=Math.hypot(x,z)>185?'far':'core',pl=D.B(lay,'plain'),ry=Math.atan2(tx,tz);
+function lamp(x,z,tx,tz){if(zones.some(q=>q._d.immo&&Math.hypot(q.door.x-x,q.door.z-z)<6.5)) return; /* pas de lampadaire devant l'entrée d'un bien à vendre */
+ const lay=Math.hypot(x,z)>185?'far':'core',pl=D.B(lay,'plain'),ry=Math.atan2(tx,tz);
  pl.cyl(.1,.13,6.2,6,x,3.2,z,0x3b4349);pl.box(.4,.5,.4,x,.4,z,0x30363b);
  pl.box(.09,.09,1.8,x+tx*.85,6.2,z+tz*.85,0x3b4349,ry);pl.box(.32,.12,.95,x+tx*1.75,6.22,z+tz*1.75,0x50575d,ry);
  D.B(lay,'lamph').box(.26,.04,.78,x+tx*1.75,6.14,z+tz*1.75,0xffffff,ry);
@@ -268,9 +269,56 @@ const ZB={
  concess:()=>({shop:true,noSign:true,shopH:4.3,wall:'plaster',tint:0xe0cce8,roof:'flat',parapet:0x7a3aa0,floors:2,sill:true}),
  ecole:()=>({wall:'plaster',tint:0xd6e4c8,roof:'flat',parapet:0x4a6a3a,floors:2,ww:1.6,wh:1.9,sp:3.6,sill:true,lintel:true,door:false}),
  banque:()=>({wall:'stone',tint:0xffffff,roof:'flat',parapet:0x1f3558,floors:3,ww:1.2,wh:1.9,sp:3.4,sill:true,lintel:true,door:false,corn:0x1f3558}),
- bureau:()=>({style:'office',wall:'conc',tint:0xdfe6ec,roof:'flat',parapet:0xaab4be,floors:4,door:false,sp:3.1,clutter:true,corn:0x6a7886,litP:.5})};
+ bureau:()=>({style:'office',wall:'conc',tint:0xdfe6ec,roof:'flat',parapet:0xaab4be,floors:4,door:false,sp:3.1,clutter:true,corn:0x6a7886,litP:.5}),
+ /* immobilier (js/52) : logements et usines à acheter */
+ loge1:()=>({wall:'plaster',tint:0xeedcb8,roof:'gable',roofTint:0xd89070,rh:2.0,floors:2,sill:true,lintel:true,shut:0x3a5a7a,doorCol:0x3a5a7a,trim:0x3a5a7a,chimney:true}),
+ loge2:()=>({wall:'brick',tint:0xf0e0d8,roof:'flat',parapet:0x5a5a60,floors:3,balcony:true,sill:true,lintel:true,doorCol:0x6a4a8a,trim:0x3a3f46}),
+ loge3:()=>({wall:'plaster',tint:0xf4ead2,roof:'gable',roofTint:0xc88060,rh:2.4,floors:2,sill:true,lintel:true,shut:0x2f7a5a,doorCol:0x2f7a5a,trim:0x2f4a3a,chimney:true}),
+ loge4:()=>({wall:'stone',tint:0xffffff,roof:'gable',roofTint:0xa8a8b0,rh:2.2,floors:2,sill:true,lintel:true,balcony:true,doorCol:0x1c1c22,trim:0x1c1c22,chimney:true,ww:1.3,wh:1.8,sp:3.4}),
+ usine1:()=>({wall:'conc',tint:0xd8d6cc,roof:'flat',parapet:0x5a5f66,floors:2,door:false,ww:2.2,wh:1.1,sp:5,clutter:true,corn:0x5a5f66,litP:.3}),
+ usine2:()=>({wall:'conc',tint:0xc8ccd2,roof:'flat',parapet:0x4a5058,floors:3,door:false,ww:2.6,wh:1.2,sp:6,clutter:true,corn:0x4a5058,litP:.35})};
 for(const z of zones){if(z.type==='garage'||z.type==='terrain') continue;const d=z._d,c=ZB[z.id]?ZB[z.id]():{},front=H.zoneFront(z);
  const o=Object.assign({x:z.x,z:z.z,H:d.H,front,floors:c.floors},c);o.w=z.w;o.d=z.d;
  building(o);parvis(z.x,z.z,z.w,z.d,front);}
+/* ═══════ Immobilier (js/52) : enseignes, jardins, quais et cheminées ═══════ */
+for(const z of zones){if(!z._d.immo||z.type==='garage') continue;
+ const d=z._d,out={x:-z.n.x,z:-z.n.z},ry=Math.atan2(out.x,out.z),fw=(z.side==='E'||z.side==='W')?z.d:z.w,dp=(z.side==='E'||z.side==='W')?z.w:z.d;
+ const Lp=D.L(core('plain'),z.door.x,z.door.z,ry,0),Ld=D.L(det('plain'),z.door.x,z.door.z,ry,0),Lc=D.L(core('conc'),z.door.x,z.door.z,ry,0),W=(lx,lz)=>Lp.w(lx,lz);
+ const name=z.court.toUpperCase();
+ if(z.type==='logement'){
+  D.zoneSign(z,{y:z.id==='loge4'?3.9:3.45,off:.32,w:z.id==='loge2'?3.6:2.8,h:.62,draw:H.draw('#'+d.sign.toString(16).padStart(6,'0'),d.fg,name,null)});
+  // haies, arbres et boîte aux lettres
+  for(const sx of [-1,1]){const q=W(sx*(fw/2-1.8),2.1);hedge(q[0],q[1],Math.max(2.5,fw*.28),ry);}
+  const mb=W(fw/2-.8,1.6);Ld.box(.4,.3,.6,fw/2-.8,1.0,1.6,0x2a5a9a);Ld.box(.08,1.0,.08,fw/2-.8,.5,1.6,0x3a3f46);
+  const t1=W(-fw/2-3.2,-dp*.3),t2=W(fw/2+3.4,-dp*.2);tree(t1[0],t1[1],1.0,'r');tree(t2[0],t2[1],.9,'r');
+  addCol(t1[0],t1[1],.7,.7);addCol(t2[0],t2[1],.7,.7);
+  if(z.id==='loge3'){ // porte de garage, allée
+   Lp.box(3.4,2.5,.16,-fw*.28,1.25,.1,0xe4e6e8);for(let i=0;i<4;i++) Lp.box(3.2,.04,.18,-fw*.28,.6+i*.5,.12,0xb4b8bc);
+   Lc.box(3.6,.1,3.2,-fw*.28,.05,1.8,0x8a8c90);}
+  if(z.id==='loge4'){ // colonnes d'entrée, grille, lampes
+   for(const sx of [-1,1]){Lp.cyl(.28,.3,3.6,12,sx*1.5,1.8,1.5,0xf2eee4);Lp.box(.8,.2,.8,sx*1.5,.1,1.5,0xd8d2c0);}
+   Lp.box(4.0,.4,2.6,0,3.7,1.1,0xe2dccc);Lc.box(4.4,.2,3.2,0,.1,1.7,0xcfcab8);
+   for(const sx of [-1,1]) Ld.box(.06,2.4,.06,sx*(fw/2),1.2,3.2,0x2a2c30);}
+  if(z.id==='loge2'){ // entrée vitrée, auvent
+   Lp.box(3.2,.2,1.6,0,3.0,.9,0x5a5a60);const sd=D.B('core','office'),dl=D.L(sd,z.door.x,z.door.z,ry,0);dl.quad(1.1,2.3,-.6,1.35,.2,null);dl.quad(1.1,2.3,.6,1.35,.2,null);}
+ }
+ if(z.type==='usine'){
+  D.zoneSign(z,{y:d.H-1.6,off:.36,w:Math.min(fw-3,13),h:2.0,draw:H.draw('#'+d.sign.toString(16).padStart(6,'0'),d.fg,z.id==='usine2'?'GRANDE USINE DU VALLON':'ATELIER MARCHAND',z.id==='usine2'?'Fabrication · Assemblage':'Fabrication de précision')});
+  // quais, portes roulantes, entrée vitrée
+  const nd=z.id==='usine2'?3:2,gap=fw/(nd+1);
+  for(let i=0;i<nd;i++){const lx=-fw/2+gap*(i+1)+(i%2?1.5:-1.5)*0;if(Math.abs(lx)<3.5) continue;
+   Lp.box(4.4,4.6,.2,lx,2.3,.12,0x59616a);for(let k=0;k<9;k++) Lp.box(4.2,.05,.22,lx,.45+k*.5,.14,0x474e56);
+   Lp.box(4.8,.35,.3,lx,4.75,.14,0xe6c020);Lp.box(.35,4.8,.3,lx-2.35,2.4,.14,0xe6c020);Lp.box(.35,4.8,.3,lx+2.35,2.4,.14,0xe6c020);
+   Lc.box(5,.5,1.4,lx,.25,.9,0x9a988f);}
+  {const sd=D.B('core','office'),dl=D.L(sd,z.door.x,z.door.z,ry,0);for(const sx of [-1,1]) dl.quad(1.3,2.7,sx*.72,1.4,.12,null);
+   Lp.box(3.4,.3,2.4,0,3.0,1.2,0x2a3038);Lp.box(.2,3.0,.2,-1.6,1.5,2.2,0x2a3038);Lp.box(.2,3.0,.2,1.6,1.5,2.2,0x2a3038);Lp.box(3.2,.12,.12,0,2.75,.1,0x2a3038);}
+  // cheminées, conteneurs, cuves
+  const st=W(-fw*.25,-dp*.3);Lp.cyl(.8,1.1,15,10,-fw*.25,d.H+6.5,-dp*.3,0x8a5a4a);Lp.cyl(.9,.9,.6,10,-fw*.25,d.H+14.2,-dp*.3,0x3a3a3e);
+  if(z.id==='usine2'){Lp.cyl(.7,1.0,12,10,fw*.2,d.H+5.5,-dp*.25,0x8a5a4a);Lp.cyl(.8,.8,.5,10,fw*.2,d.H+11.7,-dp*.25,0x3a3a3e);}
+  for(const [lx,lz] of [[fw/2+3.4,dp*.25],[fw/2+3.4,dp*.5]]){const q=W(lx,lz);Lp.cyl(2.2,2.2,z.id==='usine2'?11:8,14,lx,z.id==='usine2'?5.5:4,lz,0xc8ccd0);Lp.cyl(2.3,2.0,.6,14,lx,z.id==='usine2'?11.2:8.2,lz,0x8a9098);addCol(q[0],q[1],4.6,4.6);}
+  const cc=[0xc0392b,0x2a5a9a,0x3a7a4a,0xd8a020];
+  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=dp*.2+i*3.2+(i%2),q=W(lx,lz);Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
+ }
+}
 D.zoneBuilt=true;
 };

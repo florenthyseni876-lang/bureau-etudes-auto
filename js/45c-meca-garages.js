@@ -40,7 +40,14 @@ const ST={
  garage3:{wall:'stone',tint:0xffffff,parapet:0x2a2a30,floor:'floortile',ftint:0xdcd6c8,dado:['wood',0x7a5a46],upper:['plaster',0xf2ead8],stripe:0xc8a050,ceil:0xf6f0e2,lift:0x1c1c22,chest:0x3a3a3e,glassFront:false,win:{style:'office',sp:4.5},showroom:2,
   sign:{bg:'#15151b',fg:'#e6c46a',t1:'MAISON AURÈLE',t2:'AUTOMOBILES DE PRESTIGE',w:10,h:2.0,serif:1}},
  garage4:{wall:'brick',tint:0xb87870,parapet:0x2a2a2a,floor:'epoxy',ftint:0x5e5e66,dado:['plaster',0x232326],upper:['plaster',0x4a4a50],stripe:0xc01818,ceil:0x6a6a70,lift:0xc01818,chest:0x7a6a6a,glassFront:false,win:{ww:2.2,wh:1.1,sp:4.2},showroom:1,
-  sign:{bg:'#c01818',fg:'#ffffff',t1:'SCUDERIA BRIVIO',t2:'CORSE · COMPETITION',w:10,h:2.0,italic:1}}};
+  sign:{bg:'#c01818',fg:'#ffffff',t1:'SCUDERIA BRIVIO',t2:'CORSE · COMPETITION',w:10,h:2.0,italic:1}},
+ /* garages à acheter (js/52) : mêmes intérieurs que les autres, styles propres à chacun */
+ garage5:{wall:'plaster',tint:0xbcc8bc,parapet:0x3a5a40,floor:'floorconc',ftint:0xa0a29c,dado:['conc',0x3f6a4a],upper:['plaster',0xe4e4d8],stripe:0x2f8a4a,ceil:0xd4d4cc,lift:0x3a6a4a,chest:0xffffff,glassFront:false,win:{ww:1.6,wh:.9,sp:3.6},clutter:1,
+  sign:{bg:'#2f8a4a',fg:'#ffffff',t1:'ATELIER RUE BASSE',t2:'Entretien · Réparation',w:9,h:1.7}},
+ garage6:{wall:'plaster',tint:0xe4dccc,parapet:0x6a4a2a,floor:'epoxy',ftint:0xd0ccc0,dado:['plaster',0xc8a070],upper:['plaster',0xf0ebe0],stripe:0xd8841a,ceil:0xf0eee6,lift:0xd8841a,chest:0xe0b070,glassFront:false,win:{ww:2.0,wh:1.0,sp:4.0},
+  sign:{bg:'#d8841a',fg:'#ffffff',t1:'GARAGE DELMAS',t2:'& FILS · MÉCANIQUE GÉNÉRALE',w:10,h:1.9}},
+ garage7:{wall:'plaster',tint:0xeceff2,parapet:0x1a6a9a,floor:'epoxy',ftint:0xe0e4ea,dado:['plaster',0xf0f4f8],upper:['plaster',0xf6f8fa],stripe:0x1a6a9a,ceil:0xf2f4f6,lift:0x1a6a9a,chest:0x9ab8d0,glassFront:true,win:{style:'office',sp:4.5},
+  sign:{bg:'#1a6a9a',fg:'#ffffff',t1:'GRAND GARAGE',t2:"DE L'ESPLANADE",w:12,h:2.1}}};
 
 /* ═══════ Enseignes ═══════ */
 function signDraw(s){return (x,w,h)=>{

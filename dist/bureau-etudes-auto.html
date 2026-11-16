@@ -6754,7 +6754,9 @@ function mkTodo(t,prod){
                         objets ; l'avant de l'établi / de l'étagère est tourné vers la porte (se placer à ~1,3 m vers la porte).
                         Ids : appart, garage1 (Garage du Coin), pieces, garage2 (Ventoux), garage3 (Maison Aurèle),
                         garage4 (Scuderia Brivio), ecole, bureau, banque, terrain, concess.
-                        Types : logement, garage, magasin, ecole, bureau, banque, terrain, occasion.
+                        Immobilier à acheter (gérés par js/52, MWI) : loge1..loge4 (logements), garage5..garage7 (garages, 2 à 4 ponts, mêmes champs
+                        que garage1..4), usine1..usine2 ; zone.mapTag vaut 'À vendre' ou 'À vous' (carte).
+                        Types : logement, garage, magasin, ecole, bureau, banque, terrain, occasion, usine.
    MW.zone(id)          zone par identifiant
    MW.zoneAt(x,z)       zone contenant le point, ou null (intérieur du bâtiment ; pour les bâtiments sans intérieur, 5 m de
                         parvis autour sont comptés)
@@ -6853,14 +6855,24 @@ const ZD=[
  {id:'ecole',nom:'Centre de formation automobile',court:'Formation',type:'ecole',x:-70,z:124,w:34,d:24,side:'S',H:8,wall:0xc7d8b8,roof:0x4a6a3a,sign:0x2f7a3a,fg:'#fff'},
  {id:'banque',nom:'Banque du Quartier',court:'Banque',type:'banque',x:-30,z:125,w:22,d:22,side:'S',H:9,wall:0xd4d8de,roof:0x1f3558,sign:0x1f3558,fg:'#fff'},
  {id:'bureau',nom:'Centre technique',court:'Centre technique',type:'bureau',x:80,z:122,w:40,d:30,side:'S',H:11,wall:0xb8c8d6,roof:0x45586a,sign:0x1f7f8f,fg:'#fff'},
- {id:'terrain',nom:'Terrain industriel à vendre',court:'Terrain à vendre',type:'terrain',x:-184,z:70,w:44,d:36,side:'E',H:1.5,wall:0xc88a2a,roof:null,sign:0xd8741a,fg:'#fff',interior:true,np:0,floor:0x9a8a6a}];
+ {id:'terrain',nom:'Terrain industriel à vendre',court:'Terrain à vendre',type:'terrain',x:-184,z:70,w:44,d:36,side:'E',H:1.5,wall:0xc88a2a,roof:null,sign:0xd8741a,fg:'#fff',interior:true,np:0,floor:0x9a8a6a},
+ /* ── immobilier (js/52) : maisons, garages et usines à acheter ; positions choisies hors des rues et des autres bâtiments ── */
+ {id:'loge1',nom:'Maison de ville',court:'Maison de ville',type:'logement',x:-115,z:131.5,w:12,d:10,side:'S',H:6,wall:0xe9d8b8,roof:0x8a4a3a,sign:0x3a5a7a,fg:'#fff',immo:1},
+ {id:'loge2',nom:'Appartement du Centre',court:'Appartement',type:'logement',x:35,z:130.5,w:16,d:12,side:'S',H:10,wall:0xd8cfc0,roof:0x5a5a60,sign:0x6a4a8a,fg:'#fff',immo:1},
+ {id:'loge3',nom:'Pavillon avec garage',court:'Pavillon',type:'logement',x:-100,z:169,w:14,d:11,side:'N',H:6.5,wall:0xf0e6d0,roof:0x9a5a3a,sign:0x2f7a5a,fg:'#fff',immo:1},
+ {id:'loge4',nom:'Villa des Hauts',court:'Villa',type:'logement',x:-35,z:-21.5,w:22,d:16,side:'S',H:7.5,wall:0xf4f0e6,roof:0x4a4a52,sign:0x1c1c22,fg:'#e6c46a',immo:1},
+ {id:'garage5',nom:'Atelier de la Rue Basse',court:'Rue Basse',type:'garage',x:-112,z:22.5,w:22,d:18,side:'N',H:5.2,wall:0x9aa59a,roof:0x4a5a4a,sign:0x2f8a4a,fg:'#fff',interior:true,np:2,floor:0x70746e,immo:1},
+ {id:'garage6',nom:'Garage Delmas et Fils',court:'Garage Delmas',type:'garage',x:110,z:25.5,w:30,d:24,side:'N',H:5.8,wall:0xc9c0b0,roof:0x6a4a2a,sign:0xd8841a,fg:'#fff',interior:true,np:3,floor:0x7a7a78,immo:1},
+ {id:'garage7',nom:"Grand Garage de l'Esplanade",court:'Grand Garage',type:'garage',x:70,z:178.5,w:44,d:30,side:'N',H:6.6,wall:0xdfe3e8,roof:0x2a3a4a,sign:0x1a6a9a,fg:'#fff',interior:true,np:4,floor:0x8a8f95,immo:1},
+ {id:'usine1',nom:'Atelier de fabrication Marchand',court:'Atelier fabrication',type:'usine',x:-178.5,z:-40,w:30,d:24,side:'E',H:8,wall:0xb8b8b0,roof:0x5a5f66,sign:0xc86a1a,fg:'#fff',immo:1},
+ {id:'usine2',nom:'Grande usine du Vallon',court:'Grande usine',type:'usine',x:-191.5,z:-95,w:56,d:36,side:'E',H:11,wall:0xa8b0b8,roof:0x4a5058,sign:0x1a4a8a,fg:'#fff',immo:1}];
 const zones=ZD.map(d=>{
  const n=SIDES[d.side],hx=d.w/2,hz=d.d/2,dx=d.x-n.x*hx,dz=d.z-n.z*hz,t={x:Math.abs(n.z),z:Math.abs(n.x)};
  const loc=(u,v)=>({x:dx+t.x*u+n.x*v,z:dz+t.z*u+n.z*v});
  const z={id:d.id,nom:d.nom,court:d.court,type:d.type,x:d.x,z:d.z,w:d.w,d:d.d,side:d.side,interior:!!d.interior,
   ry:Math.atan2(n.x,n.z),n:{x:n.x,z:n.z},door:{x:dx,z:dz},porte:{x:dx-n.x*1.3,z:dz-n.z*1.3},col:d.sign,_d:d,loc};
  if(d.type==='garage'){
-  const ry=z.ry,pv=d.d*.42,us=d.np===3?[-d.w*.28,0,d.w*.28]:[-d.w*.2,d.w*.2];
+  const ry=z.ry,pv=d.d*.42,us=d.np===4?[-d.w*.375,-d.w*.125,d.w*.125,d.w*.375]:d.np===3?[-d.w*.28,0,d.w*.28]:[-d.w*.2,d.w*.2];
   z.ponts=us.map(u=>{const p=loc(u,pv);return {x:p.x,z:p.z,ry};});
   z.etabli=loc(-d.w/2+3.6,d.d-1.2);z.etagere=loc(d.w/2-3.4,d.d-.9);z.accueil=loc(d.w/2-3.2,3);}
  return z;});
@@ -7057,8 +7069,8 @@ let acc=0;
 function stepMin(){S.min++;if(S.min>=1440) S.min=0;emit('minute');if(S.min%60===0) emit('hour',S.min/60);if(S.min===360){S.day++;emit('day',S.day);}}
 api.addMin=n=>{n=Math.max(0,Math.min(3000,Math.round(n)));for(let i=0;i<n;i++) stepMin();};
 const WAKE=450,SLEEP_FROM=1140; /* réveil à 7 h 30 ; on peut dormir dès 19 h */
-api.sleep=()=>{if(sleeping) return;ensureUI();sleeping=true;setPaused();ui.fade.classList.add('on');
- setTimeout(()=>{const n=((WAKE-S.min)+1440)%1440||1440;api.addMin(n);api.save();ui.fade.classList.remove('on');sleeping=false;setPaused();api.toast(`Une bonne nuit de sommeil. ${api.timeStr()}.`,'good');},650);};
+api.sleep=wk=>{if(sleeping) return;ensureUI();sleeping=true;setPaused();ui.fade.classList.add('on');const w=typeof wk==='number'&&wk>=375&&wk<=WAKE?wk:WAKE; /* wk : heure de réveil (en minutes) d'un logement acheté, js/52 */
+ setTimeout(()=>{const n=((w-S.min)+1440)%1440||1440;api.addMin(n);api.save();ui.fade.classList.remove('on');sleeping=false;setPaused();api.toast(`Une bonne nuit de sommeil. ${api.timeStr()}.`,'good');emit('slept',w);},650);};
 
 /* ── interactions ── */
 let curI=null,nid=1;
@@ -7066,7 +7078,7 @@ api.addInteract=o=>{if(!o.id) o.id='i'+(nid++);inter.set(o.id,o);return o;};
 api.removeInteract=id=>{inter.delete(id);};
 api.setDoor=(id,fn)=>{if(fn) doorFns[id]=fn;else delete doorFns[id];};
 function defaultDoor(z){
- const desc={garage:'Garage ouvert de 8 h à 19 h.',magasin:'Pièces détachées et outillage.',ecole:'Formations et examens de mécanique.',bureau:'Bureau d\'études d\'un constructeur.',banque:'Prêts et comptes professionnels.',terrain:'Un terrain pour bâtir votre propre usine.',occasion:'Voitures d\'occasion.'}[z.type]||'';
+ const desc={garage:'Garage ouvert de 8 h à 19 h.',magasin:'Pièces détachées et outillage.',ecole:'Formations et examens de mécanique.',bureau:'Bureau d\'études d\'un constructeur.',banque:'Prêts et comptes professionnels.',terrain:'Un terrain pour bâtir votre propre usine.',occasion:'Voitures d\'occasion.',usine:'Une usine à vendre.'}[z.type]||'';
  api.panel(z.nom,`<p>${esc(desc)}</p><p class="mw-soon">Bientôt : cet endroit ouvrira ses portes dans une prochaine mise à jour.</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Fermer</button></div>`);}
 function studioDoor(){
  api.panel('Votre studio',`<p>Un petit studio, le temps de faire vos preuves. ${esc(api.timeStr())}.</p><div class="mw-btns">${S&&S.min>=SLEEP_FROM||S&&S.min<360?'<button type="button" class="btn" data-mw="sleep">Dormir jusqu\'à 7 h 30</button>':'<span class="mw-soon">Il est trop tôt pour dormir : revenez à partir de 19 h.</span>'}<button type="button" class="btn ghost" data-mw="save">Sauvegarder</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,
@@ -7232,10 +7244,11 @@ function drawMap(c,cx,cz,sc,names,fs){
  x.fillStyle='#6f9a4a';x.fillRect(0,0,W,H);
  x.fillStyle='#d7d7d2';for(const r of RZ) x.fillRect(0,Y(r-10),W,20*sc);for(const r of RX) x.fillRect(X(r-10),0,20*sc,H);
  x.fillStyle='#4a4d52';for(const r of RZ) x.fillRect(0,Y(r-7),W,14*sc);for(const r of RX) x.fillRect(X(r-7),0,14*sc,H);
- for(const z of zones){x.fillStyle=mapCol(z);x.fillRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);x.strokeStyle='#10233d';x.lineWidth=1;x.strokeRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);}
+ for(const z of zones){x.fillStyle=mapCol(z);x.fillRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);x.strokeStyle='#10233d';x.lineWidth=1;x.strokeRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);
+  if(z.mapTag==='À vendre'||z.mapTag==='À vous'){x.save();x.strokeStyle=z.mapTag==='À vous'?'#ffd24a':'#33e08a';x.lineWidth=2.5;if(z.mapTag!=='À vous') x.setLineDash([5,3]);x.strokeRect(X(z.x-z.w/2)-1,Y(z.z-z.d/2)-1,z.w*sc+2,z.d*sc+2);x.restore();}} /* [immo] bâtiments à vendre (vert, pointillés) ou possédés (jaune) */
  if(names){x.font='bold '+fs+'px sans-serif';x.textAlign='center';x.textBaseline='middle';
   zones.forEach((z,i)=>{const px=X(z.x),py=(z.side==='N'?Y(z.z+z.d/2)+fs*.8+(i%2)*fs*1.05:Y(z.z-z.d/2)-fs*.7-(i%2)*fs*1.05);if(px<0||px>W||py<0||py>H) return;
-   x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.85)';x.strokeText(z.court,px,py);x.fillStyle='#fff';x.fillText(z.court,px,py);});}
+   x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.85)';const nm=z.court+(z.mapTag&&fs>8?' · '+z.mapTag:'');x.strokeText(nm,px,py);x.fillStyle=z.mapTag==='À vendre'?'#b8ffd8':z.mapTag==='À vous'?'#ffe9a0':'#fff';x.fillText(nm,px,py);});}
  // voiture
  x.fillStyle='#3a8aff';x.beginPath();x.arc(X(S.car.x),Y(S.car.z),Math.max(3,2.2*sc),0,7);x.fill();
  // repère
@@ -8070,11 +8083,13 @@ const EMP={
  ventoux:{nom:'Mécanicien',lieu:'Ventoux Automobiles',zone:'garage2',paie:'mois',part:.1,sem:1750,niv:6,rang:2,req:{niv:{entretien:5,freinage:5},rep:35,dipl:'cap'}},
  aurele:{nom:'Mécanicien',lieu:'Maison Aurèle',zone:'garage3',paie:'mois',part:.1,sem:2600,niv:8,rang:3,req:{niv:{moteur:5,diagnostic:5,electricite:4},rep:40,dipl:'bts'}},
  brivio:{nom:'Mécanicien',lieu:'Scuderia Brivio',zone:'garage4',paie:'mois',part:.1,sem:3400,niv:10,rang:3,req:{niv:{moteur:7,transmission:5,diagnostic:6},rep:60,dipl:'bts'}},
+ proprio:{nom:'Patron de votre garage',lieu:'',zone:null,paie:'tache',part:1,net:true,sem:0,niv:10,rang:2,loyer:0}, /* garage acheté (js/52) : la zone vient de c.ownZone, les charges hebdomadaires sont prélevées par js/52 */
  ing:{nom:'Ingénieur',lieu:'Centre technique',zone:null,paie:'mois',part:0,sem:4800,niv:10,rang:3},
  fondateur:{nom:'Fondateur',lieu:'',zone:null,paie:'tache',part:0,sem:0,niv:10,rang:4}};
 const ING_REQ={dipl:'ing',rep:30,niv:{moteur:4}};
 const PROMO={jobs:6,niv:4}; /* apprenti → mécanicien */
 const OWN={prix:1300,reserve:500,req:{rep:25,niv:{entretien:4,moteur:3}}}; /* reserve = de quoi acheter les premières pièces */
+const isPat=c=>c.emp==='patron'||c.emp==='proprio';
 const ZONE_EMP={garage2:'ventoux',garage3:'aurele',garage4:'brivio'};
 /* Fondation : apport personnel net de dettes (`capital`), réputation, poste. Les investisseurs complètent : leur apport est proportionnel
    à la réputation et au grade (voir investors()). Développer un premier modèle à l'époque actuelle coûte plusieurs dizaines de millions
@@ -8083,7 +8098,7 @@ const FOUND={capital:48000,rep:60,niv:{moteur:7},investBase:3e6,fac:2};
 const INV_COEF={ing1:1,ing2:1.5,ing3:2.2,patron:.8};
 
 function newC(){return {emp:'aucun',grade:0,hired:0,payFrom:0,dipl:{},loans:[],refus:{},form:null,mission:null,qual:0,missions:0,notes:[],
- stats:{jobs:0,paid:0,vid:0,earn:0},lv:{},car:null,founded:null,everMeca:false,t:{}};}
+ stats:{jobs:0,paid:0,vid:0,earn:0},lv:{},car:null,founded:null,everMeca:false,ownZone:null,t:{}};}
 function C(){const s=MW.S;if(!s) return newC();if(!s.career||typeof s.career!=='object') s.career=newC();
  const c=s.career,d=newC();for(const k in d) if(c[k]==null) c[k]=d[k];for(const k in d.stats) if(c.stats[k]==null) c.stats[k]=0;return c;}
 api.state=C;
@@ -8092,7 +8107,9 @@ function employer(){
  const c=C(),id=EMP[c.emp]?c.emp:'aucun',e=EMP[id];let nom=e.nom+(e.lieu?' · '+e.lieu:''),sem=e.sem,niv=e.niv;
  if(id==='ing'){const g=GRADES[clamp(c.grade,0,3)];nom=g.n+' · Centre technique';sem=g.sem;}
  if(id==='fondateur') nom='Fondateur de '+(c.founded||'votre marque');
- return {id,nom,lieu:e.lieu,zone:e.zone,salaire:e.paie==='mois'?sem:e.part,paie:e.paie,part:e.part,sem,mois:Math.round(sem*30/PAYDAYS),niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,compte:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
+ let lieu=e.lieu,zone=e.zone;
+ if(id==='proprio'){const oz=c.ownZone&&MW.zone?MW.zone(c.ownZone):null;zone=oz?oz.id:null;lieu=oz?oz.court:'';nom='Patron · '+lieu;}
+ return {id,nom,lieu,zone,salaire:e.paie==='mois'?sem:e.part,paie:e.paie,part:e.part,sem,mois:Math.round(sem*30/PAYDAYS),niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,compte:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
 api.employer=employer;
 api.post=()=>{const e=employer();return e.nom;};
 
@@ -8139,7 +8156,7 @@ function say(t,g){try{MW.toast(t,g);}catch(e){}}
 /* ── embauche, promotion, démission ── */
 function hire(id){
  const c=C();if(!EMP[id]) return false;
- c.emp=id;c.hired=day();c.payFrom=day();if(id==='meca'||id==='patron'||id==='ventoux'||id==='aurele'||id==='brivio') c.everMeca=true;
+ c.emp=id;c.hired=day();c.payFrom=day();if(id==='meca'||id==='patron'||id==='proprio'||id==='ventoux'||id==='aurele'||id==='brivio') c.everMeca=true;
  if(id!=='ing') c.mission=null;
  MW.emit('employerChanged',id);refresh();return true;}
 api.hire=hire;
@@ -8161,7 +8178,7 @@ function longGoals(){const c=C(),e=employer(),g=[];if(c.emp==='fondateur') retur
  else if(c.emp!=='ing'&&c.emp!=='fondateur') g.push({id:'g_ing',titre:'Rejoindre le centre technique comme ingénieur',manque:missing(ING_REQ),zone:'bureau'});
  if(c.emp==='ing'&&c.grade<3) g.push({id:'g_prom',titre:'Devenir '+GRADES[c.grade+1].n.toLocaleLowerCase(),manque:[`Valider ${Math.max(0,GRADES[c.grade].need-c.qual)} mission${GRADES[c.grade].need-c.qual>1?'s':''} avec une note d'au moins ${12+c.grade}/20`],zone:'bureau'});
  if(c.emp!=='fondateur'){const m=[];if(MW.S.money-owed()<FOUND.capital) m.push(`Apport personnel de ${fmt(FOUND.capital)} (vous : ${fmt(MW.S.money-owed())})`);if(rep()<FOUND.rep) m.push(`Réputation : ${FOUND.rep}`);
-  if(!(c.emp==='ing'&&c.grade>=1)&&!(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur)) m.push('Ingénieur confirmé, ou patron de garage avec moteur niveau '+FOUND.niv.moteur);
+  if(!(c.emp==='ing'&&c.grade>=1)&&!(isPat(c)&&level('moteur')>=FOUND.niv.moteur)) m.push('Ingénieur confirmé, ou patron de garage avec moteur niveau '+FOUND.niv.moteur);
   g.push({id:'g_marque',titre:'Fonder votre marque',manque:m,zone:'terrain'});}
  return g.filter(x=>!x.ok);}
 function tutorial(){const c=C();
@@ -8445,11 +8462,11 @@ function bank(z){
   if(a.startsWith('loan:')){const x=+a.slice(5);takeLoan(x);bank(z);}
   else if(a.startsWith('pay:')){const l=C().loans[+a.slice(4)];if(l&&MW.S.money>=l.rest){MW.money(-l.rest,'Prêt soldé');C().loans.splice(+a.slice(4),1);bank(z);}}}});}
 const loanDays=x=>x<=3000?30:x<=30000?90:x<=300000?180:360;
-function takeLoan(x){
- const c=C(),room=Math.max(0,loanMax()-owed());if(!(x>0)||x>room+1) return false;
- const n=loanDays(x),total=Math.round(x*(1+LOAN_RATE*n/365));
+function takeLoan(x,jours,force){ /* jours et force : crédit immobilier de js/52 (durée longue, garanti par le bien) */
+ const c=C(),room=Math.max(0,loanMax()-owed());if(!(x>0)||(!force&&x>room+1)) return false;
+ const n=jours>0?Math.round(jours):loanDays(x),total=Math.round(x*(1+LOAN_RATE*n/365));
  c.loans.push({rest:total,per:Math.ceil(total/n),n,x});MW.money(x,'Prêt bancaire');return true;}
-api.takeLoan=takeLoan;api.owed=owed;
+api.takeLoan=takeLoan;api.owed=owed;api.loanRoom=()=>Math.max(0,loanMax()-owed());api.loanDays=loanDays;
 
 /* ── Vendeur d'occasions ── */
 const CARS=[
@@ -8468,40 +8485,59 @@ function applyCar(){
   for(const o of keep) m.add(o);
   while(n.children.length) m.add(n.children[0]);
   m.userData=n.userData;}catch(e){console.error(e);}}
+/* voiture du joueur (aspect) : lue et changée par js/52 (places de parking des logements) */
+api.CARS=CARS;
+api.getCar=()=>{const c=C(),cc=c.car||CARS[0];return {id:cc.id,nom:cc.nom||(CARS.find(x=>x.id===cc.id)||CARS[0]).nom,kind:cc.kind,color:cc.color,model:cc.model||(CARS.find(x=>x.id===cc.id)||{}).model};};
+api.setCar=cc=>{const c=C();c.car={id:cc.id,nom:cc.nom,kind:cc.kind,color:cc.color,model:cc.model};applyCar();};
 function dealer(z){
  const c=C(),cur=c.car?c.car.id:'vieille',curP=(CARS.find(x=>x.id===cur)||CARS[0]).prix;
- MW.panel(z.nom,`<p>Votre voiture actuelle : <b>${esc((CARS.find(x=>x.id===cur)||CARS[0]).nom)}</b>. Le vendeur reprend l'ancienne à 40 % de sa valeur d'achat.</p><div class="mw-card">${CARS.filter(x=>x.id!=='vieille').map(x=>{const net=x.prix-Math.round(curP*.4);return `<div class="mw-row"><span>${esc(x.nom)}<br><small>${esc(fmt(x.prix))}${curP?' · à payer : '+esc(fmt(Math.max(0,net))):''}</small></span>${btn('buy:'+x.id,cur===x.id?'Possédée':'Acheter','sm',cur===x.id||MW.S.money<Math.max(0,net))}</div>`;}).join('')}</div><p class="hint">Seul l'aspect de la voiture change : les performances de conduite restent celles d'une voiture ordinaire.</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`,
-  {wide:true,onClick:a=>{if(!a.startsWith('buy:')) return;const x=CARS.find(k=>k.id===a.slice(4));if(!x) return;
+ const park=typeof MWI!=='undefined'&&MWI&&MWI.parkFree?MWI.parkFree():0;
+ MW.panel(z.nom,`<p>Votre voiture actuelle : <b>${esc((CARS.find(x=>x.id===cur)||CARS[0]).nom)}</b>. Le vendeur reprend l'ancienne à 40 % de sa valeur d'achat.</p><div class="mw-card">${CARS.filter(x=>x.id!=='vieille').map(x=>{const net=x.prix-Math.round(curP*.4);return `<div class="mw-row"><span>${esc(x.nom)}<br><small>${esc(fmt(x.prix))}${curP?' · à payer : '+esc(fmt(Math.max(0,net))):''}</small></span>${btn('buy:'+x.id,cur===x.id?'Possédée':'Acheter','sm',cur===x.id||MW.S.money<Math.max(0,net))}${park>0&&cur!==x.id?btn('keep:'+x.id,'Acheter et garder l\'ancienne','sm ghost',MW.S.money<x.prix):''}</div>`;}).join('')}</div><p class="hint">Seul l'aspect de la voiture change : les performances de conduite restent celles d'une voiture ordinaire.</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`,
+  {wide:true,onClick:a=>{
+   if(a.startsWith('keep:')){const x=CARS.find(k=>k.id===a.slice(5));if(!x||!park||MW.S.money<x.prix) return;
+    const old=api.getCar();if(!MWI.parkAdd(old)) return;
+    MW.money(-x.prix,'Achat : '+x.nom);c.car={id:x.id,nom:x.nom,kind:x.kind,color:x.color,model:x.model};applyCar();say('Votre ancienne voiture est rangée dans votre garage personnel.','good');dealer(z);return;}
+   if(!a.startsWith('buy:')) return;const x=CARS.find(k=>k.id===a.slice(4));if(!x) return;
    const net=Math.max(0,x.prix-Math.round(curP*.4));if(MW.S.money<net) return;
    MW.money(-net,'Achat : '+x.nom);c.car={id:x.id,nom:x.nom,kind:x.kind,color:x.color,model:x.model};applyCar();say('Belle voiture ! Elle vous attend devant le studio.','good');dealer(z);}});}
 
 /* ── Terrain : fonder sa marque ── */
 /* apport des investisseurs, en euros : proportionnel à la réputation et au grade */
 function investors(){const c=C();
- const k=c.emp==='ing'?(INV_COEF['ing'+clamp(c.grade,1,3)]||1):c.emp==='patron'?INV_COEF.patron:0;
+ const k=c.emp==='ing'?(INV_COEF['ing'+clamp(c.grade,1,3)]||1):isPat(c)?INV_COEF.patron:0;
  return Math.round(FOUND.investBase*clamp(rep(),0,100)*k/1e5)*1e5;}
 api.investors=investors;
-function foundOk(){const c=C(),s=MW.S;
- return s.money-owed()>=FOUND.capital&&rep()>=FOUND.rep&&((c.emp==='ing'&&c.grade>=1)||(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur));}
+function foundOk(cap){const c=C(),s=MW.S;
+ return s.money-owed()>=(cap==null?FOUND.capital:cap)&&rep()>=FOUND.rep&&((c.emp==='ing'&&c.grade>=1)||(isPat(c)&&level('moteur')>=FOUND.niv.moteur));}
+/* conditions de fondation sous forme de lignes {ok,t,now} (aussi utilisées par les usines de js/52, avec un apport réduit `cap`) */
+function foundLines(cap){const c=C(),s=MW.S,k=cap==null?FOUND.capital:cap;
+ return [
+  {ok:s.money-owed()>=k,t:`Apport personnel d'au moins ${fmt(k)} (hors prêts à rembourser)`,now:'vous : '+fmt(s.money-owed())},
+  {ok:rep()>=FOUND.rep,t:`Réputation : ${FOUND.rep}`,now:'vous : '+Math.round(rep())},
+  {ok:(c.emp==='ing'&&c.grade>=1)||(isPat(c)&&level('moteur')>=FOUND.niv.moteur),t:`Ingénieur confirmé, ou propriétaire de garage avec moteur niveau ${FOUND.niv.moteur}`,now:'vous : '+esc(employer().nom)}];}
+api.foundOk=foundOk;api.foundLines=foundLines;
+/* conditions d'accès réutilisables (js/52) : req = {rep, dipl, niv:{comp:n}} */
+api.req={ok:okAll,html:condHTML,list:checks,missing};api.DIPL=DIPL;api.PAYDAYS=PAYDAYS;
+/* garage acheté (js/52) : le joueur travaille à son compte dans CE garage (mêmes règles que le patron du Garage du Coin) */
+api.workAt=zid=>{const c=C();c.ownZone=zid;hire('proprio');};
+api.stopWork=()=>{if(C().emp==='proprio') resign();};
 function land(z){
  const c=C(),s=MW.S;
  if(c.emp==='fondateur'){MW.panel(z.nom,`<p>Votre marque <b>${esc(c.founded||'')}</b> est fondée. Retrouvez-la depuis l'écran d'accueil du jeu (« Continuer »).</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`);return;}
- const lines=[
-  {ok:s.money-owed()>=FOUND.capital,t:`Apport personnel d'au moins ${fmt(FOUND.capital)} (hors prêts à rembourser)`,now:'vous : '+fmt(s.money-owed())},
-  {ok:rep()>=FOUND.rep,t:`Réputation : ${FOUND.rep}`,now:'vous : '+Math.round(rep())},
-  {ok:(c.emp==='ing'&&c.grade>=1)||(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur),t:`Ingénieur confirmé, ou propriétaire de garage avec moteur niveau ${FOUND.niv.moteur}`,now:'vous : '+esc(employer().nom)}];
+ const lines=foundLines();
  const ok=foundOk();
  MW.panel(z.nom,`<p>Un grand terrain industriel est à vendre. Vous y installeriez l'atelier de votre propre marque d'automobiles (une usine de taille moyenne y est déjà construite) : votre apport personnel (et vos éventuelles dettes) deviennent ceux de l'entreprise, et le jeu passe en mode constructeur.</p><p class="hint">Concevoir et lancer un premier modèle de nos jours coûte plusieurs dizaines de millions. Des investisseurs, séduits par votre parcours, complètent donc votre apport : leur contribution est proportionnelle à votre réputation et à votre grade (ingénieur confirmé, chef de projet, directeur technique) ou à votre expérience de patron de garage. Pour vous, aujourd'hui : <b>${esc(fmt(investors()))}</b> (réputation ${Math.round(rep())}).</p><ul class="mw-cond">${lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')}</ul>${ok?`<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="" placeholder="Automobiles ..."></label>`:''}<div class="mw-btns">${btn('found','Acheter le terrain et fonder ma marque','',!ok)}${btn('close','Fermer','ghost')}</div>`,
   {onClick:a=>{if(a==='found'){const inp=document.getElementById('mwBrand'),nom=(inp&&inp.value.trim())||'Automobiles Nouvelles';foundBrand(nom);}}});}
-function foundBrand(nom){
- if(!foundOk()) return false;
+function foundBrand(nom,o){
+ o=o||{};
+ if(!foundOk(o.capital)) return false;
  const s=MW.S,c=C(),perso=s.money,debt=owed(),apport=investors();
  const y=Math.min(new Date().getFullYear(),2030),cash=perso+apport;
  MW.closePanel();
  MW.money(-perso,'Apport au capital de '+nom);
  c.loans=[];c.emp='fondateur';c.founded=nom;c.mission=null;
  MW.emit('founded',nom);MW.save();MW.suspend();
- api.startConstructor({co:nom,y,cash,debt,fac:FOUND.fac,rep:Math.round(30+clamp(rep(),0,100)*.2)});
+ api.startConstructor({co:nom,y,cash,debt,fac:o.fac!=null?o.fac:FOUND.fac,rep:Math.round(30+clamp(rep(),0,100)*.2)});
  return true;}
 api.foundBrand=foundBrand;
 api.startConstructor=function(o){
@@ -10413,7 +10449,8 @@ for(const rx of RX) for(const rz of RZ){
 
 /* ═══════ Mobilier : lampadaires, feux, panneaux ═══════ */
 const lampPts=[];
-function lamp(x,z,tx,tz){const lay=Math.hypot(x,z)>185?'far':'core',pl=D.B(lay,'plain'),ry=Math.atan2(tx,tz);
+function lamp(x,z,tx,tz){if(zones.some(q=>q._d.immo&&Math.hypot(q.door.x-x,q.door.z-z)<6.5)) return; /* pas de lampadaire devant l'entrée d'un bien à vendre */
+ const lay=Math.hypot(x,z)>185?'far':'core',pl=D.B(lay,'plain'),ry=Math.atan2(tx,tz);
  pl.cyl(.1,.13,6.2,6,x,3.2,z,0x3b4349);pl.box(.4,.5,.4,x,.4,z,0x30363b);
  pl.box(.09,.09,1.8,x+tx*.85,6.2,z+tz*.85,0x3b4349,ry);pl.box(.32,.12,.95,x+tx*1.75,6.22,z+tz*1.75,0x50575d,ry);
  D.B(lay,'lamph').box(.26,.04,.78,x+tx*1.75,6.14,z+tz*1.75,0xffffff,ry);
@@ -10637,10 +10674,57 @@ const ZB={
  concess:()=>({shop:true,noSign:true,shopH:4.3,wall:'plaster',tint:0xe0cce8,roof:'flat',parapet:0x7a3aa0,floors:2,sill:true}),
  ecole:()=>({wall:'plaster',tint:0xd6e4c8,roof:'flat',parapet:0x4a6a3a,floors:2,ww:1.6,wh:1.9,sp:3.6,sill:true,lintel:true,door:false}),
  banque:()=>({wall:'stone',tint:0xffffff,roof:'flat',parapet:0x1f3558,floors:3,ww:1.2,wh:1.9,sp:3.4,sill:true,lintel:true,door:false,corn:0x1f3558}),
- bureau:()=>({style:'office',wall:'conc',tint:0xdfe6ec,roof:'flat',parapet:0xaab4be,floors:4,door:false,sp:3.1,clutter:true,corn:0x6a7886,litP:.5})};
+ bureau:()=>({style:'office',wall:'conc',tint:0xdfe6ec,roof:'flat',parapet:0xaab4be,floors:4,door:false,sp:3.1,clutter:true,corn:0x6a7886,litP:.5}),
+ /* immobilier (js/52) : logements et usines à acheter */
+ loge1:()=>({wall:'plaster',tint:0xeedcb8,roof:'gable',roofTint:0xd89070,rh:2.0,floors:2,sill:true,lintel:true,shut:0x3a5a7a,doorCol:0x3a5a7a,trim:0x3a5a7a,chimney:true}),
+ loge2:()=>({wall:'brick',tint:0xf0e0d8,roof:'flat',parapet:0x5a5a60,floors:3,balcony:true,sill:true,lintel:true,doorCol:0x6a4a8a,trim:0x3a3f46}),
+ loge3:()=>({wall:'plaster',tint:0xf4ead2,roof:'gable',roofTint:0xc88060,rh:2.4,floors:2,sill:true,lintel:true,shut:0x2f7a5a,doorCol:0x2f7a5a,trim:0x2f4a3a,chimney:true}),
+ loge4:()=>({wall:'stone',tint:0xffffff,roof:'gable',roofTint:0xa8a8b0,rh:2.2,floors:2,sill:true,lintel:true,balcony:true,doorCol:0x1c1c22,trim:0x1c1c22,chimney:true,ww:1.3,wh:1.8,sp:3.4}),
+ usine1:()=>({wall:'conc',tint:0xd8d6cc,roof:'flat',parapet:0x5a5f66,floors:2,door:false,ww:2.2,wh:1.1,sp:5,clutter:true,corn:0x5a5f66,litP:.3}),
+ usine2:()=>({wall:'conc',tint:0xc8ccd2,roof:'flat',parapet:0x4a5058,floors:3,door:false,ww:2.6,wh:1.2,sp:6,clutter:true,corn:0x4a5058,litP:.35})};
 for(const z of zones){if(z.type==='garage'||z.type==='terrain') continue;const d=z._d,c=ZB[z.id]?ZB[z.id]():{},front=H.zoneFront(z);
  const o=Object.assign({x:z.x,z:z.z,H:d.H,front,floors:c.floors},c);o.w=z.w;o.d=z.d;
  building(o);parvis(z.x,z.z,z.w,z.d,front);}
+/* ═══════ Immobilier (js/52) : enseignes, jardins, quais et cheminées ═══════ */
+for(const z of zones){if(!z._d.immo||z.type==='garage') continue;
+ const d=z._d,out={x:-z.n.x,z:-z.n.z},ry=Math.atan2(out.x,out.z),fw=(z.side==='E'||z.side==='W')?z.d:z.w,dp=(z.side==='E'||z.side==='W')?z.w:z.d;
+ const Lp=D.L(core('plain'),z.door.x,z.door.z,ry,0),Ld=D.L(det('plain'),z.door.x,z.door.z,ry,0),Lc=D.L(core('conc'),z.door.x,z.door.z,ry,0),W=(lx,lz)=>Lp.w(lx,lz);
+ const name=z.court.toUpperCase();
+ if(z.type==='logement'){
+  D.zoneSign(z,{y:z.id==='loge4'?3.9:3.45,off:.32,w:z.id==='loge2'?3.6:2.8,h:.62,draw:H.draw('#'+d.sign.toString(16).padStart(6,'0'),d.fg,name,null)});
+  // haies, arbres et boîte aux lettres
+  for(const sx of [-1,1]){const q=W(sx*(fw/2-1.8),2.1);hedge(q[0],q[1],Math.max(2.5,fw*.28),ry);}
+  const mb=W(fw/2-.8,1.6);Ld.box(.4,.3,.6,fw/2-.8,1.0,1.6,0x2a5a9a);Ld.box(.08,1.0,.08,fw/2-.8,.5,1.6,0x3a3f46);
+  const t1=W(-fw/2-3.2,-dp*.3),t2=W(fw/2+3.4,-dp*.2);tree(t1[0],t1[1],1.0,'r');tree(t2[0],t2[1],.9,'r');
+  addCol(t1[0],t1[1],.7,.7);addCol(t2[0],t2[1],.7,.7);
+  if(z.id==='loge3'){ // porte de garage, allée
+   Lp.box(3.4,2.5,.16,-fw*.28,1.25,.1,0xe4e6e8);for(let i=0;i<4;i++) Lp.box(3.2,.04,.18,-fw*.28,.6+i*.5,.12,0xb4b8bc);
+   Lc.box(3.6,.1,3.2,-fw*.28,.05,1.8,0x8a8c90);}
+  if(z.id==='loge4'){ // colonnes d'entrée, grille, lampes
+   for(const sx of [-1,1]){Lp.cyl(.28,.3,3.6,12,sx*1.5,1.8,1.5,0xf2eee4);Lp.box(.8,.2,.8,sx*1.5,.1,1.5,0xd8d2c0);}
+   Lp.box(4.0,.4,2.6,0,3.7,1.1,0xe2dccc);Lc.box(4.4,.2,3.2,0,.1,1.7,0xcfcab8);
+   for(const sx of [-1,1]) Ld.box(.06,2.4,.06,sx*(fw/2),1.2,3.2,0x2a2c30);}
+  if(z.id==='loge2'){ // entrée vitrée, auvent
+   Lp.box(3.2,.2,1.6,0,3.0,.9,0x5a5a60);const sd=D.B('core','office'),dl=D.L(sd,z.door.x,z.door.z,ry,0);dl.quad(1.1,2.3,-.6,1.35,.2,null);dl.quad(1.1,2.3,.6,1.35,.2,null);}
+ }
+ if(z.type==='usine'){
+  D.zoneSign(z,{y:d.H-1.6,off:.36,w:Math.min(fw-3,13),h:2.0,draw:H.draw('#'+d.sign.toString(16).padStart(6,'0'),d.fg,z.id==='usine2'?'GRANDE USINE DU VALLON':'ATELIER MARCHAND',z.id==='usine2'?'Fabrication · Assemblage':'Fabrication de précision')});
+  // quais, portes roulantes, entrée vitrée
+  const nd=z.id==='usine2'?3:2,gap=fw/(nd+1);
+  for(let i=0;i<nd;i++){const lx=-fw/2+gap*(i+1)+(i%2?1.5:-1.5)*0;if(Math.abs(lx)<3.5) continue;
+   Lp.box(4.4,4.6,.2,lx,2.3,.12,0x59616a);for(let k=0;k<9;k++) Lp.box(4.2,.05,.22,lx,.45+k*.5,.14,0x474e56);
+   Lp.box(4.8,.35,.3,lx,4.75,.14,0xe6c020);Lp.box(.35,4.8,.3,lx-2.35,2.4,.14,0xe6c020);Lp.box(.35,4.8,.3,lx+2.35,2.4,.14,0xe6c020);
+   Lc.box(5,.5,1.4,lx,.25,.9,0x9a988f);}
+  {const sd=D.B('core','office'),dl=D.L(sd,z.door.x,z.door.z,ry,0);for(const sx of [-1,1]) dl.quad(1.3,2.7,sx*.72,1.4,.12,null);
+   Lp.box(3.4,.3,2.4,0,3.0,1.2,0x2a3038);Lp.box(.2,3.0,.2,-1.6,1.5,2.2,0x2a3038);Lp.box(.2,3.0,.2,1.6,1.5,2.2,0x2a3038);Lp.box(3.2,.12,.12,0,2.75,.1,0x2a3038);}
+  // cheminées, conteneurs, cuves
+  const st=W(-fw*.25,-dp*.3);Lp.cyl(.8,1.1,15,10,-fw*.25,d.H+6.5,-dp*.3,0x8a5a4a);Lp.cyl(.9,.9,.6,10,-fw*.25,d.H+14.2,-dp*.3,0x3a3a3e);
+  if(z.id==='usine2'){Lp.cyl(.7,1.0,12,10,fw*.2,d.H+5.5,-dp*.25,0x8a5a4a);Lp.cyl(.8,.8,.5,10,fw*.2,d.H+11.7,-dp*.25,0x3a3a3e);}
+  for(const [lx,lz] of [[fw/2+3.4,dp*.25],[fw/2+3.4,dp*.5]]){const q=W(lx,lz);Lp.cyl(2.2,2.2,z.id==='usine2'?11:8,14,lx,z.id==='usine2'?5.5:4,lz,0xc8ccd0);Lp.cyl(2.3,2.0,.6,14,lx,z.id==='usine2'?11.2:8.2,lz,0x8a9098);addCol(q[0],q[1],4.6,4.6);}
+  const cc=[0xc0392b,0x2a5a9a,0x3a7a4a,0xd8a020];
+  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=dp*.2+i*3.2+(i%2),q=W(lx,lz);Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
+ }
+}
 D.zoneBuilt=true;
 };
 
@@ -10685,7 +10769,14 @@ const ST={
  garage3:{wall:'stone',tint:0xffffff,parapet:0x2a2a30,floor:'floortile',ftint:0xdcd6c8,dado:['wood',0x7a5a46],upper:['plaster',0xf2ead8],stripe:0xc8a050,ceil:0xf6f0e2,lift:0x1c1c22,chest:0x3a3a3e,glassFront:false,win:{style:'office',sp:4.5},showroom:2,
   sign:{bg:'#15151b',fg:'#e6c46a',t1:'MAISON AURÈLE',t2:'AUTOMOBILES DE PRESTIGE',w:10,h:2.0,serif:1}},
  garage4:{wall:'brick',tint:0xb87870,parapet:0x2a2a2a,floor:'epoxy',ftint:0x5e5e66,dado:['plaster',0x232326],upper:['plaster',0x4a4a50],stripe:0xc01818,ceil:0x6a6a70,lift:0xc01818,chest:0x7a6a6a,glassFront:false,win:{ww:2.2,wh:1.1,sp:4.2},showroom:1,
-  sign:{bg:'#c01818',fg:'#ffffff',t1:'SCUDERIA BRIVIO',t2:'CORSE · COMPETITION',w:10,h:2.0,italic:1}}};
+  sign:{bg:'#c01818',fg:'#ffffff',t1:'SCUDERIA BRIVIO',t2:'CORSE · COMPETITION',w:10,h:2.0,italic:1}},
+ /* garages à acheter (js/52) : mêmes intérieurs que les autres, styles propres à chacun */
+ garage5:{wall:'plaster',tint:0xbcc8bc,parapet:0x3a5a40,floor:'floorconc',ftint:0xa0a29c,dado:['conc',0x3f6a4a],upper:['plaster',0xe4e4d8],stripe:0x2f8a4a,ceil:0xd4d4cc,lift:0x3a6a4a,chest:0xffffff,glassFront:false,win:{ww:1.6,wh:.9,sp:3.6},clutter:1,
+  sign:{bg:'#2f8a4a',fg:'#ffffff',t1:'ATELIER RUE BASSE',t2:'Entretien · Réparation',w:9,h:1.7}},
+ garage6:{wall:'plaster',tint:0xe4dccc,parapet:0x6a4a2a,floor:'epoxy',ftint:0xd0ccc0,dado:['plaster',0xc8a070],upper:['plaster',0xf0ebe0],stripe:0xd8841a,ceil:0xf0eee6,lift:0xd8841a,chest:0xe0b070,glassFront:false,win:{ww:2.0,wh:1.0,sp:4.0},
+  sign:{bg:'#d8841a',fg:'#ffffff',t1:'GARAGE DELMAS',t2:'& FILS · MÉCANIQUE GÉNÉRALE',w:10,h:1.9}},
+ garage7:{wall:'plaster',tint:0xeceff2,parapet:0x1a6a9a,floor:'epoxy',ftint:0xe0e4ea,dado:['plaster',0xf0f4f8],upper:['plaster',0xf6f8fa],stripe:0x1a6a9a,ceil:0xf2f4f6,lift:0x1a6a9a,chest:0x9ab8d0,glassFront:true,win:{style:'office',sp:4.5},
+  sign:{bg:'#1a6a9a',fg:'#ffffff',t1:'GRAND GARAGE',t2:"DE L'ESPLANADE",w:12,h:2.1}}};
 
 /* ═══════ Enseignes ═══════ */
 function signDraw(s){return (x,w,h)=>{
@@ -12810,6 +12901,299 @@ MW.on('start',()=>{cur=null;});
 return {open,NIV:CH.length,CH};
 })();
 window.__mwgd=MWGD;
+
+/* ───────────── Mode « Mécanicien » — IMMOBILIER (maisons, garages et usines à acheter) ─────────────
+   Les bâtiments eux-mêmes (zones loge1..4, garage5..7, usine1..2) sont déclarés dans js/40 (ZD) et dessinés par
+   js/45b (logements, usines) et js/45c (intérieurs des garages). Ce fichier gère l'achat, le crédit, la revente,
+   les charges hebdomadaires, les avantages et le panneau « Mes biens » (touche B).
+
+   ═══ Objet global `MWI` (aussi `window.__mwi`) ═══
+   MWI.CAT                 catalogue : [{id, kind:'logement'|'garage'|'usine', nom, prix, charges, …}]
+   MWI.state()             MW.S.immo = {owned:{id:{mode:'achat'|'loc', since, paidTo, credit}}, stock:{id:[objets]}, cars:[voitures garées], hist:[]}
+   MWI.owned(id)           vrai si le bien est à vous (acheté ou loué)
+   MWI.buy(id, how)        how = 'cash' | 'credit' | 'rent' ; renvoie vrai si l'achat a eu lieu (conditions et argent vérifiés)
+   MWI.sell(id)            revente (décote), ou résiliation du bail ; renvoie vrai si faite
+   MWI.value(id)           valeur de revente ; MWI.weekly(id) charges ou loyer par semaine
+   MWI.totals()            {valeur, charges, biens}
+   MWI.parkFree()          places libres dans vos garages privés ; MWI.parkAdd(voiture) range une voiture
+   MWI.panel()             ouvre « Mes biens » ; MWI.fiche(zone) ouvre la fiche d'un bien
+   Charges : chaque semaine de jeu après l'achat, à l'événement 'day', via MW.money(). */
+const MWI=(()=>{
+const api={};
+const fmt=x=>MW.fmt(x);
+const COMP_NOM=()=>{const o={};try{for(const [k,n] of MWC.COMPS) o[k]=n;}catch(e){}return o;};
+
+/* ═══ Catalogue ═══ */
+const CAT=[
+ {id:'loge1',kind:'logement',nom:'Maison de ville',prix:62000,charges:80,loyer:140,decote:.15,credit:300,req:{rep:10},
+  reveil:420,stock:8,parking:1,prestige:0,repos:0,signU:-3.6,signY:1.9,signW:2.4,
+  desc:'Une petite maison mitoyenne avec deux chambres et un coin pour ranger vos outils : bien plus calme que le studio.'},
+ {id:'loge2',kind:'logement',nom:'Appartement du Centre',prix:98000,charges:140,loyer:230,decote:.15,credit:300,req:{rep:20,dipl:'cap'},
+  reveil:405,stock:12,parking:1,prestige:1,repos:10,signU:-5.6,signY:2.0,signW:2.6,
+  desc:'Un trois-pièces lumineux au troisième étage, avec balcon et une place de parking en sous-sol. Une adresse qui compte en ville.'},
+ {id:'loge3',kind:'logement',nom:'Pavillon avec garage',prix:158000,charges:210,decote:.15,credit:300,req:{rep:30,dipl:'cap'},
+  reveil:405,stock:20,parking:2,prestige:1,repos:20,signU:-4.6,signY:1.9,signW:2.6,
+  desc:'Un pavillon avec jardin, un grand atelier et un garage double. Vous pouvez y garder vos anciennes voitures.'},
+ {id:'loge4',kind:'logement',nom:'Villa des Hauts',prix:420000,charges:520,decote:.15,credit:300,req:{rep:45,dipl:'bts'},
+  reveil:390,stock:36,parking:4,prestige:2,repos:40,signU:-7.4,signY:2.0,signW:3.0,
+  desc:'Une villa de prestige avec colonnes, balcons et garage pour quatre voitures. Elle vous ouvre des portes dans le métier.'},
+ {id:'garage5',kind:'garage',nom:'Atelier de la Rue Basse',prix:38000,charges:380,taux:70,ponts:2,decote:.2,credit:240,req:{rep:20,niv:{entretien:3}},
+  clients:'Clientèle de quartier : citadines et petites berlines.',signU:-4.3,signY:2.2,signW:2.8,
+  desc:'Un petit atelier de quartier avec deux ponts, un établi et une étagère. Peu de charges, une clientèle fidèle.'},
+ {id:'garage6',kind:'garage',nom:'Garage Delmas et Fils',prix:125000,charges:850,taux:96,ponts:3,decote:.2,credit:240,req:{rep:35,dipl:'cap',niv:{moteur:4}},
+  clients:'Clientèle familiale : berlines, SUV et utilitaires.',signU:-4.3,signY:2.2,signW:2.8,
+  desc:'Un garage de mécanique générale avec trois ponts, bien placé sur la grande avenue. Le taux horaire est plus élevé.'},
+ {id:'garage7',kind:'garage',nom:"Grand Garage de l'Esplanade",prix:360000,charges:1900,taux:125,ponts:4,decote:.2,credit:240,req:{rep:50,dipl:'bts',niv:{moteur:6,diagnostic:5}},
+  clients:'Clientèle haut de gamme : berlines premium et SUV.',signU:-4.3,signY:2.4,signW:3.0,
+  desc:'Un grand garage vitré avec quatre ponts, salon d’attente et clientèle exigeante. Les charges sont lourdes, les factures aussi.'},
+ {id:'usine1',kind:'usine',nom:'Atelier de fabrication Marchand',prix:420000,charges:1600,fac:3,capital:10000,decote:.3,credit:360,req:{rep:45,dipl:'bts'},
+  signU:9,signY:3.2,signW:3.4,
+  desc:'Un atelier de fabrication équipé de machines-outils et d’une chaîne de montage. Vous y fondez votre propre marque avec une usine déjà bien équipée.'},
+ {id:'usine2',kind:'usine',nom:'Grande usine du Vallon',prix:1800000,charges:6000,fac:4,capital:10000,decote:.3,credit:360,req:{rep:60,dipl:'ing'},
+  signU:15,signY:3.4,signW:3.8,
+  desc:'Une grande usine avec halls de production, cuves et cheminées. Votre marque y démarre au niveau d’un complexe industriel.'}];
+const BY={};for(const p of CAT) BY[p.id]=p;
+const KIND={logement:'Logement',garage:'Garage',usine:'Usine'};
+api.CAT=CAT;
+
+/* ═══ Clientèle des garages achetés (js/41 : modèles et taux horaires par zone) ═══ */
+function clientele(){
+ try{const D=window.__mwj&&window.__mwj.noirData;if(!D) return;const m=k=>D.MODELS[k]||[];
+  D.MODELS.garage5=m('garage1');D.MODELS.garage6=m('garage2').concat(m('garage1'));D.MODELS.garage7=m('garage3').concat(m('garage2'));
+  for(const p of CAT) if(p.kind==='garage') D.TAUX[p.id]=p.taux;}catch(e){console.error('MWI.clientele',e);}}
+clientele();
+
+/* ═══ État ═══ */
+function I(){const s=MW.S;if(!s) return null;
+ if(!s.immo||typeof s.immo!=='object') s.immo={};const o=s.immo;
+ if(!o.owned||typeof o.owned!=='object') o.owned={};if(!o.stock||typeof o.stock!=='object') o.stock={};
+ if(!Array.isArray(o.cars)) o.cars=[];if(!Array.isArray(o.hist)) o.hist=[];return o;}
+api.state=I;
+const own=id=>{const o=I();return o?o.owned[id]||null:null;};
+api.owned=id=>!!own(id);
+const value=id=>{const p=BY[id],w=own(id);return p&&w&&w.mode==='achat'?Math.round(p.prix*(1-p.decote)):0;};
+const weekly=id=>{const p=BY[id],w=own(id);if(!p||!w) return 0;return w.mode==='loc'?p.loyer:p.charges;};
+const stockCap=id=>{const p=BY[id],w=own(id);return p&&w?(w.mode==='loc'?Math.floor(p.stock/2):p.stock):0;};
+const parkCap=()=>{let n=0;for(const p of CAT){const w=own(p.id);if(p.kind==='logement'&&w&&w.mode==='achat') n+=p.parking||0;}return n;};
+api.value=value;api.weekly=weekly;
+api.parkFree=()=>{const o=I();return o?Math.max(0,parkCap()-o.cars.length):0;};
+api.parkAdd=car=>{const o=I();if(!o||!car||api.parkFree()<=0) return false;o.cars.push({id:car.id,nom:car.nom,kind:car.kind,color:car.color,model:car.model});return true;};
+api.totals=()=>{let v=0,c=0,n=0;for(const p of CAT) if(own(p.id)){v+=value(p.id);c+=weekly(p.id);n++;}return {valeur:v,charges:c,biens:n};};
+
+/* ═══ Accès, achat, revente ═══ */
+const reqOk=p=>{try{return MWC.req.ok(p.req);}catch(e){return true;}};
+const reqHtml=p=>{try{return MWC.req.html(p.req);}catch(e){return '';}};
+const apport=p=>Math.round(p.prix*.2);
+const pret=p=>p.prix-apport(p);
+const caution=p=>2*p.loyer;
+function refreshWorld(){
+ for(const p of CAT){const z=MW.zone(p.id);if(z) z.mapTag=own(p.id)?'À vous':'À vendre';}
+ placeSigns();}
+api.buy=(id,how)=>{
+ const p=BY[id],o=I();if(!p||!o||o.owned[id]) return false;
+ if(!reqOk(p)){MW.toast('Vous ne remplissez pas encore les conditions pour ce bien.','warn');return false;}
+ const s=MW.S;
+ if(how==='rent'){
+  if(!p.loyer||s.money<caution(p)){MW.toast("Pas assez d'argent pour la caution.",'warn');return false;}
+  MW.money(-caution(p),'Caution : '+p.nom);o.owned[id]={mode:'loc',since:s.day,paidTo:s.day,credit:false};}
+ else if(how==='credit'){
+  if(s.money<apport(p)){MW.toast("Pas assez d'argent pour l'apport.",'warn');return false;}
+  let ok=false;try{ok=MWC.takeLoan(pret(p),p.credit,true);}catch(e){ok=false;}
+  if(!ok){MW.toast('La banque refuse le crédit.','warn');return false;}
+  MW.money(-p.prix,'Achat à crédit : '+p.nom);o.owned[id]={mode:'achat',since:s.day,paidTo:s.day,credit:true};}
+ else{
+  if(s.money<p.prix){MW.toast("Pas assez d'argent.",'warn');return false;}
+  MW.money(-p.prix,'Achat : '+p.nom);o.owned[id]={mode:'achat',since:s.day,paidTo:s.day,credit:false};}
+ MW.toast(p.kind==='logement'?`${p.nom} est à vous.`:`${p.nom} : bien acquis.`,'good');
+ refreshWorld();MW.emit('immoChanged',id);MW.save();return true;};
+api.sell=id=>{
+ const p=BY[id],o=I(),w=o&&o.owned[id];if(!p||!w) return false;
+ if((o.stock[id]||[]).length){MW.toast('Videz d’abord le coffre de ce logement.','warn');return false;}
+ if(p.kind==='logement'&&w.mode==='achat'){const left=parkCap()-p.parking;if(o.cars.length>Math.max(0,left)){MW.toast('Reprenez d’abord vos voitures garées ici.','warn');return false;}}
+ if(p.kind==='garage'){try{if(MWC.employer().id==='proprio'&&MWC.employer().zone===id) MWC.stopWork();}catch(e){}}
+ if(w.mode==='loc'){MW.money(caution(p),'Caution rendue : '+p.nom);}
+ else{MW.money(value(id),'Revente : '+p.nom);}
+ delete o.owned[id];delete o.stock[id];
+ refreshWorld();MW.emit('immoChanged',id);MW.save();return true;};
+
+/* ═══ Charges hebdomadaires, prestige ═══ */
+MW.on('day',d=>{
+ const o=I();if(!o) return;let tot=0;const det=[];
+ for(const id in o.owned){const p=BY[id],w=o.owned[id];if(!p){continue;}
+  if(!(w.paidTo>0)) w.paidTo=d;
+  while(d-w.paidTo>=7){w.paidTo+=7;const c=w.mode==='loc'?p.loyer:p.charges;tot+=c;det.push([p.nom,c]);
+   if(w.mode==='achat'&&p.prestige&&MW.S.rep<80) MW.S.rep=Math.min(80,Math.round((MW.S.rep+p.prestige)*100)/100);}}
+ if(tot>0){MW.money(-tot,'Charges de vos biens');o.hist.push({day:d,total:tot,det});while(o.hist.length>8) o.hist.shift();
+  if(MW.S.money<0) MW.toast('Votre compte est à découvert : les charges de vos biens pèsent lourd.','crit');}});
+
+/* ═══ Panneaux ═══ */
+const row=(a,b)=>`<div class="mw-row"><span>${a}</span><b>${b}</b></div>`;
+const btn=(a,l,cls,dis)=>`<button type="button" class="btn${cls?' '+cls:''}" data-mw="${a}"${dis?' disabled':''}>${l}</button>`;
+const hm=m=>{const h=Math.floor(m/60),mm=m%60;return h+' h'+(mm?String(mm).padStart(2,'0'):'');};
+function perks(p,mode){
+ const l=[];
+ if(p.kind==='logement'){
+  l.push(`Meilleur repos : réveil à ${hm(p.reveil)} au lieu de 7 h 30`);
+  if(p.repos) l.push(`Révisions de nuit : +${mode==='loc'?Math.floor(p.repos/2):p.repos} d’expérience par nuit (compétence la moins avancée)`);
+  l.push(`Coffre personnel : ${mode==='loc'?Math.floor(p.stock/2):p.stock} places pour vos pièces et vos outils`);
+  if(p.parking&&mode!=='loc') l.push(`Garage privé : ${p.parking} voiture${p.parking>1?'s':''} (gardez vos anciennes voitures)`);
+  if(p.prestige&&mode!=='loc') l.push(`Prestige : +${p.prestige} de réputation par semaine (jusqu’à 80)`);}
+ if(p.kind==='garage'){
+  l.push(`${p.ponts} ponts élévateurs, un établi et une étagère de pièces`);
+  l.push(`Taux horaire facturé : ${p.taux} € de l’heure`);
+  l.push(p.clients);
+  l.push('Vous travaillez à votre compte : vous encaissez les factures et payez vos pièces');}
+ if(p.kind==='usine'){
+  let nf='';try{nf=FAC[p.fac][0];}catch(e){nf='niveau '+p.fac;}
+  l.push(`Votre marque démarre avec une usine de niveau ${p.fac} (${nf})`);
+  l.push('Une usine plus grande que celle du terrain industriel, déjà équipée');
+  l.push('Apport personnel exigé réduit à '+fmt(p.capital)+' : le bâtiment fait partie de votre capital');}
+ return l;}
+function sheet(p,z,w){
+ const o=I(),mode=w?w.mode:null;
+ let h=`<p>${esc(p.desc)}</p><div class="mw-card">`;
+ if(w){
+  h+=row('Statut',w.mode==='loc'?'Loué':'Propriétaire')+(w.mode==='achat'?row('Valeur de revente',esc(fmt(value(p.id)))):row('Caution versée',esc(fmt(caution(p)))))+row(w.mode==='loc'?'Loyer par semaine':'Charges par semaine',esc(fmt(weekly(p.id))))+(w.credit?row('Achat','à crédit (voir la banque)'):'');}
+ else{
+  h+=row('Prix',esc(fmt(p.prix)))+row('Charges par semaine',esc(fmt(p.charges)))+(p.loyer?row('Ou louer : loyer par semaine',esc(fmt(p.loyer))):'')+row('Revente','−'+Math.round(p.decote*100)+' %');}
+ h+='</div><ul class="mw-cond">'+perks(p,mode).map(t=>`<li class="ok">✓ ${esc(t)}</li>`).join('')+'</ul>';
+ return h;}
+function fiche(z){
+ const p=BY[z.id];if(!p) return;
+ const w=own(p.id);
+ if(!w) return offer(p,z);
+ return mine(p,z,w);}
+api.fiche=fiche;
+function offer(p,z){
+ const s=MW.S,ok=reqOk(p);
+ let h=sheet(p,z,null);
+ h+='<h3 class="mw-h3">Conditions</h3>'+reqHtml(p);
+ if(!ok) h+='<p class="mw-soon">Vous ne remplissez pas encore toutes les conditions. Avancez dans votre carrière puis revenez.</p>';
+ else if(s.money<apport(p)) h+=`<p class="hint">Il vous faut au moins ${esc(fmt(apport(p)))} pour l’apport d’un achat à crédit.</p>`;
+ h+=`<p class="hint">Crédit : apport de 20 % (${esc(fmt(apport(p)))}), le reste (${esc(fmt(pret(p)))}) prêté par la banque sur ${p.credit} jours, remboursé chaque jour comme vos autres prêts.</p>`;
+ h+=`<div class="mw-btns">${btn('cash','Acheter comptant ('+esc(fmt(p.prix))+')','',!ok||s.money<p.prix)}${btn('credit','Acheter à crédit (apport '+esc(fmt(apport(p)))+')','',!ok||s.money<apport(p))}${p.loyer?btn('rent','Louer ('+esc(fmt(p.loyer))+' par semaine)','',!ok||s.money<caution(p)):''}${btn('close','Fermer','ghost')}</div>`;
+ MW.panel(z.nom+' · À vendre',h,{wide:true,onClick:a=>{
+  if(a==='cash'||a==='credit'||a==='rent'){if(api.buy(p.id,a)){fiche(z);}}}});}
+function mine(p,z,w){
+ const o=I(),s=MW.S;let h=sheet(p,z,w),btns='';
+ if(p.kind==='logement'){
+  const nuit=s.min>=1140||s.min<360;
+  h+=nuit?'':'<p class="hint">Vous pourrez dormir ici à partir de 19 h.</p>';
+  const pk=w.mode==='achat'?(o.cars.length+'/'+parkCap()):'aucun';
+  h+=`<div class="mw-card">${row('Coffre',(o.stock[p.id]||[]).length+'/'+stockCap(p.id))}${p.parking&&w.mode==='achat'?row('Voitures garées (tous vos garages)',esc(pk)):''}</div>`;
+  btns+=btn('sleep','Dormir (réveil à '+hm(p.reveil)+')','',!nuit)+btn('stock','Coffre : pièces et outils')+(w.mode==='achat'&&p.parking?btn('cars','Mes voitures'):'')+btn('save','Sauvegarder','ghost');}
+ if(p.kind==='garage'){
+  let e=null;try{e=MWC.employer();}catch(x){}
+  const here=!!e&&e.id==='proprio'&&e.zone===p.id;
+  if(here) h+='<p class="mw-soon">Vous travaillez ici à votre compte : les clients arrivent de 8 h à 19 h, approchez-vous d’un pont.</p>';
+  else{h+='<p class="hint">Les clients ne viennent que si vous travaillez ici.'+(e&&e.id!=='aucun'?' Vous quitterez votre poste actuel : '+esc(e.nom)+'.':'')+'</p>';}
+  btns+=here?btn('stopwork','Cesser de travailler ici','ghost'):btn('work','Travailler ici à mon compte');}
+ if(p.kind==='usine'){
+  let lines=[],okF=false;try{lines=MWC.foundLines(p.capital);okF=MWC.foundOk(p.capital);}catch(e){}
+  h+='<h3 class="mw-h3">Fonder votre marque ici</h3><ul class="mw-cond">'+lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')+'</ul>';
+  if(okF) h+='<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="" placeholder="Automobiles ..."></label>';
+  else h+='<p class="hint">Quand vous remplirez ces conditions, l’usine sera le siège de votre marque. Les investisseurs complètent votre apport comme pour le terrain industriel.</p>';
+  btns+=btn('found','Fonder ma marque dans cette usine','',!okF);}
+ btns+=(w.mode==='loc'?btn('sell','Résilier le bail (caution rendue : '+esc(fmt(caution(p)))+')','ghost'):btn('sell','Revendre ('+esc(fmt(value(p.id)))+')','ghost'))+btn('biens','Mes biens','ghost')+btn('close','Fermer','ghost');
+ h+=`<div class="mw-btns">${btns}</div>`;
+ MW.panel(z.nom,h,{wide:true,onClick:a=>{
+  if(a==='sleep'){if(!(s.min>=1140||s.min<360)) return;pend=p.id;MW.closePanel();MW.sleep(p.reveil);}
+  else if(a==='save'){MW.save();MW.toast('Partie sauvegardée.','good');}
+  else if(a==='stock') stockPanel(p.id,z);
+  else if(a==='cars') carsPanel(p.id,z);
+  else if(a==='work'){MWC.workAt(p.id);MW.toast(`Vous travaillez à votre compte au ${p.nom}.`,'good');fiche(z);}
+  else if(a==='stopwork'){MWC.stopWork();fiche(z);}
+  else if(a==='sell'){if(api.sell(p.id)){MW.closePanel();}else fiche(z);}
+  else if(a==='biens') carnet();
+  else if(a==='found'){const inp=document.getElementById('mwBrand'),nom=(inp&&inp.value.trim())||'Automobiles Nouvelles',o2=I(),keep=o2.owned[p.id];
+   delete o2.owned[p.id];let ok=false;try{ok=MWC.foundBrand(nom,{fac:p.fac,capital:p.capital});}catch(e){console.error(e);}
+   if(!ok){o2.owned[p.id]=keep;fiche(z);}}}});}
+let pend=null;
+MW.on('slept',()=>{
+ if(!pend) return;const p=BY[pend],w=own(pend);pend=null;if(!p||!w||!p.repos) return;
+ const n=w.mode==='loc'?Math.floor(p.repos/2):p.repos;if(n<=0) return;
+ try{const nm=COMP_NOM(),ks=Object.keys(nm);if(!ks.length) return;const xp=MW.S.xp||(MW.S.xp={});
+  ks.sort((a,b)=>(xp[a]||0)-(xp[b]||0));const k=ks[0];xp[k]=(xp[k]||0)+n;MW.toast(`Bien reposé : +${n} d’expérience en ${nm[k].toLocaleLowerCase()}.`,'good');}catch(e){}});
+
+/* coffre personnel : objets de l'inventaire (outils et pièces) */
+function itLabel(it){let n='Objet';try{n=MWJ.itNom(it);}catch(e){}
+ const k=it.k==='outil'?'outil':it.k==='neuve'?'neuve':it.k==='usagee'?'usagée':'';return esc(n)+(k?` <small>(${k})</small>`:'');}
+function stockPanel(id,z){
+ const o=I(),st=o.stock[id]||(o.stock[id]=[]),cap=stockCap(id),inv=MWJ.inv?MWJ.inv():MW.S.inv,max=MWJ.INV_MAX||12;
+ let h=`<p class="hint">Coffre : ${st.length}/${cap} places. Sur vous : ${inv.length}/${max}.</p><h3 class="mw-h3">Dans votre coffre</h3><div class="mw-card">`;
+ h+=st.length?st.map((it,i)=>`<div class="mw-row"><span>${itLabel(it)}</span>${btn('out:'+i,'Reprendre','sm',inv.length>=max)}</div>`).join(''):'<small>Vide.</small>';
+ h+='</div><h3 class="mw-h3">Sur vous</h3><div class="mw-card">';
+ h+=inv.length?inv.map((it,i)=>`<div class="mw-row"><span>${itLabel(it)}</span>${btn('in:'+i,'Ranger','sm',st.length>=cap)}</div>`).join(''):'<small>Rien dans vos poches.</small>';
+ h+=`</div><div class="mw-btns">${btn('back','Retour','ghost')}${btn('close','Fermer','ghost')}</div>`;
+ MW.panel(z.nom+' · Coffre',h,{wide:true,onClick:a=>{
+  const [k,n]=a.split(':'),i=+n;
+  if(k==='in'&&inv[i]&&st.length<cap){try{MWJ.hands();}catch(e){}st.push(inv.splice(i,1)[0]);try{MWJ.invUI();}catch(e){}stockPanel(id,z);}
+  else if(k==='out'&&st[i]&&inv.length<max){inv.push(st.splice(i,1)[0]);try{MWJ.invUI();}catch(e){}stockPanel(id,z);}
+  else if(a==='back') fiche(z);}});}
+api.stockMove=(id,dir,i)=>{ /* outil de test : 'in' range l'objet i de l'inventaire, 'out' reprend l'objet i du coffre */
+ const o=I(),st=o.stock[id]||(o.stock[id]=[]),inv=MW.S.inv;
+ if(dir==='in'&&inv[i]&&st.length<stockCap(id)){st.push(inv.splice(i,1)[0]);return true;}
+ if(dir==='out'&&st[i]&&inv.length<(MWJ.INV_MAX||12)){inv.push(st.splice(i,1)[0]);return true;}return false;};
+
+/* voitures garées */
+function carsPanel(id,z){
+ const o=I(),cur=MWC.getCar();
+ let h=`<p class="hint">Places dans vos garages privés : ${o.cars.length}/${parkCap()}. Quand vous achetez une voiture chez le vendeur d’occasions, vous pouvez garder l’ancienne ici.</p><div class="mw-card">${row('Votre voiture actuelle','<small>'+esc(cur.nom)+'</small>')}</div><h3 class="mw-h3">Voitures garées</h3><div class="mw-card">`;
+ h+=o.cars.length?o.cars.map((c,i)=>`<div class="mw-row"><span>${esc(c.nom||'Voiture')}</span>${btn('take:'+i,'Prendre au volant','sm')}</div>`).join(''):'<small>Aucune voiture garée.</small>';
+ h+=`</div><div class="mw-btns">${btn('back','Retour','ghost')}${btn('close','Fermer','ghost')}</div>`;
+ MW.panel(z.nom+' · Garage privé',h,{wide:true,onClick:a=>{
+  if(a.startsWith('take:')){const i=+a.slice(5),c=o.cars[i];if(!c) return;const now=MWC.getCar();o.cars[i]={id:now.id,nom:now.nom,kind:now.kind,color:now.color,model:now.model};MWC.setCar(c);MW.toast('Vous prenez '+(c.nom||'cette voiture')+'.','good');carsPanel(id,z);}
+  else if(a==='back') fiche(z);}});}
+
+/* ═══ Mes biens (touche B) ═══ */
+function carnet(){
+ const o=I();if(!o) return;const t=api.totals();let owed=0;try{owed=MWC.owed();}catch(e){}
+ let h=`<div class="mw-card">${row('Patrimoine immobilier (valeur de revente)',esc(fmt(t.valeur)))}${row('Charges et loyers par semaine',esc(fmt(t.charges)))}${row('Prêts en cours à la banque',esc(fmt(owed)))}</div>`;
+ h+='<h3 class="mw-h3">Vos biens</h3>';
+ const mine=CAT.filter(p=>own(p.id));
+ h+=mine.length?'<div class="mw-card">'+mine.map(p=>{const w=own(p.id);
+  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag ok">${KIND[p.kind]}${w.mode==='loc'?' · loué':''}</span><br><small>${w.mode==='loc'?'Loyer':'Charges'} ${esc(fmt(weekly(p.id)))} par semaine${w.mode==='achat'?' · valeur '+esc(fmt(value(p.id))):''}</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>'
+  :'<p class="hint">Vous ne possédez aucun bien. Les bâtiments « À vendre » sont indiqués en vert sur la carte (touche M) et par un panneau sur leur façade.</p>';
+ const sale=CAT.filter(p=>!own(p.id));
+ if(sale.length){h+='<h3 class="mw-h3">À vendre</h3><div class="mw-card">'+sale.map(p=>{const ok=reqOk(p);
+  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag${ok?' ok':' warn'}">${KIND[p.kind]}${ok?'':' · conditions à remplir'}</span><br><small>${esc(fmt(p.prix))} · charges ${esc(fmt(p.charges))} par semaine</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>';}
+ h+=`<div class="mw-btns">${btn('close','Fermer','ghost')}</div>`;
+ MW.panel('Mes biens',h,{wide:true,onClick:a=>{if(a.startsWith('go:')){const id=a.slice(3);MW.closePanel();MW.setMarker(id,BY[id]?BY[id].nom:'');MW.toast('Repère placé : '+(BY[id]?BY[id].nom:id)+' (carte : M).','info');}}});}
+api.panel=carnet;
+MW.addButton('biens','Mes biens (B)',()=>{if(MW.S) carnet();});
+MW.on('key',k=>{if(k==='b'&&MW.S) carnet();});
+
+/* ═══ Panneaux « À vendre » sur les façades (un seul maillage instancié) ═══ */
+let signs=null;
+function ensureSigns(){
+ if(signs||!MW.scene||typeof THREE==='undefined') return;
+ const T=THREE,draw=(x,w,h)=>{x.fillStyle='#c4281c';x.fillRect(0,0,w,h);x.strokeStyle='#fff';x.lineWidth=h*.04;x.strokeRect(h*.06,h*.06,w-h*.12,h-h*.12);
+  x.fillStyle='#fff';x.textAlign='center';x.textBaseline='middle';x.font='bold '+Math.round(h*.4)+'px "Barlow Condensed","Arial Narrow",Arial,sans-serif';x.fillText('À VENDRE',w/2,h*.42);
+  x.font='bold '+Math.round(h*.16)+'px Arial';x.fillText('Agence du Quartier',w/2,h*.76);};
+ let mt;
+ if(typeof MWD!=='undefined'&&MWD.canvasTex&&MWD.signMat) mt=MWD.signMat(MWD.canvasTex(512,256,draw));
+ else{const c=document.createElement('canvas');c.width=512;c.height=256;draw(c.getContext('2d'),512,256);mt=new T.MeshBasicMaterial({map:new T.CanvasTexture(c)});}
+ signs=new T.InstancedMesh(new T.PlaneGeometry(1,1),mt,CAT.length);signs.frustumCulled=false;signs.name='immo-panneaux';
+ MW.scene.add(signs);}
+const _m=()=>new THREE.Matrix4();
+function placeSigns(){
+ ensureSigns();if(!signs) return;const T=THREE,m=_m(),q=new T.Quaternion(),pos=new T.Vector3(),sc=new T.Vector3(),ax=new T.Vector3(0,1,0);
+ CAT.forEach((p,i)=>{const z=MW.zone(p.id);
+  if(!z||own(p.id)){m.makeScale(0,0,0);signs.setMatrixAt(i,m);return;}
+  const ry=Math.atan2(-z.n.x,-z.n.z),tx=Math.cos(ry),tz=-Math.sin(ry),ox=-z.n.x,oz=-z.n.z;
+  pos.set(z.door.x+ox*.42+tx*p.signU,p.signY,z.door.z+oz*.42+tz*p.signU);q.setFromAxisAngle(ax,ry);sc.set(p.signW,p.signW/2,1);
+  m.compose(pos,q,sc);signs.setMatrixAt(i,m);});
+ signs.instanceMatrix.needsUpdate=true;}
+
+/* ═══ Cycle de vie ═══ */
+for(const p of CAT) MW.setDoor(p.id,fiche);
+MW.on('start',()=>{clientele();I();
+ // cohérence avec la carrière : un garage qui n'est plus à vous ne peut pas être votre lieu de travail
+ try{const e=MWC.employer();if(e.id==='proprio'&&!own(e.zone)) MWC.stopWork();}catch(err){}
+ refreshWorld();});
+MW.on('open',()=>refreshWorld());
+window.__mwi=api;
+return api;})();
 
 /* ───────────── Rendu ───────────── */
 function renderKeys(){

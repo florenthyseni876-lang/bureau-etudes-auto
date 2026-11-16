@@ -50,7 +50,9 @@
                         objets ; l'avant de l'établi / de l'étagère est tourné vers la porte (se placer à ~1,3 m vers la porte).
                         Ids : appart, garage1 (Garage du Coin), pieces, garage2 (Ventoux), garage3 (Maison Aurèle),
                         garage4 (Scuderia Brivio), ecole, bureau, banque, terrain, concess.
-                        Types : logement, garage, magasin, ecole, bureau, banque, terrain, occasion.
+                        Immobilier à acheter (gérés par js/52, MWI) : loge1..loge4 (logements), garage5..garage7 (garages, 2 à 4 ponts, mêmes champs
+                        que garage1..4), usine1..usine2 ; zone.mapTag vaut 'À vendre' ou 'À vous' (carte).
+                        Types : logement, garage, magasin, ecole, bureau, banque, terrain, occasion, usine.
    MW.zone(id)          zone par identifiant
    MW.zoneAt(x,z)       zone contenant le point, ou null (intérieur du bâtiment ; pour les bâtiments sans intérieur, 5 m de
                         parvis autour sont comptés)
@@ -149,14 +151,24 @@ const ZD=[
  {id:'ecole',nom:'Centre de formation automobile',court:'Formation',type:'ecole',x:-70,z:124,w:34,d:24,side:'S',H:8,wall:0xc7d8b8,roof:0x4a6a3a,sign:0x2f7a3a,fg:'#fff'},
  {id:'banque',nom:'Banque du Quartier',court:'Banque',type:'banque',x:-30,z:125,w:22,d:22,side:'S',H:9,wall:0xd4d8de,roof:0x1f3558,sign:0x1f3558,fg:'#fff'},
  {id:'bureau',nom:'Centre technique',court:'Centre technique',type:'bureau',x:80,z:122,w:40,d:30,side:'S',H:11,wall:0xb8c8d6,roof:0x45586a,sign:0x1f7f8f,fg:'#fff'},
- {id:'terrain',nom:'Terrain industriel à vendre',court:'Terrain à vendre',type:'terrain',x:-184,z:70,w:44,d:36,side:'E',H:1.5,wall:0xc88a2a,roof:null,sign:0xd8741a,fg:'#fff',interior:true,np:0,floor:0x9a8a6a}];
+ {id:'terrain',nom:'Terrain industriel à vendre',court:'Terrain à vendre',type:'terrain',x:-184,z:70,w:44,d:36,side:'E',H:1.5,wall:0xc88a2a,roof:null,sign:0xd8741a,fg:'#fff',interior:true,np:0,floor:0x9a8a6a},
+ /* ── immobilier (js/52) : maisons, garages et usines à acheter ; positions choisies hors des rues et des autres bâtiments ── */
+ {id:'loge1',nom:'Maison de ville',court:'Maison de ville',type:'logement',x:-115,z:131.5,w:12,d:10,side:'S',H:6,wall:0xe9d8b8,roof:0x8a4a3a,sign:0x3a5a7a,fg:'#fff',immo:1},
+ {id:'loge2',nom:'Appartement du Centre',court:'Appartement',type:'logement',x:35,z:130.5,w:16,d:12,side:'S',H:10,wall:0xd8cfc0,roof:0x5a5a60,sign:0x6a4a8a,fg:'#fff',immo:1},
+ {id:'loge3',nom:'Pavillon avec garage',court:'Pavillon',type:'logement',x:-100,z:169,w:14,d:11,side:'N',H:6.5,wall:0xf0e6d0,roof:0x9a5a3a,sign:0x2f7a5a,fg:'#fff',immo:1},
+ {id:'loge4',nom:'Villa des Hauts',court:'Villa',type:'logement',x:-35,z:-21.5,w:22,d:16,side:'S',H:7.5,wall:0xf4f0e6,roof:0x4a4a52,sign:0x1c1c22,fg:'#e6c46a',immo:1},
+ {id:'garage5',nom:'Atelier de la Rue Basse',court:'Rue Basse',type:'garage',x:-112,z:22.5,w:22,d:18,side:'N',H:5.2,wall:0x9aa59a,roof:0x4a5a4a,sign:0x2f8a4a,fg:'#fff',interior:true,np:2,floor:0x70746e,immo:1},
+ {id:'garage6',nom:'Garage Delmas et Fils',court:'Garage Delmas',type:'garage',x:110,z:25.5,w:30,d:24,side:'N',H:5.8,wall:0xc9c0b0,roof:0x6a4a2a,sign:0xd8841a,fg:'#fff',interior:true,np:3,floor:0x7a7a78,immo:1},
+ {id:'garage7',nom:"Grand Garage de l'Esplanade",court:'Grand Garage',type:'garage',x:70,z:178.5,w:44,d:30,side:'N',H:6.6,wall:0xdfe3e8,roof:0x2a3a4a,sign:0x1a6a9a,fg:'#fff',interior:true,np:4,floor:0x8a8f95,immo:1},
+ {id:'usine1',nom:'Atelier de fabrication Marchand',court:'Atelier fabrication',type:'usine',x:-178.5,z:-40,w:30,d:24,side:'E',H:8,wall:0xb8b8b0,roof:0x5a5f66,sign:0xc86a1a,fg:'#fff',immo:1},
+ {id:'usine2',nom:'Grande usine du Vallon',court:'Grande usine',type:'usine',x:-191.5,z:-95,w:56,d:36,side:'E',H:11,wall:0xa8b0b8,roof:0x4a5058,sign:0x1a4a8a,fg:'#fff',immo:1}];
 const zones=ZD.map(d=>{
  const n=SIDES[d.side],hx=d.w/2,hz=d.d/2,dx=d.x-n.x*hx,dz=d.z-n.z*hz,t={x:Math.abs(n.z),z:Math.abs(n.x)};
  const loc=(u,v)=>({x:dx+t.x*u+n.x*v,z:dz+t.z*u+n.z*v});
  const z={id:d.id,nom:d.nom,court:d.court,type:d.type,x:d.x,z:d.z,w:d.w,d:d.d,side:d.side,interior:!!d.interior,
   ry:Math.atan2(n.x,n.z),n:{x:n.x,z:n.z},door:{x:dx,z:dz},porte:{x:dx-n.x*1.3,z:dz-n.z*1.3},col:d.sign,_d:d,loc};
  if(d.type==='garage'){
-  const ry=z.ry,pv=d.d*.42,us=d.np===3?[-d.w*.28,0,d.w*.28]:[-d.w*.2,d.w*.2];
+  const ry=z.ry,pv=d.d*.42,us=d.np===4?[-d.w*.375,-d.w*.125,d.w*.125,d.w*.375]:d.np===3?[-d.w*.28,0,d.w*.28]:[-d.w*.2,d.w*.2];
   z.ponts=us.map(u=>{const p=loc(u,pv);return {x:p.x,z:p.z,ry};});
   z.etabli=loc(-d.w/2+3.6,d.d-1.2);z.etagere=loc(d.w/2-3.4,d.d-.9);z.accueil=loc(d.w/2-3.2,3);}
  return z;});
@@ -353,8 +365,8 @@ let acc=0;
 function stepMin(){S.min++;if(S.min>=1440) S.min=0;emit('minute');if(S.min%60===0) emit('hour',S.min/60);if(S.min===360){S.day++;emit('day',S.day);}}
 api.addMin=n=>{n=Math.max(0,Math.min(3000,Math.round(n)));for(let i=0;i<n;i++) stepMin();};
 const WAKE=450,SLEEP_FROM=1140; /* réveil à 7 h 30 ; on peut dormir dès 19 h */
-api.sleep=()=>{if(sleeping) return;ensureUI();sleeping=true;setPaused();ui.fade.classList.add('on');
- setTimeout(()=>{const n=((WAKE-S.min)+1440)%1440||1440;api.addMin(n);api.save();ui.fade.classList.remove('on');sleeping=false;setPaused();api.toast(`Une bonne nuit de sommeil. ${api.timeStr()}.`,'good');},650);};
+api.sleep=wk=>{if(sleeping) return;ensureUI();sleeping=true;setPaused();ui.fade.classList.add('on');const w=typeof wk==='number'&&wk>=375&&wk<=WAKE?wk:WAKE; /* wk : heure de réveil (en minutes) d'un logement acheté, js/52 */
+ setTimeout(()=>{const n=((w-S.min)+1440)%1440||1440;api.addMin(n);api.save();ui.fade.classList.remove('on');sleeping=false;setPaused();api.toast(`Une bonne nuit de sommeil. ${api.timeStr()}.`,'good');emit('slept',w);},650);};
 
 /* ── interactions ── */
 let curI=null,nid=1;
@@ -362,7 +374,7 @@ api.addInteract=o=>{if(!o.id) o.id='i'+(nid++);inter.set(o.id,o);return o;};
 api.removeInteract=id=>{inter.delete(id);};
 api.setDoor=(id,fn)=>{if(fn) doorFns[id]=fn;else delete doorFns[id];};
 function defaultDoor(z){
- const desc={garage:'Garage ouvert de 8 h à 19 h.',magasin:'Pièces détachées et outillage.',ecole:'Formations et examens de mécanique.',bureau:'Bureau d\'études d\'un constructeur.',banque:'Prêts et comptes professionnels.',terrain:'Un terrain pour bâtir votre propre usine.',occasion:'Voitures d\'occasion.'}[z.type]||'';
+ const desc={garage:'Garage ouvert de 8 h à 19 h.',magasin:'Pièces détachées et outillage.',ecole:'Formations et examens de mécanique.',bureau:'Bureau d\'études d\'un constructeur.',banque:'Prêts et comptes professionnels.',terrain:'Un terrain pour bâtir votre propre usine.',occasion:'Voitures d\'occasion.',usine:'Une usine à vendre.'}[z.type]||'';
  api.panel(z.nom,`<p>${esc(desc)}</p><p class="mw-soon">Bientôt : cet endroit ouvrira ses portes dans une prochaine mise à jour.</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Fermer</button></div>`);}
 function studioDoor(){
  api.panel('Votre studio',`<p>Un petit studio, le temps de faire vos preuves. ${esc(api.timeStr())}.</p><div class="mw-btns">${S&&S.min>=SLEEP_FROM||S&&S.min<360?'<button type="button" class="btn" data-mw="sleep">Dormir jusqu\'à 7 h 30</button>':'<span class="mw-soon">Il est trop tôt pour dormir : revenez à partir de 19 h.</span>'}<button type="button" class="btn ghost" data-mw="save">Sauvegarder</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,
@@ -528,10 +540,11 @@ function drawMap(c,cx,cz,sc,names,fs){
  x.fillStyle='#6f9a4a';x.fillRect(0,0,W,H);
  x.fillStyle='#d7d7d2';for(const r of RZ) x.fillRect(0,Y(r-10),W,20*sc);for(const r of RX) x.fillRect(X(r-10),0,20*sc,H);
  x.fillStyle='#4a4d52';for(const r of RZ) x.fillRect(0,Y(r-7),W,14*sc);for(const r of RX) x.fillRect(X(r-7),0,14*sc,H);
- for(const z of zones){x.fillStyle=mapCol(z);x.fillRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);x.strokeStyle='#10233d';x.lineWidth=1;x.strokeRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);}
+ for(const z of zones){x.fillStyle=mapCol(z);x.fillRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);x.strokeStyle='#10233d';x.lineWidth=1;x.strokeRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);
+  if(z.mapTag==='À vendre'||z.mapTag==='À vous'){x.save();x.strokeStyle=z.mapTag==='À vous'?'#ffd24a':'#33e08a';x.lineWidth=2.5;if(z.mapTag!=='À vous') x.setLineDash([5,3]);x.strokeRect(X(z.x-z.w/2)-1,Y(z.z-z.d/2)-1,z.w*sc+2,z.d*sc+2);x.restore();}} /* [immo] bâtiments à vendre (vert, pointillés) ou possédés (jaune) */
  if(names){x.font='bold '+fs+'px sans-serif';x.textAlign='center';x.textBaseline='middle';
   zones.forEach((z,i)=>{const px=X(z.x),py=(z.side==='N'?Y(z.z+z.d/2)+fs*.8+(i%2)*fs*1.05:Y(z.z-z.d/2)-fs*.7-(i%2)*fs*1.05);if(px<0||px>W||py<0||py>H) return;
-   x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.85)';x.strokeText(z.court,px,py);x.fillStyle='#fff';x.fillText(z.court,px,py);});}
+   x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.85)';const nm=z.court+(z.mapTag&&fs>8?' · '+z.mapTag:'');x.strokeText(nm,px,py);x.fillStyle=z.mapTag==='À vendre'?'#b8ffd8':z.mapTag==='À vous'?'#ffe9a0':'#fff';x.fillText(nm,px,py);});}
  // voiture
  x.fillStyle='#3a8aff';x.beginPath();x.arc(X(S.car.x),Y(S.car.z),Math.max(3,2.2*sc),0,7);x.fill();
  // repère

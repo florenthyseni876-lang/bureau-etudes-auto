@@ -49,11 +49,13 @@ const EMP={
  ventoux:{nom:'Mécanicien',lieu:'Ventoux Automobiles',zone:'garage2',paie:'mois',part:.1,sem:1750,niv:6,rang:2,req:{niv:{entretien:5,freinage:5},rep:35,dipl:'cap'}},
  aurele:{nom:'Mécanicien',lieu:'Maison Aurèle',zone:'garage3',paie:'mois',part:.1,sem:2600,niv:8,rang:3,req:{niv:{moteur:5,diagnostic:5,electricite:4},rep:40,dipl:'bts'}},
  brivio:{nom:'Mécanicien',lieu:'Scuderia Brivio',zone:'garage4',paie:'mois',part:.1,sem:3400,niv:10,rang:3,req:{niv:{moteur:7,transmission:5,diagnostic:6},rep:60,dipl:'bts'}},
+ proprio:{nom:'Patron de votre garage',lieu:'',zone:null,paie:'tache',part:1,net:true,sem:0,niv:10,rang:2,loyer:0}, /* garage acheté (js/52) : la zone vient de c.ownZone, les charges hebdomadaires sont prélevées par js/52 */
  ing:{nom:'Ingénieur',lieu:'Centre technique',zone:null,paie:'mois',part:0,sem:4800,niv:10,rang:3},
  fondateur:{nom:'Fondateur',lieu:'',zone:null,paie:'tache',part:0,sem:0,niv:10,rang:4}};
 const ING_REQ={dipl:'ing',rep:30,niv:{moteur:4}};
 const PROMO={jobs:6,niv:4}; /* apprenti → mécanicien */
 const OWN={prix:1300,reserve:500,req:{rep:25,niv:{entretien:4,moteur:3}}}; /* reserve = de quoi acheter les premières pièces */
+const isPat=c=>c.emp==='patron'||c.emp==='proprio';
 const ZONE_EMP={garage2:'ventoux',garage3:'aurele',garage4:'brivio'};
 /* Fondation : apport personnel net de dettes (`capital`), réputation, poste. Les investisseurs complètent : leur apport est proportionnel
    à la réputation et au grade (voir investors()). Développer un premier modèle à l'époque actuelle coûte plusieurs dizaines de millions
@@ -62,7 +64,7 @@ const FOUND={capital:48000,rep:60,niv:{moteur:7},investBase:3e6,fac:2};
 const INV_COEF={ing1:1,ing2:1.5,ing3:2.2,patron:.8};
 
 function newC(){return {emp:'aucun',grade:0,hired:0,payFrom:0,dipl:{},loans:[],refus:{},form:null,mission:null,qual:0,missions:0,notes:[],
- stats:{jobs:0,paid:0,vid:0,earn:0},lv:{},car:null,founded:null,everMeca:false,t:{}};}
+ stats:{jobs:0,paid:0,vid:0,earn:0},lv:{},car:null,founded:null,everMeca:false,ownZone:null,t:{}};}
 function C(){const s=MW.S;if(!s) return newC();if(!s.career||typeof s.career!=='object') s.career=newC();
  const c=s.career,d=newC();for(const k in d) if(c[k]==null) c[k]=d[k];for(const k in d.stats) if(c.stats[k]==null) c.stats[k]=0;return c;}
 api.state=C;
@@ -71,7 +73,9 @@ function employer(){
  const c=C(),id=EMP[c.emp]?c.emp:'aucun',e=EMP[id];let nom=e.nom+(e.lieu?' · '+e.lieu:''),sem=e.sem,niv=e.niv;
  if(id==='ing'){const g=GRADES[clamp(c.grade,0,3)];nom=g.n+' · Centre technique';sem=g.sem;}
  if(id==='fondateur') nom='Fondateur de '+(c.founded||'votre marque');
- return {id,nom,lieu:e.lieu,zone:e.zone,salaire:e.paie==='mois'?sem:e.part,paie:e.paie,part:e.part,sem,mois:Math.round(sem*30/PAYDAYS),niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,compte:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
+ let lieu=e.lieu,zone=e.zone;
+ if(id==='proprio'){const oz=c.ownZone&&MW.zone?MW.zone(c.ownZone):null;zone=oz?oz.id:null;lieu=oz?oz.court:'';nom='Patron · '+lieu;}
+ return {id,nom,lieu,zone,salaire:e.paie==='mois'?sem:e.part,paie:e.paie,part:e.part,sem,mois:Math.round(sem*30/PAYDAYS),niveauxAutorises:niv,loyer:e.loyer||0,net:!!e.net,compte:!!e.net,rang:id==='ing'?3+c.grade:e.rang};}
 api.employer=employer;
 api.post=()=>{const e=employer();return e.nom;};
 
@@ -118,7 +122,7 @@ function say(t,g){try{MW.toast(t,g);}catch(e){}}
 /* ── embauche, promotion, démission ── */
 function hire(id){
  const c=C();if(!EMP[id]) return false;
- c.emp=id;c.hired=day();c.payFrom=day();if(id==='meca'||id==='patron'||id==='ventoux'||id==='aurele'||id==='brivio') c.everMeca=true;
+ c.emp=id;c.hired=day();c.payFrom=day();if(id==='meca'||id==='patron'||id==='proprio'||id==='ventoux'||id==='aurele'||id==='brivio') c.everMeca=true;
  if(id!=='ing') c.mission=null;
  MW.emit('employerChanged',id);refresh();return true;}
 api.hire=hire;
@@ -140,7 +144,7 @@ function longGoals(){const c=C(),e=employer(),g=[];if(c.emp==='fondateur') retur
  else if(c.emp!=='ing'&&c.emp!=='fondateur') g.push({id:'g_ing',titre:'Rejoindre le centre technique comme ingénieur',manque:missing(ING_REQ),zone:'bureau'});
  if(c.emp==='ing'&&c.grade<3) g.push({id:'g_prom',titre:'Devenir '+GRADES[c.grade+1].n.toLocaleLowerCase(),manque:[`Valider ${Math.max(0,GRADES[c.grade].need-c.qual)} mission${GRADES[c.grade].need-c.qual>1?'s':''} avec une note d'au moins ${12+c.grade}/20`],zone:'bureau'});
  if(c.emp!=='fondateur'){const m=[];if(MW.S.money-owed()<FOUND.capital) m.push(`Apport personnel de ${fmt(FOUND.capital)} (vous : ${fmt(MW.S.money-owed())})`);if(rep()<FOUND.rep) m.push(`Réputation : ${FOUND.rep}`);
-  if(!(c.emp==='ing'&&c.grade>=1)&&!(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur)) m.push('Ingénieur confirmé, ou patron de garage avec moteur niveau '+FOUND.niv.moteur);
+  if(!(c.emp==='ing'&&c.grade>=1)&&!(isPat(c)&&level('moteur')>=FOUND.niv.moteur)) m.push('Ingénieur confirmé, ou patron de garage avec moteur niveau '+FOUND.niv.moteur);
   g.push({id:'g_marque',titre:'Fonder votre marque',manque:m,zone:'terrain'});}
  return g.filter(x=>!x.ok);}
 function tutorial(){const c=C();
@@ -424,11 +428,11 @@ function bank(z){
   if(a.startsWith('loan:')){const x=+a.slice(5);takeLoan(x);bank(z);}
   else if(a.startsWith('pay:')){const l=C().loans[+a.slice(4)];if(l&&MW.S.money>=l.rest){MW.money(-l.rest,'Prêt soldé');C().loans.splice(+a.slice(4),1);bank(z);}}}});}
 const loanDays=x=>x<=3000?30:x<=30000?90:x<=300000?180:360;
-function takeLoan(x){
- const c=C(),room=Math.max(0,loanMax()-owed());if(!(x>0)||x>room+1) return false;
- const n=loanDays(x),total=Math.round(x*(1+LOAN_RATE*n/365));
+function takeLoan(x,jours,force){ /* jours et force : crédit immobilier de js/52 (durée longue, garanti par le bien) */
+ const c=C(),room=Math.max(0,loanMax()-owed());if(!(x>0)||(!force&&x>room+1)) return false;
+ const n=jours>0?Math.round(jours):loanDays(x),total=Math.round(x*(1+LOAN_RATE*n/365));
  c.loans.push({rest:total,per:Math.ceil(total/n),n,x});MW.money(x,'Prêt bancaire');return true;}
-api.takeLoan=takeLoan;api.owed=owed;
+api.takeLoan=takeLoan;api.owed=owed;api.loanRoom=()=>Math.max(0,loanMax()-owed());api.loanDays=loanDays;
 
 /* ── Vendeur d'occasions ── */
 const CARS=[
@@ -447,40 +451,59 @@ function applyCar(){
   for(const o of keep) m.add(o);
   while(n.children.length) m.add(n.children[0]);
   m.userData=n.userData;}catch(e){console.error(e);}}
+/* voiture du joueur (aspect) : lue et changée par js/52 (places de parking des logements) */
+api.CARS=CARS;
+api.getCar=()=>{const c=C(),cc=c.car||CARS[0];return {id:cc.id,nom:cc.nom||(CARS.find(x=>x.id===cc.id)||CARS[0]).nom,kind:cc.kind,color:cc.color,model:cc.model||(CARS.find(x=>x.id===cc.id)||{}).model};};
+api.setCar=cc=>{const c=C();c.car={id:cc.id,nom:cc.nom,kind:cc.kind,color:cc.color,model:cc.model};applyCar();};
 function dealer(z){
  const c=C(),cur=c.car?c.car.id:'vieille',curP=(CARS.find(x=>x.id===cur)||CARS[0]).prix;
- MW.panel(z.nom,`<p>Votre voiture actuelle : <b>${esc((CARS.find(x=>x.id===cur)||CARS[0]).nom)}</b>. Le vendeur reprend l'ancienne à 40 % de sa valeur d'achat.</p><div class="mw-card">${CARS.filter(x=>x.id!=='vieille').map(x=>{const net=x.prix-Math.round(curP*.4);return `<div class="mw-row"><span>${esc(x.nom)}<br><small>${esc(fmt(x.prix))}${curP?' · à payer : '+esc(fmt(Math.max(0,net))):''}</small></span>${btn('buy:'+x.id,cur===x.id?'Possédée':'Acheter','sm',cur===x.id||MW.S.money<Math.max(0,net))}</div>`;}).join('')}</div><p class="hint">Seul l'aspect de la voiture change : les performances de conduite restent celles d'une voiture ordinaire.</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`,
-  {wide:true,onClick:a=>{if(!a.startsWith('buy:')) return;const x=CARS.find(k=>k.id===a.slice(4));if(!x) return;
+ const park=typeof MWI!=='undefined'&&MWI&&MWI.parkFree?MWI.parkFree():0;
+ MW.panel(z.nom,`<p>Votre voiture actuelle : <b>${esc((CARS.find(x=>x.id===cur)||CARS[0]).nom)}</b>. Le vendeur reprend l'ancienne à 40 % de sa valeur d'achat.</p><div class="mw-card">${CARS.filter(x=>x.id!=='vieille').map(x=>{const net=x.prix-Math.round(curP*.4);return `<div class="mw-row"><span>${esc(x.nom)}<br><small>${esc(fmt(x.prix))}${curP?' · à payer : '+esc(fmt(Math.max(0,net))):''}</small></span>${btn('buy:'+x.id,cur===x.id?'Possédée':'Acheter','sm',cur===x.id||MW.S.money<Math.max(0,net))}${park>0&&cur!==x.id?btn('keep:'+x.id,'Acheter et garder l\'ancienne','sm ghost',MW.S.money<x.prix):''}</div>`;}).join('')}</div><p class="hint">Seul l'aspect de la voiture change : les performances de conduite restent celles d'une voiture ordinaire.</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`,
+  {wide:true,onClick:a=>{
+   if(a.startsWith('keep:')){const x=CARS.find(k=>k.id===a.slice(5));if(!x||!park||MW.S.money<x.prix) return;
+    const old=api.getCar();if(!MWI.parkAdd(old)) return;
+    MW.money(-x.prix,'Achat : '+x.nom);c.car={id:x.id,nom:x.nom,kind:x.kind,color:x.color,model:x.model};applyCar();say('Votre ancienne voiture est rangée dans votre garage personnel.','good');dealer(z);return;}
+   if(!a.startsWith('buy:')) return;const x=CARS.find(k=>k.id===a.slice(4));if(!x) return;
    const net=Math.max(0,x.prix-Math.round(curP*.4));if(MW.S.money<net) return;
    MW.money(-net,'Achat : '+x.nom);c.car={id:x.id,nom:x.nom,kind:x.kind,color:x.color,model:x.model};applyCar();say('Belle voiture ! Elle vous attend devant le studio.','good');dealer(z);}});}
 
 /* ── Terrain : fonder sa marque ── */
 /* apport des investisseurs, en euros : proportionnel à la réputation et au grade */
 function investors(){const c=C();
- const k=c.emp==='ing'?(INV_COEF['ing'+clamp(c.grade,1,3)]||1):c.emp==='patron'?INV_COEF.patron:0;
+ const k=c.emp==='ing'?(INV_COEF['ing'+clamp(c.grade,1,3)]||1):isPat(c)?INV_COEF.patron:0;
  return Math.round(FOUND.investBase*clamp(rep(),0,100)*k/1e5)*1e5;}
 api.investors=investors;
-function foundOk(){const c=C(),s=MW.S;
- return s.money-owed()>=FOUND.capital&&rep()>=FOUND.rep&&((c.emp==='ing'&&c.grade>=1)||(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur));}
+function foundOk(cap){const c=C(),s=MW.S;
+ return s.money-owed()>=(cap==null?FOUND.capital:cap)&&rep()>=FOUND.rep&&((c.emp==='ing'&&c.grade>=1)||(isPat(c)&&level('moteur')>=FOUND.niv.moteur));}
+/* conditions de fondation sous forme de lignes {ok,t,now} (aussi utilisées par les usines de js/52, avec un apport réduit `cap`) */
+function foundLines(cap){const c=C(),s=MW.S,k=cap==null?FOUND.capital:cap;
+ return [
+  {ok:s.money-owed()>=k,t:`Apport personnel d'au moins ${fmt(k)} (hors prêts à rembourser)`,now:'vous : '+fmt(s.money-owed())},
+  {ok:rep()>=FOUND.rep,t:`Réputation : ${FOUND.rep}`,now:'vous : '+Math.round(rep())},
+  {ok:(c.emp==='ing'&&c.grade>=1)||(isPat(c)&&level('moteur')>=FOUND.niv.moteur),t:`Ingénieur confirmé, ou propriétaire de garage avec moteur niveau ${FOUND.niv.moteur}`,now:'vous : '+esc(employer().nom)}];}
+api.foundOk=foundOk;api.foundLines=foundLines;
+/* conditions d'accès réutilisables (js/52) : req = {rep, dipl, niv:{comp:n}} */
+api.req={ok:okAll,html:condHTML,list:checks,missing};api.DIPL=DIPL;api.PAYDAYS=PAYDAYS;
+/* garage acheté (js/52) : le joueur travaille à son compte dans CE garage (mêmes règles que le patron du Garage du Coin) */
+api.workAt=zid=>{const c=C();c.ownZone=zid;hire('proprio');};
+api.stopWork=()=>{if(C().emp==='proprio') resign();};
 function land(z){
  const c=C(),s=MW.S;
  if(c.emp==='fondateur'){MW.panel(z.nom,`<p>Votre marque <b>${esc(c.founded||'')}</b> est fondée. Retrouvez-la depuis l'écran d'accueil du jeu (« Continuer »).</p><div class="mw-btns">${btn('close','Fermer','ghost')}</div>`);return;}
- const lines=[
-  {ok:s.money-owed()>=FOUND.capital,t:`Apport personnel d'au moins ${fmt(FOUND.capital)} (hors prêts à rembourser)`,now:'vous : '+fmt(s.money-owed())},
-  {ok:rep()>=FOUND.rep,t:`Réputation : ${FOUND.rep}`,now:'vous : '+Math.round(rep())},
-  {ok:(c.emp==='ing'&&c.grade>=1)||(c.emp==='patron'&&level('moteur')>=FOUND.niv.moteur),t:`Ingénieur confirmé, ou propriétaire de garage avec moteur niveau ${FOUND.niv.moteur}`,now:'vous : '+esc(employer().nom)}];
+ const lines=foundLines();
  const ok=foundOk();
  MW.panel(z.nom,`<p>Un grand terrain industriel est à vendre. Vous y installeriez l'atelier de votre propre marque d'automobiles (une usine de taille moyenne y est déjà construite) : votre apport personnel (et vos éventuelles dettes) deviennent ceux de l'entreprise, et le jeu passe en mode constructeur.</p><p class="hint">Concevoir et lancer un premier modèle de nos jours coûte plusieurs dizaines de millions. Des investisseurs, séduits par votre parcours, complètent donc votre apport : leur contribution est proportionnelle à votre réputation et à votre grade (ingénieur confirmé, chef de projet, directeur technique) ou à votre expérience de patron de garage. Pour vous, aujourd'hui : <b>${esc(fmt(investors()))}</b> (réputation ${Math.round(rep())}).</p><ul class="mw-cond">${lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')}</ul>${ok?`<label class="mw-lab">Nom de votre marque<input id="mwBrand" class="mw-in" type="text" maxlength="30" value="" placeholder="Automobiles ..."></label>`:''}<div class="mw-btns">${btn('found','Acheter le terrain et fonder ma marque','',!ok)}${btn('close','Fermer','ghost')}</div>`,
   {onClick:a=>{if(a==='found'){const inp=document.getElementById('mwBrand'),nom=(inp&&inp.value.trim())||'Automobiles Nouvelles';foundBrand(nom);}}});}
-function foundBrand(nom){
- if(!foundOk()) return false;
+function foundBrand(nom,o){
+ o=o||{};
+ if(!foundOk(o.capital)) return false;
  const s=MW.S,c=C(),perso=s.money,debt=owed(),apport=investors();
  const y=Math.min(new Date().getFullYear(),2030),cash=perso+apport;
  MW.closePanel();
  MW.money(-perso,'Apport au capital de '+nom);
  c.loans=[];c.emp='fondateur';c.founded=nom;c.mission=null;
  MW.emit('founded',nom);MW.save();MW.suspend();
- api.startConstructor({co:nom,y,cash,debt,fac:FOUND.fac,rep:Math.round(30+clamp(rep(),0,100)*.2)});
+ api.startConstructor({co:nom,y,cash,debt,fac:o.fac!=null?o.fac:FOUND.fac,rep:Math.round(30+clamp(rep(),0,100)*.2)});
  return true;}
 api.foundBrand=foundBrand;
 api.startConstructor=function(o){
