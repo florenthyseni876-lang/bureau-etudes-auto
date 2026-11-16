@@ -311,7 +311,7 @@ D.cycleQuality=()=>{const i=QS.indexOf(Q.level);D.setQuality(QS[(i+1)%3],true);}
 
 /* ═══════════ Rendu, lumière, boucle ═══════════ */
 D.renderer=R=>{RN=R;try{const gl=R.getContext(),e=gl.getExtension('WEBGL_debug_renderer_info');Q.soft=/swiftshader|llvmpipe|software|softpipe/i.test(e?String(gl.getParameter(e.UNMASKED_RENDERER_WEBGL)):'');}catch(err){}
- R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.1;
+ R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1;
  R.shadowMap.enabled=true;R.shadowMap.type=T.PCFShadowMap;};
 const sunDir=new T.Vector3(),moonDir=new T.Vector3(),tmpC=new T.Color(),tmpC2=new T.Color(),lastTgt=new T.Vector3(1e9,0,1e9);
 let TL={A:null,B:null},clock=0,lampMat=null,glowMat=null,zonesG=[];
@@ -355,7 +355,7 @@ D.frame=(dt,t,h,P,quick)=>{
  if(TL.A){const c=(clock%48),A=c<20?0:c<23?1:2,B=c<26?2:c<44?0:1;TL.A.map.offset.x=A*.25;TL.B.map.offset.x=B*.25;}
  // éclairage intérieur des garages (lumière d'ambiance quand on s'en approche)
  let ins=0;for(const z of zonesG){const dx=Math.max(Math.abs(P.x-z.x)-z.w/2,0),dz=Math.max(Math.abs(P.z-z.z)-z.d/2,0),d=Math.hypot(dx,dz);ins=Math.max(ins,1-clamp01(d/7));}
- fill.intensity=ins*(.5+.22*night);
+ fill.intensity=ins*(.32+.2*night);
  if(groups&&groups.anim) groups.anim(dt,P,h,night);
  // qualité automatique
  if(Q.auto&&!quick){if(Q.wait>0) Q.wait--;else{Q.sum+=dt;Q.n++;if(Q.n>=70){const avg=Q.sum/Q.n;Q.sum=0;Q.n=0;

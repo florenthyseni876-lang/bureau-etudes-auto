@@ -9,8 +9,8 @@ function init3D(cv){
     const T=THREE,renderer=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
     renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.outputEncoding=T.sRGBEncoding;
     const scene=new T.Scene(),cam=new T.PerspectiveCamera(30,2,10,40000);
-    scene.add(new T.HemisphereLight(0xffffff,0x39485c,.95));
-    const d1=new T.DirectionalLight(0xffffff,.95);d1.position.set(1,2,1.6);scene.add(d1);
+    scene.add(new T.HemisphereLight(0xf4f6fa,0x39485c,.8));
+    const d1=new T.DirectionalLight(0xfff3e2,.95);d1.position.set(1,2,1.6);scene.add(d1);
     const d2=new T.DirectionalLight(0xbfd4ff,.4);d2.position.set(-1.5,.6,-1.2);scene.add(d2);
     E3={cv,renderer,scene,cam,root:null,parts:[],anim:null,sig:'',R:600,w:0,h:0,hl:new T.MeshStandardMaterial({color:0xffb800,emissive:0xff9500,emissiveIntensity:.55,roughness:.4,metalness:.3}),shown:[],pinEls:[]};
     let drag=null;
@@ -25,9 +25,9 @@ function build3D(){
   if(E3.root){E3.scene.remove(E3.root);E3.root.traverse(o=>{if(o.geometry) o.geometry.dispose();});}
   const root=new T.Group(),parts=[];let oilRef=null;
   const MT=(col,rough,metal)=>new T.MeshStandardMaterial({color:col,roughness:rough,metalness:metal});
-  const mAlu=MT(0xaeb5bc,.5,.7),mIron=MT(0x3b3e42,.75,.45),mSteel=MT(0x8c949c,.4,.8),mBlk=MT(0x1c1f24,.75,.05),mSens=MT(0xf2a900,.55,.1),mCon=MT(0x2d3138,.7,.05),mRub=MT(0x121315,.92,0),mPipe=MT(0x8d8a84,.4,.8),mFil=MT(0x1f4f9c,.5,.3),mPis=MT(0xd0d6dc,.35,.8),mRod=MT(0x9aa3ad,.4,.8),mCrk=MT(0x6f7882,.4,.8),mTurb=MT(0x4b4640,.75,.5),mCu=MT(0xb87333,.45,.8),mRed=MT(0xb3221c,.6,.1);
+  const mAlu=MT(0xaeb5bc,.5,.7),mIron=MT(0x34373b,.78,.4),mSteel=MT(0x8c949c,.4,.8),mBlk=MT(0x1c1f24,.75,.05),mSens=MT(0xf2a900,.55,.1),mCon=MT(0x2d3138,.7,.05),mRub=MT(0x121315,.92,0),mPipe=MT(0x7b6656,.62,.5),mFil=MT(0x1f4f9c,.5,.3),mPis=MT(0xd0d6dc,.35,.8),mRod=MT(0x9aa3ad,.4,.8),mCrk=MT(0x6f7882,.4,.8),mTurb=MT(0x4b4640,.75,.5),mCu=MT(0xb87333,.45,.8),mRed=MT(0xb3221c,.6,.1);
   const mExh=S.manifold==='cast'?MT(0x5a4a40,.85,.4):S.manifold==='tub'?MT(0xb5b0a6,.3,.9):MT(0xb89257,.3,.9);
-  const mBlock=(S.blockMat==='alu'?mAlu:S.blockMat==='mg'?MT(0xa7a9a2,.55,.6):S.blockMat==='cgi'?MT(0x565b62,.65,.55):mIron).clone(),mHead=(S.headMat==='alu'?mAlu:mIron).clone(),mCover=MT(0x2a2f37,.5,.4),mPan=(S.blockMat==='alu'||S.blockMat==='mg')?MT(0x9aa1a8,.5,.7):MT(0x2b2e33,.65,.45),mTim=S.timing==='belt'?MT(0x23272d,.7,.15):MT(0x9fa7ae,.5,.7);
+  const mBlock=(S.blockMat==='alu'?mAlu:S.blockMat==='mg'?MT(0xa7a9a2,.55,.6):S.blockMat==='cgi'?MT(0x565b62,.65,.55):mIron).clone(),mHead=(S.headMat==='alu'?mAlu:mIron).clone(),mCover=MT(0x1f2227,.82,.1),mPan=(S.blockMat==='alu'||S.blockMat==='mg')?MT(0x9aa1a8,.5,.7):MT(0x2b2e33,.65,.45),mTim=S.timing==='belt'?MT(0x23272d,.7,.15):MT(0x9fa7ae,.5,.7);
   const shellMats=[mBlock,mHead,mCover,mPan,mTim];
   const P=(name,desc,o)=>{const p=Object.assign({name,desc,meshes:[],pin:null},o||{});parts.push(p);return p;};
   const mLine=new T.LineBasicMaterial({color:0x0b1524,transparent:true,opacity:.36}),edge=(me,ang)=>me.add(new T.LineSegments(new T.EdgesGeometry(me.geometry,ang||35),mLine));
