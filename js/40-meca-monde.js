@@ -140,6 +140,9 @@ api.carMesh=function(o){
 /* ═══════════ La carte ═══════════ */
 const SIDES={N:{x:0,z:1},S:{x:0,z:-1},E:{x:-1,z:0},W:{x:1,z:0}};
 const RX=[-150,0,150],RZ=[-150,0,150],HALF=290;
+/* [ville] rues nommées : 'ns' = rues nord-sud (x = RX), 'ew' = rues est-ouest (z = RZ) ; lues par la carte et les panneaux de 45b */
+const STREETS={ns:['Avenue du Vallon','Avenue Centrale',"Avenue de l'Esplanade"],ew:['Rue des Ateliers','Rue Principale','Rue du Commerce']};
+api.streets=STREETS;
 const ZD=[
  {id:'appart',nom:'Votre studio',court:'Studio',type:'logement',x:-30,z:19,w:20,d:14,side:'N',H:6.5,wall:0xc9b8a0,roof:0x7a4a3a,sign:0x4a5a78,fg:'#fff'},
  {id:'garage1',nom:'Garage du Coin',court:'Garage du Coin',type:'garage',x:-72,z:22,w:26,d:20,side:'N',H:5.4,wall:0x8a96a3,roof:0x4a5560,sign:0xe86a1c,fg:'#fff',interior:true,np:2,floor:0x6a6e72},
@@ -322,16 +325,16 @@ function ensureUI(){
  const r=el('div','mw');r.id='mwRoot';r.hidden=true;r.setAttribute('aria-label','Carrière de mécanicien');
  r.innerHTML=`<canvas class="mw-cv" id="mwCv"></canvas><div class="mw-look" id="mwLook"></div>
  <div class="mw-top"><b id="mwTime"></b><span id="mwMoney"></span></div><div class="mw-zones" id="mwZones"></div>
- <div class="mw-tr"><canvas class="mw-mini" id="mwMini" width="140" height="140" aria-label="Mini-carte"></canvas><div class="mw-bar" id="mwBar"><button type="button" class="mw-b" data-b="map">Carte (M)</button><button type="button" class="mw-b" data-b="menu">Menu (Échap)</button></div></div>
+ <div class="mw-tr"><canvas class="mw-mini" id="mwMini" width="140" height="140" aria-label="Mini-carte"></canvas><div class="mw-guide" id="mwGuide" hidden><i class="mw-garr" id="mwGarr"></i><span id="mwGtxt"></span></div><div class="mw-bar" id="mwBar"><button type="button" class="mw-b" data-b="map">Carte (M)</button><button type="button" class="mw-b" data-b="menu">Menu (Échap)</button></div></div>
  <div class="mw-cross" aria-hidden="true"></div><div class="mw-toasts" id="mwToasts" role="status"></div>
  <div class="mw-speed" id="mwSpeed" hidden></div><div class="mw-prompt" id="mwPrompt" hidden></div>
  <div class="mw-touch" id="mwTouch"><div class="mw-joy" id="mwJoy"><i id="mwKnob"></i></div><div class="mw-acts"><button type="button" class="mw-a" id="mwBtnE">E</button><button type="button" class="mw-a f" id="mwBtnF">F</button></div></div>
  <div class="mw-pw" id="mwPw" hidden><div class="mw-pn" role="dialog" aria-modal="true"><div class="mw-ph"><h2 id="mwPt"></h2><button type="button" class="mw-x" data-mw="close" aria-label="Fermer">✕</button></div><div class="mw-pb" id="mwPb"></div></div></div>
- <div class="mw-map" id="mwMap" hidden><div class="mw-ph"><h2>Carte de la ville</h2><button type="button" class="mw-x" id="mwMapX" aria-label="Fermer la carte">✕</button></div><canvas id="mwBig"></canvas><p class="mw-leg">Jaune : repère à rejoindre · flèche blanche : vous · point bleu : votre voiture</p></div>
+ <div class="mw-map" id="mwMap" hidden><div class="mw-ph"><h2>Carte de la ville</h2><button type="button" class="mw-x" id="mwMapX" aria-label="Fermer la carte">✕</button></div><canvas id="mwBig"></canvas><p class="mw-leg">Jaune : repère à rejoindre · flèche blanche : vous · point bleu : votre voiture · vert pointillé : à vendre · N = nord</p></div>
  <div class="mw-fade" id="mwFade"></div>`;
  document.body.appendChild(r);
  ui={r,cv:r.querySelector('#mwCv'),look:r.querySelector('#mwLook'),time:r.querySelector('#mwTime'),money:r.querySelector('#mwMoney'),zones:r.querySelector('#mwZones'),
-  mini:r.querySelector('#mwMini'),bar:r.querySelector('#mwBar'),toasts:r.querySelector('#mwToasts'),speed:r.querySelector('#mwSpeed'),prompt:r.querySelector('#mwPrompt'),
+  mini:r.querySelector('#mwMini'),guide:r.querySelector('#mwGuide'),garr:r.querySelector('#mwGarr'),gtxt:r.querySelector('#mwGtxt'),bar:r.querySelector('#mwBar'),toasts:r.querySelector('#mwToasts'),speed:r.querySelector('#mwSpeed'),prompt:r.querySelector('#mwPrompt'),
   joy:r.querySelector('#mwJoy'),knob:r.querySelector('#mwKnob'),bE:r.querySelector('#mwBtnE'),bF:r.querySelector('#mwBtnF'),pw:r.querySelector('#mwPw'),pt:r.querySelector('#mwPt'),pb:r.querySelector('#mwPb'),
   map:r.querySelector('#mwMap'),big:r.querySelector('#mwBig'),fade:r.querySelector('#mwFade'),touch:r.querySelector('#mwTouch')};
  ui.touch.hidden=!touchOn();
@@ -537,16 +540,35 @@ function updateInteract(){
 
 /* ── cartes 2D ── */
 const mapCol=z=>'#'+z.col.toString(16).padStart(6,'0');
-function drawMap(c,cx,cz,sc,names,fs){
+function drawMap(c,cx,cz,sc,names,fs,mini){
  const W=c.width,H=c.height,x=c.getContext('2d'),X=wx=>W/2+(wx-cx)*sc,Y=wz=>H/2+(wz-cz)*sc;
  x.fillStyle='#6f9a4a';x.fillRect(0,0,W,H);
  x.fillStyle='#d7d7d2';for(const r of RZ) x.fillRect(0,Y(r-10),W,20*sc);for(const r of RX) x.fillRect(X(r-10),0,20*sc,H);
  x.fillStyle='#4a4d52';for(const r of RZ) x.fillRect(0,Y(r-7),W,14*sc);for(const r of RX) x.fillRect(X(r-7),0,14*sc,H);
+ // axe des rues (pointillés)
+ x.save();x.strokeStyle='rgba(235,230,200,.55)';x.lineWidth=Math.max(1,sc*.5);x.setLineDash([Math.max(3,5*sc),Math.max(3,5*sc)]);
+ for(const r of RZ){x.beginPath();x.moveTo(0,Y(r));x.lineTo(W,Y(r));x.stroke();}for(const r of RX){x.beginPath();x.moveTo(X(r),0);x.lineTo(X(r),H);x.stroke();}x.restore();
+ // noms de rues (grande carte seulement)
+ if(names&&!mini){x.save();x.font='bold '+Math.max(9,Math.round(fs*.85))+'px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#f4f1d8';
+  RZ.forEach((r,i)=>{for(const tx of [-215,-75,75,215]){const px=X(tx),py=Y(r);if(px<30||px>W-30) continue;x.fillText(STREETS.ew[i],px,py);}});
+  RX.forEach((r,i)=>{for(const tz of [-215,-75,75,215]){const px=X(r),py=Y(tz);if(py<30||py>H-30) continue;x.save();x.translate(px,py);x.rotate(-Math.PI/2);x.fillText(STREETS.ns[i],0,0);x.restore();}});x.restore();}
  for(const z of zones){x.fillStyle=mapCol(z);x.fillRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);x.strokeStyle='#10233d';x.lineWidth=1;x.strokeRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);
   if(z.mapTag==='À vendre'||z.mapTag==='À vous'){x.save();x.strokeStyle=z.mapTag==='À vous'?'#ffd24a':'#33e08a';x.lineWidth=2.5;if(z.mapTag!=='À vous') x.setLineDash([5,3]);x.strokeRect(X(z.x-z.w/2)-1,Y(z.z-z.d/2)-1,z.w*sc+2,z.d*sc+2);x.restore();}} /* [immo] bâtiments à vendre (vert, pointillés) ou possédés (jaune) */
+ // noms des lieux : placement sans chevauchement (essai de plusieurs positions autour du bâtiment)
  if(names){x.font='bold '+fs+'px sans-serif';x.textAlign='center';x.textBaseline='middle';
-  zones.forEach((z,i)=>{const px=X(z.x),py=(z.side==='N'?Y(z.z+z.d/2)+fs*.8+(i%2)*fs*1.05:Y(z.z-z.d/2)-fs*.7-(i%2)*fs*1.05);if(px<0||px>W||py<0||py>H) return;
-   x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.85)';const nm=z.court+(z.mapTag&&fs>8?' · '+z.mapTag:'');x.strokeText(nm,px,py);x.fillStyle=z.mapTag==='À vendre'?'#b8ffd8':z.mapTag==='À vous'?'#ffe9a0':'#fff';x.fillText(nm,px,py);});}
+  const mk0=S&&S.marker,placed=[],boxes=zones.map(z=>[X(z.x-z.w/2),Y(z.z-z.d/2),X(z.x+z.w/2),Y(z.z+z.d/2)]);
+  const ov=(a,b)=>Math.max(0,Math.min(a[2],b[2])-Math.max(a[0],b[0]))*Math.max(0,Math.min(a[3],b[3])-Math.max(a[1],b[1]));
+  const order=zones.map((z,i)=>i).sort((i,j)=>{const pr=q=>(q.id===mk0?0:(q._d&&q._d.immo)?2:1);return pr(zones[i])-pr(zones[j]);});
+  for(const i of order){const z=zones[i];
+   if(mini&&(Math.hypot(z.x-cx,z.z-cz)>((z._d&&z._d.immo)?55:85)&&z.id!==mk0)) continue;
+   const bx=boxes[i];if(bx[2]<0||bx[0]>W||bx[3]<0||bx[1]>H) continue;
+   const nm=(mini?z.court:z.court)+(z.mapTag&&!mini?' · '+z.mapTag:''),w=x.measureText(nm).width+4,h=fs+3,mx=(bx[0]+bx[2])/2,my=(bx[1]+bx[3])/2,g=3;
+   const cand=[[mx,bx[3]+g+h/2],[mx,bx[1]-g-h/2],[bx[2]+g+w/2,my],[bx[0]-g-w/2,my],[mx,my],[bx[2]+g+w/2,bx[3]+h/2],[bx[0]-g-w/2,bx[3]+h/2],[bx[2]+g+w/2,bx[1]-h/2],[bx[0]-g-w/2,bx[1]-h/2],[mx,bx[3]+g+h*1.5],[mx,bx[1]-g-h*1.5]];
+   let best=null,bs=1e9;
+   for(const [px,py] of cand){const r=[px-w/2,py-h/2,px+w/2,py+h/2];let sc2=0;for(const q of placed) sc2+=ov(r,q)*3;if(!mini) for(const rd of RZ) sc2+=ov(r,[0,Y(rd-9),W,Y(rd+9)])*1.2;if(!mini) for(const rd of RX) sc2+=ov(r,[X(rd-9),0,X(rd+9),H])*1.2;for(let k=0;k<boxes.length;k++) if(k!==i) sc2+=ov(r,boxes[k]);
+    if(r[0]<2||r[2]>W-2||r[1]<2||r[3]>H-2) sc2+=400;if(sc2<bs){bs=sc2;best=[px,py,r];}if(sc2===0) break;}
+   placed.push(best[2]);const px=best[0],py=best[1];
+   x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.88)';x.strokeText(nm,px,py);x.fillStyle=z.id===mk0?'#ffe27a':z.mapTag==='À vendre'?'#b8ffd8':z.mapTag==='À vous'?'#ffe9a0':'#fff';x.fillText(nm,px,py);}}
  // voiture
  x.fillStyle='#3a8aff';x.beginPath();x.arc(X(S.car.x),Y(S.car.z),Math.max(3,2.2*sc),0,7);x.fill();
  // repère
@@ -555,9 +577,25 @@ function drawMap(c,cx,cz,sc,names,fs){
   x.strokeStyle='#ffc820';x.fillStyle='rgba(255,200,32,.35)';x.lineWidth=2.5;x.beginPath();x.arc(mx,my,(clamped?6:8)+pul*5,0,7);x.fill();x.stroke();}
  // joueur
  const px=X(P.x),py=Y(P.z),fx=Math.sin(P.ry),fz=Math.cos(P.ry),s=Math.max(7,fs*.9);
- x.fillStyle='#fff';x.strokeStyle='#10233d';x.lineWidth=1.5;x.beginPath();x.moveTo(px+fx*s,py+fz*s);x.lineTo(px-fx*s*.7-fz*s*.6,py-fz*s*.7+fx*s*.6);x.lineTo(px-fx*s*.7+fz*s*.6,py-fz*s*.7-fx*s*.6);x.closePath();x.fill();x.stroke();}
+ x.fillStyle='#fff';x.strokeStyle='#10233d';x.lineWidth=1.5;x.beginPath();x.moveTo(px+fx*s,py+fz*s);x.lineTo(px-fx*s*.7-fz*s*.6,py-fz*s*.7+fx*s*.6);x.lineTo(px-fx*s*.7+fz*s*.6,py-fz*s*.7-fx*s*.6);x.closePath();x.fill();x.stroke();
+ // nord et échelle
+ x.save();x.textAlign='center';x.textBaseline='middle';x.font='bold '+(mini?10:13)+'px sans-serif';
+ if(mini){x.fillStyle='rgba(10,20,35,.75)';x.fillText('N',W/2,9);}
+ else{const nx=W-24,ny=26;x.fillStyle='rgba(10,20,35,.8)';x.beginPath();x.arc(nx,ny,16,0,7);x.fill();x.fillStyle='#fff';x.fillText('N',nx,ny+6);x.fillStyle='#ff6a4a';x.beginPath();x.moveTo(nx,ny-12);x.lineTo(nx-4,ny-2);x.lineTo(nx+4,ny-2);x.closePath();x.fill();
+  const L=100*sc,bx=14,by=H-16;x.fillStyle='rgba(10,20,35,.8)';x.fillRect(bx-6,by-16,L+12,28);x.fillStyle='#fff';x.fillRect(bx,by+2,L,3);x.fillRect(bx,by-2,2,9);x.fillRect(bx+L-2,by-2,2,9);x.fillText('100 m',bx+L/2,by-8);}
+ x.restore();}
 function drawBig(){const c=ui.big;drawMap(c,0,0,c.width/(HALF*2+20),true,Math.max(9,Math.round(c.width/52)));}
-function drawMini(){const c=ui.mini;drawMap(c,P.x,P.z,c.width/200,true,8);}
+function drawMini(){const c=ui.mini;drawMap(c,P.x,P.z,c.width/200,true,8,true);}
+/* [ville] guidage : flèche + nom + distance vers le repère jaune, sous la mini-carte */
+let guideTxt='';
+function updateGuide(){if(!ui||!ui.guide) return;const m=markerPos();
+ if(!m){if(!ui.guide.hidden) ui.guide.hidden=true;return;}
+ const dx=m.x-P.x,dz=m.z-P.z,d=Math.hypot(dx,dz),sn=Math.sin(P.ry),cs=Math.cos(P.ry),fw=dx*sn+dz*cs,rt=-dx*cs+dz*sn;
+ const ang=Math.atan2(rt,fw)*180/Math.PI,z=typeof S.marker==='string'?zById[S.marker]:null;
+ const nom=S.markerLabel||(z?z.court:'Repère'),txt=nom+' · '+(d<10?'ici':d<1000?Math.round(d/5)*5+' m':(d/1000).toFixed(1).replace('.',',')+' km');
+ if(ui.guide.hidden) ui.guide.hidden=false;
+ ui.garr.style.transform='rotate('+ang.toFixed(0)+'deg)';ui.garr.style.opacity=d<10?.3:1;
+ if(txt!==guideTxt){guideTxt=txt;ui.gtxt.textContent=txt;}}
 
 /* ── lumière du jour ── */
 const cDay=new T.Color(0x8fc4ee),cNight=new T.Color(0x070d1c),cDusk=new T.Color(0xf09060),cTmp=new T.Color();
@@ -595,7 +633,7 @@ function frame(t){
  const ts=api.timeStr();if(ts!==hudTime){hudTime=ts;ui.time.textContent=ts;}
  const ms=fmt(S.money);if(ms!==hudMoney){hudMoney=ms;ui.money.textContent=ms;}
  if(P.inCar){ui.speed.hidden=false;ui.speed.textContent=Math.round(Math.abs(car.v)*3.6)+' km/h';}else if(!ui.speed.hidden) ui.speed.hidden=true;
- if(t-mapT>(mapOpen?120:260)){mapT=t;drawMini();if(mapOpen) drawBig();}
+ if(t-mapT>(mapOpen?120:260)){mapT=t;drawMini();if(mapOpen) drawBig();updateGuide();}
  /* jeu en pause derrière un panneau : la vue ne bouge plus, on la redessine à 10 images par seconde seulement */
  if(api.paused&&t-rdT<100){emit('tick',dt);return;}rdT=t;
  R.render(sceneObj,cam);

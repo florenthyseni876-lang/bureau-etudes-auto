@@ -102,6 +102,7 @@ const GEN={
     x.fillStyle=on?cols[k]:dim[k];x.beginPath();x.arc(cx,cy,10,0,7);x.fill();
     if(on){const g=x.createRadialGradient(cx,cy,2,cx,cy,15);g.addColorStop(0,'rgba(255,255,255,.7)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(cx-15,cy-15,30,30);}}}
   return c;},
+ dirs(){return D.dirsCanvas||canv(8,8);}, /* [ville] panneaux de direction : atlas dessiné par 45b */
  tsign(){const w=256,h=128,c=canv(w,h),x=c.getContext('2d');
   const cell=(i,fn)=>{x.save();x.translate(i*64,0);fn();x.restore();};
   cell(0,()=>{x.fillStyle='#fff';x.beginPath();for(let k=0;k<8;k++){const a=PI/8+k*PI/4;x.lineTo(32+Math.cos(a)*30,32+Math.sin(a)*30);}x.fill();x.fillStyle='#c4161c';x.beginPath();for(let k=0;k<8;k++){const a=PI/8+k*PI/4;x.lineTo(32+Math.cos(a)*26,32+Math.sin(a)*26);}x.fill();x.fillStyle='#fff';x.font='bold 17px Arial';x.textAlign='center';x.textBaseline='middle';x.fillText('STOP',32,33);});
@@ -161,7 +162,7 @@ function posterAtlas(){const w=512,h=256,c=canv(w,h),x=c.getContext('2d');
  return c;}
 const TXC={};
 D.tex=name=>{if(TXC[name]) return TXC[name];const c=GEN[name]();const t=new T.CanvasTexture(c);t.encoding=T.sRGBEncoding;t.anisotropy=4;t.userData={lin:1};
- if(!['tl2','signs','win','winlit','shop','office','officelit','tl','tsign','toolpanel','posters','chest','cardboard','glow','fence'].includes(name)){t.wrapS=t.wrapT=T.RepeatWrapping;}
+ if(!['tl2','signs','win','winlit','shop','office','officelit','tl','tsign','dirs','toolpanel','posters','chest','cardboard','glow','fence'].includes(name)){t.wrapS=t.wrapT=T.RepeatWrapping;}
  else{t.wrapS=t.wrapT=T.ClampToEdgeWrapping;}
  TXC[name]=t;return t;};
 /* canvas libres (enseignes) */
@@ -180,7 +181,7 @@ const MDEF={
  tlA:{map:'tl',emis:1,ts:1},tlB:{map:'tl2',emis:1,ts:1},
  glass:{opts:{transparent:true,opacity:.30,depthWrite:false},ts:1},
  neon:{basic:1},lamph:{emisCol:0xffe6a0,ts:1},glowm:{map:'glow',basic:1,opts:{transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:0}},
- tsign:{map:'tsign',opts:{alphaTest:.5,side:T.DoubleSide},ts:1},fence:{map:'fence',opts:{alphaTest:.4,side:T.DoubleSide},ts:1},
+ dirs:{map:'dirs',opts:{side:T.DoubleSide},ts:1},tsign:{map:'tsign',opts:{alphaTest:.5,side:T.DoubleSide},ts:1},fence:{map:'fence',opts:{alphaTest:.4,side:T.DoubleSide},ts:1},
  toolpanel:{map:'toolpanel',ts:1,recv:1},posters:{map:'posters',ts:1},chest:{map:'chest',ts:1,cast:1},cardboard:{map:'cardboard',ts:.5,cast:1},
  car:{cast:1,recv:1},signs:{map:'signs',emis:1,ts:1}};
 const MT={};
