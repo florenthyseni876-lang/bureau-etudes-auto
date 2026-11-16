@@ -372,9 +372,26 @@ function buildCommon(R){
  /* portière conducteur : habitacle (valise, essai, rendre la voiture) */
  const dn=new T.Object3D();dn.position.set((u.W||1.8)/2+.01,.98,R.A('cabin').z+.18);g.add(dn);R.root.add(dn);R.objs.door=dn;
  R.add({id:'door',o:dn,r:.28,name:'Portière conducteur',acts:()=>[{key:'door',lab:'Habitacle : valise, essai sur route, rendre la voiture',ord:99,exp:jobDone(c)&&!c.st.capot&&!c.st.lifted&&!blocage(c).length,do:()=>{MWJ.openPoint(c.id,'cabine');}}]});
+ /* portière passager : on l'ouvre pour travailler dans l'habitacle (filtre d'habitacle derrière la boîte à gants).
+    Porte ouverte, la carrosserie passe en vue « écorché » (transparente) et l'intérieur apparaît : planche de bord, boîte à gants, siège. */
+ {const W=u.W||1.8,cz=R.A('cabin').z,wantCab=()=>wanted(c,'filtre_hab')||(!!F.p.filtre_hab&&!c.done.filtre_hab);
+  const pdn=new T.Object3D();pdn.position.set(-W/2-.01,.98,cz+.18);R.root.add(pdn);
+  const cab=grp(0,0,0);cab.visible=false;R.root.add(cab);R.cab=cab;
+  cab.add(bx(W*.84,.26,.36,0x1d1f22,0,.8,cz+.66),bx(W*.84,.05,.5,0x2a2d31,0,.95,cz+.58),   /* planche de bord */
+   bx(.4,.16,.025,0x34373c,-W*.22,.74,cz+.47),bx(.36,.13,.2,0x0b0b0c,-W*.22,.74,cz+.58),     /* trappe et creux de la boîte à gants */
+   bx(.36,.14,.025,0x8a8f96,W*.22,.84,cz+.47),cy(.17,.03,0x18191b,W*.22,.98,cz+.4,'z'),    /* combiné et volant côté conducteur */
+   bx(.5,.12,.5,0x3a3d44,-W*.22,.45,cz-.12),bx(.5,.55,.12,0x3a3d44,-W*.22,.74,cz-.4),bx(.5,.12,.5,0x3a3d44,W*.22,.45,cz-.12),bx(.5,.55,.12,0x3a3d44,W*.22,.74,cz-.4));
+  R.add({id:'pdoor',o:pdn,r:.28,name:'Portière passager',acts:()=>[F.pdoor
+   ?{key:'pdc',lab:'Refermer la portière passager',hold:.4,snd:'clunk',ord:95,exp:!wantCab(),why:c.rem.filtre_hab?"Remettez d'abord le filtre d'habitacle.":null,do:()=>{F.pdoor=0;}}
+   :{key:'pdo',lab:"Ouvrir la portière passager (travail dans l'habitacle)",hold:.4,snd:'clunk',ord:6,exp:wantCab(),do:()=>{F.pdoor=1;}}]});
+  /* vue « écorché » : matières de la carrosserie rendues transparentes le temps du travail, puis restaurées */
+  const cut=on=>{g.traverse(o=>{if(!o.isMesh||!o.material||Array.isArray(o.material)) return;for(let q=o;q&&q!==g;q=q.parent) if(q===R.root||q===g.userData.bay) return;
+   if(on&&!o.userData.mgCut){o.userData.mgCut=o.material;const m=o.material.clone();m.transparent=true;m.opacity=.1;m.depthWrite=false;o.material=m;}
+   else if(!on&&o.userData.mgCut){o.material.dispose();o.material=o.userData.mgCut;delete o.userData.mgCut;}});};
+  R.procs.push({id:'cabine',vis:()=>{cab.visible=!!F.pdoor;cut(!!F.pdoor);},free:()=>{cut(false);}});}
  /* pédale de frein (à pomper après un travail sur les freins) */
  const pd=new T.Object3D();pd.position.set(R.A('cabin').x+.0,.32,R.A('cabin').z+.5);R.root.add(pd);
- R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:!liftedNow(c)&&!blocage(c).filter(x=>!/pédale/.test(x)).length,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
+ R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:!liftedNow(c)&&!blocage(c).filter(x=>!/pédale/.test(x)).length,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',insp:1,ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
  R.procs.push({id:'common',vis:(R2,inst)=>{R2.binSync();},free:()=>{}});
 }
 BUILD.push(buildCommon);
@@ -818,7 +835,7 @@ const SPECS=[
  {id:'sonde_lambda',kind:'lambda',at:R=>{const e=R.A('exhaust');return V3(e.x,e.y+.04,R.u.L?-R.u.L*.05:0);},vis:R=>liftedNow(R.c),nfix:1,fixAt:[[0,.0,.06]],fixTool:'pinces',fixName:'Connecteur de la sonde',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'sonde',depLab:'Dévisser la sonde lambda',poseLab:'Visser la sonde neuve',poseTool:'cliquet',poseSock:'sonde',r:.1,ord:8},
  {id:'ampoules',kind:'bulb',at:R=>V3(R.u.W*.3,.68,(R.u.L||4)/2-.12),nfix:2,fixAt:[[.05,.0,-.03],[-.05,.0,-.03]],fixTool:'tournevis',fixName:'Clip du cache de phare',fixLab:'Déclipser le cache',fixRe:'Reclipser le cache',bin:'clip',depLab:"Sortir l'ampoule grillée",poseLab:"Monter l'ampoule neuve",r:.1,ord:9},
  {id:'essuie',kind:'wiper',at:R=>{const a=R.A('cabin');return V3(-.1,.98,a.z+.8);},nfix:1,fixAt:[[.0,.03,.0]],fixTool:'main',fixName:"Bras d'essuie-glace",fixLab:'Relever le bras',fixRe:'Rabaisser le bras',depLab:'Déclipser et sortir le balai',poseLab:'Clipser le balai neuf',r:.2,ord:10},
- {id:'filtre_hab',kind:'cab',at:R=>{const a=R.A('cabin');return V3(a.x-.5,.5,a.z+.45);},nfix:2,fixAt:[[.08,.0,.0],[-.08,.0,.0]],fixTool:'main',fixName:'Trappe de la boîte à gants',fixLab:'Ouvrir la trappe',fixRe:'Refermer la trappe',depLab:"Sortir le filtre d'habitacle",poseLab:"Poser le filtre d'habitacle neuf",r:.14,ord:11}];
+ {id:'filtre_hab',kind:'cab',at:R=>{const a=R.A('cabin');return V3(-(R.u.W||1.8)*.22,.74,a.z+.55);},vis:R=>!!R.F.pdoor,nfix:2,fixAt:[[.15,.0,-.09],[-.15,.0,-.09]],fixTool:'main',fixName:'Trappe de la boîte à gants',fixLab:'Ouvrir la trappe',fixRe:'Refermer la trappe',depLab:"Sortir le filtre d'habitacle",poseLab:"Poser le filtre d'habitacle neuf",r:.14,ord:11}];
 const c4=R=>!!R.c.st.capot&&!!bayG(R);
 /* pièces utiles sur cette voiture : celles de l'ordre, du symptôme (coupable, suspects, indices, dégâts en chaîne) et celles déjà
    touchées. Construire les 30+ pièces génériques pour chaque voiture coûtait ~150 appels de dessin dans le garage. */
@@ -964,6 +981,7 @@ function blocage(c){
  if(n) l.push('des écrous de roue ne sont pas serrés au couple');
  const off=Object.keys(g.w).filter(S=>g.w[S].o);if(off.length) l.push('une roue est déposée');
  if(g.pump) l.push("la pédale de frein n'a pas été pompée");
+ if(g.pdoor) l.push('la portière passager est ouverte');
  const o=g.o;if(o){if(o.bac) l.push('le bac de vidange est resté sous la voiture');if(!o.cap) l.push("le bouchon de remplissage d'huile est ouvert");if(c.done.huile&&!o.done) l.push("le moteur n'a pas été rempli d'huile");if(o.fun) l.push("l'entonnoir est resté sur le moteur");}
  if(g.bp){const E=plugSteps(c).length;if(g.bp.st.some(x=>x>0&&x<E)) l.push('des bougies ne sont pas remontées');}
  if(g.cr&&g.cr.k>0&&g.cr.k<7) l.push("la courroie d'accessoires n'est pas remontée");

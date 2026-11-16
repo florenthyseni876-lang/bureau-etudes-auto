@@ -420,11 +420,13 @@ function pauseMenu(msg){
   <button type="button" class="btn ghost" data-mw="quit">Retour à l'accueil (la partie est sauvegardée)</button>
   ${typeof MWGD!=='undefined'?'<button type="button" class="btn ghost" data-mw="guide">Guide du mécanicien (H)</button>':''}
   ${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}
+  ${typeof MWADM!=='undefined'?`<button type="button" class="btn ghost" data-mw="admin">Mode administrateur…${MWADM.on()?' (actif)':''}</button>`:''}
   <button type="button" class="btn ghost" data-mw="new">Recommencer une nouvelle carrière…</button></div>
   <p class="hint">La partie se sauvegarde aussi toute seule toutes les 30 secondes et quand vous revenez à l'accueil. Pour la reprendre : bouton « Carrière de mécanicien » de l'accueil.</p>
   <p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · H : guide · Échap : menu.</p>`,
   {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){saveNow();pauseMenu();}
    else if(a==='guide'){api.closePanel();try{MWGD.open();}catch(e){console.error(e);}}
+   else if(a==='admin'){try{MWADM.open();}catch(e){console.error(e);}}
    else if(a==='quality'){api.decor.cycleQuality();api.closePanel();pauseMenu();}
    else if(a==='quit'){saveNow();api.closePanel();api.close();}
    else if(a==='new') api.panel('Nouvelle carrière ?',`<p>Vous repartez de zéro : apprenti au Garage du Coin, 300 €. Votre partie actuelle (jour ${S.day}, ${esc(fmt(S.money))}) sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, nouvelle carrière</button><button type="button" class="btn ghost" data-mw="no">Non, revenir au menu</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}else if(b==='no') pauseMenu();}});}});}

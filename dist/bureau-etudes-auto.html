@@ -1024,6 +1024,7 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-pb .btn{align-self:flex-start}
 .mw-pn .btn{border-color:#ffb800}.mw-pn .btn.ghost{color:#e8f0f8;border-color:#5a7697;background:rgba(255,255,255,.04)}.mw-pn .btn.ghost:hover{background:rgba(255,255,255,.1)}.mw-pn .btn.warn{border-color:#ff9a3c}
 .mw-pn .btn.ghost:focus-visible,.mw-pn .btn:focus-visible{outline:2px solid #ffb800;outline-offset:2px}
+.mw-sel{background:#0f1c2e;color:#e8f0f8;border:1.5px solid #5a7697;border-radius:3px;padding:6px 8px;font:inherit;max-width:100%;min-width:0;flex:1 1 220px}
 .mw-btns{display:flex;flex-wrap:wrap;gap:8px}.mw-btns.v{flex-direction:column;align-items:stretch}.mw-btns.v .btn{align-self:stretch}
 .mw-soon{color:#ffd466;background:rgba(255,184,0,.12);padding:8px 10px;border-radius:3px}
 .mw-ok{color:#7fe3a0;background:rgba(60,207,106,.12);padding:8px 10px;border-radius:3px}
@@ -7126,11 +7127,13 @@ function pauseMenu(msg){
   <button type="button" class="btn ghost" data-mw="quit">Retour à l'accueil (la partie est sauvegardée)</button>
   ${typeof MWGD!=='undefined'?'<button type="button" class="btn ghost" data-mw="guide">Guide du mécanicien (H)</button>':''}
   ${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}
+  ${typeof MWADM!=='undefined'?`<button type="button" class="btn ghost" data-mw="admin">Mode administrateur…${MWADM.on()?' (actif)':''}</button>`:''}
   <button type="button" class="btn ghost" data-mw="new">Recommencer une nouvelle carrière…</button></div>
   <p class="hint">La partie se sauvegarde aussi toute seule toutes les 30 secondes et quand vous revenez à l'accueil. Pour la reprendre : bouton « Carrière de mécanicien » de l'accueil.</p>
   <p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · H : guide · Échap : menu.</p>`,
   {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){saveNow();pauseMenu();}
    else if(a==='guide'){api.closePanel();try{MWGD.open();}catch(e){console.error(e);}}
+   else if(a==='admin'){try{MWADM.open();}catch(e){console.error(e);}}
    else if(a==='quality'){api.decor.cycleQuality();api.closePanel();pauseMenu();}
    else if(a==='quit'){saveNow();api.closePanel();api.close();}
    else if(a==='new') api.panel('Nouvelle carrière ?',`<p>Vous repartez de zéro : apprenti au Garage du Coin, 300 €. Votre partie actuelle (jour ${S.day}, ${esc(fmt(S.money))}) sera effacée.</p><div class="mw-btns"><button type="button" class="btn" data-mw="yes">Oui, nouvelle carrière</button><button type="button" class="btn ghost" data-mw="no">Non, revenir au menu</button></div>`,{onClick:b=>{if(b==='yes'){api.closePanel();api.reset();}else if(b==='no') pauseMenu();}});}});}
@@ -11879,9 +11882,26 @@ function buildCommon(R){
  /* portière conducteur : habitacle (valise, essai, rendre la voiture) */
  const dn=new T.Object3D();dn.position.set((u.W||1.8)/2+.01,.98,R.A('cabin').z+.18);g.add(dn);R.root.add(dn);R.objs.door=dn;
  R.add({id:'door',o:dn,r:.28,name:'Portière conducteur',acts:()=>[{key:'door',lab:'Habitacle : valise, essai sur route, rendre la voiture',ord:99,exp:jobDone(c)&&!c.st.capot&&!c.st.lifted&&!blocage(c).length,do:()=>{MWJ.openPoint(c.id,'cabine');}}]});
+ /* portière passager : on l'ouvre pour travailler dans l'habitacle (filtre d'habitacle derrière la boîte à gants).
+    Porte ouverte, la carrosserie passe en vue « écorché » (transparente) et l'intérieur apparaît : planche de bord, boîte à gants, siège. */
+ {const W=u.W||1.8,cz=R.A('cabin').z,wantCab=()=>wanted(c,'filtre_hab')||(!!F.p.filtre_hab&&!c.done.filtre_hab);
+  const pdn=new T.Object3D();pdn.position.set(-W/2-.01,.98,cz+.18);R.root.add(pdn);
+  const cab=grp(0,0,0);cab.visible=false;R.root.add(cab);R.cab=cab;
+  cab.add(bx(W*.84,.26,.36,0x1d1f22,0,.8,cz+.66),bx(W*.84,.05,.5,0x2a2d31,0,.95,cz+.58),   /* planche de bord */
+   bx(.4,.16,.025,0x34373c,-W*.22,.74,cz+.47),bx(.36,.13,.2,0x0b0b0c,-W*.22,.74,cz+.58),     /* trappe et creux de la boîte à gants */
+   bx(.36,.14,.025,0x8a8f96,W*.22,.84,cz+.47),cy(.17,.03,0x18191b,W*.22,.98,cz+.4,'z'),    /* combiné et volant côté conducteur */
+   bx(.5,.12,.5,0x3a3d44,-W*.22,.45,cz-.12),bx(.5,.55,.12,0x3a3d44,-W*.22,.74,cz-.4),bx(.5,.12,.5,0x3a3d44,W*.22,.45,cz-.12),bx(.5,.55,.12,0x3a3d44,W*.22,.74,cz-.4));
+  R.add({id:'pdoor',o:pdn,r:.28,name:'Portière passager',acts:()=>[F.pdoor
+   ?{key:'pdc',lab:'Refermer la portière passager',hold:.4,snd:'clunk',ord:95,exp:!wantCab(),why:c.rem.filtre_hab?"Remettez d'abord le filtre d'habitacle.":null,do:()=>{F.pdoor=0;}}
+   :{key:'pdo',lab:"Ouvrir la portière passager (travail dans l'habitacle)",hold:.4,snd:'clunk',ord:6,exp:wantCab(),do:()=>{F.pdoor=1;}}]});
+  /* vue « écorché » : matières de la carrosserie rendues transparentes le temps du travail, puis restaurées */
+  const cut=on=>{g.traverse(o=>{if(!o.isMesh||!o.material||Array.isArray(o.material)) return;for(let q=o;q&&q!==g;q=q.parent) if(q===R.root||q===g.userData.bay) return;
+   if(on&&!o.userData.mgCut){o.userData.mgCut=o.material;const m=o.material.clone();m.transparent=true;m.opacity=.1;m.depthWrite=false;o.material=m;}
+   else if(!on&&o.userData.mgCut){o.material.dispose();o.material=o.userData.mgCut;delete o.userData.mgCut;}});};
+  R.procs.push({id:'cabine',vis:()=>{cab.visible=!!F.pdoor;cut(!!F.pdoor);},free:()=>{cut(false);}});}
  /* pédale de frein (à pomper après un travail sur les freins) */
  const pd=new T.Object3D();pd.position.set(R.A('cabin').x+.0,.32,R.A('cabin').z+.5);R.root.add(pd);
- R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:!liftedNow(c)&&!blocage(c).filter(x=>!/pédale/.test(x)).length,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
+ R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:!liftedNow(c)&&!blocage(c).filter(x=>!/pédale/.test(x)).length,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',insp:1,ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
  R.procs.push({id:'common',vis:(R2,inst)=>{R2.binSync();},free:()=>{}});
 }
 BUILD.push(buildCommon);
@@ -12325,7 +12345,7 @@ const SPECS=[
  {id:'sonde_lambda',kind:'lambda',at:R=>{const e=R.A('exhaust');return V3(e.x,e.y+.04,R.u.L?-R.u.L*.05:0);},vis:R=>liftedNow(R.c),nfix:1,fixAt:[[0,.0,.06]],fixTool:'pinces',fixName:'Connecteur de la sonde',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'sonde',depLab:'Dévisser la sonde lambda',poseLab:'Visser la sonde neuve',poseTool:'cliquet',poseSock:'sonde',r:.1,ord:8},
  {id:'ampoules',kind:'bulb',at:R=>V3(R.u.W*.3,.68,(R.u.L||4)/2-.12),nfix:2,fixAt:[[.05,.0,-.03],[-.05,.0,-.03]],fixTool:'tournevis',fixName:'Clip du cache de phare',fixLab:'Déclipser le cache',fixRe:'Reclipser le cache',bin:'clip',depLab:"Sortir l'ampoule grillée",poseLab:"Monter l'ampoule neuve",r:.1,ord:9},
  {id:'essuie',kind:'wiper',at:R=>{const a=R.A('cabin');return V3(-.1,.98,a.z+.8);},nfix:1,fixAt:[[.0,.03,.0]],fixTool:'main',fixName:"Bras d'essuie-glace",fixLab:'Relever le bras',fixRe:'Rabaisser le bras',depLab:'Déclipser et sortir le balai',poseLab:'Clipser le balai neuf',r:.2,ord:10},
- {id:'filtre_hab',kind:'cab',at:R=>{const a=R.A('cabin');return V3(a.x-.5,.5,a.z+.45);},nfix:2,fixAt:[[.08,.0,.0],[-.08,.0,.0]],fixTool:'main',fixName:'Trappe de la boîte à gants',fixLab:'Ouvrir la trappe',fixRe:'Refermer la trappe',depLab:"Sortir le filtre d'habitacle",poseLab:"Poser le filtre d'habitacle neuf",r:.14,ord:11}];
+ {id:'filtre_hab',kind:'cab',at:R=>{const a=R.A('cabin');return V3(-(R.u.W||1.8)*.22,.74,a.z+.55);},vis:R=>!!R.F.pdoor,nfix:2,fixAt:[[.15,.0,-.09],[-.15,.0,-.09]],fixTool:'main',fixName:'Trappe de la boîte à gants',fixLab:'Ouvrir la trappe',fixRe:'Refermer la trappe',depLab:"Sortir le filtre d'habitacle",poseLab:"Poser le filtre d'habitacle neuf",r:.14,ord:11}];
 const c4=R=>!!R.c.st.capot&&!!bayG(R);
 /* pièces utiles sur cette voiture : celles de l'ordre, du symptôme (coupable, suspects, indices, dégâts en chaîne) et celles déjà
    touchées. Construire les 30+ pièces génériques pour chaque voiture coûtait ~150 appels de dessin dans le garage. */
@@ -12471,6 +12491,7 @@ function blocage(c){
  if(n) l.push('des écrous de roue ne sont pas serrés au couple');
  const off=Object.keys(g.w).filter(S=>g.w[S].o);if(off.length) l.push('une roue est déposée');
  if(g.pump) l.push("la pédale de frein n'a pas été pompée");
+ if(g.pdoor) l.push('la portière passager est ouverte');
  const o=g.o;if(o){if(o.bac) l.push('le bac de vidange est resté sous la voiture');if(!o.cap) l.push("le bouchon de remplissage d'huile est ouvert");if(c.done.huile&&!o.done) l.push("le moteur n'a pas été rempli d'huile");if(o.fun) l.push("l'entonnoir est resté sur le moteur");}
  if(g.bp){const E=plugSteps(c).length;if(g.bp.st.some(x=>x>0&&x<E)) l.push('des bougies ne sont pas remontées');}
  if(g.cr&&g.cr.k>0&&g.cr.k<7) l.push("la courroie d'accessoires n'est pas remontée");
@@ -14194,6 +14215,74 @@ const api={
 window.__mwvie=api;
 return api;
 })();
+
+/* ───────────── Mode « Mécanicien » — MODE ADMINISTRATEUR (tests) ─────────────
+   Activé depuis le menu (Échap → « Mode administrateur… »). Tant qu'il est actif :
+   argent illimité (remis à 9 999 999 € dès qu'il passe sous la moitié), toutes les compétences au niveau maximal,
+   réputation 100, outils achetés, diplômes obtenus. Le panneau permet aussi de faire venir n'importe quel travail ou
+   n'importe quelle panne, de prendre les pièces et les outils de l'ordre, de finir automatiquement les gestes en cours,
+   de changer d'emploi, de régler l'heure et de se téléporter. Données : MW.S.admin (vrai / faux).
+   ═══ API `MWADM` ═══  MWADM.on() · MWADM.set(bool) · MWADM.open() · MWADM.finish() (finit les gestes de la voiture en cours) */
+const MWADM=(()=>{
+const MONEY=9999999,XP=5000;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const on=()=>!!(MW.S&&MW.S.admin);
+const EMPLOIS=[['apprenti','Apprenti (Garage du Coin)'],['meca','Mécanicien (Garage du Coin)'],['patron','Patron du Garage du Coin'],['ventoux','Ventoux Automobiles'],['aurele','Maison Aurèle'],['brivio','Scuderia Brivio'],['ing','Ingénieur'],['aucun','Sans emploi']];
+function apply(){
+ if(!on()) return;const s=MW.S;
+ if(!(s.money>=MONEY/2)) MW.money(MONEY-(s.money||0),'Mode administrateur : argent illimité');
+ s.xp=s.xp||{};for(const k of MWJ.SKILLS) if(!((s.xp[k]||0)>=XP)) s.xp[k]=XP;
+ s.rep=100;
+ const j=s.jobs;if(j&&j.outils) for(const k in MWJ.OUTILS) j.outils[k]=1;
+ try{const c=MWC.state();if(c&&c.dipl&&MWC.DIPL) for(const k in MWC.DIPL) c.dipl[k]=true;}catch(e){}
+ MW.hud('admin','<b style="color:#ff7a45">MODE ADMINISTRATEUR</b> · argent illimité, niveaux au maximum');}
+function set(v){if(!MW.S) return;MW.S.admin=!!v;if(v){apply();MW.toast('Mode administrateur activé : argent illimité et tous les niveaux au maximum.','good');}else{MW.hud('admin','');MW.toast('Mode administrateur désactivé (l\'argent et les niveaux acquis restent).','info');}try{MWJ.invUI();}catch(e){}}
+const car=()=>{const l=MWJ.jobs();return l.find(c=>!c.noir)||l[0]||null;};
+function needJob(){const e=MWC.employer();if(!e||e.id==='aucun') MWC.hire('patron');}
+function spawn(o){needJob();const c=MWJ.spawn(Object.assign({force:true,rend:false},o));if(!c){MW.toast("Impossible de faire venir la voiture (tous les ponts sont pris ?).",'warn');return null;}
+ MW.toast(`${c.marque} ${c.modele} arrivée sur le pont ${c.pont+1}.`,'good');return c;}
+function parts(){const c=car();if(!c) return MW.toast('Aucune voiture en cours.','warn');const ids=c.ordre.slice();if(c.symp&&!ids.includes(c.symp.c)) ids.push(c.symp.c);
+ let n=0;for(const id of ids) if(!c.done[id]&&MWJ.L.invFind('neuve',id)<0&&MWJ.inv().length<MWJ.INV_MAX){MWJ.L.invAdd({k:'neuve',id,src:'achat',paye:0});n++;}
+ MW.toast(n?`${n} pièce(s) neuve(s) ajoutée(s)${c.symp?' (la panne comprise)':''}.`:'Rien à ajouter (inventaire plein ou pièces déjà là).','info');}
+/* finit automatiquement les gestes de la voiture en cours, en suivant l'aide (utile pour tester la suite d'un travail) */
+function finish(){const c=car();if(!c||typeof MWG==='undefined'||!MWG.on()) return MW.toast('Gestes réalistes inactifs ou aucune voiture.','warn');
+ MWG.ensure(c);const keep=MWG.cur?MWG.cur():null;const g=MW.S.gest||{};const aide=g.aide;MWG.set({aide:'on'});let n=0,last='',same=0,why='';
+ try{for(;n<300;n++){MWG.skip();const h=MWG.nextHint();if(!h||h.key==='door') break;if(h.key===last){if(++same>3){why=h.lab;break;}}else same=0;last=h.key;
+  const r=MWG.run(h.id,h.key);if(r){why=h.lab+' : '+r;break;}}}
+ finally{MWG.set({aide:aide||'auto'});if(keep) MWG.setTool(keep.tool,keep.sock);}
+ MW.toast(why?`Arrêt après ${n} geste(s) : ${why}`:`${n} geste(s) faits automatiquement. Il reste à rendre la voiture (portière conducteur).`,why?'warn':'good');}
+function tp(id){const z=MW.zone(id);if(!z) return;const d=z.porte||{x:z.x,z:z.z},n=z.n||{x:0,z:1};MW.closePanel();MW.teleport(d.x+n.x*2,d.z+n.z*2,Math.atan2(-n.x,-n.z),0);}
+function open(){
+ if(!MW.S) return;const a=on(),btn=(k,t,cls)=>`<button type="button" class="btn sm${cls?' '+cls:''}" data-mw="adm:${k}">${t}</button>`;
+ const TPL=MWJ.TPL||[],SY=MWJ.SYMP||[];
+ let h=`<p>${a?'<b>Actif</b> : argent illimité, compétences au niveau 10, réputation 100, outils et diplômes.':'Inactif. Activez-le pour tester librement : argent illimité et tous les niveaux au maximum.'}</p>
+ <div class="mw-btns">${a?btn('off','Désactiver','ghost'):btn('on','Activer le mode administrateur')}</div>`;
+ if(a){
+  h+=`<h3 class="mw-h3">Faire venir une voiture</h3>
+  <div class="mw-btns"><label class="hint" for="admTpl">Travaux</label><select id="admTpl" class="mw-sel">${TPL.map(t=>`<option value="${esc(t[0])}">${esc(t[1])}</option>`).join('')}</select>${btn('tpl','Faire venir')}</div>
+  <div class="mw-btns"><label class="hint" for="admSym">Panne</label><select id="admSym" class="mw-sel">${SY.map(y=>`<option value="${esc(y.id)}">${esc(y.txt)}</option>`).join('')}</select>${btn('sym','Faire venir')}</div>
+  <div class="mw-btns">${btn('parts',"Pièces neuves de l'ordre",'ghost')}${btn('tools',"Outils (servante)",'ghost')}${btn('finish','Finir les gestes automatiquement','ghost')}${btn('clear','Renvoyer les voitures','ghost')}</div>
+  <h3 class="mw-h3">Emploi</h3><div class="mw-btns">${EMPLOIS.map(([id,n])=>btn('emp:'+id,esc(n),'ghost')).join('')}</div>
+  <h3 class="mw-h3">Heure</h3><div class="mw-btns">${btn('h:8','8 h','ghost')}${btn('h:12','12 h','ghost')}${btn('h:18','18 h','ghost')}${btn('h:22','22 h','ghost')}${btn('day','Jour suivant','ghost')}</div>
+  <h3 class="mw-h3">Aller à</h3><div class="mw-btns">${(MW.zones||[]).map(z=>btn('tp:'+z.id,esc(z.court||z.nom),'ghost')).join('')}</div>`;}
+ MW.panel('Mode administrateur',h,{wide:true,onClick:x=>{if(!x.startsWith('adm:')) return;const [,k,v]=x.split(':');
+  if(k==='on') set(true);else if(k==='off') set(false);
+  else if(k==='tpl'){const s=document.getElementById('admTpl');if(s) spawn({tpl:s.value});}
+  else if(k==='sym'){const s=document.getElementById('admSym');if(s) spawn({symp:s.value});}
+  else if(k==='parts') parts();
+  else if(k==='tools'){MWJ.servante((car()||{}).zone);return;}
+  else if(k==='finish'){MW.closePanel();finish();return;}
+  else if(k==='clear'){MWJ.clear();MW.toast('Voitures renvoyées.','info');}
+  else if(k==='emp'){MWC.hire(v);MW.toast('Emploi : '+(EMPLOIS.find(e=>e[0]===v)||[0,v])[1]+'.','good');}
+  else if(k==='h'){MW.S.min=(+v)*60;MW.toast(`Il est ${v} h.`,'info');}
+  else if(k==='day'){MW.addMin(24*60);}
+  else if(k==='tp'){tp(v);return;}
+  apply();open();}});}
+MW.on('money',()=>{if(on()&&!(MW.S.money>=MONEY/2)) setTimeout(apply,0);});
+MW.on('day',apply);MW.on('start',()=>{if(on()) apply();else MW.hud('admin','');});MW.on('open',()=>{if(on()) apply();});
+return {on,set,open,finish,apply};
+})();
+window.__mwadm=MWADM;
 
 /* ───────────── Rendu ───────────── */
 function renderKeys(){
