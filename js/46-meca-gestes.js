@@ -369,29 +369,23 @@ function buildCommon(R){
    acts:()=>[c.st.capot?{key:'hclose',lab:'Fermer le capot',hold:.6,ord:90,exp:jobDone(c)&&!!c.g,snd:'clunk',
      why:Object.keys(c.rem).some(id=>PARTS[id].zone==='capot')?'Une pièce est démontée sous le capot.':(R.blk.hood.map(f=>f()).find(Boolean)||null),do:()=>{L().togCapot(c);}}
     :{key:'hopen',lab:'Ouvrir le capot (déverrouiller et lever)',hold:.6,ord:5,snd:'clunk',do:()=>{L().togCapot(c);}}]});}
- /* portière conducteur : habitacle (valise, essai, rendre la voiture) */
- const dn=new T.Object3D();dn.position.set((u.W||1.8)/2+.01,.98,R.A('cabin').z+.18);g.add(dn);R.root.add(dn);R.objs.door=dn;
- R.add({id:'door',o:dn,r:.28,name:'Portière conducteur',acts:()=>[{key:'door',lab:'Habitacle : valise, essai sur route, rendre la voiture',ord:99,exp:jobDone(c)&&!c.st.capot&&!c.st.lifted&&!blocage(c).length,do:()=>{MWJ.openPoint(c.id,'cabine');}}]});
- /* portière passager : on l'ouvre pour travailler dans l'habitacle (filtre d'habitacle derrière la boîte à gants).
-    Porte ouverte, la carrosserie passe en vue « écorché » (transparente) et l'intérieur apparaît : planche de bord, boîte à gants, siège. */
- {const W=u.W||1.8,cz=R.A('cabin').z,wantCab=()=>wanted(c,'filtre_hab')||(!!F.p.filtre_hab&&!c.done.filtre_hab);
-  const pdn=new T.Object3D();pdn.position.set(-W/2-.01,.98,cz+.18);R.root.add(pdn);
-  const cab=grp(0,0,0);cab.visible=false;R.root.add(cab);R.cab=cab;
-  cab.add(bx(W*.84,.26,.36,0x1d1f22,0,.8,cz+.66),bx(W*.84,.05,.5,0x2a2d31,0,.95,cz+.58),   /* planche de bord */
-   bx(.4,.16,.025,0x34373c,-W*.22,.74,cz+.47),bx(.36,.13,.2,0x0b0b0c,-W*.22,.74,cz+.58),     /* trappe et creux de la boîte à gants */
-   bx(.36,.14,.025,0x8a8f96,W*.22,.84,cz+.47),cy(.17,.03,0x18191b,W*.22,.98,cz+.4,'z'),    /* combiné et volant côté conducteur */
-   bx(.5,.12,.5,0x3a3d44,-W*.22,.45,cz-.12),bx(.5,.55,.12,0x3a3d44,-W*.22,.74,cz-.4),bx(.5,.12,.5,0x3a3d44,W*.22,.45,cz-.12),bx(.5,.55,.12,0x3a3d44,W*.22,.74,cz-.4));
-  R.add({id:'pdoor',o:pdn,r:.28,name:'Portière passager',acts:()=>[F.pdoor
+ /* habitacle et portières (js/44h) : vraie portière qui pivote, découpe locale de la carrosserie, boîte à gants, pédale */
+ const hab=typeof MWHAB!=='undefined'?MWHAB.build(R):null;R.hab=hab;
+ const wantCab=()=>wanted(c,'filtre_hab')||(!!F.p.filtre_hab&&!c.done.filtre_hab);
+ if(hab&&partOK(c,'essuie')&&relevant(c).has('essuie')) hab.swapBlade(true);
+ /* portière conducteur : poignée dessinée ; habitacle (valise, essai sur route, rendre la voiture) */
+ const dn=hab?hab.ddn:new T.Object3D();if(!hab){dn.position.set((u.W||1.8)/2+.01,.98,R.A('cabin').z+.18);R.root.add(dn);}
+ R.objs.door=dn;
+ R.add({id:'door',o:dn,r:.2,name:'Portière conducteur',acts:()=>[{key:'door',lab:'Habitacle : valise, essai sur route, rendre la voiture',ord:99,exp:jobDone(c)&&!c.st.capot&&!c.st.lifted&&!blocage(c).length,do:()=>{MWJ.openPoint(c.id,'cabine');}}]});
+ /* portière passager : on l'ouvre pour travailler dans l'habitacle (filtre derrière la boîte à gants) */
+ if(hab){
+  R.add({id:'pdoor',o:hab.pdn,r:.2,name:'Portière passager',acts:()=>[F.pdoor
    ?{key:'pdc',lab:'Refermer la portière passager',hold:.4,snd:'clunk',ord:95,exp:!wantCab(),why:c.rem.filtre_hab?"Remettez d'abord le filtre d'habitacle.":null,do:()=>{F.pdoor=0;}}
    :{key:'pdo',lab:"Ouvrir la portière passager (travail dans l'habitacle)",hold:.4,snd:'clunk',ord:6,exp:wantCab(),do:()=>{F.pdoor=1;}}]});
-  /* vue « écorché » : matières de la carrosserie rendues transparentes le temps du travail, puis restaurées */
-  const cut=on=>{g.traverse(o=>{if(!o.isMesh||!o.material||Array.isArray(o.material)) return;for(let q=o;q&&q!==g;q=q.parent) if(q===R.root||q===g.userData.bay) return;
-   if(on&&!o.userData.mgCut){o.userData.mgCut=o.material;const m=o.material.clone();m.transparent=true;m.opacity=.1;m.depthWrite=false;o.material=m;}
-   else if(!on&&o.userData.mgCut){o.material.dispose();o.material=o.userData.mgCut;delete o.userData.mgCut;}});};
-  R.procs.push({id:'cabine',vis:()=>{cab.visible=!!F.pdoor;cut(!!F.pdoor);},free:()=>{cut(false);}});}
- /* pédale de frein (à pomper après un travail sur les freins) */
- const pd=new T.Object3D();pd.position.set(R.A('cabin').x+.0,.32,R.A('cabin').z+.5);R.root.add(pd);
- R.add({id:'pedal',o:pd,r:.22,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:!liftedNow(c)&&!blocage(c).filter(x=>!/pédale/.test(x)).length,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',insp:1,ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
+  R.procs.push({id:'cabine',vis:()=>{hab.setDoor(!!F.pdoor);},tick:(R2,dt)=>hab.tick(dt),free:()=>{hab.free();R.hab=null;}});}
+ /* pédale de frein (à pomper après un travail sur les freins) : le pied de pédale dessiné est la cible */
+ const pd=hab?hab.pedalT:new T.Object3D();if(!hab){pd.position.set(R.A('cabin').x,.32,R.A('cabin').z+.5);R.root.add(pd);}
+ R.add({id:'pedal',o:pd,r:.14,name:'Pédale de frein (par la vitre)',vis:()=>true,acts:()=>[F.pump?{key:'pump',lab:'Pomper la pédale de frein',hold:1.6,snd:'pump',ord:80,exp:!liftedNow(c)&&!blocage(c).filter(x=>!/pédale/.test(x)).length,do:()=>{F.pump=0;MW.toast('La pédale est ferme : les plaquettes sont en contact avec les disques.','good');}}:{key:'pump0',lab:'Appuyer sur la pédale : elle est ferme',insp:1,ord:200,do:()=>{MW.toast('La pédale de frein est ferme.','info');}}]});
  R.procs.push({id:'common',vis:(R2,inst)=>{R2.binSync();},free:()=>{}});
 }
 BUILD.push(buildCommon);
@@ -771,7 +765,7 @@ function buildGeneric(R,sp){
  /* maillages de pièce : usée / neuve par unité */
  const unit=[];
  for(let i=0;i<units;i++){
-  const p=sp.unitAt?sp.unitAt(R,i):home;const base=grpAt(p);
+  const p=sp.unitAt?sp.unitAt(R,i):home;const base=grpAt(p);if(sp.rot){const q=sp.rot(R);base.rotation.set(q[0],q[1],q[2]);}
   const old=sp.host?null:mkProxy(sp.kind,u0),nw=sp.host?null:mkProxy(sp.kind,0);
   if(old){base.add(old);base.add(nw);}
   unit.push({base,old,nw,i});}
@@ -779,7 +773,8 @@ function buildGeneric(R,sp){
  const cover=sp.cover?{o:grpAt(sp.cover.at?sp.cover.at(R):home)}:null;
  if(cover&&sp.cover.mk) cover.o.add(sp.cover.mk());
  const fixObjs=[];
- for(let i=0;i<(sp.nfix||0);i++){const o=sp.fixAt[i]||[0,.1,0];const m=hex(.012,.016,0xcfd4d9,home.x+o[0],home.y+o[1],home.z+o[2]);R.root.add(m);fixObjs.push(m);}
+ const fixA=typeof sp.fixAt==='function'?sp.fixAt(R):sp.fixAt;
+ for(let i=0;i<(sp.nfix||0);i++){const o=fixA[i]||[0,.1,0];const m=hex(.012,.016,0xcfd4d9,home.x+o[0],home.y+o[1],home.z+o[2]);R.root.add(m);fixObjs.push(m);}
  const need=()=>{const a=L().acces(c,P);return a.ok?null:a.why;};
  const fixFix=()=>{const w2=need();return w2?(/capot/.test(w2)?'hood':/pont/.test(w2)?'lift':null):null;};
  const visOK=()=>sp.vis?sp.vis(R):true;
@@ -833,9 +828,9 @@ const SPECS=[
  {id:'courroie_dist',kind:'belt',at:R=>{const b=bayG(R);return LOCAL(R,'timing',0,0,0);},nfix:4,fixAt:[[.08,.08,.0],[-.08,.08,.0],[.08,-.06,.0],[-.08,-.06,.0]],sock:'clip',fixName:'Vis du carter de distribution',fixLab:'Dévisser',vis:R=>c4(R),cover:{name:'Carter de distribution',host:R=>engSep(R,'timingCover'),at:R=>LOCAL(R,'timing',0,0,0)},depLab:'Déposer la courroie, le galet et la pompe',poseLab:'Poser le kit de distribution neuf',poseTool:'cle_dyn',poseSock:'tens',r:.14,ord:6},
  {id:'embrayage',kind:'clutch',at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.e.clone():LOCAL(R,'bay',0,.2,0);},nfix:4,fixAt:[[.1,.08,.1],[-.1,.08,.1],[.1,-.08,.1],[-.1,-.08,.1]],sock:'gear',fixName:'Vis de la boîte de vitesses',fixLab:'Dévisser',vis:R=>liftedNow(R.c)&&!!bayG(R),cover:{name:'Boîte de vitesses',host:R=>bayPart(R,'gearbox'),at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.c.clone():LOCAL(R,'bay',0,.2,0);}},depLab:"Déposer l'embrayage",poseLab:"Poser l'embrayage neuf (centrage)",r:.16,ord:7},
  {id:'sonde_lambda',kind:'lambda',at:R=>{const e=R.A('exhaust');return V3(e.x,e.y+.04,R.u.L?-R.u.L*.05:0);},vis:R=>liftedNow(R.c),nfix:1,fixAt:[[0,.0,.06]],fixTool:'pinces',fixName:'Connecteur de la sonde',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'sonde',depLab:'Dévisser la sonde lambda',poseLab:'Visser la sonde neuve',poseTool:'cliquet',poseSock:'sonde',r:.1,ord:8},
- {id:'ampoules',kind:'bulb',at:R=>V3(R.u.W*.3,.68,(R.u.L||4)/2-.12),nfix:2,fixAt:[[.05,.0,-.03],[-.05,.0,-.03]],fixTool:'tournevis',fixName:'Clip du cache de phare',fixLab:'Déclipser le cache',fixRe:'Reclipser le cache',bin:'clip',depLab:"Sortir l'ampoule grillée",poseLab:"Monter l'ampoule neuve",r:.1,ord:9},
- {id:'essuie',kind:'wiper',at:R=>{const a=R.A('cabin');return V3(-.1,.98,a.z+.8);},nfix:1,fixAt:[[.0,.03,.0]],fixTool:'main',fixName:"Bras d'essuie-glace",fixLab:'Relever le bras',fixRe:'Rabaisser le bras',depLab:'Déclipser et sortir le balai',poseLab:'Clipser le balai neuf',r:.2,ord:10},
- {id:'filtre_hab',kind:'cab',at:R=>{const a=R.A('cabin');return V3(-(R.u.W||1.8)*.22,.74,a.z+.55);},vis:R=>!!R.F.pdoor,nfix:2,fixAt:[[.15,.0,-.09],[-.15,.0,-.09]],fixTool:'main',fixName:'Trappe de la boîte à gants',fixLab:'Ouvrir la trappe',fixRe:'Refermer la trappe',depLab:"Sortir le filtre d'habitacle",poseLab:"Poser le filtre d'habitacle neuf",r:.14,ord:11}];
+ {id:'ampoules',kind:'bulb',at:R=>{const a=R.A('headL');return a.lengthSq()?V3(a.x,a.y,a.z+.03):V3(R.u.W*.3,.68,(R.u.L||4)/2-.12);},nfix:2,fixAt:R=>{const lw=.095*R.u.W+.1;return [[lw*.2+lw/2-.02,.065,-.042],[lw*.2-lw/2+.02,.065,-.042]];},fixTool:'tournevis',fixName:'Clip du cache de phare',fixLab:'Déclipser le cache',fixRe:'Reclipser le cache',bin:'clip',depLab:"Sortir l'ampoule grillée",poseLab:"Monter l'ampoule neuve",r:.1,ord:9},
+ {id:'essuie',kind:'wiper',at:R=>{const a=R.A('wiperD');return a.lengthSq()?a:V3(-.1,.98,R.A('cabin').z+.8);},rot:R=>[(R.g.userData.G&&R.g.userData.G.wiperTh)||0,0,0],nfix:1,fixAt:[[.0,.03,.0]],fixTool:'main',fixName:"Bras d'essuie-glace",fixLab:'Relever le bras',fixRe:'Rabaisser le bras',depLab:'Déclipser et sortir le balai',poseLab:'Clipser le balai neuf',r:.2,ord:10},
+ {id:'filtre_hab',kind:'cab',at:R=>R.hab?R.hab.filter.clone():(()=>{const a=R.A('cabin');return V3(-(R.u.W||1.8)*.22,.74,a.z+.55);})(),vis:R=>!!R.F.pdoor,nfix:2,fixAt:R=>{const h=R.hab;if(!h) return [[.15,.0,-.09],[-.15,.0,-.09]];return h.stops.map(v=>[v.x-h.filter.x,v.y-h.filter.y,v.z-h.filter.z]);},fixTool:'main',fixName:'Butée de la trappe de la boîte à gants',fixLab:'Libérer la butée : la trappe s\'abaisse',fixRe:'Remettre la butée : la trappe se referme',depLab:"Sortir le filtre d'habitacle",poseLab:"Poser le filtre d'habitacle neuf",r:.12,ord:11}];
 const c4=R=>!!R.c.st.capot&&!!bayG(R);
 /* pièces utiles sur cette voiture : celles de l'ordre, du symptôme (coupable, suspects, indices, dégâts en chaîne) et celles déjà
    touchées. Construire les 30+ pièces génériques pour chaque voiture coûtait ~150 appels de dessin dans le garage. */
