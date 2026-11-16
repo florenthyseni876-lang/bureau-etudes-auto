@@ -308,6 +308,8 @@ function garage(z){
   const ca=P(core('plain'),0,-.2,'door',0);ca.box(GW+4,.18,1.2,0,4.25,-.5,0x1a1a1c);ca.box(GW+4,.14,.12,0,4.12,-1.1,0xc01818);
   const o=P(det('plain'),hx-1.6,-1.3,'door',0);for(let k=0;k<4;k++){o.cyl(.32,.32,.22,12,0,.11+k*.22,0,0x1a1a1c);o.cyl(.2,.2,.23,10,0,.11+k*.22,0,k%2?0xc01818:0xf4f4f4);}
  }
+ /* repères (étagère, établi, servante, accueil) et équipements propres à chaque garage : js/45g-meca-ateliers.js */
+ if(MWD.ateliers) MWD.ateliers(z,{ctx,D,st,P,core,det,loc,ryO,hx,dp,w,Hh,GW,signPlane,signDraw,addCol,lounge,showcar,pick,R,sansF});
 }
 for(const z of zones) if(z.type==='garage') garage(z);
 
