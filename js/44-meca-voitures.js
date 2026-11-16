@@ -635,7 +635,7 @@ function engineParts(car){
   M.E=computeEngine(S);if(!S.oilInt){S.oilInt=M.E.oilRec;M.E=computeEngine(S);}
   ui.eview='3d';
   E3={scene:new T.Scene(),root:null,parts:[],anim:null,sig:'',R:600,hl:new T.MeshStandardMaterial({color:0xffb800}),shown:[],pinEls:[],cv:null,renderer:null,w:0,h:0};
-  build3D();root=E3.root;parts=E3.parts;root.updateMatrixWorld(true);
+  window.__sansAretes=true;try{build3D();}finally{window.__sansAretes=false;}root=E3.root;parts=E3.parts;root.updateMatrixWorld(true);
  }finally{for(const k in S) if(!(k in snap)) delete S[k];Object.assign(S,snap);M.E=keepE;M.C=keepC;E3=keepE3;ui.sel=keepSel;ui.eview=keepView;}
  const anchors={},names=[[/^Alternateur/,'alternator'],[/Bouchon de remplissage/,'oilCap'],[/Bobines|préchauffage|Allumeur/,'coils'],[/Carter de distribution/,'timing'],[/Collecteur d'admission/,'intake'],[/Turbocompresseur/,'turbo'],
   [/^Démarreur/,'starter'],[/Carter d'huile/,'oilPan'],[/^Courroie d'accessoires/,'belt'],[/Couvre-culasse/,'valveCover']];

@@ -32,7 +32,7 @@ function build3D(){
   const mBlock=(S.blockMat==='alu'?mAlu:S.blockMat==='mg'?MT(0xa7a9a2,.55,.6):S.blockMat==='cgi'?MT(0x565b62,.65,.55):mIron).clone(),mHead=(S.headMat==='alu'?mAlu:mIron).clone(),mCover=MT(0x1f2227,.82,.1),mPan=(S.blockMat==='alu'||S.blockMat==='mg')?MT(0x9aa1a8,.5,.7):MT(0x2b2e33,.65,.45),mTim=S.timing==='belt'?MT(0x23272d,.7,.15):MT(0x9fa7ae,.5,.7);
   const shellMats=[mBlock,mHead,mCover,mPan,mTim];
   const P=(name,desc,o)=>{const p=Object.assign({name,desc,meshes:[],pin:null},o||{});parts.push(p);return p;};
-  const mLine=new T.LineBasicMaterial({color:0x0b1524,transparent:true,opacity:.36}),edge=(me,ang)=>me.add(new T.LineSegments(new T.EdgesGeometry(me.geometry,ang||35),mLine));
+  const mLine=new T.LineBasicMaterial({color:0x0b1524,transparent:true,opacity:.36}),edge=(me,ang)=>window.__sansAretes?me:me.add(new T.LineSegments(new T.EdgesGeometry(me.geometry,ang||35),mLine));/* __sansAretes : moteur de la baie (mode Mécanicien), arêtes inutiles */
   const add=(me,part,parent)=>{(parent||root).add(me);if(me.isMesh&&(me.geometry.type==='BoxGeometry'||me.geometry.type==='CylinderGeometry')) edge(me);if(part){part.meshes.push(me);if(!part.pin) part.pin=me.position.clone();}return me;};
   const rotB=(b,x,y,z)=>V(x,y*Math.cos(b)-z*Math.sin(b),y*Math.sin(b)+z*Math.cos(b));
   const box=(b,cx,cy,cz,sx,sy,sz,m,part)=>{const me=new T.Mesh(new T.BoxGeometry(sx,sy,sz),m);me.position.copy(rotB(b,cx,cy,cz));me.rotation.x=b;return add(me,part);};
