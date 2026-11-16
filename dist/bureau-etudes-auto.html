@@ -7349,6 +7349,239 @@ api.useDoor=id=>{const z=api.zone(id);if(z) zoneUse(z);};/* outil de test : déc
 window.__mw=api;
 return api;})();
 
+/* ───────────── Mode « Mécanicien » — PANNES RÉALISTES (données) ─────────────
+   Données pures, chargées avant js/41 : nouvelles pièces, nouveaux modèles de travaux, et le catalogue des symptômes à diagnostiquer.
+   Chaque symptôme décrit ce que dirait un vrai client, la pièce coupable, les « fausses pistes » (pièces un peu usées mais saines),
+   ce qu'on voit à l'inspection de chaque suspect, ce qu'on ressent à l'essai sur route selon la situation, les vrais codes défaut
+   (OBD-II, P0xxx) lus à la valise, et parfois une panne en chaîne (dégât causé par la panne d'origine).
+
+   ═══ API `MWP` ═══
+   MWP.PD         nouvelles pièces, au même format que PD de js/41 ; MWP.TPL nouveaux modèles de travaux ; MWP.TOOLS outils conseillés par pièce
+   MWP.SYMP       symptômes : {id, txt (le client), c (coupable), red (fausses pistes), dn (difficulté), f ('diesel'|'essence'), ch (dégâts en chaîne),
+                  ins {pièce: texte d'inspection}, ess {situation: texte d'essai}, cod (codes valise du coupable), fx {pièce: code trompeur}, cause}
+   MWP.ESS        situations de l'essai sur route : {id: libellé}
+   MWP.applies(voiture, pièce)  la voiture possède-t-elle cette pièce (diesel seulement, turbo, boîte manuelle…) ? ; MWP.fuelOK(voiture, symptôme) */
+const MWP=(()=>{
+const car=m=>{try{return typeof MWCARS!=='undefined'&&m?MWCARS.get(m):null;}catch(e){return null;}};
+
+/* ── nouvelles pièces : [id, nom, abrégé, zone, essieu, compétence, niveau, prix, minutes, outil, invisible, durée de vie (km), essai, indice d'essai, état d'usure, code valise] ── */
+const PD=[
+['bobines',`Bobines d'allumage`,'Bob.','capot','','electricite',2,120,35,'cles',0,120000,'accel',`Le moteur a des ratés en accélérant et le voyant moteur clignote.`,`Isolant fissuré, traces d'étincelles.`,`P0300 : ratés d'allumage détectés.`],
+['vanne_egr','Vanne EGR','EGR','capot','','moteur',3,210,75,'cles',0,150000,'ralenti',`Le ralenti est instable et le moteur manque de reprise.`,`Vanne encrassée de calamine, clapet collé.`,`P0401 : débit de recirculation des gaz (EGR) insuffisant.`],
+['fap','Filtre à particules','FAP','dessous','','moteur',4,900,120,'cles',0,200000,'accel',`La voiture manque de puissance et le voyant du filtre à particules s'allume.`,`Filtre saturé de suie.`,`P2002 : efficacité du filtre à particules sous le seuil.`],
+['turbo','Turbocompresseur','Turbo','capot','','moteur',4,950,210,'cle_dyn',0,220000,'accel',`Un sifflement monte à l'accélération et la puissance manque.`,`Jeu excessif de l'arbre, huile dans les conduits.`,`P0299 : pression de suralimentation insuffisante.`],
+['filtre_gazole','Filtre à gazole','Fil.G','capot','','entretien',2,28,25,'cles',0,60000,'accel',`À-coups à pleine charge : le filtre à gazole est colmaté.`,`Cartouche noire, eau au fond du bocal.`,''],
+['thermostat','Thermostat','Therm.','capot','','moteur',2,55,60,'cles',0,150000,'chaud',`La température du moteur ne se stabilise pas.`,`Boîtier suintant, clapet qui ne ferme plus.`,`P0128 : température du liquide sous le seuil de régulation.`],
+['pompe_eau',`Pompe à eau`,'P.Eau','capot','','moteur',3,95,100,'cles',0,150000,'chaud',`Un sifflement et une odeur sucrée viennent du moteur chaud.`,`Trace rose séchée sous l'orifice témoin, jeu dans la poulie.`,''],
+['radiateur','Radiateur de refroidissement','Radia.','capot','','moteur',3,190,120,'cles',0,200000,'chaud',`La température monte dans les bouchons et en côte.`,`Ailettes écrasées, suintement aux boîtes à eau.`,''],
+['durite','Durites de refroidissement','Durit.','capot','','entretien',2,32,45,'cles',0,100000,'chaud',`Une odeur sucrée et de la vapeur apparaissent moteur chaud.`,`Durite gonflée, craquelée, collier rouillé.`,''],
+['ventilateur','Motoventilateur','Ventil.','capot','','electricite',2,150,60,'cles',0,150000,'ralenti',`À l'arrêt, la température grimpe : le ventilateur reste immobile.`,`Hélice calée, connecteur brûlé.`,`P0480 : circuit de commande du ventilateur de refroidissement.`],
+['joint_culasse','Joint de culasse (pochette et vis)','Culasse','capot','','moteur',5,420,600,'cle_dyn',0,250000,'chaud',`Fumée blanche épaisse et surchauffe moteur chaud.`,`Huile laiteuse sous le bouchon, bulles dans le vase.`,`P0217 : surchauffe du moteur détectée.`],
+['capteur_pmh','Capteur de vilebrequin (PMH)','PMH','dessous','','electricite',2,45,30,'cles',1,180000,'demarrage',`Le moteur cale net et ne repart pas à chaud.`,'',`P0335 : circuit du capteur de vilebrequin (PMH).`],
+['capteur_arbre',`Capteur d'arbre à cames`,'Cames','capot','','electricite',2,40,30,'cles',1,180000,'demarrage',`Le démarrage est long et le moteur passe en mode dégradé.`,'',`P0340 : circuit du capteur d'arbre à cames.`],
+['debitmetre',`Débitmètre d'air`,'Débit.','capot','','moteur',3,130,20,'cles',1,180000,'accel',`Le moteur manque de puissance et passe en mode dégradé.`,'',`P0101 : performance du débitmètre d'air.`],
+['sonde_temp','Sonde de température du liquide','S.Temp','capot','','electricite',2,22,25,'cles',1,160000,'froid',`Le démarrage à froid est difficile et le ventilateur tourne tout le temps.`,'',`P0117 : signal de la sonde de température d'eau trop bas.`],
+['pompe_carburant','Pompe à carburant','P.Carb','dessous','','moteur',4,190,100,'cles',0,200000,'chaud',`Le moteur cale à chaud puis refuse de repartir.`,`Pompe bruyante, crépine du réservoir colmatée.`,`P0087 : pression de rampe de carburant trop basse.`],
+['catalyseur','Catalyseur','Cata.','dessous','','moteur',3,480,60,'cles',0,220000,'accel',`La voiture s'essouffle en côte et sent l'œuf pourri.`,`Céramique brisée : ça cliquette dans le boîtier.`,`P0420 : efficacité du catalyseur sous le seuil.`],
+['joint_cc',`Joint de cache-culbuteurs`,'J.Cul.','capot','','moteur',2,35,60,'cles',0,120000,'ralenti',`Une odeur d'huile brûlée se sent à l'arrêt.`,`Suintement d'huile sur le haut du moteur.`,''],
+['joint_spi',`Joint spi de vilebrequin`,'Spi','capot','','moteur',3,22,120,'cles',0,180000,'ralenti',`Des gouttes d'huile tombent sous la voiture à l'arrêt.`,`Suintement d'huile derrière la poulie de vilebrequin.`,''],
+['rotule',`Rotules de suspension (paire)`,'Rotul.','roue','av','liaison',3,60,60,'cle_dyn',0,120000,'bosses',`Un claquement sec vient de l'avant sur les bosses.`,`Soufflet déchiré, jeu au levier.`,''],
+['roulement',`Roulements de roue avant`,'Roulem.','roue','av','liaison',3,85,80,'cle_dyn',0,150000,'vitesse',`Un ronronnement augmente avec la vitesse.`,`Roue qui bouge quand on la secoue, bruit de roulement à la main.`,''],
+['cardan',`Cardans avant (paire)`,'Cardan','roue','av','transmission',3,130,90,'cle_dyn',0,180000,'virage',`Un claquement se produit en braquant sous accélération.`,`Soufflet déchiré, graisse projetée.`,''],
+['volant_bimasse','Volant moteur bimasse','Bimasse','dessous','','transmission',5,720,330,'cle_dyn',0,200000,'ralenti',`Des claquements et des vibrations secouent le moteur au ralenti.`,`Jeu angulaire excessif entre les deux masses.`,'']];
+
+/* ── modèles de travaux demandés directement par le client : [id, nom, pièces, poids] ── */
+const TPL=[
+['thermo','Remplacement du thermostat',['thermostat'],.8],['pompe_eau',`Remplacement de la pompe à eau`,['pompe_eau'],.6],['bobines',`Bobines d'allumage`,['bobines'],.8],
+['egr','Remplacement de la vanne EGR',['vanne_egr'],.6],['rotules','Rotules de suspension',['rotule'],.8],['roulement','Roulement de roue',['roulement'],.8],
+['gazole','Filtre à gazole',['filtre_gazole'],.9],['radiateur','Remplacement du radiateur',['radiateur'],.5],['cata','Remplacement du catalyseur',['catalyseur'],.4],
+['joint_cc',`Joint de cache-culbuteurs`,['joint_cc'],.5],['durites','Durites de refroidissement',['durite'],.6]];
+
+/* outils conseillés (servante) */
+const TOOLS={bobines:['cliquet','tournevis'],vanne_egr:['cliquet','pinces'],fap:['cliquet','cle_dyn'],turbo:['cliquet','cle_dyn','pinces'],filtre_gazole:['cle_filtre','bidon'],
+ thermostat:['cliquet','bidon','pinces'],pompe_eau:['cliquet','cle_dyn','bidon'],radiateur:['cliquet','bidon','pinces'],durite:['pinces','bidon'],ventilateur:['cliquet'],
+ joint_culasse:['cliquet','cle_dyn','pinces'],capteur_pmh:['cliquet'],capteur_arbre:['cliquet'],debitmetre:['tournevis'],sonde_temp:['cliquet','pinces'],
+ pompe_carburant:['cliquet','pinces'],catalyseur:['cliquet','cle_dyn'],joint_cc:['cliquet','cle_dyn'],joint_spi:['cliquet','cle_dyn','pinces'],
+ rotule:['boulonneuse','cliquet','cle_dyn'],roulement:['boulonneuse','cliquet','cle_dyn','presse'],cardan:['boulonneuse','cliquet','cle_dyn'],volant_bimasse:['cliquet','cle_dyn']};
+
+/* situations de l'essai sur route */
+const ESS={demarrage:'Au démarrage',froid:'À froid',ralenti:'Au ralenti',accel:'En accélération',vitesse:'À vitesse stabilisée',chaud:'Moteur chaud',frein:'Au freinage',virage:'En virage',bosses:'Sur les bosses'};
+
+/* ── les symptômes ── */
+const SYMP=[
+/* — freinage, liaison au sol, entretien — */
+{id:'frott',txt:'Un bruit de frottement quand je freine.',c:'plaq_av',red:['plaq_ar','disq_av'],dn:1,
+ ins:{plaq_av:`Garnitures à ras : le support métallique touche le disque. C'est le bruit entendu.`,plaq_ar:`Garnitures encore épaisses, usure régulière : rien à signaler de ce côté.`,disq_av:`Disques un peu marqués mais sans lèvre : c'est une conséquence possible, pas la cause.`},
+ ess:{frein:`Au freinage : grincement métallique aigu à l'avant, la pédale reste ferme.`},cod:[],cause:`Plaquettes avant usées jusqu'au métal.`},
+{id:'plaq_metal',txt:'Ça gratte fort quand je freine et la voiture vibre un peu.',c:'plaq_av',red:['plaq_ar'],ch:['disq_av'],dn:2,
+ ins:{plaq_av:`Plus aucune garniture : le métal frotte sur le disque.`,disq_av:`Disques profondément rainurés par le support métallique : à changer avec les plaquettes.`,plaq_ar:`Garnitures correctes, bien réparties.`},
+ ess:{frein:`Au freinage : grincement grave de métal contre métal, légère vibration dans le volant.`},cod:[],cause:`Plaquettes à ras qui ont abîmé les disques : il faut changer les deux.`},
+{id:'feu',txt:`Mon feu arrière ne s'allume plus.`,c:'ampoules',red:[],dn:1,ins:{ampoules:`Le filament est coupé et le verre noirci.`},cod:[],cause:'Ampoule grillée.'},
+{id:'traces',txt:'Les essuie-glaces laissent des traînées sur le pare-brise.',c:'essuie',red:[],dn:1,ins:{essuie:`Gomme durcie et fendue : elle ne plaque plus sur la vitre.`},cod:[],cause:'Balais usés.'},
+{id:'vibfrein',txt:'Le volant vibre quand je freine fort.',c:'disq_av',red:['plaq_av'],dn:2,
+ ins:{disq_av:`Disques voilés et bleuis par la chauffe : épaisseur irrégulière.`,plaq_av:`Plaquettes à moitié usées, garnitures régulières : elles ne sont pas en cause.`},
+ ess:{frein:`Au freinage depuis une vitesse élevée : le volant tremble et la pédale pulse.`},cod:[],cause:'Disques avant voilés.'},
+{id:'molle',txt:'La pédale de frein est molle.',c:'liquide_frein',red:['plaq_av'],dn:2,
+ ins:{liquide_frein:`Liquide brun, chargé d'eau : il a bouilli. Le testeur d'humidité est dans le rouge.`,plaq_av:`Plaquettes à moitié usées mais saines, aucune fuite aux étriers.`},
+ ess:{frein:`Au freinage : la pédale s'enfonce loin et devient spongieuse après quelques freinages.`},cod:[],cause:`Liquide de frein vieux : l'eau bout et forme des bulles.`},
+{id:'bosses',txt:`Ça claque à l'avant sur les bosses.`,c:'amort',red:['pneus','rotule'],dn:2,
+ ins:{amort:`Tiges huileuses, fuite le long du corps : l'amortisseur est vide.`,pneus:`Pneus un peu usés mais bien gonflés, sans hernie.`,rotule:`Pas de jeu au levier : les rotules tiennent.`},
+ ess:{bosses:`Sur les bosses : la voiture rebondit plusieurs fois et claque à l'avant.`},cod:[],cause:'Amortisseurs avant fatigués.'},
+{id:'amort_pneus',txt:'La voiture rebondit et mes pneus avant sont usés en cuvettes.',c:'amort',red:['rotule'],ch:['pneus'],dn:3,
+ ins:{amort:`Tiges huileuses, effet « pogo » au test : les amortisseurs sont fatigués.`,rotule:`Aucun jeu : les rotules sont saines.`,pneus:`Usure en cuvettes, causée par les amortisseurs : à changer aussi.`},
+ ess:{bosses:`Sur les bosses : rebonds multiples, roues qui sautillent.`,vitesse:`À vitesse stabilisée : léger bruit de roulement sourd sur les pneus cuvetés.`},cod:[],cause:'Amortisseurs fatigués qui ont mangé les pneus.'},
+{id:'pneus_us',txt:`La voiture manque d'adhérence et tire un peu sur le mouillé.`,c:'pneus',red:['amort','rotule'],dn:1,
+ ins:{pneus:`Témoins d'usure atteints, flancs craquelés.`,amort:`Amortisseurs corrects, sans fuite.`,rotule:`Pas de jeu dans la direction.`},
+ ess:{virage:`En virage : le train avant décroche vite, les pneus glissent.`},cod:[],cause:'Pneus usés.'},
+{id:'rotule',txt:'Un claquement sec à l\'avant en braquant et sur les dos d\'âne, la direction est floue.',c:'rotule',red:['amort','pneus'],dn:2,
+ ins:{rotule:`Soufflet déchiré, jeu au levier : la rotule bouge dans son logement.`,amort:`Amortisseurs secs, sans fuite.`,pneus:`Pneus usés des deux côtés de façon régulière.`},
+ ess:{virage:`En virage : claquement sec et direction imprécise.`,bosses:`Sur les bosses : claquement métallique à l'avant.`},cod:[],cause:'Rotules de suspension avec du jeu.'},
+{id:'roulement',txt:'Un ronronnement qui grandit avec la vitesse et change dans les virages.',c:'roulement',red:['pneus','disq_av','plaq_av'],dn:3,
+ ins:{roulement:`La roue bouge quand on la secoue, bruit de roulement à la main.`,pneus:`Pneus un peu usés mais réguliers, sans bruit.`,disq_av:`Disques sains, aucun frottement.`,plaq_av:`Plaquettes en état, pas de grincement.`},
+ ess:{vitesse:`À vitesse stabilisée : ronronnement qui monte avec la vitesse.`,virage:`En virage : le bruit augmente d'un côté et diminue de l'autre.`},cod:[],cause:'Roulement de roue avant usé.'},
+{id:'cardan',txt:'Un claquement quand je braque à fond en accélérant.',c:'cardan',red:['rotule','amort'],dn:3,
+ ins:{cardan:`Soufflet déchiré, graisse projetée autour, jeu dans le joint.`,rotule:`Aucun jeu dans les rotules.`,amort:`Pas de fuite aux amortisseurs.`},
+ ess:{virage:`En braquant à fond sous accélération : claquement répété, au rythme des roues.`},cod:[],cause:'Cardan avant usé (soufflet déchiré).'},
+{id:'huile_bruit',txt:'Le moteur est plus bruyant et la jauge d\'huile est toute noire.',c:'huile',red:['filtre_huile'],dn:1,
+ ins:{huile:`Huile noire et pâteuse, jauge collante.`,filtre_huile:`Filtre encrassé : à changer en même temps, mais il n'explique pas le bruit.`},
+ ess:{ralenti:`Au ralenti : cliquetis léger dans la partie haute du moteur.`},cod:[],cause:'Huile épuisée.'},
+{id:'reprise',txt:'Il manque de reprise et consomme un peu plus.',c:'filtre_air',red:['bougies','debitmetre'],dn:1,
+ ins:{filtre_air:`Filtre noir de poussière, plié, presque bouché.`,bougies:`Bougies correctes, légèrement grises.`,debitmetre:`Connecteur propre, rien d'anormal à l'œil.`},
+ ess:{accel:`En accélérant : le moteur répond mollement, surtout à pleine charge.`},cod:[],fx:{debitmetre:`P0101 : performance du débitmètre d'air (un filtre bouché fausse la mesure).`},cause:'Filtre à air bouché.'},
+{id:'moisi',txt:'Une odeur de moisi sort de la ventilation et les vitres s\'embuent.',c:'filtre_hab',red:[],dn:1,ins:{filtre_hab:`Filtre gris et humide, feuilles et odeur de moisi.`},cod:[],cause:`Filtre d'habitacle saturé.`},
+/* — électricité, démarrage, charge — */
+{id:'demarre',txt:'Elle démarre mal le matin, le démarreur tourne mollement.',c:'batterie',red:['alternateur'],dn:1,
+ ins:{batterie:`Bornes sulfatées (poudre blanche), la batterie s'effondre au test de charge.`,alternateur:`Courroie tendue, aucun bruit de roulement : l'alternateur semble sain.`},
+ ess:{demarrage:`Au démarrage : le démarreur tourne mollement et les phares faiblissent.`},cause:'Batterie en fin de vie, trop faible pour lancer le moteur par temps froid.'},
+{id:'sifflet',txt:'Un sifflement strident au démarrage.',c:'courroie_acc',red:['batterie'],dn:2,
+ ins:{courroie_acc:`Courroie vitrifiée et craquelée, elle patine sur les poulies.`,batterie:`Bornes propres, batterie correcte.`},
+ ess:{demarrage:`Au démarrage, surtout à froid : un sifflement strident qui diminue ensuite.`},cod:[],cause:`Courroie d'accessoires usée.`},
+{id:'voyant',txt:`Le voyant de batterie s'allume en roulant.`,c:'alternateur',red:['batterie'],dn:3,
+ ins:{alternateur:`Roulement bruyant, courroie propre : la charge ne remonte pas.`,batterie:`Un peu fatiguée, mais elle se recharge au chargeur.`},
+ ess:{ralenti:`Moteur tournant : le voyant de charge s'allume et les phares faiblissent au ralenti.`},cause:`Alternateur qui ne charge plus.`},
+{id:'clic',txt:'Je tourne la clé et il ne se passe rien, juste un clic.',c:'demarreur',red:['batterie'],dn:3,
+ ins:{demarreur:`Le solénoïde claque sans lancer le moteur : les charbons sont usés.`,batterie:`12,5 V à vide et en charge : la batterie est correcte.`},
+ ess:{demarrage:`À la clé : un simple clic, mais les phares restent bien allumés.`},cause:'Démarreur hors service.'},
+{id:'alt_batt',txt:'La batterie est à plat tous les matins, même après un rechargement.',c:'alternateur',red:['courroie_acc'],ch:['batterie'],dn:3,
+ ins:{alternateur:`Tension 12,1 V moteur tournant : les diodes sont grillées, l'alternateur ne charge pas.`,batterie:`Déchargée en profondeur plusieurs fois : sulfatée, à changer aussi.`,courroie_acc:`Courroie bien tendue, elle entraîne l'alternateur.`},
+ ess:{demarrage:`Au démarrage : démarreur mou ; le voyant de charge reste allumé en roulant.`},cause:`Alternateur en panne qui a vidé et abîmé la batterie.`},
+{id:'prechauf',txt:'Démarrage très long à froid, de la fumée blanche, mais ça va mieux à chaud.',c:'bougies',red:['batterie','demarreur','filtre_gazole'],f:'diesel',dn:2,
+ ins:{bougies:`Bougies de préchauffage coupées : la résistance ne chauffe plus (au contrôleur).`,batterie:`Batterie à 12,6 V : correcte.`,demarreur:`Démarreur vif, il lance bien le moteur.`,filtre_gazole:`Filtre en bon état.`},
+ ess:{froid:`À froid : démarrage long, fumée blanche, voyant de préchauffage qui clignote.`},cod:[`P0380 : circuit des bougies de préchauffage défectueux.`,`P0671 : bougie de préchauffage du cylindre 1.`],cause:'Bougies de préchauffage usées.'},
+{id:'cale_froid',txt:'Ça démarre mal à froid avec de la fumée noire, puis ça va, et le ventilateur tourne tout le temps.',c:'sonde_temp',red:['thermostat','bougies'],dn:3,
+ ins:{sonde_temp:`Connecteur oxydé : elle annonce −40 °C en permanence, le calculateur croit le moteur glacé.`,thermostat:`Thermostat correct : le chauffage est bien chaud.`,bougies:`Bougies correctes.`},
+ ess:{froid:`À froid : le moteur tousse et fume noir (mélange trop riche).`,chaud:`Moteur chaud : le ventilateur tourne en permanence.`},cod:[`P0117 : signal de la sonde de température d'eau trop bas.`],cause:`Sonde de température défaillante : le mélange est toujours enrichi.`},
+/* — allumage, injection, carburant — */
+{id:'acoups',txt:`Elle a des à-coups quand j'accélère.`,c:'bougies',red:['filtre_air','bobines'],f:'essence',dn:2,
+ ins:{bougies:`Électrodes usées et écartées, dépôt noir.`,filtre_air:`Filtre sale mais l'air passe encore.`,bobines:`Bobines propres, isolants intacts.`},
+ ess:{accel:`En accélérant : à-coups et trous, surtout à mi-régime.`},cod:[`P0300 : ratés d'allumage détectés (plusieurs cylindres).`],cause:`Bougies d'allumage usées.`},
+{id:'rates_bobine',txt:'Ça tousse et ça a des ratés, surtout à froid ou quand il pleut, et le voyant moteur clignote.',c:'bobines',red:['bougies','filtre_air'],f:'essence',dn:2,
+ ins:{bobines:`Isolant fissuré et traces d'étincelles : le courant fuit vers la masse.`,bougies:`Bougies usées mais encore correctes.`,filtre_air:`Filtre propre.`},
+ ess:{froid:`À froid : ratés et vibrations dans le volant.`,accel:`En accélérant : trous, le voyant clignote.`},cod:[`P0302 : raté d'allumage, cylindre 2.`,`P0352 : circuit de la bobine d'allumage B.`],cause:`Bobine d'allumage défectueuse.`},
+{id:'rates_longs',txt:`Il a des ratés depuis des mois et ça sent l'essence mal brûlée sous la voiture.`,c:'bobines',red:['bougies'],ch:['catalyseur'],f:'essence',dn:3,
+ ins:{bobines:`Plusieurs bobines claquées : l'essence non brûlée part à l'échappement.`,bougies:`Bougies noircies par les ratés, mais elles ne sont pas la cause.`,catalyseur:`Catalyseur surchauffé et fondu par l'essence non brûlée : à changer.`},
+ ess:{accel:`En accélérant : trous et manque de puissance, odeur d'essence brûlée.`},cod:[`P0300 : ratés d'allumage détectés (plusieurs cylindres).`,`P0420 : efficacité du catalyseur sous le seuil.`],cause:`Bobines HS : rouler ainsi a détruit le catalyseur.`},
+{id:'froid',txt:'Le ralenti est instable et la consommation a grimpé.',c:'sonde_lambda',red:['bougies','filtre_air','debitmetre'],dn:3,
+ ins:{sonde_lambda:`Rien à voir à l'œil : une sonde s'encrasse sans se casser.`,bougies:`Bougies correctes, légèrement grises.`,filtre_air:`Filtre un peu sale, sans conséquence.`,debitmetre:`Connecteur propre.`},
+ ess:{ralenti:`Au ralenti : régime instable, odeur d'essence à l'échappement.`},cod:[`P0130 : circuit de la sonde lambda défectueux (banc 1).`,`P0133 : réponse lente de la sonde lambda.`],cause:`Sonde lambda encrassée : le mélange n'est plus corrigé.`},
+{id:'debitmetre',txt:'Il manque de puissance, le ralenti est irrégulier et le voyant moteur est allumé.',c:'debitmetre',red:['filtre_air','vanne_egr','sonde_lambda'],dn:3,
+ ins:{debitmetre:`Élément chaud encrassé : il mesure moins d'air qu'il n'en passe.`,filtre_air:`Filtre un peu sale, mais l'air passe.`,vanne_egr:`Vanne mobile, pas collée.`,sonde_lambda:`Sonde correcte au contrôle.`},
+ ess:{ralenti:`Au ralenti : régime irrégulier.`,accel:`En accélérant : creux et manque de reprise (mode dégradé).`},cod:[`P0101 : performance du débitmètre d'air (plage de mesure).`],fx:{vanne_egr:`P0401 : débit de recirculation des gaz (EGR) insuffisant (peut venir d'un débit d'air mal mesuré).`},cause:`Débitmètre d'air encrassé.`},
+{id:'fumee',txt:'Fumée noire et consommation en hausse.',c:'injecteurs',red:['filtre_air','bougies','vanne_egr'],f:'diesel',dn:4,
+ ins:{injecteurs:`Rampe sèche, aucune fuite extérieure : les injecteurs fuient à l'intérieur.`,filtre_air:`Filtre sale mais pas bouché.`,bougies:`Bougies de préchauffage en état.`,vanne_egr:`Vanne un peu encrassée mais mobile.`},
+ ess:{ralenti:`Au ralenti : irrégulier, fumée noire à l'échappement.`,accel:`En accélérant : fumée noire épaisse.`},cod:[`P0301 : raté de combustion, cylindre 1.`,`P0303 : raté de combustion, cylindre 3.`],cause:'Injecteurs encrassés.'},
+{id:'inj_dilue',txt:`Fumée noire, ça sent le gazole et le niveau d'huile monte.`,c:'injecteurs',red:['filtre_air','vanne_egr'],ch:['huile','filtre_huile'],f:'diesel',dn:4,
+ ins:{injecteurs:`Un injecteur reste ouvert : le gazole coule dans le cylindre et passe dans l'huile.`,huile:`Huile fluide qui sent le gazole : à vidanger.`,filtre_huile:`Filtre saturé.`,filtre_air:`Filtre un peu sale.`,vanne_egr:`Vanne mobile.`},
+ ess:{ralenti:`Au ralenti : cliquetis net du cylindre noyé, fumée noire.`},cod:[`P0301 : raté de combustion, cylindre 1.`,`P0263 : déséquilibre de puissance du cylindre 1.`],cause:`Injecteur défectueux qui a dilué l'huile : vidange à faire.`},
+{id:'gazole',txt:`À fond, ça s'étouffe et ça a des à-coups ; le démarrage est parfois long.`,c:'filtre_gazole',red:['filtre_air','injecteurs'],f:'diesel',dn:2,
+ ins:{filtre_gazole:`Cartouche noire et eau au fond du bocal.`,filtre_air:`Filtre un peu sale.`,injecteurs:`Aucune fuite visible.`},
+ ess:{accel:`À pleine charge : à-coups, puis perte de puissance.`},cod:[`P0087 : pression de rampe de carburant trop basse.`],cause:'Filtre à gazole colmaté.'},
+{id:'pompe_carb',txt:'Il cale à chaud puis refuse de repartir quelques minutes ; on entend un sifflement vers le réservoir.',c:'pompe_carburant',red:['filtre_gazole','batterie'],dn:4,
+ ins:{pompe_carburant:`Pompe bruyante, crépine colmatée, débit faible au test.`,filtre_gazole:`Filtre en bon état.`,batterie:`Batterie correcte.`},
+ ess:{chaud:`Moteur chaud : à-coups puis calage, sifflement vers l'arrière.`,accel:`À pleine charge : le moteur s'étouffe.`},cod:[`P0087 : pression de rampe de carburant trop basse.`,`P0171 : mélange trop pauvre (banc 1).`],cause:'Pompe à carburant fatiguée.'},
+{id:'pmh',txt:'Il cale net en roulant, repart quand il a refroidi, et le compte-tours tombe à zéro.',c:'capteur_pmh',red:['batterie','demarreur','pompe_carburant'],dn:4,
+ ins:{capteur_pmh:`Propre à l'œil, mais le signal disparaît à chaud (test à l'oscilloscope).`,batterie:`Batterie correcte : le moteur tourne bien à la clé.`,demarreur:`Démarreur vif et sain.`,pompe_carburant:`La pompe s'entend bien au contact.`},
+ ess:{chaud:`Moteur chaud : calage soudain, le compte-tours tombe à zéro.`,demarrage:`Au redémarrage à chaud : le démarreur tourne mais le moteur ne prend pas.`},cod:[`P0335 : circuit du capteur de vilebrequin (PMH) défectueux.`],cause:'Capteur de vilebrequin qui lâche à chaud.'},
+{id:'arbre',txt:'Le démarrage est plus long, il a des à-coups et le voyant moteur est allumé.',c:'capteur_arbre',red:['capteur_pmh','bougies'],dn:4,
+ ins:{capteur_arbre:`Connecteur et capteur propres : le défaut est électrique.`,capteur_pmh:`Connecteur sain.`,bougies:`Bougies en état correct.`},
+ ess:{demarrage:`Au démarrage : la rotation est longue avant que le moteur prenne.`,accel:`En accélérant : à-coups et puissance limitée (mode dégradé).`},cod:[`P0340 : circuit du capteur d'arbre à cames défectueux.`,`P0341 : performance du capteur d'arbre à cames.`],cause:`Capteur d'arbre à cames défectueux.`},
+{id:'egr',txt:'Le moteur cale au ralenti, manque de reprise à bas régime et le voyant moteur est allumé.',c:'vanne_egr',red:['debitmetre','filtre_air'],f:'diesel',dn:3,
+ ins:{vanne_egr:`Calamine noire et huileuse, clapet collé ouvert.`,filtre_air:`Filtre sale mais le passage d'air reste correct.`,debitmetre:`Connecteur propre ; seule la valise dira si ses mesures sont bonnes.`},
+ ess:{ralenti:`Au ralenti : le moteur tremble et menace de caler.`,accel:`Aux bas régimes : trou à l'accélération, fumée noire.`},cod:[`P0401 : débit de recirculation des gaz (EGR) insuffisant.`,`P0403 : circuit de commande de la vanne EGR.`],fx:{debitmetre:`P0101 : performance du débitmètre d'air (l'air mesuré est faussé par l'EGR).`},cause:'Vanne EGR encrassée par la calamine.'},
+{id:'fap',txt:'Le voyant du filtre à particules est allumé, la voiture manque de puissance, et je ne fais que des petits trajets.',c:'fap',red:['vanne_egr','debitmetre'],f:'diesel',dn:4,
+ ins:{fap:`Filtre saturé de suie : contre-pression élevée, capteur de pression différentielle correct.`,vanne_egr:`Vanne un peu sale, mais elle bouge librement.`,debitmetre:`Connecteur propre.`},
+ ess:{accel:`En accélérant : la voiture se bride (mode dégradé), odeur âcre.`,chaud:`Moteur chaud : ventilateur qui tourne après l'arrêt, régénération qui n'aboutit jamais.`},cod:[`P2002 : efficacité du filtre à particules sous le seuil (banc 1).`,`P2463 : accumulation de suie dans le filtre à particules.`],cause:'Filtre à particules colmaté.'},
+{id:'turbo',txt:`La voiture n'a plus de puissance, siffle fort et fume bleu-gris ; le niveau d'huile baisse.`,c:'turbo',red:['filtre_air','vanne_egr'],ch:['huile','filtre_huile'],dn:4,
+ ins:{turbo:`Jeu excessif de l'arbre de turbine, huile dans les conduits d'admission.`,filtre_air:`Filtre sale mais l'air passe.`,vanne_egr:`Vanne encrassée mais mobile.`,huile:`Huile noire pleine de particules : à changer avec le turbo.`,filtre_huile:`Filtre chargé de limaille : à changer aussi.`},
+ ess:{accel:`En accélérant : sifflement de sirène, pas de poussée, fumée bleutée.`,vitesse:`À vitesse stabilisée : la puissance s'effondre dès qu'on appuie.`},cod:[`P0299 : pression de suralimentation insuffisante.`],cause:'Turbo usé qui laisse passer huile et air.'},
+{id:'cata',txt:`Elle s'essouffle en côte, ça sent l'œuf pourri et ça cliquette sous le plancher.`,c:'catalyseur',red:['sonde_lambda'],dn:3,
+ ins:{catalyseur:`Céramique brisée : ça cliquette quand on tape sur le boîtier.`,sonde_lambda:`Sonde correcte, signaux nets.`},
+ ess:{accel:`En côte : puissance limitée, odeur d'œuf pourri.`,ralenti:`Au ralenti : cliquetis sous le plancher.`},cod:[`P0420 : efficacité du catalyseur sous le seuil (banc 1).`],fx:{sonde_lambda:`P0136 : circuit de la sonde lambda aval défectueux (souvent une conséquence du catalyseur).`},cause:'Catalyseur détruit (échappement colmaté).'},
+/* — refroidissement — */
+{id:'surchauffe',txt:'Le moteur chauffe vite : la durite du haut est brûlante et celle du bas reste froide.',c:'thermostat',red:['pompe_eau','ventilateur','radiateur'],dn:3,
+ ins:{thermostat:`Boîtier suintant, clapet resté fermé : la durite du bas reste froide.`,pompe_eau:`Pompe sans jeu, aucune trace de fuite.`,ventilateur:`Le ventilateur se déclenche bien.`,radiateur:`Propre, chaud en haut seulement : il ne reçoit pas de liquide.`},
+ ess:{chaud:`Moteur chaud : l'aiguille de température monte jusqu'au rouge.`},cod:[`P0217 : surchauffe du moteur détectée.`],cause:'Thermostat bloqué fermé.'},
+{id:'surchauffe_grave',txt:`Le moteur a surchauffé, j'ai continué à rouler, et maintenant il fume blanc.`,c:'thermostat',red:['pompe_eau','radiateur'],ch:['joint_culasse'],dn:5,
+ ins:{thermostat:`Clapet resté fermé : c'est lui qui a causé la surchauffe.`,pompe_eau:`Pompe sans fuite.`,radiateur:`Radiateur sain.`,joint_culasse:`Joint percé par la surchauffe : huile laiteuse, bulles dans le vase.`},
+ ess:{chaud:`Moteur chaud : fumée blanche sucrée, la température grimpe.`},cod:[`P0217 : surchauffe du moteur détectée.`],cause:`Thermostat bloqué : la surchauffe a percé le joint de culasse.`},
+{id:'thermo_ouvert',txt:'Le chauffage souffle tiède, le moteur met très longtemps à chauffer et la consommation a augmenté.',c:'thermostat',red:['sonde_temp','ventilateur'],dn:3,
+ ins:{thermostat:`Clapet bloqué ouvert : le liquide passe toujours par le radiateur.`,ventilateur:`Ventilateur normal.`,sonde_temp:`Connecteur propre ; la valise donne la température mesurée.`},
+ ess:{froid:`À froid : la température reste basse très longtemps.`,chaud:`Même après vingt minutes : l'aiguille n'atteint pas 90 °C.`},cod:[`P0128 : température du liquide de refroidissement sous le seuil de régulation.`],cause:'Thermostat bloqué ouvert.'},
+{id:'culasse',txt:'Fumée blanche épaisse, le niveau de liquide baisse sans fuite visible et le moteur chauffe.',c:'joint_culasse',red:['thermostat','radiateur','pompe_eau'],dn:5,
+ ins:{joint_culasse:`Huile laiteuse (mayonnaise) sous le bouchon, bulles dans le vase : le joint est percé.`,thermostat:`Thermostat qui s'ouvre normalement.`,radiateur:`Radiateur sec, sans fuite.`,pompe_eau:`Pompe sans jeu ni suintement.`},
+ ess:{chaud:`Moteur chaud : fumée blanche sucrée à l'échappement, température qui grimpe.`,ralenti:`Au ralenti : léger tremblement et vapeur.`},cod:[`P0217 : surchauffe du moteur détectée.`],cause:'Joint de culasse percé.'},
+{id:'pompe_eau',txt:'Une flaque rose sous le moteur, le niveau de liquide baisse et ça siffle à l\'avant.',c:'pompe_eau',red:['durite','radiateur'],ch:['courroie_acc'],dn:3,
+ ins:{pompe_eau:`Trace rose séchée sous l'orifice témoin de la pompe, jeu dans la poulie.`,durite:`Durites souples, colliers secs.`,radiateur:`Radiateur sec, pas de trace de fuite.`,courroie_acc:`Courroie imbibée de liquide de refroidissement : elle patine, à changer.`},
+ ess:{chaud:`Moteur chaud : sifflement et odeur sucrée sous le capot.`,ralenti:`Au ralenti : léger grondement de roulement côté courroie.`},cod:[],cause:`Pompe à eau qui fuit : elle a aussi abîmé la courroie.`},
+{id:'radiateur',txt:'Odeur sucrée devant la voiture, le niveau de liquide baisse et le moteur chauffe en côte.',c:'radiateur',red:['durite','pompe_eau'],dn:3,
+ ins:{radiateur:`Suintement rose aux boîtes à eau, ailettes noyées de liquide.`,durite:`Durites sèches.`,pompe_eau:`Aucune trace de fuite à la pompe.`},
+ ess:{chaud:`Moteur chaud, en côte : la température monte, odeur sucrée.`},cod:[],cause:'Radiateur qui fuit.'},
+{id:'durite',txt:'De la vapeur sort du capot à l\'arrêt et il y a des gouttes de liquide au sol.',c:'durite',red:['radiateur','pompe_eau'],dn:2,
+ ins:{durite:`Durite gonflée et craquelée, goutte au collier : c'est le point de fuite.`,radiateur:`Radiateur sec.`,pompe_eau:`Pompe sèche.`},
+ ess:{chaud:`Moteur chaud : vapeur et odeur sucrée au premier arrêt.`},cod:[],cause:'Durite de refroidissement fendue.'},
+{id:'ventilo',txt:'Ça chauffe seulement dans les bouchons, et ça redescend dès que je roule vite.',c:'ventilateur',red:['thermostat','sonde_temp'],dn:3,
+ ins:{ventilateur:`Hélice calée à la main, connecteur noirci : il ne tourne jamais.`,thermostat:`Thermostat sain, il s'ouvre au bon moment.`,sonde_temp:`Connecteur propre.`},
+ ess:{ralenti:`À l'arrêt, moteur chaud : la température monte, le ventilateur reste immobile.`,vitesse:`À vitesse stabilisée : la température redescend.`},cod:[`P0480 : circuit de commande du ventilateur de refroidissement.`],cause:'Motoventilateur en panne.'},
+/* — fuites d'huile, distribution, transmission, chaînes de pannes — */
+{id:'claque',txt:'Un claquement irrégulier dans le moteur.',c:'courroie_dist',red:['courroie_acc'],dn:4,
+ ins:{courroie_dist:`Dents usées, galet qui accroche : risque de rupture.`,courroie_acc:`Courroie d'accessoires propre et bien tendue.`},
+ ess:{ralenti:`Au ralenti : claquement irrégulier côté distribution.`},cod:[],cause:'Distribution en fin de vie.'},
+{id:'distri_cassee',txt:`Le moteur s'est coupé net en roulant et il ne redémarre plus : le démarreur tourne trop vite.`,c:'courroie_dist',red:['courroie_acc','batterie'],ch:['joint_culasse'],dn:5,
+ ins:{courroie_dist:`Courroie rompue : le vilebrequin et l'arbre à cames ne sont plus synchronisés.`,joint_culasse:`Soupapes faussées par les pistons : culasse à refaire avec son joint.`,courroie_acc:`Courroie d'accessoires intacte.`,batterie:`Batterie correcte.`},
+ ess:{demarrage:`Au démarrage : le démarreur tourne à vide, trop vite, sans aucune compression.`},cod:[`P0016 : corrélation vilebrequin et arbre à cames (banc 1).`],cause:'Distribution rompue : elle a faussé les soupapes.'},
+{id:'joint_cc',txt:'Ça sent l\'huile chaude, une fumée légère sort du côté du moteur, et il a des ratés.',c:'joint_cc',red:['joint_spi','huile'],ch:['bougies'],f:'essence',dn:2,
+ ins:{joint_cc:`Huile suintante sur le haut du moteur : le joint de cache-culbuteurs est dur et fendu.`,joint_spi:`Zone sèche derrière la poulie.`,huile:`Niveau un peu bas, huile en état.`,bougies:`Puits de bougies pleins d'huile : bougies encrassées, à changer.`},
+ ess:{ralenti:`À l'arrêt, moteur chaud : odeur d'huile brûlée.`,accel:`En accélérant : ratés légers.`},cod:[`P0301 : raté d'allumage, cylindre 1.`],cause:`Joint de cache-culbuteurs fendu : l'huile a noyé les bougies.`},
+{id:'joint_spi',txt:`Une tache d'huile sous l'avant de la voiture et le niveau d'huile baisse.`,c:'joint_spi',red:['joint_cc','filtre_huile'],ch:['courroie_acc'],dn:3,
+ ins:{joint_spi:`L'huile coule derrière la poulie de vilebrequin : le joint spi est durci.`,joint_cc:`Haut du moteur sec.`,filtre_huile:`Filtre bien serré, sans suintement.`,courroie_acc:`Courroie imbibée d'huile et gonflée : à changer.`},
+ ess:{ralenti:`À l'arrêt : odeur d'huile chaude du côté de la courroie.`},cod:[],cause:`Joint spi de vilebrequin qui fuit : l'huile a abîmé la courroie.`},
+{id:'patine',txt:'Ça patine en côte et ça sent le brûlé.',c:'embrayage',red:[],dn:3,
+ ins:{embrayage:`Friction brûlée, disque fendu ; la pédale accroche très haut.`},
+ ess:{accel:`En accélérant : le régime monte sans que la voiture avance, odeur de brûlé.`},cod:[],cause:'Embrayage usé qui patine.'},
+{id:'bimasse',txt:'Des claquements et des vibrations au ralenti, et une secousse à chaque arrêt du moteur.',c:'volant_bimasse',red:['courroie_acc','courroie_dist'],ch:['embrayage'],dn:5,
+ ins:{volant_bimasse:`Jeu angulaire excessif entre les deux masses, graisse rejetée.`,embrayage:`Disque usé : il se change avec le volant (même dépose de boîte).`,courroie_acc:`Courroie correcte.`,courroie_dist:`Distribution silencieuse.`},
+ ess:{ralenti:`Au ralenti : claquement sourd régulier, vibrations dans le plancher.`,demarrage:`À l'arrêt du moteur : grosse secousse.`},cod:[],cause:'Volant bimasse usé : on change aussi le kit embrayage.'}
+];
+
+/* ── pièces absentes selon la voiture ── */
+const DIESEL=['vanne_egr','fap','filtre_gazole'],ESSENCE=['bobines'],MECA_ONLY=['volant_bimasse'];
+const CHASSIS=['rotule','roulement','cardan'];
+function applies(m,id){
+ if(!PD.some(a=>a[0]===id)) return true;
+ const c=car(m);if(!c) return DIESEL.indexOf(id)<0&&ESSENCE.indexOf(id)<0&&id!=='turbo'&&id!=='volant_bimasse'&&id!=='fap';
+ if(c.ev) return CHASSIS.includes(id);
+ const e=c.eng||{};
+ if(DIESEL.includes(id)) return e.fuel==='diesel';
+ if(ESSENCE.includes(id)) return e.fuel==='essence';
+ if(id==='turbo') return e.asp&&e.asp!=='atmo';
+ if(id==='volant_bimasse') return c.gb==='man'&&(e.fuel==='diesel'||(e.asp&&e.asp!=='atmo'));
+ if(id==='cardan') return c.drive!=='rwd';
+ return true;}
+function fuelOK(m,y){const c=car(m);if(!y||!y.f||!c) return true;return !!c.eng&&c.eng.fuel===y.f;}
+return {PD,TPL,TOOLS,ESS,SYMP,applies,fuelOK};
+})();
+window.__mwp=MWP;
+
 /* ───────────── Mode « Mécanicien » — TRAVAUX ─────────────
    Clients et voitures à réparer, ordres de réparation (travaux précis ou symptôme à diagnostiquer), pièces et usure,
    gestes de réparation en 3D (capot, pont élévateur, roues, dessous), inventaire (12 places, barre en bas de l'écran),
@@ -7399,10 +7632,11 @@ const PD=[
 ['demarreur','Démarreur','Dém.','capot','','electricite',3,160,90,'cles',1,220000,'demarrage','Un simple « clic » au démarrage.','',"Appel de courant anormal du démarreur."],
 ['injecteurs','Injecteurs','Inj.','capot','','moteur',4,280,120,'cles',1,180000,'ralenti','Le ralenti est irrégulier et la voiture fume.','','P0301 et P0303 : ratés de combustion, injecteurs encrassés.'],
 ['sonde_lambda','Sonde lambda','Lamb.','dessous','','moteur',3,85,30,'cles',1,160000,'ralenti','Le ralenti est instable, la consommation grimpe.','','P0130 : signal de la sonde lambda figé.']];
+if(typeof MWP!=='undefined') for(const a of MWP.PD) PD.push(a); /* js/51 : pannes réalistes (nouvelles pièces) */
 const PARTS={},PLIST=[];
 for(const a of PD){const p={id:a[0],nom:a[1],ab:a[2],zone:a[3],ax:a[4],comp:a[5],niv:a[6],prix:a[7],mo:a[8],outil:a[9],hid:!!a[10],vie:a[11],ess:a[12],essTxt:a[13],usTxt:a[14],code:a[15]};PARTS[p.id]=p;PLIST.push(p);}
 const ZONE_NOM={capot:'Sous le capot',dessous:'Dessous (pont levé)',roue:'Roues, freins et suspension',cabine:'Habitacle et éclairage'};
-const ESS_NOM={demarrage:'Au démarrage',ralenti:'Au ralenti',accel:'En accélération',frein:'Au freinage',virage:'En virage',bosses:'Sur les bosses'};
+const ESS_NOM=typeof MWP!=='undefined'?MWP.ESS:{demarrage:'Au démarrage',ralenti:'Au ralenti',accel:'En accélération',frein:'Au freinage',virage:'En virage',bosses:'Sur les bosses'};
 
 /* ── modèles de travaux : [id, nom, pièces, poids] ── */
 const TPL=[
@@ -7426,23 +7660,10 @@ const TPL=[
 ['alt',"Remplacement de l'alternateur",['alternateur'],.8],
 ['dem','Remplacement du démarreur',['demarreur'],.8],
 ['sonde','Sonde lambda',['sonde_lambda'],.8]];
+if(typeof MWP!=='undefined') for(const t of MWP.TPL) TPL.push(t);
 /* ── symptômes : c = pièce coupable, red = pièces « leurres » un peu usées, dn = niveau de diagnostic ── */
-const SYMP=[
-{id:'frott',txt:'Un bruit de frottement quand je freine.',c:'plaq_av',red:['plaq_ar','disq_av'],dn:1},
-{id:'feu',txt:"Mon feu arrière ne s'allume plus.",c:'ampoules',red:[],dn:1},
-{id:'traces',txt:'Les essuie-glaces laissent des traînées sur le pare-brise.',c:'essuie',red:[],dn:1},
-{id:'demarre',txt:'Elle démarre mal le matin, le démarreur tourne mollement.',c:'batterie',red:['alternateur'],dn:1},
-{id:'vibfrein',txt:'Le volant vibre quand je freine fort.',c:'disq_av',red:['plaq_av'],dn:2},
-{id:'molle',txt:'La pédale de frein est molle.',c:'liquide_frein',red:['plaq_av'],dn:2},
-{id:'bosses',txt:'Ça claque à l\'avant sur les bosses.',c:'amort',red:['pneus'],dn:2},
-{id:'sifflet',txt:'Un sifflement strident au démarrage.',c:'courroie_acc',red:['batterie'],dn:2},
-{id:'acoups',txt:"Elle a des à-coups quand j'accélère.",c:'bougies',red:['filtre_air'],dn:2},
-{id:'froid',txt:'Le moteur cale à froid.',c:'sonde_lambda',red:['bougies','filtre_air'],dn:3},
-{id:'voyant',txt:"Le voyant de batterie s'allume en roulant.",c:'alternateur',red:['batterie'],dn:3},
-{id:'clic',txt:'Je tourne la clé et il ne se passe rien, juste un clic.',c:'demarreur',red:['batterie'],dn:3},
-{id:'patine',txt:'Ça patine en côte et ça sent le brûlé.',c:'embrayage',red:[],dn:3},
-{id:'fumee',txt:'Fumée noire et consommation en hausse.',c:'injecteurs',red:['filtre_air','bougies'],dn:4},
-{id:'claque',txt:'Un claquement irrégulier dans le moteur.',c:'courroie_dist',red:['courroie_acc'],dn:4}];
+const SYMP=typeof MWP!=='undefined'?MWP.SYMP:[];
+const symDef=c=>{const y=c&&c.symp;return y?SYMP.find(x=>x.id===y.id)||null:null;};
 
 /* ── clientèle et voitures (marques imaginaires) ── */
 const MODELS={
@@ -7457,7 +7678,8 @@ const COLS=[0xb03030,0x2f5da8,0xe8e8e8,0x2a2a2e,0x3f8a4a,0xd8b22a,0x7a7f88,0xc86
 const NOMS=['Dupuis','Lambert','Moreau','Fabre','Garnier','Roux','Lefèvre','Marchand','Perrin','Collet','Benoît','Masson','Vidal','Carpentier','Girard','Noël','Blanc','Rey','Barre','Colin'];
 const CIV=['M.','Mme','M.','Mme','Mlle'];
 /* voitures réelles (js/44) : pièces, noms et prix selon la voiture ; sans MWCARS tout reste comme avant */
-const appl=(m,id)=>{try{return typeof MWCARS==='undefined'||!m||MWCARS.applies(m,id);}catch(e){return true;}};
+const appl=(m,id)=>{try{return (typeof MWCARS==='undefined'||!m||MWCARS.applies(m,id))&&(typeof MWP==='undefined'||MWP.applies(m,id));}catch(e){return true;}};
+const fuelOK=(m,y)=>{try{return typeof MWP==='undefined'||MWP.fuelOK(m,y);}catch(e){return true;}};
 const pn=(c,p)=>{const id=typeof p==='string'?p:p.id;let n=null;try{if(c&&c.mdl&&typeof MWCARS!=='undefined') n=MWCARS.partName(c.mdl,id);}catch(e){}return n||PARTS[id].nom;};
 const pprice=(c,p)=>{try{if(c&&c.mdl&&typeof MWCARS!=='undefined') return MWCARS.partPrice(c.mdl,p.id,p.prix);}catch(e){}return p.prix;};
 const lbl=c=>`${c.marque} ${c.modele}`+(c.an?` · ${c.an}`:'');
@@ -7512,30 +7734,33 @@ function chooseJob(e,o,mdl){
  if(o.tpl){const t=TPL.find(x=>x[0]===o.tpl);if(t) return {type:'travaux',ordre:t[2].slice(),nom:t[1]};}
  if(o.symp){const y=SYMP.find(x=>x.id===o.symp);if(y) return {type:'symptome',symp:y,ordre:[],nom:y.txt};}
  const J1=J();
- if(J1.stats.rendues>=3&&rnd()<.25){
-  const ys=SYMP.filter(y=>ok(y.c)&&y.dn<=lv('diagnostic')+stretch&&(!PARTS[y.c].hid||y.dn<=1||lv('electricite')>=2||PARTS[y.c].comp!=='electricite'));
+ if(J1.stats.rendues>=3&&rnd()<.3){
+  const ys=SYMP.filter(y=>ok(y.c)&&(y.ch||[]).every(ok)&&fuelOK(mdl,y)&&y.dn<=lv('diagnostic')+stretch&&(!PARTS[y.c].hid||y.dn<=1||lv('electricite')>=2||PARTS[y.c].comp!=='electricite'));
   if(ys.length){const y=pick(ys);return {type:'symptome',symp:y,ordre:[],nom:y.txt};}}
  const ts=TPL.filter(t=>t[2].every(ok));const l=ts.length?ts:[TPL[0]];
  let tot=0;for(const t of l) tot+=t[3];let r=rnd()*tot,t=l[0];for(const x of l){r-=x[3];if(r<=0){t=x;break;}}
  return {type:'travaux',ordre:t[2].slice(),nom:t[1]};}
-const needOf=o=>o.travaux?o.travaux.filter(id=>PARTS[id]):o.tpl?((TPL.find(x=>x[0]===o.tpl)||[0,0,[]])[2]):o.symp?[(SYMP.find(x=>x.id===o.symp)||{c:'huile'}).c]:[];
+const needOf=o=>o.travaux?o.travaux.filter(id=>PARTS[id]):o.tpl?((TPL.find(x=>x[0]===o.tpl)||[0,0,[]])[2]):o.symp?sympNeed(SYMP.find(x=>x.id===o.symp)):[];
+const sympNeed=y=>y?[y.c].concat(y.ch||[]):['huile'];
 /* modèle du garage (tuple [marque, modèle + moteur, kind, id]) où toutes les pièces demandées existent (pas de courroie de distribution sur une chaîne…) */
-function modelFor(zid,need){const pl=MODELS[zid]||MODELS.garage1,f=need&&need.length?pl.filter(m=>need.every(id=>appl(m[3],id))):pl;return pick(f.length?f:pl);}
+function modelFor(zid,need,y){const pl=MODELS[zid]||MODELS.garage1,f=pl.filter(m=>(!need||!need.length||need.every(id=>appl(m[3],id)))&&fuelOK(m[3],y));return pick(f.length?f:pl);}
 function makeCar(o){
  o=o||{};const NZ=o.noir||null; /* noir : client hors garage {zone,mod,color,client,taux,prix…}, sans employeur */
  const e=NZ?{id:'noir',zone:NZ.zone||'cour',niveauxAutorises:10}:emp();if(!e) return null;const z=MW.zone(e.zone);if(!z||!z.ponts) return null;
  const j=J();let pont=-1;const nP=z.libres!=null?z.libres:z.ponts.length;for(let i=0;i<nP;i++) if(!carAt(z.id,i)){pont=i;break;}
  if(pont<0) return null;
- const mod=(NZ&&NZ.mod)||modelFor(z.id,needOf(o)),jb=chooseJob(e,o,mod[3]),kr=KMR[z.id]||KMR.garage1,cat=mod[3]&&typeof MWCARS!=='undefined'?MWCARS.get(mod[3]):null;
+ const mod=(NZ&&NZ.mod)||modelFor(z.id,needOf(o),o.symp?SYMP.find(x=>x.id===o.symp):null),jb=chooseJob(e,o,mod[3]),kr=KMR[z.id]||KMR.garage1,cat=mod[3]&&typeof MWCARS!=='undefined'?MWCARS.get(mod[3]):null;
  let km=o.km||Math.round(rint(kr[0],kr[1])/100)*100,an=null;
  if(cat){const yr=2026,age=Math.round(Math.max(1,km/rint(9000,16000)));an=clamp(yr-age,cat.y0,Math.min(cat.y1,yr));if(!o.km) km=Math.round(clamp((yr-an)*rint(8000,16500)+rint(500,6000),Math.min(kr[0],4000),kr[1]*1.15)/100)*100;}
  const parts={};for(const p of PLIST) parts[p.id]=appl(mod[3],p.id)?{u:p.id==='ampoules'?rint(0,25):wearOf(p,km)}:{u:0,na:1};
  // un petit « extra » usé, détectable à l'inspection
- if(rnd()<.35){const ex=pick(PLIST.filter(p=>!p.hid&&p.niv<=Math.max(lv(p.comp)+1,1)&&!jb.ordre.includes(p.id)&&p.id!=='ampoules'&&appl(mod[3],p.id)));if(ex) parts[ex.id].u=rint(78,94);}
+ const sy0=jb.symp?SYMP.find(x=>x.id===jb.symp.id):null,sySet=sy0?[sy0.c].concat(sy0.red,sy0.ch||[]):[];
+ if(rnd()<.35){const exl=PLIST.filter(p=>!p.hid&&p.niv<=Math.max(lv(p.comp)+1,1)&&!jb.ordre.includes(p.id)&&!sySet.includes(p.id)&&p.id!=='ampoules'&&appl(mod[3],p.id));const ex=exl.length?pick(exl):null;if(ex) parts[ex.id].u=rint(78,94);}
  for(const id of jb.ordre) parts[id].u=Math.max(parts[id].u,rint(62,97));
- if(jb.symp){parts[jb.symp.c].u=rint(92,100);for(const id of jb.symp.red) if(!parts[id].na) parts[id].u=Math.max(parts[id].u,rint(42,62));}
+ if(jb.symp){parts[jb.symp.c].u=rint(92,100);for(const id of jb.symp.red) if(parts[id]&&!parts[id].na) parts[id].u=Math.max(parts[id].u,rint(42,62));
+  for(const id of (sy0&&sy0.ch)||[]) if(parts[id]&&!parts[id].na) parts[id].u=Math.max(parts[id].u,rint(78,94)); /* dégâts en chaîne : abîmés par la panne d'origine */}
  for(const id in parts) parts[id].u0=parts[id].u;
- let mo=0;for(const id of jb.ordre) mo+=PARTS[id].mo;if(jb.symp) mo=PARTS[jb.symp.c].mo+60;
+ let mo=0;for(const id of jb.ordre) mo+=PARTS[id].mo;if(jb.symp) mo=PARTS[jb.symp.c].mo+60+((sy0&&sy0.ch)||[]).reduce((a,id)=>a+(parts[id]&&!parts[id].na?PARTS[id].mo:0),0);
  const L=()=>String.fromCharCode(65+rint(0,25));
  const c={id:'j'+(++j.seq),zone:z.id,pont,client:(NZ&&NZ.client)||pick(CIV)+' '+pick(NOMS),marque:mod[0],modele:mod[1],kind:mod[2],mdl:mod[3]||null,an:an,color:(NZ&&NZ.color!=null)?NZ.color:pick(COLS),
   plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
@@ -7631,6 +7856,7 @@ const TOOLS_FOR={huile:['bac','cliquet','cle_dyn','entonnoir','bidon'],filtre_hu
  disq_av:['boulonneuse','cliquet','presse','cle_dyn'],disq_ar:['boulonneuse','cliquet','presse','cle_dyn'],pneus:['boulonneuse','cle_dyn'],bougies:['cliquet','cle_dyn'],courroie_acc:['cliquet','pinces'],
  batterie:['cliquet'],filtre_air:['tournevis'],filtre_hab:[],ampoules:['tournevis'],essuie:[],liquide_frein:['seringue','bidon'],amort:['boulonneuse','cliquet','cle_dyn'],
  alternateur:['cliquet'],demarreur:['cliquet'],injecteurs:['cliquet'],sonde_lambda:['pinces','cliquet'],courroie_dist:['cliquet','cle_dyn'],embrayage:['cliquet']};
+if(typeof MWP!=='undefined') Object.assign(TOOLS_FOR,MWP.TOOLS);
 const isTool=it=>!!it&&it.k==='outil';
 const itNom=it=>isTool(it)?(TOOLS_INV[it.id]||[it.id])[0]:PARTS[it.id].nom;
 const itAb=it=>isTool(it)?(TOOLS_INV[it.id]||[it.id,it.id])[1]:PARTS[it.id].ab;
@@ -7686,11 +7912,26 @@ function togRoues(c,ax){
  if(!c.st.lifted) return warn("Levez d'abord le pont.");
  if(c.st[ax]){if(remIn(c,p=>p.zone==='roue'&&(p.ax===ax||(p.ax==='*')))) return warn('Une pièce est démontée sur ces roues.');c.st[ax]=0;MW.addMin(8);NG(c,'roues',null,8);}
  else{c.st[ax]=1;MW.addMin(8);NG(c,'roues',null,8);}applyVisual(c);return true;}
+/* codes lus à la valise : ceux du coupable du symptôme (vrais codes P…), des codes trompeurs sur les fausses pistes un peu usées,
+   puis ceux des pièces invisibles ou à capteur déjà très usées (sans symptôme particulier) */
+function codesOf(c){
+ const y=symDef(c),l=[],add=t=>{if(t&&!l.includes(t)) l.push(t);};
+ for(const q of PLIST){const pr=c.parts[q.id];if(!pr||pr.na||c.done[q.id]) continue;
+  if(y&&y.c===q.id&&y.cod){if(pr.u>=60) for(const t of y.cod) add(t);continue;}
+  if(q.code&&pr.u>=SEUIL) add(q.code);} /* seule une pièce vraiment usée laisse un code : les autres restent muettes */
+ if(y&&y.fx) for(const id in y.fx){const pr=c.parts[id];if(pr&&!pr.na&&!c.done[id]&&pr.u>=40) add(y.fx[id]);}
+ return l;}
 function doValise(c){
  if(!outilOK('valise',c)) return warn('Il vous faut une valise de diagnostic (en vente chez Pièces Auto Express).');
  if(lv('electricite')<2) return warn("Lire la valise demande de l'électronique : niveau 2 en électricité.");
- MW.addMin(10);NG(c,'valise',null,10);const l=[];for(const q of PLIST) if(q.hid&&!c.done[q.id]&&!c.parts[q.id].na&&c.parts[q.id].u>=60) l.push(q.code);
+ MW.addMin(10);NG(c,'valise',null,10);const l=codesOf(c);
  c.codes=l.length?l:['Aucun défaut mémorisé.'];if(!c.vu){c.vu=1;c.comp.diagnostic=(c.comp.diagnostic||0)+4;}return true;}
+/* texte d'inspection d'une pièce : ce que dit le symptôme de cette voiture, sinon le texte général de la pièce */
+function inspLine(c,id){
+ const p=PARTS[id],u=c.parts[id].u,y=symDef(c),it=y&&y.ins&&y.ins[id]||'';
+ if(p.hid) return "rien d'anormal à l'œil nu"+(it?' : '+it:'')+' ; la valise de diagnostic le dira.';
+ return `usure ${u} % — `+(u>=SEUIL?(u>=90?"hors d'usage. ":'à remplacer. ')+(it||p.usTxt):(u<35?'bon état.':u<60?'usure correcte.':'à surveiller.')+(it?' '+it:''));}
+const codeTxt=(c,p)=>{const y=symDef(c);return y&&y.c===p.id&&y.cod&&y.cod.length?y.cod.join(' ; '):(p.code||'Défaut de signal.');};
 
 /* ═══════════ Essai sur route ═══════════ */
 let ess=null;
@@ -7708,9 +7949,15 @@ function essaiStart(c){
  MW.toast("Essai sur route : roulez quelques instants, puis arrêtez-vous et appuyez sur F pour redescendre.",'info');
  MW.hud('essai','<b>Essai sur route</b><br>Écoutez la voiture : accélérez, freinez, prenez un virage.');
  setTimeout(pressF,60);}
+/* ce qu'on ressent dans une situation de l'essai : le texte propre au symptôme pour le coupable, le texte général pour les pièces très usées */
+function clueTxt(c,cat){
+ const y=symDef(c),l=[];
+ for(const p of PLIST){const pr=c.parts[p.id];if(!pr||pr.na||c.done[p.id]) continue;
+  if(y&&y.c===p.id&&y.ess){if(y.ess[cat]) l.push(y.ess[cat]);continue;}
+  if(p.ess===cat&&pr.u>=70&&p.essTxt) l.push(p.essTxt);}
+ return l;}
 function essaiClue(cat){
- if(!ess||ess.seen[cat]) return;ess.seen[cat]=1;const c=ess.c,l=[];
- for(const p of PLIST) if(p.ess===cat&&!c.done[p.id]&&c.parts[p.id].u>=70) l.push(p.essTxt);
+ if(!ess||ess.seen[cat]) return;ess.seen[cat]=1;const c=ess.c,l=clueTxt(c,cat);
  if(l.length){const t=ESS_NOM[cat]+' : '+l.join(' ');if(!c.clues.includes(t)) c.clues.push(t);ess.lines.push(t);MW.toast(t,'warn');}}
 function essaiTick(dt){
  const pl=MW.player(),pc=MW.playerCar(),s=MW.S;ess.t+=dt;
@@ -7721,7 +7968,10 @@ function essaiTick(dt){
   syncEss();return;}
  if(!pl.inCar){essaiEnd(false);return;}
  const v=Math.abs(pc.speed);ess.m+=v*dt;
+ if(v>3&&ess.t<25) essaiClue('froid');
  if(v>10) essaiClue('accel');
+ if(v>12){ess.fast=(ess.fast||0)+dt;if(ess.fast>3) essaiClue('vitesse');}else ess.fast=0;
+ if(ess.t>22&&v>3) essaiClue('chaud');
  if(v>6){ess.run+=dt;if(ess.run>4) essaiClue('bosses');}
  const dry=Math.abs(pc.ry-ess.lry)/Math.max(dt,.001);ess.lry=pc.ry;if(v>5&&dry>.45) essaiClue('virage');
  if(v>ess.peak){ess.peak=v;ess.pt=ess.t;}if(ess.peak>8&&v<ess.peak-6&&ess.t-ess.pt<4){essaiClue('frein');ess.peak=0;}
@@ -7739,7 +7989,7 @@ function essaiEnd(abort){
  if(abort){MW.toast("L'essai n'a pas pu démarrer : montez dans la voiture avec F.",'warn');return;}
  c.km=Math.round(c.km+e.m/1000);c.essai=1;c.comp.diagnostic=(c.comp.diagnostic||0)+(c.essaiXp?0:5);c.essaiXp=1;
  MW.emit('essai',c);
- setTimeout(()=>{if(!MW.paused) MW.panel('Essai terminé',`<p>${esc(voit(c))} · ${nf(Math.round(e.m))} m parcourus.</p>`+(e.lines.length?'<p><b>Ce que vous avez remarqué :</b></p><ul class="mw-ul">'+e.lines.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>':'<p>Rien d\'anormal à signaler sur ce parcours. Essayez aussi de freiner franchement et de prendre un virage.</p>')+'<div class="mw-btns"><button type="button" class="btn" data-mw="close">Retour à la voiture</button></div>');},200);}
+ setTimeout(()=>{if(!MW.paused) MW.panel('Essai terminé',`<p>${esc(voit(c))} · ${nf(Math.round(e.m))} m parcourus.</p>`+(e.lines.length?'<p><b>Ce que vous avez remarqué :</b></p><ul class="mw-ul">'+e.lines.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>':'<p>Rien d\'anormal à signaler sur ce parcours. Essayez aussi de freiner franchement, de prendre un virage, de rouler quelques secondes à vitesse stable et de rouler assez longtemps pour que le moteur soit chaud.</p>')+(()=>{const rest=Object.keys(ESS_NOM).filter(k=>!e.seen[k]);return rest.length?'<p class="hint">Situations pas encore essayées : '+rest.map(k=>ESS_NOM[k].toLowerCase()).join(', ')+'.</p>':'';})()+'<div class="mw-btns"><button type="button" class="btn" data-mw="close">Retour à la voiture</button></div>');},200);}
 
 /* noir : ce qu'un garage facturerait pour ces pièces (mêmes formules que evalJob) ; cout = pièces achetées au magasin */
 function quote(ids,kind,taux,extraMin){
@@ -7764,7 +8014,8 @@ function evalJob(c){
  for(const k in c.comp) comp[k]=(comp[k]||0)+c.comp[k];
  const late=Math.max(0,openT()-c.promis),retard=Math.min(2,Math.floor(late/30)*.5);
  const rendMiss=c.rend&&!c.noir?Object.keys(c.done).filter(id=>invFind('usagee',id,c.id)<0):[];
- let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-Math.min(2,rendMiss.length)-(MG()?MG().malus(c):0);if(nonResolu) n=1;
+ const sd=symDef(c),chain=sd&&sd.ch&&!nonResolu?sd.ch.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na&&c.parts[id].u0>=SEUIL):[];
+ let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-Math.min(2,rendMiss.length)-Math.min(2,chain.length)-(MG()?MG().malus(c):0);if(nonResolu) n=1;
  if(c.caught) n=1; /* arnaque découverte au comptoir */
  const note=Math.round(clamp(n,1,5)),mult=note>=4?1:note===3?.8:.5;
  for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
@@ -7774,7 +8025,7 @@ function evalJob(c){
  const honMO=R2(mo/60*c.taux),mainOeuvre=R2((mo+moF)/60*c.taux*(F.mo&&!nonResolu?1.35:1)),facture=R2(pieces+mainOeuvre);
  const kinds=[];if(F.neuf&&lines.some(l=>l.re)) kinds.push('neuf');if(F.mo&&!nonResolu) kinds.push('mo');if(moF) kinds.push('fant');if(vol.length) kinds.push('vol');
  const fraude={kinds,gain:R2(facture-hon-honMO),vol};
- return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,rendMiss,fraude,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
+ return {lines,pieces:R2(pieces),mainOeuvre,facture,note,comp,manque,nonResolu,inut,extra,need,retard,diag,rendMiss,chain,fraude,perte:R2(inut.reduce((a,id)=>a+pprice(c,PARTS[id]),0))};}
 function payOf(job){
  if(typeof MWC!=='undefined'&&MWC&&typeof MWC.payFor==='function'){try{const v=MWC.payFor(job);if(typeof v==='number'&&isFinite(v)) return R2(Math.max(0,v));}catch(e){}}
  const e=emp()||{};return e.paie==='mois'?0:R2(job.mainOeuvre*.4);}
@@ -7783,7 +8034,7 @@ function done(c){
  if(!c.noir&&typeof MWA!=='undefined') MWA.counter(c); /* le client relit la facture au comptoir */
  const e=c.noir?{id:'noir'}:(emp()||{}),ev=evalJob(c),s=MW.S,j=J();
  const job={id:c.id,client:c.client,voiture:voit(c),plaque:c.plaque,km:c.km,travaux:Object.keys(c.done),symptome:c.symp?c.symp.txt:null,facture:ev.facture,pieces:ev.pieces,mainOeuvre:ev.mainOeuvre,
-  note:ev.note,competences:ev.comp,employeur:e.id||null,jour:s.day,zone:c.zone,heure:hm(s.min),resolu:!ev.nonResolu};
+  note:ev.note,competences:ev.comp,employeur:e.id||null,jour:s.day,zone:c.zone,heure:hm(s.min),resolu:!ev.nonResolu,cause:(symDef(c)&&!ev.nonResolu&&symDef(c).cause)||null};
  /* noir : paie convenue en liquide, sans facture d'employeur ni remboursement de pièces */
  if(c.noir){job.noir=true;job.facture=c.noir.prix||0;job.mainOeuvre=0;job.pieces=0;job.service=!!c.noir.service;}
  let pay=c.noir?(typeof MWN!=='undefined'&&MWN.payOf?MWN.payOf(c,ev):0):payOf(job);const tip=ev.note===5&&pay>0?Math.max(2,Math.round(pay*.1)):0;
@@ -7816,8 +8067,9 @@ function rowHTML(c,p){
  else if(!a.ok){info=`<small class="mw-lock">${esc(a.why)}</small>`;}
  else{if(!c.insp[p.id]) b+=btn('insp:'+p.id,'Inspecter','ghost');b+=btn('dep:'+p.id,'Démonter','');}
  if(c.insp[p.id]&&!c.done[p.id]){
-  if(p.hid) info+=`<small>${esc(c.vu?(u>=60?p.code:'Mesures normales à la valise.'):"Rien d'anormal à l'œil nu : seule la valise de diagnostic peut le dire.")}</small>`;
-  else info+=`<div class="mw-usure"><i style="width:${u}%" class="${u>=SEUIL?'r':u>=55?'o':'v'}"></i></div><small>Usure ${u} % — ${esc(u<35?'bon état.':u<60?'usure correcte.':u<SEUIL?'à surveiller.':(u>=90?"hors d'usage. ":'à remplacer. ')+p.usTxt)}</small>`;}
+  const it=(symDef(c)||{}).ins&&symDef(c).ins[p.id];
+  if(p.hid) info+=`<small>${esc(c.vu?(u>=SEUIL?codeTxt(c,p):'Mesures normales à la valise.'):"Rien d'anormal à l'œil nu : seule la valise de diagnostic peut le dire.")}</small>`+(it?`<small>${esc(it)}</small>`:'');
+  else info+=`<div class="mw-usure"><i style="width:${u}%" class="${u>=SEUIL?'r':u>=55?'o':'v'}"></i></div><small>${esc(inspLine(c,p.id).replace(/^usure/,'Usure'))}</small>`;}
  const need=[];if(p.niv>lv(p.comp)||!canDo(p.id,c)) need.push(`niveau ${p.niv} en ${SK_NOM[p.comp].toLowerCase()}`);if(!outilOK(p.outil,c)) need.push(OUTILS[p.outil].nom.toLowerCase());
 
  if(p.id==='huile'&&c.mdl&&typeof MWCARS!=='undefined'&&!c.done[p.id]) info+=`<small>Capacité du moteur : ${nf(MWCARS.oilL(c.mdl),2)} l (${esc(MWCARS.get(c.mdl).eng.visc)}).</small>`;
@@ -7860,6 +8112,7 @@ function rendreUI(c){
  const w=[];if(ev.nonResolu) w.push('La panne signalée n\'est pas réparée : le client ne paiera rien et sera très mécontent.');
  if(ev.manque.length) w.push('Travaux demandés non faits : '+ev.manque.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  if(ev.inut.length) w.push('Pièces remplacées pour rien (non facturées) : '+ev.inut.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
+ if(ev.chain&&ev.chain.length) w.push('Dégâts causés par la panne laissés en l\'état : '+ev.chain.map(id=>pn(c,id).toLowerCase()).join(', ')+'. Le client risque de revenir très vite.');
  if(ev.retard) w.push('Voiture rendue en retard.');
  if(ev.rendMiss&&ev.rendMiss.length) w.push('Le client voulait récupérer ses anciennes pièces, il en manque : '+ev.rendMiss.map(id=>pn(c,id).toLowerCase()).join(', ')+'.');
  else if(c.rend&&!c.noir) h+='<p class="hint">Vous lui rendez aussi ses anciennes pièces, comme il l\'a demandé.</p>';
@@ -7871,7 +8124,7 @@ function rendreUI(c){
   if(a.startsWith('fr:')&&typeof MWA!=='undefined'){MWA.toggle(c,a.slice(3));rendreUI(c);return;}
   if(a==='ok'){const job=done(c);if(!job) return;
    const cp=Object.keys(job.competences).filter(k=>job.competences[k]>0).map(k=>`${SK_NOM[k]} +${job.competences[k]}`).join(', ');
-   show('Voiture rendue',`<p class="mw-note">${stars(job.note)}</p><p>${esc(job.client)} ${job.note>=4?'est ravi(e) !':job.note===3?'repart satisfait(e).':'n\'est pas content(e).'}</p><p>${job.noir?'Prix convenu':'Facture'} : <b>${fmt(job.facture)}</b> · ${job.noir?'en liquide pour vous':'votre paie'} : <b>${fmt(job.pay)}</b>${job.pourboire?' (pourboire compris)':''}${job.avance?' · pièces avancées remboursées : '+fmt(job.avance):''}</p><p>Réputation ${job.rep>=0?'+':'−'}${nf(Math.abs(job.rep),1)}${cp?' · expérience : '+esc(cp):''}</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Continuer</button></div>`,()=>{});}});}
+   show('Voiture rendue',`<p class="mw-note">${stars(job.note)}</p><p>${esc(job.client)} ${job.note>=4?'est ravi(e) !':job.note===3?'repart satisfait(e).':'n\'est pas content(e).'}</p><p>${job.noir?'Prix convenu':'Facture'} : <b>${fmt(job.facture)}</b> · ${job.noir?'en liquide pour vous':'votre paie'} : <b>${fmt(job.pay)}</b>${job.pourboire?' (pourboire compris)':''}${job.avance?' · pièces avancées remboursées : '+fmt(job.avance):''}</p>${job.cause?`<p><b>Cause de la panne :</b> ${esc(job.cause)}</p>`:''}<p>Réputation ${job.rep>=0?'+':'−'}${nf(Math.abs(job.rep),1)}${cp?' · expérience : '+esc(cp):''}</p><div class="mw-btns"><button type="button" class="btn" data-mw="close">Continuer</button></div>`,()=>{});}});}
 
 /* ── étagère, établi, magasin, ferraille ── */
 const STOCK1=['huile','filtre_huile','filtre_air','filtre_hab','essuie','ampoules','pneus','batterie','plaq_av','plaq_ar','liquide_frein','bougies','courroie_acc'];
@@ -8000,7 +8253,8 @@ function init(){
  for(const id in RT){MW.scene.remove(RT[id].g);delete RT[id];}
  if(j.essai){Object.assign(MW.S.car,j.essai.orig);if(MW.player().inCar) MW.teleport(j.essai.orig.x,j.essai.orig.z,j.essai.orig.ry);j.essai=null;}
  ess=null;MW.playerCar().mesh.visible=true;
- for(const c of j.cars){buildMesh(c);moveInteracts(c);}
+ for(const c of j.cars){for(const p of PLIST) if(!c.parts[p.id]) c.parts[p.id]={u:0,na:1}; /* anciennes sauvegardes : pièces nouvelles absentes */
+  buildMesh(c);moveInteracts(c);}
  invUI();hudJobs();
  if(typeof MWC==='undefined') MW.setDoor('garage1',()=>MW.panel('Garage du Coin',`<p>Bienvenue au Garage du Coin. Les clients arrivent de 8 h à 19 h : approchez-vous d'une voiture sur un pont, inspectez-la, démontez la pièce usée, prenez la neuve à l'étagère, montez-la, puis rendez la voiture depuis l'habitacle.</p><div class="mw-btns"><button type="button" class="btn" data-mw="carnet">Ouvrir le carnet</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,{onClick:a=>{if(a==='carnet') carnet();}}));
  if(!j.next||j.next<absT()-1500) j.next=0;}
@@ -8027,7 +8281,7 @@ regPoints();
 
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
- modelFor:(zid,need,symp)=>modelFor(zid,(need||[]).concat(symp?[symp.c]:[])),pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
+ modelFor:(zid,need,symp)=>{const y=symp?SYMP.find(x=>x.id===symp.id)||symp:null;return modelFor(zid,(need||[]).concat(y?sympNeed(y):[]),y);},symDef,codesOf,clueTxt,inspLine,ESS_NOM,pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
  state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
@@ -11489,7 +11743,8 @@ function syncAll(instant){if(!R) return;for(const pr of R.procs) try{pr.vis&&pr.
 const BUILD=[];                       /* constructeurs de procédures : (R) => void */
 const liftedNow=c=>!!c.st.lifted;
 const partOK=(c,id)=>!!c.parts[id]&&!c.parts[id].na;
-const wanted=(c,id)=>partOK(c,id)&&!c.done[id]&&(c.ordre.includes(id)||(c.symp&&c.symp.c===id)||!!(c.g&&c.g.p[id]));
+const chainWanted=(c,id)=>{const y=c.symp&&MWJ.symDef(c);return !!(y&&y.ch&&y.ch.includes(id)&&c.insp[id]);}; /* dégât en chaîne déjà inspecté (js/51) */
+const wanted=(c,id)=>partOK(c,id)&&!c.done[id]&&(c.ordre.includes(id)||(c.symp&&c.symp.c===id)||chainWanted(c,id)||!!(c.g&&c.g.p[id]));
 const wantedAny=(c,ids)=>ids.some(id=>wanted(c,id));
 const pname=(c,id)=>MWJ.pn(c,id);
 const accOK=(c,id)=>{const a=L().acces(c,PARTS[id]);return a.ok?null:a.why;};
@@ -11566,7 +11821,7 @@ function treadTex(k){
  return TREADS[k]=new T.MeshLambertMaterial({map:tx});}
 const wearK=u=>u>=70?'worn':u>=40?'mid':'new';
 function needWheel(R,S){
- const c=R.c,ax=S[0]==='F'?'av':'ar',ids=['plaq_'+ax,'disq_'+ax,'pneus'];if(ax==='av') ids.push('amort');
+ const c=R.c,ax=S[0]==='F'?'av':'ar',ids=['plaq_'+ax,'disq_'+ax,'pneus'];if(ax==='av') ids.push('amort','rotule','roulement','cardan');
  return wantedAny(c,ids);}
 function wheelsLogic(R,ax){
  const c=R.c,a=ax==='av'?['FL','FR']:['RL','RR'],offs=a.every(S=>wst(c,S).o),ons=a.every(S=>!wst(c,S).o);
@@ -11574,7 +11829,7 @@ function wheelsLogic(R,ax){
  else if(ons&&c.st[ax]) L().togRoues(c,ax);}
 function tiresCheck(R){const c=R.c;if(CORN.every(S=>wst(c,S).t)&&!c.done.pneus){if(doDepL(R,'pneus')) doPoseL(R,'pneus');}}
 function inspMsg(R,id){const c=R.c,p=PARTS[id],u=c.parts[id].u;
- MW.toast(`${pname(c,id)} : `+(p.hid?"rien d'anormal à l'œil nu ; la valise de diagnostic le dira.":`usure ${u} % — ${u<35?'bon état.':u<60?'usure correcte.':u<75?'à surveiller.':(u>=90?"hors d'usage. ":'à remplacer. ')+p.usTxt}`),u>=75&&!p.hid?'warn':'info');}
+ MW.toast(`${pname(c,id)} : `+MWJ.inspLine(c,id),u>=75&&!p.hid?'warn':'info');} /* texte propre au symptôme (js/41 : inspLine) */
 const SIDE_NOM={FL:'avant gauche',FR:'avant droite',RL:'arrière gauche',RR:'arrière droite'};
 function buildWheels(R){
  const {c,g,u}=R,F=R.F,N=NUTS(c);R.wh={};
@@ -11904,6 +12159,15 @@ function mkProxy(kind,u){
  else if(kind==='belt'){g.add(tor(.09,.008,d?0x4a4642:0x0c0c0c,0,0,0,'x'),tor(.09,.008,d?0x4a4642:0x0c0c0c,0,.0,.0,'z'));g.add(cy(.035,.02,C.steel,0,0,0,'x','p'),cy(.035,.02,C.steel,0,.14,0,'x','p'));}
  else if(kind==='damper'){g.add(cy(.025,.3,d?0x2a2622:0x2a2e33,0,0,0),cy(.012,.2,0xd8dde2,0,.2,0,null,'p'));for(let i=0;i<6;i++) g.add(tor(.05,.005,d?0x6a5a4a:0xc02a20,0,-.12+i*.045,0,'y'));}
  else if(kind==='rail'){g.add(cy(.012,.3,C.steel,0,0,0,'x','p'));for(let i=-1;i<=1;i+=2) g.add(cy(.009,.07,d?0x3a3028:C.alu,i*.1,-.045,0));}
+ else if(kind==='egr') g.add(cy(.03,.07,d?0x2a2420:C.alu,0,0,0,'x'),cy(.012,.1,C.steel,0,.05,0));
+ else if(kind==='fap'||kind==='cata') g.add(cy(.07,.4,d?0x4a4038:C.steel,0,0,0,'z','p'),tor(.07,.006,C.dsteel,0,0,.2,'x'));
+ else if(kind==='turbo') g.add(cy(.06,.1,d?0x4a3a2a:C.dsteel,0,0,0,'x','p'),cy(.05,.06,C.alu,.07,0,0,'x'));
+ else if(kind==='sensor') g.add(cy(.008,.07,0x222222,0,0,0),hex(.012,.015,0xb9bec4,0,-.03,0));
+ else if(kind==='fan') g.add(cy(.17,.03,d?0x2a2a2a:0x1c1c1c,0,0,0,'z','p'),bx(.3,.012,.02,C.steel,0,0,.02),bx(.012,.3,.02,C.steel,0,0,.02));
+ else if(kind==='pump') g.add(cy(.045,.1,d?0x3a3a3a:C.dsteel,0,0,0,'x','p'),cy(.03,.05,C.alu,.07,0,0,'x'));
+ else if(kind==='thermo') g.add(cy(.04,.03,C.alu,0,0,0),cy(.012,.05,d?0x6a5a4a:C.steel,0,.03,0));
+ else if(kind==='fuelf') g.add(cy(.04,.12,d?0x3a2f26:0x7a838c,0,0,0,null,'p'));
+ else if(kind==='gasket') g.add(bx(.3,.01,.12,d?0x3a3028:0x1c1c1c,0,0,0));
  else g.add(bx(.1,.06,.1,C.steel,0,0,0));
  return g;}
 function buildGeneric(R,sp){
@@ -12080,6 +12344,38 @@ BUILD.push(buildPlugsBelt);
 
 SPECS.push({id:'liquide_frein',kind:'fluid',at:R=>LOCAL(R,'brakeFluid',0,.08,0),nfix:1,fixAt:[[0,.0,0]],fixTool:'main',fixName:'Bouchon du bocal',fixLab:'Dévisser le bouchon du bocal',fixRe:'Revisser le bouchon',vis:R=>c4(R),depTool:'seringue',depLab:"Aspirer l'ancien liquide",poseTool:'bidon',poseLab:'Remplir de liquide neuf et purger',poseHold:1.8,r:.09,ord:12});
 SPECS.push({id:'amort',kind:'damper',units:2,nfix:0,at:R=>LOCAL(R,'hubFL',0,.3,0),unitAt:(R,i)=>{const a=R.A(i?'hubFR':'hubFL');return V3(a.x,a.y+.32,a.z);},vis:R=>R.c.st.av,depTool:'cliquet',depSock:'top',depLab:"Déposer l'amortisseur et son ressort",poseTool:'cliquet',poseSock:'top',poseLab:"Monter l'amortisseur neuf",depHold:1.4,poseHold:1.4,r:.15,ord:13});
+
+/* ═══ [js/51] pièces des pannes réalistes : mêmes gestes génériques (fixations, dépose, pièce neuve, remontage), points d'ancrage existants ═══ */
+const SPF=[[.07,.07,0],[-.07,.07,0],[.07,-.07,0],[-.07,-.07,0],[0,.08,.07],[0,.08,-.07]];
+const SP=(id,o)=>SPECS.push(Object.assign({id,vis:R=>c4(R),nfix:2,fixAt:SPF,sock:'clip',fixName:'Fixation',fixLab:'Dévisser',r:.11,ord:14},o));
+const fixN=n=>SPF.slice(0,n);
+const radAt=R=>{const a=R.A('radiator');return a.lengthSq()>0?a:LOCAL(R,'coolant',-.1,-.15,.2);};
+const exAt=(R,k)=>{const e=R.A('exhaust');return V3(e.x,e.y+.05,R.u.L?R.u.L*k:0);};
+const hubAt=(R,i,dy)=>{const a=R.A(i?'hubFR':'hubFL');return V3(a.x,a.y+dy,a.z);};
+const gearAt=(R,dz)=>{const b=bayG(R),e=b&&b.userData.gear;return e?e.e.clone().add(V3(0,0,dz||0)):LOCAL(R,'bay',0,.2,dz||0);};
+SP('bobines',{kind:'coil',at:R=>LOCAL(R,'coils',0,.1,.12),nfix:2,fixAt:fixN(2),depLab:'Déposer les bobines usées',poseLab:'Monter les bobines neuves',ord:14});
+SP('vanne_egr',{kind:'egr',at:R=>LOCAL(R,'coils',.14,.06,-.1),nfix:2,fixAt:fixN(2),sock:'inj',fixName:'Vis de la vanne EGR',depLab:'Déposer la vanne EGR encrassée',poseLab:'Monter la vanne EGR neuve',ord:15});
+SP('fap',{kind:'fap',at:R=>exAt(R,.07),vis:R=>liftedNow(R.c),nfix:3,fixAt:fixN(3),sock:'bolt',fixName:"Bride d'échappement",depLab:'Déposer le filtre à particules',poseLab:'Monter le filtre à particules neuf',r:.15,ord:16});
+SP('turbo',{kind:'turbo',at:R=>LOCAL(R,'coils',-.16,.04,0),nfix:3,fixAt:fixN(3),sock:'bolt',fixName:'Écrou du turbo',depLab:'Déposer le turbocompresseur',poseLab:'Monter le turbo neuf',poseTool:'cle_dyn',poseSock:'bolt',r:.13,ord:17});
+SP('filtre_gazole',{kind:'fuelf',at:R=>LOCAL(R,'airbox',0,-.02,-.18),nfix:0,fixAt:[],depTool:'cle_filtre',depLab:'Dévisser le filtre à gazole usé',poseTool:'main',poseLab:'Visser le filtre à gazole neuf',r:.1,ord:18});
+SP('thermostat',{kind:'thermo',at:R=>LOCAL(R,'coolant',-.15,-.12,.1),nfix:3,fixAt:fixN(3),fixName:'Vis du boîtier de thermostat',depLab:'Déposer le boîtier et le thermostat',poseLab:'Monter le thermostat neuf et son joint',r:.1,ord:19});
+SP('pompe_eau',{kind:'pump',at:R=>LOCAL(R,'timing',0,-.05,.1),nfix:4,fixAt:fixN(4),sock:'bolt',fixName:'Vis de la pompe à eau',depLab:'Déposer la pompe à eau',poseLab:'Monter la pompe à eau neuve',r:.12,ord:20});
+SP('radiateur',{kind:'thermo',at:R=>radAt(R),nfix:2,fixAt:fixN(2),fixTool:'pinces',fixName:'Collier de durite du radiateur',fixLab:'Desserrer le collier',fixRe:'Resserrer le collier',depLab:'Déposer le radiateur',poseLab:'Monter le radiateur neuf',r:.2,ord:21});
+SP('durite',{kind:'thermo',at:R=>LOCAL(R,'coolant',0,-.1,0),nfix:2,fixAt:fixN(2),fixTool:'pinces',fixName:'Collier de durite',fixLab:'Desserrer le collier',fixRe:'Resserrer le collier',depLab:'Retirer la durite fendue',poseLab:'Monter la durite neuve',r:.1,ord:22});
+SP('ventilateur',{kind:'fan',at:R=>radAt(R),nfix:2,fixAt:fixN(2),fixName:'Vis du motoventilateur',depLab:'Déposer le motoventilateur',poseLab:'Monter le motoventilateur neuf',r:.18,ord:23});
+SP('joint_culasse',{kind:'gasket',at:R=>LOCAL(R,'coils',0,.16,-.14),nfix:6,fixAt:fixN(6),sock:'bolt',fixName:'Vis de culasse',fixLab:'Desserrer la vis de culasse',fixRe:'Resserrer la vis de culasse (au couple)',cover:{name:'Couvre-culasse',at:R=>LOCAL(R,'coils',0,.12,-.1),mk:()=>bx(.34,.03,.16,0x3b4046,0,0,0)},depLab:'Déposer la culasse et son joint percé',poseLab:'Poser la culasse avec un joint neuf',poseTool:'cle_dyn',poseSock:'bolt',depHold:1.6,poseHold:1.6,r:.15,ord:24});
+SP('capteur_pmh',{kind:'sensor',at:R=>LOCAL(R,'bay',.1,.02,-.1),vis:R=>liftedNow(R.c),nfix:1,fixAt:fixN(1),fixTool:'pinces',fixName:'Connecteur du capteur de vilebrequin',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'clip',depLab:'Dévisser le capteur de vilebrequin',poseTool:'cliquet',poseSock:'clip',poseLab:'Visser le capteur neuf',r:.08,ord:25});
+SP('capteur_arbre',{kind:'sensor',at:R=>LOCAL(R,'timing',0,.1,-.05),nfix:1,fixAt:fixN(1),fixTool:'pinces',fixName:"Connecteur du capteur d'arbre à cames",fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'clip',depLab:"Dévisser le capteur d'arbre à cames",poseTool:'cliquet',poseSock:'clip',poseLab:'Visser le capteur neuf',r:.08,ord:26});
+SP('debitmetre',{kind:'sensor',at:R=>LOCAL(R,'airbox',0,.06,.2),nfix:2,fixAt:fixN(2),fixTool:'tournevis',fixName:'Vis du débitmètre',fixLab:'Dévisser les vis',fixRe:'Revisser les vis',depLab:"Sortir le débitmètre d'air",poseLab:'Monter le débitmètre neuf',r:.09,ord:27});
+SP('sonde_temp',{kind:'sensor',at:R=>LOCAL(R,'coolant',.1,-.15,.15),nfix:1,fixAt:fixN(1),fixTool:'pinces',fixName:'Connecteur de la sonde de température',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'clip',depLab:'Dévisser la sonde de température',poseTool:'cliquet',poseSock:'clip',poseLab:'Visser la sonde neuve',r:.08,ord:28});
+SP('pompe_carburant',{kind:'pump',at:R=>{const a=R.A('under');return V3(a.x,a.y+.1,a.z-(R.u.L?R.u.L*.12:.5));},vis:R=>liftedNow(R.c),nfix:4,fixAt:fixN(4),fixName:'Vis de la bride de pompe',depLab:'Déposer la pompe à carburant',poseLab:'Monter la pompe neuve',r:.14,ord:29});
+SP('catalyseur',{kind:'cata',at:R=>exAt(R,.15),vis:R=>liftedNow(R.c),nfix:3,fixAt:fixN(3),sock:'bolt',fixName:"Bride d'échappement",depLab:'Déposer le catalyseur',poseLab:'Monter le catalyseur neuf',r:.15,ord:30});
+SP('joint_cc',{kind:'gasket',at:R=>LOCAL(R,'coils',0,.14,0),nfix:4,fixAt:fixN(4),fixName:'Vis du cache-culbuteurs',depLab:'Déposer le cache-culbuteurs et son joint',poseLab:'Poser le joint neuf et refermer',r:.12,ord:31});
+SP('joint_spi',{kind:'gasket',at:R=>LOCAL(R,'timing',0,-.12,0),nfix:3,fixAt:fixN(3),fixName:'Boulon de poulie',depTool:'pinces',depLab:"Extraire l'ancien joint spi",poseTool:'main',poseLab:'Monter le joint spi neuf',r:.1,ord:32});
+SP('rotule',{kind:'sensor',units:2,nfix:0,fixAt:[],at:R=>hubAt(R,0,.18),unitAt:(R,i)=>hubAt(R,i,.18),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'arm',depLab:'Déposer la rotule',poseTool:'cliquet',poseSock:'arm',poseLab:'Monter la rotule neuve',depHold:1.2,poseHold:1.2,r:.1,ord:33});
+SP('roulement',{kind:'pump',units:2,nfix:0,fixAt:[],at:R=>hubAt(R,0,0),unitAt:(R,i)=>hubAt(R,i,0),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'bolt',depLab:'Déposer le moyeu et extraire le roulement',poseTool:'cliquet',poseSock:'bolt',poseLab:'Presser le roulement neuf et remonter',depHold:1.4,poseHold:1.4,r:.12,ord:34});
+SP('cardan',{kind:'sensor',units:2,nfix:0,fixAt:[],at:R=>hubAt(R,0,-.06),unitAt:(R,i)=>hubAt(R,i,-.06),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'nut',depLab:'Déposer le cardan',poseTool:'cliquet',poseSock:'nut',poseLab:'Monter le cardan neuf',depHold:1.3,poseHold:1.3,r:.1,ord:35});
+SP('volant_bimasse',{kind:'clutch',at:R=>gearAt(R,.06),vis:R=>liftedNow(R.c)&&!!bayG(R),nfix:4,fixAt:[[.1,.08,.12],[-.1,.08,.12],[.1,-.08,.12],[-.1,-.08,.12]],sock:'gear',fixName:'Vis du volant moteur',depLab:'Déposer le volant moteur bimasse',poseLab:'Monter le volant neuf',poseTool:'cle_dyn',poseSock:'gear',depHold:1.5,poseHold:1.5,r:.14,ord:36});
 
 /* ═══════════ Blocages, malus ═══════════ */
 function blocage(c){
@@ -12521,7 +12817,13 @@ const R={
  alternateur:{f:.2,t:'consigne',o:70,d:1.1,r:{min:90,kit:.12,g:70,txt:'Charbons, roulements et régulateur neufs, débit contrôlé au banc.'}},
  demarreur:{f:.2,t:'consigne',o:70,d:1,r:{min:80,kit:.1,g:70,txt:'Lanceur, charbons et bagues neufs, essai à vide.'}},
  injecteurs:{f:.18,t:'consigne',o:65,d:1,r:{min:60,kit:.1,g:65,txt:'Nettoyage aux ultrasons, joints neufs, débit et pulvérisation contrôlés au banc.'}},
- sonde_lambda:{f:.2,t:'precieux'}};
+ sonde_lambda:{f:.2,t:'precieux'},
+ /* pannes réalistes (js/51) */
+ bobines:{f:.05,t:'fer'},vanne_egr:{f:.12,t:'fer'},fap:{f:.15,t:'precieux'},turbo:{f:.25,t:'consigne'},filtre_gazole:{f:0,t:'dechet'},thermostat:{f:.05,t:'fer'},
+ pompe_eau:{f:.08,t:'fer'},radiateur:{f:.12,t:'fer',o:50,d:.7},durite:{f:0,t:'dechet'},ventilateur:{f:.08,t:'fer',o:60,d:.6},joint_culasse:{f:0,t:'dechet'},
+ capteur_pmh:{f:.05,t:'fer'},capteur_arbre:{f:.05,t:'fer'},debitmetre:{f:.06,t:'fer'},sonde_temp:{f:0,t:'dechet'},pompe_carburant:{f:.08,t:'fer'},
+ catalyseur:{f:.3,t:'precieux'},joint_cc:{f:0,t:'dechet'},joint_spi:{f:0,t:'dechet'},rotule:{f:.08,t:'fer'},roulement:{f:.06,t:'fer'},cardan:{f:.2,t:'consigne'},
+ volant_bimasse:{f:.1,t:'fer'}};
 const MAT={dechet:'Déchet : recyclage gratuit, ne rapporte rien.',pneu:'Pneus usés : recyclage gratuit, ne rapportent rien.',fer:'Ferraille, payée au poids.',
  plomb:'Plomb de la batterie, bien payé au recyclage.',precieux:'Contient des métaux précieux (platine) : payé au recyclage.',consigne:'Pièce d\'échange standard : le magasin rembourse la consigne.'};
 const NIV={bas:{k:.8,p:2.2,nom:'Prix bas'},juste:{k:1,p:1,nom:'Prix du marché'},haut:{k:1.25,p:.45,nom:'Prix haut'}};
@@ -12859,12 +13161,20 @@ const CH=[
   `${T.main} : <i>Passer la courroie neuve</i>, poulie de vilebrequin en premier.`,`${T.cliquet} sur le tendeur : <i>Reprendre le tendeur, retirer la goupille et le relâcher</i>.`,
   `${T.main} : <i>Vérifier que la courroie est bien dans toutes les gorges</i>, fermez le capot, puis ${RENDRE}`])}
  ${job('Liquide de frein','Freinage niveau 2','<b>Liquide de frein</b>.',`${T.ser}, ${T.bidon}, ${T.main}`,[CAPOT,`${T.main} sur le bocal de liquide de frein : <i>Dévisser le bouchon du bocal</i>.`,`${T.ser} : <i>Aspirer l'ancien liquide</i>.`,`${T.bidon} : <i>Remplir de liquide neuf et purger</i> (maintenir ${K('E')}).`,`${T.main} : <i>Revisser le bouchon</i>.`,RENDRE])}
- <h4>Trouver une panne (client qui décrit un symptôme)</h4>${ol([
-  `Lisez le symptôme : il oriente vers une zone (bruit au freinage → freins, démarreur qui tourne mollement → batterie…).`,
-  `<b>Inspectez</b> les pièces suspectes (${T.main}, ${K('E')} sur la pièce : <i>Inspecter</i>) : l'usure s'affiche.`,
-  `<b>Essai sur route</b> (habitacle) : un indice précis selon la situation (démarrage, freinage, virage…).`,
-  `<b>Valise de diagnostic</b> (habitacle, électricité niveau 2, 220 € au magasin) : lit les codes défaut des pannes invisibles (alternateur, injecteurs, sonde lambda…).`,
-  `Remplacez la pièce coupable seulement : une pièce changée pour rien n'est pas payée et fait baisser la note.`])}`},
+ <h4>Diagnostiquer une panne</h4>
+ <p>Quand le client décrit un symptôme au lieu d'un travail, ne changez pas une pièce au hasard : une pièce remplacée pour rien n'est pas payée et fait baisser la note. Suivez la méthode d'un vrai mécanicien.</p>${ol([
+  `<b>Écoutez le client</b> : quand la panne arrive (à froid, à chaud, au ralenti, en accélérant, au freinage, en virage) et ce qu'il voit ou sent (bruit, fumée et sa couleur, odeur, voyant, fuite).`,
+  `<b>Faites la liste des suspects</b> : plusieurs pièces peuvent donner le même symptôme. Un liquide qui disparaît, par exemple, peut venir d'une durite, du radiateur, de la pompe à eau… ou du joint de culasse.`,
+  `<b>Inspectez</b> chaque suspect (${T.main}, ${K('E')} : <i>Inspecter</i>) : cherchez une fuite et sa couleur, du jeu, une fissure, de la calamine, une odeur. Une pièce un peu usée n'est pas forcément la coupable.`,
+  `<b>Faites l'essai sur route</b> (habitacle) : roulez à froid, accélérez, freinez, prenez un virage, roulez à vitesse stable, puis assez longtemps pour que le moteur soit chaud. Chaque situation peut révéler un indice différent.`,
+  `<b>Branchez la valise</b> (habitacle, électricité niveau 2, 220 € au magasin) : elle donne de vrais codes (P0401, P0420, P0335…). Un code désigne un circuit ou une famille de pannes, pas une pièce : <i>P0420 ne veut pas toujours dire catalyseur</i>. Certains codes sont même trompeurs.`,
+  `<b>Recoupez</b> : la bonne pièce est celle qui explique tous les indices à la fois. Si deux indices se contredisent, cherchez encore.`,
+  `<b>Cherchez les dégâts en chaîne</b> : une panne en cause souvent une autre. Un thermostat bloqué fait surchauffer jusqu'au joint de culasse, une courroie de distribution rompue fausse les soupapes, des plaquettes à ras rayent les disques, une fuite d'huile ou de liquide abîme la courroie. Réparez la cause <b>et</b> ses dégâts, sinon le client revient (note en baisse).`,
+  `<b>Remplacez</b> la ou les pièces trouvées ; à la remise des clés, le jeu vous donne la cause de la panne.`])}
+ <h4>Trois exemples</h4>${ul([
+  `<i>« Le moteur chauffe, il y a une odeur sucrée »</i> : regardez d'abord le niveau et les fuites (durites, radiateur, pompe à eau), puis la température mesurée : durite du haut brûlante et durite du bas froide, c'est le thermostat ; ventilateur immobile à l'arrêt, c'est le ventilateur ; huile laiteuse sous le bouchon, c'est le joint de culasse.`,
+  `<i>« Ça manque de puissance et un voyant est allumé »</i> : le code de la valise (débitmètre d'air, EGR, filtre à particules, suralimentation) oriente vers une famille ; l'inspection (calamine, suie, jeu de l'arbre du turbo) tranche.`,
+  `<i>« Un bruit à l'avant »</i> : claquement sur les bosses (amortisseurs, rotules), ronronnement qui change en virage (roulement de roue), claquement en braquant sous accélération (cardan). Le bruit dépend de la situation : c'est elle qui trie les suspects.`])}`},
 {t:'Niveau 3 · Disques, suspension, électricité',h:()=>`
  <p>Niveau 3 vers 200 points d'expérience dans la compétence. La <b>clé dynamométrique</b> (85 € au magasin, fournie par les garages plus grands) devient indispensable.</p>
  ${job('Disques de frein','Freinage niveau 3','<b>Disques</b> (et souvent <b>plaquettes</b> en même temps).',`${T.boul}/${T.cliquet}, ${T.main}, ${T.presse}, ${T.dyn}`,[

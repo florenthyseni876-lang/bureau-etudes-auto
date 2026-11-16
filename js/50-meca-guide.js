@@ -103,12 +103,20 @@ const CH=[
   `${T.main} : <i>Passer la courroie neuve</i>, poulie de vilebrequin en premier.`,`${T.cliquet} sur le tendeur : <i>Reprendre le tendeur, retirer la goupille et le relâcher</i>.`,
   `${T.main} : <i>Vérifier que la courroie est bien dans toutes les gorges</i>, fermez le capot, puis ${RENDRE}`])}
  ${job('Liquide de frein','Freinage niveau 2','<b>Liquide de frein</b>.',`${T.ser}, ${T.bidon}, ${T.main}`,[CAPOT,`${T.main} sur le bocal de liquide de frein : <i>Dévisser le bouchon du bocal</i>.`,`${T.ser} : <i>Aspirer l'ancien liquide</i>.`,`${T.bidon} : <i>Remplir de liquide neuf et purger</i> (maintenir ${K('E')}).`,`${T.main} : <i>Revisser le bouchon</i>.`,RENDRE])}
- <h4>Trouver une panne (client qui décrit un symptôme)</h4>${ol([
-  `Lisez le symptôme : il oriente vers une zone (bruit au freinage → freins, démarreur qui tourne mollement → batterie…).`,
-  `<b>Inspectez</b> les pièces suspectes (${T.main}, ${K('E')} sur la pièce : <i>Inspecter</i>) : l'usure s'affiche.`,
-  `<b>Essai sur route</b> (habitacle) : un indice précis selon la situation (démarrage, freinage, virage…).`,
-  `<b>Valise de diagnostic</b> (habitacle, électricité niveau 2, 220 € au magasin) : lit les codes défaut des pannes invisibles (alternateur, injecteurs, sonde lambda…).`,
-  `Remplacez la pièce coupable seulement : une pièce changée pour rien n'est pas payée et fait baisser la note.`])}`},
+ <h4>Diagnostiquer une panne</h4>
+ <p>Quand le client décrit un symptôme au lieu d'un travail, ne changez pas une pièce au hasard : une pièce remplacée pour rien n'est pas payée et fait baisser la note. Suivez la méthode d'un vrai mécanicien.</p>${ol([
+  `<b>Écoutez le client</b> : quand la panne arrive (à froid, à chaud, au ralenti, en accélérant, au freinage, en virage) et ce qu'il voit ou sent (bruit, fumée et sa couleur, odeur, voyant, fuite).`,
+  `<b>Faites la liste des suspects</b> : plusieurs pièces peuvent donner le même symptôme. Un liquide qui disparaît, par exemple, peut venir d'une durite, du radiateur, de la pompe à eau… ou du joint de culasse.`,
+  `<b>Inspectez</b> chaque suspect (${T.main}, ${K('E')} : <i>Inspecter</i>) : cherchez une fuite et sa couleur, du jeu, une fissure, de la calamine, une odeur. Une pièce un peu usée n'est pas forcément la coupable.`,
+  `<b>Faites l'essai sur route</b> (habitacle) : roulez à froid, accélérez, freinez, prenez un virage, roulez à vitesse stable, puis assez longtemps pour que le moteur soit chaud. Chaque situation peut révéler un indice différent.`,
+  `<b>Branchez la valise</b> (habitacle, électricité niveau 2, 220 € au magasin) : elle donne de vrais codes (P0401, P0420, P0335…). Un code désigne un circuit ou une famille de pannes, pas une pièce : <i>P0420 ne veut pas toujours dire catalyseur</i>. Certains codes sont même trompeurs.`,
+  `<b>Recoupez</b> : la bonne pièce est celle qui explique tous les indices à la fois. Si deux indices se contredisent, cherchez encore.`,
+  `<b>Cherchez les dégâts en chaîne</b> : une panne en cause souvent une autre. Un thermostat bloqué fait surchauffer jusqu'au joint de culasse, une courroie de distribution rompue fausse les soupapes, des plaquettes à ras rayent les disques, une fuite d'huile ou de liquide abîme la courroie. Réparez la cause <b>et</b> ses dégâts, sinon le client revient (note en baisse).`,
+  `<b>Remplacez</b> la ou les pièces trouvées ; à la remise des clés, le jeu vous donne la cause de la panne.`])}
+ <h4>Trois exemples</h4>${ul([
+  `<i>« Le moteur chauffe, il y a une odeur sucrée »</i> : regardez d'abord le niveau et les fuites (durites, radiateur, pompe à eau), puis la température mesurée : durite du haut brûlante et durite du bas froide, c'est le thermostat ; ventilateur immobile à l'arrêt, c'est le ventilateur ; huile laiteuse sous le bouchon, c'est le joint de culasse.`,
+  `<i>« Ça manque de puissance et un voyant est allumé »</i> : le code de la valise (débitmètre d'air, EGR, filtre à particules, suralimentation) oriente vers une famille ; l'inspection (calamine, suie, jeu de l'arbre du turbo) tranche.`,
+  `<i>« Un bruit à l'avant »</i> : claquement sur les bosses (amortisseurs, rotules), ronronnement qui change en virage (roulement de roue), claquement en braquant sous accélération (cardan). Le bruit dépend de la situation : c'est elle qui trie les suspects.`])}`},
 {t:'Niveau 3 · Disques, suspension, électricité',h:()=>`
  <p>Niveau 3 vers 200 points d'expérience dans la compétence. La <b>clé dynamométrique</b> (85 € au magasin, fournie par les garages plus grands) devient indispensable.</p>
  ${job('Disques de frein','Freinage niveau 3','<b>Disques</b> (et souvent <b>plaquettes</b> en même temps).',`${T.boul}/${T.cliquet}, ${T.main}, ${T.presse}, ${T.dyn}`,[
