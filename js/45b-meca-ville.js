@@ -66,6 +66,35 @@ for(const r of RZ) for(const s of [-1,1]) for(let t=-270+(s>0?0:16);t<=275;t+=32
   const x=rx+sx*9.7,z=rz+sz*14.5,type=[[1,0],[0,0],[2,0],[3,0],[0,1],[1,1],[2,1],[3,1]][(k*3)%8];
   sign(x,z,0,type[0],type[1]);}
  for(const [x,z,ry] of [[-282,6,PI/2],[282,-6,-PI/2],[6,-282,PI],[-6,282,0]]) sign(x,z,ry,0,0);}
+// panneaux de direction : un par approche de chaque carrefour, vers les lieux clés (atlas de 40 panneaux, un seul appel de dessin)
+{const KEY=['garage1','pieces','concess','garage2','garage3','garage4','ecole','banque','bureau'],NS=MW.streets||{ns:[],ew:[]};
+ const CW=256,CH=96,COLS=4,ROWS=10,cv=document.createElement('canvas');cv.width=CW*COLS;cv.height=CH*ROWS;const g=cv.getContext('2d');
+ g.fillStyle='#4a4f55';g.fillRect(0,0,cv.width,cv.height);
+ const cells=[];let nb=0;
+ const arrow=(x,y,kind)=>{g.save();g.translate(x,y);g.rotate(kind==='l'?-Math.PI/2:kind==='r'?Math.PI/2:0);g.fillStyle='#fff';g.beginPath();g.moveTo(0,-9);g.lineTo(8,1);g.lineTo(3,1);g.lineTo(3,9);g.lineTo(-3,9);g.lineTo(-3,1);g.lineTo(-8,1);g.closePath();g.fill();g.restore();};
+ const board=(rx,rz,dx,dz,ix,iz)=>{
+  const right=[-dz,dx],items=[];
+  for(const id of KEY){const q=MW.zone(id);if(!q) continue;const tx=q.porte.x-rx,tz=q.porte.z-rz,f=tx*dx+tz*dz,sd=tx*right[0]+tz*right[1],dist=Math.hypot(tx,tz);
+   if(dist<28||(f<-15&&-f>Math.abs(sd))) continue;
+   const kind=Math.abs(sd)>Math.abs(f)?(sd>0?'r':'l'):'s';items.push({q,kind,dist});}
+  items.sort((a,b)=>a.dist-b.dist);const top=items.slice(0,3);if(!top.length||nb>=COLS*ROWS-1) return null;
+  const col=nb%COLS,row=Math.floor(nb/COLS),ox=col*CW,oy=row*CH;nb++;
+  g.save();g.translate(ox,oy);g.fillStyle='#17559c';g.fillRect(0,0,CW,CH);g.strokeStyle='#fff';g.lineWidth=3;g.strokeRect(3,3,CW-6,CH-6);
+  const sname=dx!==0?NS.ew[iz]:NS.ns[ix];g.fillStyle='#bcd8f6';g.font='bold 13px Arial,sans-serif';g.textAlign='left';g.textBaseline='middle';g.fillText((sname||'').toUpperCase(),10,15);
+  g.strokeStyle='rgba(255,255,255,.5)';g.lineWidth=1;g.beginPath();g.moveTo(8,25);g.lineTo(CW-8,25);g.stroke();
+  top.forEach((it,k)=>{const y=40+k*21;arrow(20,y,it.kind);g.fillStyle='#fff';g.textAlign='left';g.font='bold 17px Arial,sans-serif';
+   let nm=it.q.court;while(g.measureText(nm).width>160&&nm.length>6) nm=nm.slice(0,-1);g.fillText(nm,38,y+1);g.textAlign='right';g.font='14px Arial,sans-serif';g.fillStyle='#cfe3fa';g.fillText(Math.round(it.dist/10)*10+' m',CW-10,y+1);});
+  g.restore();return [ox/cv.width,1-(oy+CH)/cv.height,(ox+CW)/cv.width,1-oy/cv.height];};
+ const placed=[];
+ RX.forEach((rx,ix)=>RZ.forEach((rz,iz)=>{
+  for(const [dx,dz] of [[0,1],[0,-1],[1,0],[-1,0]]){
+   const uv=board(rx,rz,dx,dz,ix,iz);if(!uv) continue;
+   const rt=[-dz,dx],bx=rx-dx*21+rt[0]*9.9,bz=rz-dz*21+rt[1]*9.9;
+   if(zones.some(q=>Math.abs(bx-q.x)<q.w/2+1&&Math.abs(bz-q.z)<q.d/2+1)||lampPts.some(p=>Math.hypot(p[0]-bx,p[1]-bz)<2.2)) continue;
+   placed.push([bx,bz,Math.atan2(-dx,-dz),uv]);}}));
+ if(placed.length){D.dirsCanvas=cv;const pl=core('plain'),dm=D.B('core','dirs');
+  for(const [x,z,ry,uv] of placed){pl.cyl(.05,.05,3.1,6,x,1.55,z,0x6a7076);pl.box(2.0,.05,.05,x,3.0,z,0x6a7076,ry);
+   dm.quad(2.1,.79,x+Math.sin(ry)*.02,2.55,z+Math.cos(ry)*.02,ry,null,uv,0,false);pl.box(2.18,.86,.03,x,2.55,z,0x4a5056,ry);addCol(x,z,.3,.3);}}}
 // bornes, bouches d'incendie
 {const pl=det('plain');const rm=D.rng(5);for(let i=0;i<14;i++){const rx=RX[i%3],rz=RZ[(i*2+1)%3],sx=rm()<.5?-1:1,sz=rm()<.5?-1:1,x=rx+sx*9.6,z=rz+sz*(12+rm()*6);
   pl.cyl(.11,.13,.7,8,x,.45,z,0xc22a1c);pl.cyl(.14,.14,.1,8,x,.82,z,0xa02015);pl.box(.3,.08,.08,x,.6,z,0xa02015);}
@@ -202,6 +231,27 @@ H.bakeCar=bakeCar;
   const k=pick(KIND);if(bakeCar({kind:k,color:pick(COL)},x,z,ry,'detail')){addCol(x,z,len?4.8:2.1,len?2.1:4.8);n++;}};
  for(const r of RZ) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*30+30){if(near(t,RX,20)||rm()<.45||n>=16) continue;spot(t,r+sd*5.55,sd>0?PI/2:-PI/2,1);}
  for(const r of RX) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*40+40){if(near(t,RZ,20)||rm()<.5||n>=16) continue;spot(r+sd*5.55,t,sd<0?0:PI,0);}}
+
+/* ═══════ Places de stationnement (marquées devant les lieux clés et sous les voitures garées) + cours plantées ═══════ */
+{const bays=new Set(),ts=D.B('core','tsign');
+ const tick=(horiz,r,sd,t)=>{const k=horiz+'|'+r+'|'+sd+'|'+Math.round(t);if(bays.has(k)) return;bays.add(k);
+  if(horiz) flat(.12,1.95,t,r+sd*5.55,WH);else flat(1.95,.12,r+sd*5.55,t,WH);};
+ const row=(horiz,r,sd,t0,n)=>{for(let i=0;i<=n;i++){const t=t0+i*5.4;if(near(t,horiz?RX:RZ,14)) continue;tick(horiz,r,sd,t);}};
+ for(const q of zones){if(!q.door||q._d.interior&&q.type==='terrain') continue;if(q._d.immo&&q.type!=='garage'&&q.type!=='usine') continue;
+  let best=null,bd=1e9;for(const r of RZ){const d=Math.abs(q.door.z-r);if(d<bd&&d<17){bd=d;best=[true,r,Math.sign(q.door.z-r)||1,q.door.x];}}
+  for(const r of RX){const d=Math.abs(q.door.x-r);if(d<bd&&d<17){bd=d;best=[false,r,Math.sign(q.door.x-r)||1,q.door.z];}}
+  if(!best) continue;const [h,r,sd,c]=best;row(h,r,sd,c-10.8,4);
+  const px=h?c-13.5:r+sd*8.9,pz=h?r+sd*8.9:c-13.5;if(free(px,pz,.3,.3,.2)){core('plain').cyl(.035,.035,2.4,6,px,1.2,pz,0x6a7076);ts.quad(.6,.6,px,2.2,pz,h?(sd>0?PI:0):(sd>0?-PI/2:PI/2),null,[0,0,.25,.5],0,true);}}
+ // quelques rangées libres le long des rues principales, pour que la ville ne soit pas vide
+ for(const [h,r,sd,t0] of [[true,0,1,-120],[true,0,-1,-60],[true,150,-1,-100],[true,-150,1,60],[false,0,-1,-90],[false,150,1,60],[false,-150,-1,-40]]) row(h,r,sd,t0,5);
+ // cours plantées : arbres, haies et buissons dans les îlots (ni sur les bâtiments, ni sur les rues)
+ const rm=D.rng(515),pl=det('plain');let nt=0,nb=0,tr=0;
+ while(nt<44&&tr++<900){const x=rm()*500-250,z=rm()*500-250;
+  if(near(x,RX,19)||near(z,RZ,19)||!free(x,z,2.6,2.6,5)) continue;
+  tree(x,z,.75+rm()*.4,rm()<.7?'r':rm()<.5?'c':'p');addCol(x,z,.5,.5);nt++;}
+ tr=0;while(nb<70&&tr++<1200){const x=rm()*500-250,z=rm()*500-250;
+  if(near(x,RX,18)||near(z,RZ,18)||!free(x,z,1.4,1.4,3)) continue;
+  const g=pick(GREENS);for(let i=0;i<3;i++) pl.sph(.55+rm()*.3,.45+rm()*.2,.55+rm()*.3,0,x+rm()*1.2-.6,.45,z+rm()*1.2-.6,g,rm()*3);nb++;}}
 
 /* ═══════ Bancs, poubelles, abribus, colonne à affiches ═══════ */
 {const rm=D.rng(63);
