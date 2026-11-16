@@ -8,16 +8,16 @@ const DET3=(()=>{
   const put=(g,p,q)=>{g.applyMatrix4(new T.Matrix4().compose(p,q||new T.Quaternion(),V(1,1,1)));return g;};
   const qv=(d,from)=>new T.Quaternion().setFromUnitVectors(from||UP,d.clone().normalize());
   /* nombre de facettes selon le rayon : peu pour les petites pièces */
-  const sg=r=>Math.max(8,Math.min(22,Math.round(r*.9)+6));
+  const sg=r=>qSeg(Math.max(8,Math.min(22,Math.round(r*.9)+6)),6);
   /* cylindre (ou cône) de p (rayon r) à q (rayon rt) */
   const cyl=(p,q,r,rt,n)=>{const d=q.clone().sub(p),L=d.length()||.01;return put(new T.CylinderGeometry(rt==null?r:rt,r,L,n||sg(r)),p.clone().addScaledVector(d,.5),qv(d.lengthSq()?d:UP));};
   const box=(c,sx,sy,sz,q)=>put(new T.BoxGeometry(sx,sy,sz),c,q);
   /* tête hexagonale (vis, écrou) centrée en p, d'axe d */
   const hex=(p,d,r,h)=>{const u=d.clone().normalize();return cyl(p.clone().addScaledVector(u,-h/2),p.clone().addScaledVector(u,h/2),r,r,6);};
   /* anneau (collier, joint torique) autour de l'axe d */
-  const ring=(p,d,R,r)=>put(new T.TorusGeometry(R,r,6,Math.max(12,Math.min(24,Math.round(R)+8))),p,qv(d,ZA));
+  const ring=(p,d,R,r)=>put(new T.TorusGeometry(R,r,6,qSeg(Math.max(12,Math.min(24,Math.round(R)+8)),8)),p,qv(d,ZA));
   /* solide de révolution autour de l'axe X : prof = [[position axiale, rayon], …] */
-  const lathe=(prof,p,n)=>{const g=new T.LatheGeometry(prof.map(a=>new T.Vector2(Math.max(.01,a[1]),a[0])),n||24);return put(g,p,qv(XA));};
+  const lathe=(prof,p,n)=>{const g=new T.LatheGeometry(prof.map(a=>new T.Vector2(Math.max(.01,a[1]),a[0])),qSeg(n||24,10));return put(g,p,qv(XA));};
   /* ruban fermé (courroie plate) : path = points dans un plan x = cte, w = largeur selon x, t = épaisseur vers l'extérieur */
   const belt=(path,w,t)=>{
     const N=path.length;let A=0;for(let i=0;i<N;i++){const a=path[i],b=path[(i+1)%N];A+=a.y*b.z-b.y*a.z;}const sgn=A>=0?1:-1;

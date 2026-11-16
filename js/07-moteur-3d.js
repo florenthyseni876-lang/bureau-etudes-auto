@@ -1,4 +1,6 @@
 'use strict';
+/* finesse des maillages du moteur selon la qualité graphique (mode Mécanicien) : 1 = haute ; moins de facettes en moyenne et en basse */
+function qSeg(n,min){let k=1;try{if(typeof MWD!=='undefined'&&MWD.Q&&window.__mw&&__mw.isOpen&&__mw.isOpen()) k=MWD.Q.level==='basse'?.5:MWD.Q.level==='moyenne'?.75:1;}catch(e){}return k>=1?n:Math.max(min||6,Math.round(n*k));}
 /* ───────────── Moteur 3D ───────────── */
 let E3=null;
 function dispose3D(){if(!E3) return;try{E3.scene.traverse(o=>{if(o.geometry) o.geometry.dispose();});E3.renderer.dispose();E3.renderer.forceContextLoss();}catch(e){}E3=null;}
@@ -35,12 +37,12 @@ function build3D(){
   const rotB=(b,x,y,z)=>V(x,y*Math.cos(b)-z*Math.sin(b),y*Math.sin(b)+z*Math.cos(b));
   const box=(b,cx,cy,cz,sx,sy,sz,m,part)=>{const me=new T.Mesh(new T.BoxGeometry(sx,sy,sz),m);me.position.copy(rotB(b,cx,cy,cz));me.rotation.x=b;return add(me,part);};
   const UP=V(0,1,0),XA=V(1,0,0);
-  const cyl=(p,q,rad,m,part,parent)=>{const d=q.clone().sub(p),len=d.length(),me=new T.Mesh(new T.CylinderGeometry(rad,rad,len,Math.max(10,Math.min(28,Math.round(rad*.9)+8))),m);me.position.copy(p).addScaledVector(d,.5);me.quaternion.setFromUnitVectors(UP,d.normalize());return add(me,part,parent);};
+  const cyl=(p,q,rad,m,part,parent)=>{const d=q.clone().sub(p),len=d.length(),me=new T.Mesh(new T.CylinderGeometry(rad,rad,len,qSeg(Math.max(10,Math.min(28,Math.round(rad*.9)+8)),7)),m);me.position.copy(p).addScaledVector(d,.5);me.quaternion.setFromUnitVectors(UP,d.normalize());return add(me,part,parent);};
   const cylX=(x0,x1,y,z,rad,m,part,parent)=>cyl(V(x0,y,z),V(x1,y,z),rad,m,part,parent);
-  const tube=(pts,rad,m,part,closed,cl)=>{if(cl&&pts.length>1&&!closed){const n=pts.length;for(const [a,b] of [[0,1],[n-1,n-2]]){const d=pts[b].clone().sub(pts[a]).normalize();dClamp(part,pts[a].clone().addScaledVector(d,rad*.9+8),d,rad);}}const me=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts,!!closed,'catmullrom',.35),Math.max(20,pts.length*10),rad,rad<9?6:rad<16?8:10,!!closed),m);if(part&&!part.pin) part.pin=pts[Math.floor(pts.length/2)].clone();return add(me,part);};
-  const cone=(p,q,r1,r2,m,part)=>{const d=q.clone().sub(p),len=d.length(),me=new T.Mesh(new T.CylinderGeometry(r2,r1,len,Math.max(12,Math.min(28,Math.round(Math.max(r1,r2)*.9)+8))),m);me.position.copy(p).addScaledVector(d,.5);me.quaternion.setFromUnitVectors(UP,d.normalize());return add(me,part);};
-  const torus=(p,R,r,m,part)=>{const me=new T.Mesh(new T.TorusGeometry(R,r,14,30),m);me.rotation.y=Math.PI/2;me.position.copy(p);return add(me,part);};
-  const ball=(p,rad,m,part)=>{const me=new T.Mesh(new T.SphereGeometry(rad,18,14),m);me.position.copy(p);return add(me,part);};
+  const tube=(pts,rad,m,part,closed,cl)=>{if(cl&&pts.length>1&&!closed){const n=pts.length;for(const [a,b] of [[0,1],[n-1,n-2]]){const d=pts[b].clone().sub(pts[a]).normalize();dClamp(part,pts[a].clone().addScaledVector(d,rad*.9+8),d,rad);}}const me=new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts,!!closed,'catmullrom',.35),qSeg(Math.max(20,pts.length*10),10),rad,qSeg(rad<9?6:rad<16?8:10,5),!!closed),m);if(part&&!part.pin) part.pin=pts[Math.floor(pts.length/2)].clone();return add(me,part);};
+  const cone=(p,q,r1,r2,m,part)=>{const d=q.clone().sub(p),len=d.length(),me=new T.Mesh(new T.CylinderGeometry(r2,r1,len,qSeg(Math.max(12,Math.min(28,Math.round(Math.max(r1,r2)*.9)+8)),8)),m);me.position.copy(p).addScaledVector(d,.5);me.quaternion.setFromUnitVectors(UP,d.normalize());return add(me,part);};
+  const torus=(p,R,r,m,part)=>{const me=new T.Mesh(new T.TorusGeometry(R,r,qSeg(14,6),qSeg(30,12)),m);me.rotation.y=Math.PI/2;me.position.copy(p);return add(me,part);};
+  const ball=(p,rad,m,part)=>{const me=new T.Mesh(new T.SphereGeometry(rad,qSeg(18,8),qSeg(14,6)),m);me.position.copy(p);return add(me,part);};
   /* détails fusionnés par pièce et par matière (js/07b) : D = outils de géométrie, repère « rangée » = repère du bloc incliné de b autour de x */
   const D=DET3,Bt=D.batch(),dg=(part,m,g,parent)=>Bt.add(part,m,g,parent),bq=b=>new T.Quaternion().setFromAxisAngle(V(1,0,0),b);
   const dBox=(part,m,b,cx,cy,cz,sx,sy,sz,parent)=>dg(part,m,D.box(rotB(b,cx,cy,cz),sx,sy,sz,bq(b)),parent);
@@ -259,7 +261,7 @@ function build3D(){
   // entraînement de la distribution (visible en écorché)
   {const tmk=S.timing,pD=P(`Distribution par ${TIMING[tmk].n.replace(/^./,x=>x.toLocaleLowerCase())}`,`${TIMING[tmk].d} · ${nf(E.tmMass,1)} kg`,{inner:1}),xd=-10;
     const mG=tmk==='gear'?MT(0x9aa3ad,.4,.85):mSteel,mL=tmk==='belt'?MT(0x15171a,.8,.05):MT(0x565d66,.45,.8);
-    const disc=(q,rad)=>{const me=new T.Mesh(new T.CylinderGeometry(rad,rad,tmk==='gear'?12:9,tmk==='gear'?Math.max(14,Math.round(rad/2.2)):24),mG);me.rotation.z=Math.PI/2;me.position.copy(q);const r=add(me,pD);edge(me,1);return r;};
+    const disc=(q,rad)=>{const me=new T.Mesh(new T.CylinderGeometry(rad,rad,tmk==='gear'?12:9,tmk==='gear'?Math.max(14,Math.round(rad/2.2)):qSeg(24,10)),mG);me.rotation.z=Math.PI/2;me.position.copy(q);const r=add(me,pD);edge(me,1);return r;};
     disc(V(xd,0,0),28);
     const sets=vt==='ohv'?[[V(xd,Rc+24,0)]]:banks.map(bk=>(vt==='sohc'?[0]:[-1,1]).map(sg=>rotB(bk.b,xd,deck+headH*.78,sg*bore*.27)));
     const rc=vt==='ohv'?48:Math.min(46,bore*.25);
@@ -417,11 +419,11 @@ function build3D(){
   const throw_=(x,an)=>{cylX(x-pitch*.2,x+pitch*.2,r*Math.cos(an),r*Math.sin(an),bore*.14,mCrk,pCr,gC);for(const sg of [-1,1]){const w=new T.Mesh(new T.BoxGeometry(11,r+bore*.34,bore*.36),mCrk);w.position.set(x+sg*pitch*.26,r/2*Math.cos(an),r/2*Math.sin(an));w.rotation.x=an;add(w,pCr,gC);
       const cw=new T.Mesh(new T.CylinderGeometry(Rc*.72,Rc*.72,11,20,1,false,-1,2),mCrk);cw.rotation.z=Math.PI/2;cw.rotation.order='XYZ';const g=new T.Group();g.rotation.x=an+Math.PI;g.position.x=x+sg*pitch*.26;g.add(cw);add(g,null,gC);}};
   const cyls=[],valves=[],mDk=MT(0x23272d,.5,.6),pVa=P('Soupapes et ressorts',`${vt==='dohc5'?5:vt==='dohc4'?4:2} soupapes par cylindre, ouvertes par les cames et refermées par les ressorts`,{inner:1});
-  const xMesh=(rad,len,m)=>{const me=new T.Mesh(new T.CylinderGeometry(rad,rad,len,20),m);me.rotation.z=Math.PI/2;return me;};
+  const xMesh=(rad,len,m)=>{const me=new T.Mesh(new T.CylinderGeometry(rad,rad,len,qSeg(20,8)),m);me.rotation.z=Math.PI/2;return me;};
   const mkCyl=(bk,x,an,px,zc)=>{
     zc=zc||0;const g=new T.Group();g.rotation.x=bk.b;root.add(g);
-    add(new T.Mesh(new T.CylinderGeometry(bore/2-1.5,bore/2-1.5,ph,32),mPis),pPi,g);
-    for(let i=0;i<3;i++){const rg=new T.Mesh(new T.CylinderGeometry(bore/2-.9,bore/2-.9,2.6,32),mDk);rg.position.y=ph/2-7-i*6.5;g.add(rg);}
+    add(new T.Mesh(new T.CylinderGeometry(bore/2-1.5,bore/2-1.5,ph,qSeg(32,12)),mPis),pPi,g);
+    for(let i=0;i<3;i++){const rg=new T.Mesh(new T.CylinderGeometry(bore/2-.9,bore/2-.9,2.6,qSeg(32,12)),mDk);rg.position.y=ph/2-7-i*6.5;g.add(rg);}
     const wp=xMesh(bore*.11,bore*.82,mSteel);wp.position.y=-(pc-ph/2);g.add(wp);
     const rod=new T.Group();root.add(rod);
     const beam=new T.Mesh(new T.BoxGeometry(bore*.1,l-bore*.3,bore*.17),mRod);beam.position.y=l/2;add(beam,pRo,rod);
@@ -431,7 +433,7 @@ function build3D(){
     const lay=vt==='dohc5'?[[-.24,-1],[0,-1.05],[.24,-1],[-.18,1],[.18,1]]:vt==='dohc4'?[[-.2,-1],[.2,-1],[-.2,1],[.2,1]]:[[-.2,-1],[.2,1]];
     for(const [dx,sd] of lay){const vg=new T.Group();vg.rotation.x=bk.b;root.add(vg);const ex=sd*bk.out>0,zz=sd*bore*.21,hr=bore*(lay.length>2?.15:.2);
       const st=new T.Mesh(new T.CylinderGeometry(3,3,headH*.7,10),mSteel);st.position.y=headH*.35;add(st,pVa,vg);
-      const hd=new T.Mesh(new T.CylinderGeometry(hr*.55,hr,5,20),mSteel);add(hd,pVa,vg);
+      const hd=new T.Mesh(new T.CylinderGeometry(hr*.55,hr,5,qSeg(20,8)),mSteel);add(hd,pVa,vg);
       const sp=new T.Mesh(new T.CylinderGeometry(9,9,headH*.26,12,4,true),mDk);sp.position.y=headH*.58;vg.add(sp);edge(sp,1);
       valves.push({g:vg,b:bk.b,x:x+dx*bore*(c.w?.7:1),y:deck+3,z:zz+zc,a:an,ex});}
     pVa.pin=rotB(bk.b,x,deck+headH*.5,0);

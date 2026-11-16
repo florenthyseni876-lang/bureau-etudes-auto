@@ -397,7 +397,9 @@ for(const z of zones) if(z.type!=='garage'&&z.type!=='terrain') other(z);
 
 /* ═══════ Animation : les bras des ponts suivent la voiture ═══════ */
 D.animFn=(dt,P)=>{if(!lifts.length) return;let cars=null;
- for(const Lf of lifts){const p=Lf.p;if(Math.abs(P.x-p.x)>45||Math.abs(P.z-p.z)>45) continue;if(!cars) cars=ctx.scene.children.filter(o=>o.userData&&o.userData.L&&o.isObject3D&&o.position);
+ for(const Lf of lifts){const p=Lf.p,near=Math.abs(P.x-p.x)<=45&&Math.abs(P.z-p.z)<=45;
+  if(Lf.vis!==near){Lf.vis=near;/* parties mobiles du pont : dessinées seulement à proximité */for(const c of Lf.car) c.g.visible=near;for(const a of Lf.arms){a.inn.visible=near;a.out.visible=near;}}
+  if(!near) continue;if(!cars) cars=ctx.scene.children.filter(o=>o.userData&&o.userData.L&&o.isObject3D&&o.position);
   let cg=null;for(const c of cars) if(Math.abs(c.position.x-p.x)<.9&&Math.abs(c.position.z-p.z)<.9){cg=c;break;}
   if(cg!==Lf.carRef){Lf.carRef=cg;Lf.pad=null;
    if(cg){const an=cg.userData.anchors,fl=an&&an.hubFL,rl=an&&an.hubRL;
