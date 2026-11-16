@@ -367,7 +367,7 @@ function nextCross(c){
  const co=c.o===0?RX:RZ;let best=null;
  for(let k=0;k<3;k++){const dd=c.dir*(co[k]-c.s);if(dd>0&&(!best||dd<best.dd)) best={k,c:co[k],dd};}
  return best;}
-function offCar(c){c.on=false;c.wall[0]=c.wall[1]=1e6;c.wall[2]=c.wall[3]=1e6+1;
+function offCar(c){c.on=false;c.keep=false;c.wall[0]=c.wall[1]=1e6;c.wall[2]=c.wall[3]=1e6+1;
  for(const id of ARCH_IDS) zeroM(carM.body[id].instanceMatrix.array,c.i);
  for(let j=0;j<4;j++){zeroM(carM.wheels.instanceMatrix.array,c.i*4+j);zeroM(carM.lights.instanceMatrix.array,c.i*4+j);}
  zeroM(carM.glow.instanceMatrix.array,c.i);}
@@ -543,7 +543,7 @@ function reconcile(){
  else if(np>wantP) for(const p of peds){if(np<=wantP) break;if(p.on&&(!visible(p.x,p.z,.45)||Math.hypot(p.x-player.x,p.z-player.z)>40)){offPed(p);np--;}}
  budget=3;
  if(nc<wantC) for(const c of cars){if(budget<=0||nc>=wantC) break;if(!c.on&&spawnCar(c,false)){nc++;budget--;}}
- else if(nc>wantC) for(const c of cars){if(nc<=wantC) break;if(c.on&&(!visible(c.x,c.z,.45)||Math.hypot(c.x-player.x,c.z-player.z)>60)){offCar(c);nc--;}}}
+ else if(nc>wantC) for(const c of cars){if(nc<=wantC) break;if(c.on&&!c.keep&&(!visible(c.x,c.z,.45)||Math.hypot(c.x-player.x,c.z-player.z)>60)){offCar(c);nc--;}}}
 function hitCheck(){
  if(!pcar) return;
  const ca=Math.sin(pcar.ry),cb=Math.cos(pcar.ry);
@@ -586,7 +586,7 @@ const api={
  stats(){let np=0,nc=0,mp=0,mc=0;for(const p of peds) if(p.on){np++;if(p.v>.2) mp++;}for(const c of cars) if(c.on){nc++;if(c.v>.3) mc++;}
   return {peds:np,cars:nc,pedsMoving:mp,carsMoving:mc,wantP,wantC,calls:MW.renderer()?MW.renderer().info.render.calls:0};},
  /* pose une voiture précise (tests) : o 0 = rue est-ouest, ax = indice de la rue, dir = ±1, s = position le long de la rue */
- forceCar(o,ax,dir,s,v){init();const c=cars.find(q=>!q.on);if(!c) return null;setupCar(c);c.o=o;c.ax=ax;c.dir=dir;c.s=s;c.plan='s';const nx=nextCross(c);if(nx){c.planK=nx.k;c.planC=nx.c;}roadPos(c);c.v=v||0;c.on=true;c.vmax=12;c.byp=false;return c;},
+ forceCar(o,ax,dir,s,v){init();const c=cars.find(q=>!q.on);if(!c) return null;setupCar(c);c.o=o;c.ax=ax;c.dir=dir;c.s=s;c.plan='s';const nx=nextCross(c);if(nx){c.planK=nx.k;c.planC=nx.c;}roadPos(c);c.v=v||0;c.on=true;c.keep=true;c.vmax=12;c.byp=false;return c;}, /* keep : la régulation du nombre de voitures ne la retire pas */
  /* pose un piéton sur le tronçon le plus proche du point (tests) */
  forcePed(x,z){init();const p=peds.find(q=>!q.on);if(!p) return null;let best=null,bd=1e9;
   for(const e of edges){const A=nodes[e.a],t=clamp((x-A.x)*e.ux+(z-A.z)*e.uz,0,e.len),d=Math.hypot(A.x+e.ux*t-x,A.z+e.uz*t-z);if(d<bd){bd=d;best={e,t};}}
