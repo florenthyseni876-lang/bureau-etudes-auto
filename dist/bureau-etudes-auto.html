@@ -10319,7 +10319,7 @@ function engineMesh(car,o){
   const am=mesh(og,aoMat());am.name='bay_ao';am.renderOrder=2;am.raycast=()=>{};g.add(am);}
  /* regroupe par matériau */
  for(const k in acc){const m=mesh(merge(acc[k]),BAYM[k]());m.name='bay_'+k;g.add(m);}
- ud.parts={};for(const n in PT){const gr=new T.Group();gr.name='p_'+n;for(const [k,geo] of PT[n]) gr.add(mesh(geo,BAYM[k]()));g.add(gr);ud.parts[n]=gr;}
+ ud.parts={};for(const n in PT){const gr=new T.Group();gr.name='p_'+n;{const by={};for(const [k,geo] of PT[n]) (by[k]||(by[k]=[])).push(geo);for(const k in by) gr.add(mesh(by[k].length>1?merge(by[k]):by[k][0],BAYM[k]()));}g.add(gr);ud.parts[n]=gr;}
  ud.ep=ep;ud.th=th;ud.fw=fw;ud.bbox=bb;ud.coils=parts?(parts.coilPts||[]).map(q=>({p:ep(q.p),a:q.a.clone().applyAxisAngle(V3(0,1,0),th).normalize(),r:q.r*.001*(fit.f||1),h:q.h*.001*(fit.f||1)})):[];ud.sepKeys=parts?Object.keys(parts.sep||{}):[];ud.minTop=minTop;
  if(eg){eg.name='engine';g.add(eg);}
  /* tient-il dans la baie ? */
