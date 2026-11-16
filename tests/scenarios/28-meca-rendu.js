@@ -54,7 +54,7 @@ module.exports = async function mecaRendu(page, env) {
       for (let i = 0; i < 40; i++) {
         __mwj.clear(); __mwj.spawn({ tpl: 'vidange', force: true, rend: false, silencieux: true });
         const c = __mwj.jobs()[0];
-        if (c && c.mdl === id) return true;
+        if (c && c.mdl === id && c.color !== 0xe8e8e8) return true; // carrosserie blanche exclue : on juge la baie, pas la peinture (sinon échec au hasard)
       }
       return false;
     }, id);
