@@ -10614,7 +10614,9 @@ D.setQuality=(lv,persist)=>{Q.level=lv;
  if(CX.scene.fog){const fg=CX.scene.fog;fg.near=lv==='basse'?28:lv==='moyenne'?50:60;fg.far=lv==='basse'?150:lv==='moyenne'?250:330;
   /* plan lointain de la caméra juste derrière le brouillard : tout ce qui est au-delà est écarté sans être dessiné */
   const far=fg.far+25;if(CX.cam&&CX.cam.far!==far){CX.cam.far=far;CX.cam.updateProjectionMatrix();}if(skyMesh) skyMesh.scale.setScalar(far*.95/440);}
- try{if(MW.fit) MW.fit();}catch(e){}};
+ try{if(MW.fit) MW.fit();}catch(e){}
+ /* redimensionner vide le canevas : on redessine tout de suite pour éviter une image blanche */
+ try{RN.render(CX.scene,CX.cam);}catch(e){}};
 D.qualityLabel=()=>'Qualité graphique : '+QN[Q.level]+(Q.auto?' (auto)':'');
 D.cycleQuality=()=>{const i=QS.indexOf(Q.level);Q.res=1;D.setQuality(QS[(i+1)%3],true);};
 
