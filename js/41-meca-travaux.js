@@ -676,8 +676,17 @@ function init(){
  if(typeof MWC==='undefined') MW.setDoor('garage1',()=>MW.panel('Garage du Coin',`<p>Bienvenue au Garage du Coin. Les clients arrivent de 8 h à 19 h : approchez-vous d'une voiture sur un pont, inspectez-la, démontez la pièce usée, prenez la neuve à l'étagère, montez-la, puis rendez la voiture depuis l'habitacle.</p><div class="mw-btns"><button type="button" class="btn" data-mw="carnet">Ouvrir le carnet</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,{onClick:a=>{if(a==='carnet') carnet();}}));
  if(!j.next||j.next<absT()-1500) j.next=0;}
 MW.on('start',init);
-MW.on('open',()=>{ensureBar();if(MW.S&&MW.S.jobs) invUI();});
-MW.on('close',()=>{if(ess) essaiEnd(true);});
+/* Le bureau d'études (js/06 à 08) reste caché derrière le mode Mécanicien : tant que celui-ci est ouvert, on suspend son dessin 3D
+   et son tableau de banc (DOM). Le calcul de chaleur, l'usure et le son de la boucle continuent comme avant. */
+let engSave=null;
+function engPause(){
+ if(engSave||typeof engFrame!=='function'||typeof benchUpdate!=='function') return;
+ engSave={f:engFrame,b:benchUpdate};engFrame=function(){};benchUpdate=function(){};}
+function engResume(){
+ if(!engSave) return;engFrame=engSave.f;benchUpdate=engSave.b;engSave=null;
+ try{benchUpdate();if(typeof kickEngine==='function') kickEngine();}catch(e){}}
+MW.on('open',()=>{ensureBar();if(MW.S&&MW.S.jobs) invUI();engPause();});
+MW.on('close',()=>{engResume();if(ess) essaiEnd(true);});
 MW.on('minute',onMinute);
 MW.on('day',()=>{if(MW.S&&MW.S.jobs) J().next=absT()+120+rint(0,10);});
 let fr=0;
