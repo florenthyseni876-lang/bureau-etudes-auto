@@ -435,7 +435,7 @@ function evalJob(c){
  let n=5-manque.length*1.5-Math.min(3,inut.length)-retard-Math.min(2,rendMiss.length)-Math.min(2,chain.length)-(MG()?MG().malus(c):0);if(nonResolu) n=1;
  if(c.caught) n=1; /* arnaque découverte au comptoir */
  const note=Math.round(clamp(n,1,5)),mult=note>=4?1:note===3?.8:.5;
- for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K);
+ for(const k in comp) comp[k]=Math.round(comp[k]*mult*XP_K*(c.auto?.5:1)); /* travail automatique (js/55) : on apprend moins en regardant faire */
 
  let moF=0;if(!nonResolu) for(const id of (F.fant||[])) if(!c.done[id]&&PARTS[id]&&c.parts[id]&&!c.parts[id].na){const p=PARTS[id],prix=R2(pprice(c,p)*1.3*c.fp);lines.push({id,nom:pn(c,p),prix,mo:p.mo,fant:1});pieces+=prix;moF+=p.mo;}
  if(nonResolu){pieces=0;mo=0;hon=0;moF=0;lines.length=0;}
