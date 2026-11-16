@@ -178,7 +178,7 @@ api.zone=id=>zById[id]||null;
 api.zoneAt=(x,y)=>{for(const z of zones){const m=z.interior?0:5;if(Math.abs(x-z.x)<=z.w/2+m&&Math.abs(y-z.z)<=z.d/2+m) return z;}return null;};
 
 /* ── colliders (rectangles alignés sur les axes : [x0,z0,x1,z1]) ── */
-const walls=[];
+const walls=[];api.walls=walls;/* [vie] colliders partagés avec js/53 (piétons, voitures de la rue) */
 const addCol=(x,z,w,d)=>walls.push([x-w/2,z-d/2,x+w/2,z+d/2]);
 function pushOut(px,pz,r){ // pousse un cercle hors des rectangles ; renvoie {x,z,hit}
  let hit=false;
