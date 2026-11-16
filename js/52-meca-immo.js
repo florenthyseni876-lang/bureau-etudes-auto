@@ -70,10 +70,21 @@ const own=id=>{const o=I();return o?o.owned[id]||null:null;};
 api.owned=id=>!!own(id);
 const value=id=>{const p=BY[id],w=own(id);return p&&w&&w.mode==='achat'?Math.round(p.prix*(1-p.decote)):0;};
 const weekly=id=>{const p=BY[id],w=own(id);if(!p||!w) return 0;return w.mode==='loc'?p.loyer:p.charges;};
-const stockCap=id=>{const p=BY[id],w=own(id);return p&&w?(w.mode==='loc'?Math.floor(p.stock/2):p.stock):0;};
+const STUDIO_STOCK=4; /* petit coffre du studio de départ (js/52a) */
+const stockCap=id=>{if(id==='appart') return STUDIO_STOCK;const p=BY[id],w=own(id);return p&&w?(w.mode==='loc'?Math.floor(p.stock/2):p.stock):0;};
 const parkCap=()=>{let n=0;for(const p of CAT){const w=own(p.id);if(p.kind==='logement'&&w&&w.mode==='achat') n+=p.parking||0;}return n;};
-api.value=value;api.weekly=weekly;
+api.value=value;api.weekly=weekly;api.cap=id=>stockCap(id);
 api.parkFree=()=>{const o=I();return o?Math.max(0,parkCap()-o.cars.length):0;};
+/* indices (dans MWI.state().cars) des voitures garées dans le garage privé d'un logement acheté : les places se remplissent dans l'ordre du catalogue */
+api.garageOf=id=>{const o=I();if(!o) return [];let k=0;
+ for(const p of CAT){const w=own(p.id);if(p.kind!=='logement'||!w||w.mode!=='achat'||!p.parking) continue;
+  if(p.id===id){const r=[];for(let i=0;i<p.parking;i++) r.push(k+i);return r;}k+=p.parking;}return [];};
+/* prend la voiture garée n° i : la voiture actuelle prend sa place dans le garage */
+api.takeCar=i=>{const o=I(),c=o&&o.cars[i];if(!c) return false;const now=MWC.getCar();
+ o.cars[i]={id:now.id,nom:now.nom,kind:now.kind,color:now.color,model:now.model};MWC.setCar(c);MW.emit('immoChanged','cars');MW.save();return true;};
+/* gare la voiture actuelle dans une place libre et reprend la voiture de départ (la « vieille ») */
+api.parkCurrent=()=>{const cur=MWC.getCar();if(cur.id==='vieille'||api.parkFree()<=0) return false;
+ const base=(MWC.CARS||[]).find(x=>x.id==='vieille');if(!base||!api.parkAdd(cur)) return false;MWC.setCar(base);MW.emit('immoChanged','cars');MW.save();return true;};
 api.parkAdd=car=>{const o=I();if(!o||!car||api.parkFree()<=0) return false;o.cars.push({id:car.id,nom:car.nom,kind:car.kind,color:car.color,model:car.model});return true;};
 api.totals=()=>{let v=0,c=0,n=0;for(const p of CAT) if(own(p.id)){v+=value(p.id);c+=weekly(p.id);n++;}return {valeur:v,charges:c,biens:n};};
 
@@ -130,6 +141,8 @@ const hm=m=>{const h=Math.floor(m/60),mm=m%60;return h+' h'+(mm?String(mm).padSt
 function perks(p,mode){
  const l=[];
  if(p.kind==='logement'){
+  let inf=null;try{inf=MWL.info(p.id);}catch(e){}
+  if(inf) l.push(`Intérieur à visiter : ${inf.surface} m², ${inf.pieces} pièces (lit, coffre, bureau${p.parking&&mode!=='loc'?', garage privé':''})`);
   l.push(`Meilleur repos : réveil à ${hm(p.reveil)} au lieu de 7 h 30`);
   if(p.repos) l.push(`Révisions de nuit : +${mode==='loc'?Math.floor(p.repos/2):p.repos} d’expérience par nuit (compétence la moins avancée)`);
   l.push(`Coffre personnel : ${mode==='loc'?Math.floor(p.stock/2):p.stock} places pour vos pièces et vos outils`);
@@ -148,11 +161,14 @@ function perks(p,mode){
  return l;}
 function sheet(p,z,w){
  const o=I(),mode=w?w.mode:null;
- let h=`<p>${esc(p.desc)}</p><div class="mw-card">`;
+ let h=`<p>${esc(p.desc)}</p>`;
+ if(p.kind==='logement'){let src='',inf=null;try{src=MWL.plan(p.id,440);inf=MWL.info(p.id);}catch(e){}
+  if(src) h+=`<figure class="mw-plan" style="margin:.2rem 0 .7rem;text-align:center"><img src="${src}" alt="Plan du logement ${esc(p.nom)}" style="width:100%;max-width:440px;border-radius:8px;border:1px solid rgba(128,128,128,.35)"><figcaption><small>Plan des pièces${inf?' · '+inf.surface+' m² · '+inf.pieces+' pièces':''} · la porte d’entrée est en haut (trait bleu)</small></figcaption></figure>`;}
+ h+='<div class="mw-card">';
  if(w){
   h+=row('Statut',w.mode==='loc'?'Loué':'Propriétaire')+(w.mode==='achat'?row('Valeur de revente',esc(fmt(value(p.id)))):row('Caution versée',esc(fmt(caution(p)))))+row(w.mode==='loc'?'Loyer par semaine':'Charges par semaine',esc(fmt(weekly(p.id))))+(w.credit?row('Achat','à crédit (voir la banque)'):'');}
  else{
-  h+=row('Prix',esc(fmt(p.prix)))+row('Charges par semaine',esc(fmt(p.charges)))+(p.loyer?row('Ou louer : loyer par semaine',esc(fmt(p.loyer))):'')+row('Revente','−'+Math.round(p.decote*100)+' %');}
+  h+=row('Prix',esc(fmt(p.prix)))+(p.kind==='logement'&&p.id?(()=>{try{const i=MWL.info(p.id);return row('Surface',i.surface+' m² · '+i.pieces+' pièces');}catch(e){return '';}})():'')+row('Charges par semaine',esc(fmt(p.charges)))+(p.loyer?row('Ou louer : loyer par semaine',esc(fmt(p.loyer))):'')+row('Revente','−'+Math.round(p.decote*100)+' %');}
  h+='</div><ul class="mw-cond">'+perks(p,mode).map(t=>`<li class="ok">✓ ${esc(t)}</li>`).join('')+'</ul>';
  return h;}
 function fiche(z){
@@ -178,7 +194,7 @@ function mine(p,z,w){
   h+=nuit?'':'<p class="hint">Vous pourrez dormir ici à partir de 19 h.</p>';
   const pk=w.mode==='achat'?(o.cars.length+'/'+parkCap()):'aucun';
   h+=`<div class="mw-card">${row('Coffre',(o.stock[p.id]||[]).length+'/'+stockCap(p.id))}${p.parking&&w.mode==='achat'?row('Voitures garées (tous vos garages)',esc(pk)):''}</div>`;
-  btns+=btn('sleep','Dormir (réveil à '+hm(p.reveil)+')','',!nuit)+btn('stock','Coffre : pièces et outils')+(w.mode==='achat'&&p.parking?btn('cars','Mes voitures'):'')+btn('save','Sauvegarder','ghost');}
+  btns+=(typeof MWL!=='undefined'?btn('enter','Entrer chez moi'):'')+btn('sleep','Dormir (réveil à '+hm(p.reveil)+')','',!nuit)+btn('stock','Coffre : pièces et outils')+(w.mode==='achat'&&p.parking?btn('cars','Mes voitures'):'')+btn('save','Sauvegarder','ghost');}
  if(p.kind==='garage'){
   let e=null;try{e=MWC.employer();}catch(x){}
   const here=!!e&&e.id==='proprio'&&e.zone===p.id;
@@ -195,6 +211,7 @@ function mine(p,z,w){
  h+=`<div class="mw-btns">${btns}</div>`;
  MW.panel(z.nom,h,{wide:true,onClick:a=>{
   if(a==='sleep'){if(!(s.min>=1140||s.min<360)) return;pend=p.id;MW.closePanel();MW.sleep(p.reveil);}
+  else if(a==='enter'){MW.closePanel();MWL.enter(p.id);}
   else if(a==='save'){MW.save();MW.toast('Partie sauvegardée.','good');}
   else if(a==='stock') stockPanel(p.id,z);
   else if(a==='cars') carsPanel(p.id,z);
@@ -206,6 +223,8 @@ function mine(p,z,w){
    delete o2.owned[p.id];let ok=false;try{ok=MWC.foundBrand(nom,{fac:p.fac,capital:p.capital});}catch(e){console.error(e);}
    if(!ok){o2.owned[p.id]=keep;fiche(z);}}}});}
 let pend=null;
+/* dormir dans le logement id (lit des intérieurs, js/52a) : réveil plus tôt et révisions de nuit comme depuis la fiche */
+api.sleepIn=id=>{const p=BY[id],s=MW.S;if(!p||!own(id)||!s||!(s.min>=1140||s.min<360)) return false;pend=id;MW.sleep(p.reveil);return true;};
 MW.on('slept',()=>{
  if(!pend) return;const p=BY[pend],w=own(pend);pend=null;if(!p||!w||!p.repos) return;
  const n=w.mode==='loc'?Math.floor(p.repos/2):p.repos;if(n<=0) return;
@@ -226,7 +245,8 @@ function stockPanel(id,z){
   const [k,n]=a.split(':'),i=+n;
   if(k==='in'&&inv[i]&&st.length<cap){try{MWJ.hands();}catch(e){}st.push(inv.splice(i,1)[0]);try{MWJ.invUI();}catch(e){}stockPanel(id,z);}
   else if(k==='out'&&st[i]&&inv.length<max){inv.push(st.splice(i,1)[0]);try{MWJ.invUI();}catch(e){}stockPanel(id,z);}
-  else if(a==='back') fiche(z);}});}
+  else if(a==='back'){if(BY[id]) fiche(z);else MW.closePanel();}}});}
+api.stock=id=>{const z=MW.zone(id);if(z) stockPanel(id,z);};
 api.stockMove=(id,dir,i)=>{ /* outil de test : 'in' range l'objet i de l'inventaire, 'out' reprend l'objet i du coffre */
  const o=I(),st=o.stock[id]||(o.stock[id]=[]),inv=MW.S.inv;
  if(dir==='in'&&inv[i]&&st.length<stockCap(id)){st.push(inv.splice(i,1)[0]);return true;}
@@ -239,7 +259,7 @@ function carsPanel(id,z){
  h+=o.cars.length?o.cars.map((c,i)=>`<div class="mw-row"><span>${esc(c.nom||'Voiture')}</span>${btn('take:'+i,'Prendre au volant','sm')}</div>`).join(''):'<small>Aucune voiture garée.</small>';
  h+=`</div><div class="mw-btns">${btn('back','Retour','ghost')}${btn('close','Fermer','ghost')}</div>`;
  MW.panel(z.nom+' · Garage privé',h,{wide:true,onClick:a=>{
-  if(a.startsWith('take:')){const i=+a.slice(5),c=o.cars[i];if(!c) return;const now=MWC.getCar();o.cars[i]={id:now.id,nom:now.nom,kind:now.kind,color:now.color,model:now.model};MWC.setCar(c);MW.toast('Vous prenez '+(c.nom||'cette voiture')+'.','good');carsPanel(id,z);}
+  if(a.startsWith('take:')){const i=+a.slice(5),c=o.cars[i];if(!c) return;api.takeCar(i);MW.toast('Vous prenez '+(c.nom||'cette voiture')+'.','good');carsPanel(id,z);}
   else if(a==='back') fiche(z);}});}
 
 /* ═══ Mes biens (touche B) ═══ */
@@ -253,7 +273,7 @@ function carnet(){
   :'<p class="hint">Vous ne possédez aucun bien. Les bâtiments « À vendre » sont indiqués en vert sur la carte (touche M) et par un panneau sur leur façade.</p>';
  const sale=CAT.filter(p=>!own(p.id));
  if(sale.length){h+='<h3 class="mw-h3">À vendre</h3><div class="mw-card">'+sale.map(p=>{const ok=reqOk(p);
-  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag${ok?' ok':' warn'}">${KIND[p.kind]}${ok?'':' · conditions à remplir'}</span><br><small>${esc(fmt(p.prix))} · charges ${esc(fmt(p.charges))} par semaine</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>';}
+  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag${ok?' ok':' warn'}">${KIND[p.kind]}${ok?'':' · conditions à remplir'}</span><br><small>${esc(fmt(p.prix))} · charges ${esc(fmt(p.charges))} par semaine${(()=>{try{return p.kind==='logement'?' · '+MWL.info(p.id).surface+' m²':'';}catch(e){return '';}})()}</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>';}
  h+=`<div class="mw-btns">${btn('close','Fermer','ghost')}</div>`;
  MW.panel('Mes biens',h,{wide:true,onClick:a=>{if(a.startsWith('go:')){const id=a.slice(3);MW.closePanel();MW.setMarker(id,BY[id]?BY[id].nom:'');MW.toast('Repère placé : '+(BY[id]?BY[id].nom:id)+' (carte : M).','info');}}});}
 api.panel=carnet;
