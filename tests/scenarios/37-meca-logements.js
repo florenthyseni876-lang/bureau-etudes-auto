@@ -179,6 +179,15 @@ module.exports = async function mecaLogements(page, env) {
   await attendreCondition(page, () => __mwl.inside() === 'loge4', "on n'entre pas dans la villa", 8000);
   const vi = await ev(() => ({ s: __mwl.state('loge4'), ip: __mwl.info('loge4') }));
   verifier(vi.s.nbVoitures === 1 && /car0/.test(vi.s.inter) && /car3/.test(vi.s.inter) && vi.s.decor.diplomes === 2 && vi.ip.pieces >= 8, `villa inattendue : ${JSON.stringify(vi)}`);
+  // 10. sauvegarde dans la villa : au rechargement de la page, on reprend la partie à l'intérieur (intérieur reconstruit et visible)
+  await devant('loge4', 'bed', 0, .3, -1.6);
+  await ev(() => { __mw.S.min = 700; __mw.save(); });
+  await page.reload();
+  await attendreVisible(page, '#hMeca', "l'accueil ne revient pas après le rechargement");
+  await cliquer(page, '#hMeca');
+  await attendreVisible(page, '#mwRoot', "le mode Mécanicien ne se rouvre pas");
+  await attendreCondition(page, () => window.__mwl && window.__mw && window.__mw.S && __mwl.inside() === 'loge4' && __mwl.state('loge4').visible, "partie rechargée dans la villa : l'intérieur n'est pas reconstruit", 15000);
+  verifier(await ev(() => __mw.eyeY > 2 && __mwl.state('loge4').nbVoitures === 1), "partie rechargée dans la villa : hauteur des yeux ou voitures garées inattendues");
   await ev(() => __mwl.leave());
   return 'entrer, dormir, coffre, bureau, garage privé, décor, fiche avec plan';
 };

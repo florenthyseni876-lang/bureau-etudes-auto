@@ -163,7 +163,7 @@ function sheet(p,z,w){
  const o=I(),mode=w?w.mode:null;
  let h=`<p>${esc(p.desc)}</p>`;
  if(p.kind==='logement'){let src='',inf=null;try{src=MWL.plan(p.id,440);inf=MWL.info(p.id);}catch(e){}
-  if(src) h+=`<figure class="mw-plan" style="margin:.2rem 0 .7rem;text-align:center"><img src="${src}" alt="Plan du logement ${esc(p.nom)}" style="width:100%;max-width:440px;border-radius:8px;border:1px solid rgba(128,128,128,.35)"><figcaption><small>Plan des pièces${inf?' · '+inf.surface+' m² · '+inf.pieces+' pièces':''}</small></figcaption></figure>`;}
+  if(src) h+=`<figure class="mw-plan" style="margin:.2rem 0 .7rem;text-align:center"><img src="${src}" alt="Plan du logement ${esc(p.nom)}" style="width:100%;max-width:440px;border-radius:8px;border:1px solid rgba(128,128,128,.35)"><figcaption><small>Plan des pièces${inf?' · '+inf.surface+' m² · '+inf.pieces+' pièces':''} · la porte d’entrée est en haut (trait bleu)</small></figcaption></figure>`;}
  h+='<div class="mw-card">';
  if(w){
   h+=row('Statut',w.mode==='loc'?'Loué':'Propriétaire')+(w.mode==='achat'?row('Valeur de revente',esc(fmt(value(p.id)))):row('Caution versée',esc(fmt(caution(p)))))+row(w.mode==='loc'?'Loyer par semaine':'Charges par semaine',esc(fmt(weekly(p.id))))+(w.credit?row('Achat','à crédit (voir la banque)'):'');}

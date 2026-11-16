@@ -13484,7 +13484,7 @@ function sheet(p,z,w){
  const o=I(),mode=w?w.mode:null;
  let h=`<p>${esc(p.desc)}</p>`;
  if(p.kind==='logement'){let src='',inf=null;try{src=MWL.plan(p.id,440);inf=MWL.info(p.id);}catch(e){}
-  if(src) h+=`<figure class="mw-plan" style="margin:.2rem 0 .7rem;text-align:center"><img src="${src}" alt="Plan du logement ${esc(p.nom)}" style="width:100%;max-width:440px;border-radius:8px;border:1px solid rgba(128,128,128,.35)"><figcaption><small>Plan des pièces${inf?' · '+inf.surface+' m² · '+inf.pieces+' pièces':''}</small></figcaption></figure>`;}
+  if(src) h+=`<figure class="mw-plan" style="margin:.2rem 0 .7rem;text-align:center"><img src="${src}" alt="Plan du logement ${esc(p.nom)}" style="width:100%;max-width:440px;border-radius:8px;border:1px solid rgba(128,128,128,.35)"><figcaption><small>Plan des pièces${inf?' · '+inf.surface+' m² · '+inf.pieces+' pièces':''} · la porte d’entrée est en haut (trait bleu)</small></figcaption></figure>`;}
  h+='<div class="mw-card">';
  if(w){
   h+=row('Statut',w.mode==='loc'?'Loué':'Propriétaire')+(w.mode==='achat'?row('Valeur de revente',esc(fmt(value(p.id)))):row('Caution versée',esc(fmt(caution(p)))))+row(w.mode==='loc'?'Loyer par semaine':'Charges par semaine',esc(fmt(weekly(p.id))))+(w.credit?row('Achat','à crédit (voir la banque)'):'');}
@@ -13674,8 +13674,8 @@ Acc.prototype.mesh=function(mat){
  g.setAttribute('position',new T.BufferAttribute(new Float32Array(this.p),3));g.setAttribute('normal',new T.BufferAttribute(new Float32Array(this.n),3));
  g.setAttribute('color',new T.BufferAttribute(new Float32Array(this.c),3));g.setIndex(new T.BufferAttribute(new Uint32Array(this.i),1));
  g.computeBoundingSphere();const m=new T.Mesh(g,mat);m.frustumCulled=false;return m;};
-let MS=null,MG=null;
-const matS=()=>MS||(MS=new T.MeshLambertMaterial({vertexColors:true,emissive:0x484848}));
+let MS=null,MG=null,LIGHT=null;
+const matS=()=>MS||(MS=new T.MeshLambertMaterial({vertexColors:true,emissive:0x1c1c1c}));
 const matG=()=>MG||(MG=new T.MeshBasicMaterial({vertexColors:true}));
 /* repère d'un meuble : (x,z) = centre, q = quart de tour (0 : face vers +z ; 1 : vers +x ; 2 : vers −z ; 3 : vers −x) */
 function Fr(S,G,x,z,q){const ry=q*PI/2,C=Math.round(Math.cos(ry)),Sn=Math.round(Math.sin(ry)),X=(lx,lz)=>x+lx*C+lz*Sn,Z=(lx,lz)=>z-lx*Sn+lz*C;
@@ -13853,6 +13853,7 @@ function build(id){
  if(LB[id]) return LB[id];
  const L=LAY[id],z=MW.zone(id);if(!L||!z) return null;
  try{const R=MW.renderer&&MW.renderer();LIN=!!R&&R.outputEncoding===T.sRGBEncoding;}catch(e){LIN=false;}
+ if(!LIGHT){LIGHT=new T.AmbientLight(0xffe2b8,0);MW.scene.add(LIGHT);}
  const S=new Acc(),G=new Acc(),grp=new T.Group(),f=frameOf(z),cols=[],H=L.H,t=L.t,iw=L.iw,idp=L.id,wl=P.wall[L.wall],bs=P.base[L.wall];
  grp.name='logement-'+id;grp.position.set(f.d.x,FL,f.d.z);grp.rotation.y=f.ry0;grp.visible=false;
  const item={};
@@ -13879,7 +13880,7 @@ function build(id){
  /* plafonniers */
  for(const [x,zz] of L.lamps){S.box(.78,.04,.78,x,H-.05,zz,0xd8d4c8);G.box(.66,.02,.66,x,H-.07,zz,0xfff4d8);}
  /* sol */
- L.rooms.forEach((r,i)=>{const w=r.x1-r.x0,d=r.z1-r.z0,m=new T.Mesh(new T.PlaneGeometry(w,d),new T.MeshLambertMaterial({map:ftex(r.f,w,d),emissive:0x484848}));
+ const fmats=[];L.rooms.forEach((r,i)=>{const w=r.x1-r.x0,d=r.z1-r.z0,fm=new T.MeshLambertMaterial({map:ftex(r.f,w,d),emissive:0x1c1c1c}),m=new T.Mesh(new T.PlaneGeometry(w,d),fm);fmats.push(fm);
   m.rotation.x=-PI/2;m.position.set((r.x0+r.x1)/2,.012+i*.003,(r.z0+r.z1)/2);grp.add(m);});
  /* meubles */
  L.items.forEach((it,ix)=>{const [ty,x,zz,q,o0]=it,D=IT[ty];if(!D) return;const o=Object.assign({t},o0||{}),F=Fr(S,G,x,zz,q);D.b(F,o);
@@ -13901,7 +13902,7 @@ function build(id){
  MW.scene.add(grp);
  // colliders dans le monde (une fois)
  const wc=cols.map(b=>colW(z,b));for(const b of wc) MW.walls.push(b);
- const B=LB[id]={id,grp,dyn,wins,cols:wc,item,inter:[],dynI:[],gate:null,L};
+ const B=LB[id]={id,grp,dyn,wins,cols:wc,item,inter:[],dynI:[],gate:null,L,fmats};
  interacts(B,z);dynBuild(B);
  return B;}
 
@@ -14001,8 +14002,11 @@ MW.on('tick',()=>{
  if(now!==cur){if(cur&&LB[cur]){LB[cur].grp.visible=false;if(!now) MW.eyeY=0;}cur=now;if(cur) LB[cur].grp.visible=true;}
  if(cur) MW.eyeY=FL+1.7;else if(MW.eyeY===FL+1.7) MW.eyeY=0;
  if(cur){const B=LB[cur],h=MW.hourF(),k=h>=7.5&&h<17.5?1:h>=17.5&&h<20?1-(h-17.5)/2.5*.85:h>=5.5&&h<7.5?.15+(h-5.5)/2*.85:.15;
-  if(B.sk!==k){B.sk=k;for(const w of B.wins) w.material.color.setRGB(k,k,k*1.05>1?1:k*1.05);}}
- else if(!now){ /* partie chargée dedans : reconstruire l'intérieur (le joueur est dans l'emprise d'un logement) */
+  if(B.sk!==k){B.sk=k;for(const w of B.wins) w.material.color.setRGB(k,k,k*1.05>1?1:k*1.05);}
+  /* la nuit, les lampes éclairent : lumière d'ambiance chaude (jamais allumée dehors) */
+  const li=.2+(1-k)*.85;if(LIGHT.intensity!==li) LIGHT.intensity=li;}
+ else if(LIGHT&&LIGHT.intensity!==0) LIGHT.intensity=0;
+ if(!cur&&!now){ /* partie chargée dedans : reconstruire l'intérieur (le joueur est dans l'emprise d'un logement) */
   if(p.zoneObj&&IDS.includes(p.zone)&&!p.inCar&&!LB[p.zone]){const z=p.zoneObj,l=toL(z,p.x,p.z),L=LAY[p.zone];if(l.x>-L.iw/2&&l.x<L.iw/2&&l.z>.3&&l.z<L.id&&ownedL(p.zone)) build(p.zone);}}});
 MW.on('start',()=>{cur=null;MW.eyeY=0;for(const id of IDS) if(LB[id]) LB[id].grp.visible=false;});
 MW.on('immoChanged',()=>{for(const id of IDS) if(LB[id]) dynBuild(LB[id]);});
@@ -14015,7 +14019,7 @@ const PLC={lam:'#c9ad82',parq:'#b08450',tile:'#d4dade',conc:'#9a9c9e',carpet:'#8
 const ITC={bed:'#6a7ab0',chest:'#c89a1a',desk:'#7a5a34',kitchen:'#d8d0c0',fridge:'#e8eaec',island:'#c8c0b0',table:'#9a7048',sofa:'#6a7a96',armchair:'#7a6a8a',tvunit:'#3a3a40',ctable:'#9a7048',wardrobe:'#a88a5a',shelf:'#7a5a34',bain:'#f4f4f0',shower:'#c8e4f0',wc:'#f4f4f0',sink:'#f4f4f0',rug:'rgba(120,80,80,.25)',plant:'#3a8a3a',lamp:'#d8b030',fire:'#8a5a44',piano:'#1a1a20',workbench:'#8a6a44',rack:'#4a6a8a',column:'#e0dcd0',console:'#9a7048'};
 const PLANC={};
 api.plan=(id,W)=>{
- const L=LAY[id];if(!L) return '';W=W||360;if(PLANC[id+W]) return PLANC[id+W];const m=10,sc=(W-2*m)/L.iw,Hh=Math.round(L.id*sc+2*m+14);
+ const L=LAY[id];if(!L) return '';W=W||360;if(PLANC[id+W]) return PLANC[id+W];const m=10,sc=(W-2*m)/L.iw,Hh=Math.round(L.id*sc+2*m);
  const c=document.createElement('canvas');c.width=W;c.height=Hh;const x=c.getContext('2d'),X=u=>m+(u+L.iw/2)*sc,Y=v=>m+v*sc;
  x.fillStyle='#f4f1ea';x.fillRect(0,0,W,Hh);
  for(const r of L.rooms){x.fillStyle=PLC[r.f]||'#ccc';x.fillRect(X(r.x0),Y(r.z0),(r.x1-r.x0)*sc,(r.z1-r.z0)*sc);}
@@ -14030,7 +14034,6 @@ api.plan=(id,W)=>{
  x.fillStyle='rgba(20,24,30,.85)';x.font='bold '+Math.max(9,Math.round(sc*.62))+'px Arial';x.textAlign='center';x.textBaseline='middle';
  for(const r of L.rooms){const w=(r.x1-r.x0)*sc;let t=r.n,s=Math.max(9,Math.round(sc*.62));x.font='bold '+s+'px Arial';while(x.measureText(t).width>w-4&&s>7){s--;x.font='bold '+s+'px Arial';}
   if(x.measureText(t).width<=w-2){x.fillStyle='rgba(255,255,255,.7)';const tw=x.measureText(t).width+6,cx=X((r.x0+r.x1)/2),cy=Y(r.z0)+11;x.fillRect(cx-tw/2,cy-8,tw,16);x.fillStyle='#1c2026';x.fillText(t,cx,cy);}}
- x.fillStyle='#4a4e56';x.font='11px Arial';x.textAlign='left';x.fillText('Plan vu du dessus · la porte d’entrée est en haut (trait bleu)',m,Hh-4);
  return PLANC[id+W]=c.toDataURL('image/png');};
 api.state=id=>{const B=LB[id];return {built:!!B,visible:!!(B&&B.grp.visible),nbVoitures:B?B.dyn.children.filter(o=>o.userData&&o.userData.park).length:0,decor:B?B.decor:null,inter:B?B.inter.concat(B.dynI):[],colliders:B?B.cols.length:0};};
 api.group=id=>LB[id]?LB[id].grp:null;
