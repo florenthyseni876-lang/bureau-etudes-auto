@@ -206,7 +206,7 @@ function lampBuild(){
  const pn=new T.Mesh(new T.PlaneGeometry(.34,.24),new T.MeshBasicMaterial({color:LCOL.panel}));pn.position.z=.037;
  LH.add(hm,pn);LG.add(base,LP,LH);
  for(const o of [base,LP,hm,pn]){o.castShadow=false;o.frustumCulled=false;}
- LL=new T.PointLight(0xfff0d2,0,9,1.2);LL.castShadow=false;
+ LL=new T.PointLight(0xffe9c4,0,6.5,2);LL.castShadow=false;
  MW.scene.add(LG);MW.scene.add(LL);LG.visible=false;}
 /* configuration de la lampe pour la voiture en cours de travail : position du pied (repère voiture), hauteur de tête, point visé, position de la lumière */
 function lampCfg(c,g){
@@ -233,7 +233,7 @@ function lampTick(dt){
   lampCar=R.c;
   if(!lampCol){const D=(typeof MWD!=='undefined'&&MWD.ctx);if(D&&D.walls){lampCol=[0,0,0,0];D.walls.push(lampCol);}}
   if(lampCol){lampCol[0]=LG.position.x-.3;lampCol[1]=LG.position.z-.3;lampCol[2]=LG.position.x+.3;lampCol[3]=LG.position.z+.3;}}
- LG.visible=lampK>.03&&!!cfg;LL.intensity=lampK*3;
+ LG.visible=lampK>.03&&!!cfg;LL.intensity=lampK*1.5;
  if(!cfg&&lampCol&&lampK<.03){const D=(typeof MWD!=='undefined'&&MWD.ctx),i=D&&D.walls?D.walls.indexOf(lampCol):-1;if(i>=0) D.walls.splice(i,1);lampCol=null;}
 }
 
