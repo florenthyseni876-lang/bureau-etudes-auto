@@ -54,9 +54,10 @@ module.exports = async function mecaMoteurs(page, env) {
           // 3. visible depuis quelques positions
           const eyes = [[0, 1.05], [.5, 1.0], [-.5, 1.0], [hw + .55, .1], [-(hw + .55), .1], [hw + .4, .6], [-(hw + .4), .6], [0, 0.6]];
           for (const a of [-.4, 0, .4]) for (const b of [-.3, .1, .5, .9]) eyes.push([a, b]);
+          const top = [-.3, 0, .3].flatMap(a => [-.3, 0, .3].map(b => [a, b, 1.95])); // penché au-dessus de la baie
           r.vu = 0;
-          for (const [ds, df] of eyes) {
-            const eye = new T.Vector3(bz.x + s.x * ds + f.x * df * fs, 1.65, bz.z + s.z * ds + f.z * df * fs), d = v.clone().sub(eye), L = d.length(); d.normalize();
+          for (const [ds, df, hh] of eyes.concat(top)) {
+            const eye = new T.Vector3(bz.x + s.x * ds + f.x * df * fs, hh || 1.65, bz.z + s.z * ds + f.z * df * fs), d = v.clone().sub(eye), L = d.length(); d.normalize();
             rc.set(eye, d); rc.far = L; const h = rc.intersectObjects(occ, false);
             if (!h.length || h[0].distance > L - .075) r.vu++; }
           res.push(r);
