@@ -39,7 +39,13 @@ const R={
  alternateur:{f:.2,t:'consigne',o:70,d:1.1,r:{min:90,kit:.12,g:70,txt:'Charbons, roulements et régulateur neufs, débit contrôlé au banc.'}},
  demarreur:{f:.2,t:'consigne',o:70,d:1,r:{min:80,kit:.1,g:70,txt:'Lanceur, charbons et bagues neufs, essai à vide.'}},
  injecteurs:{f:.18,t:'consigne',o:65,d:1,r:{min:60,kit:.1,g:65,txt:'Nettoyage aux ultrasons, joints neufs, débit et pulvérisation contrôlés au banc.'}},
- sonde_lambda:{f:.2,t:'precieux'}};
+ sonde_lambda:{f:.2,t:'precieux'},
+ /* pannes réalistes (js/51) */
+ bobines:{f:.05,t:'fer'},vanne_egr:{f:.12,t:'fer'},fap:{f:.15,t:'precieux'},turbo:{f:.25,t:'consigne'},filtre_gazole:{f:0,t:'dechet'},thermostat:{f:.05,t:'fer'},
+ pompe_eau:{f:.08,t:'fer'},radiateur:{f:.12,t:'fer',o:50,d:.7},durite:{f:0,t:'dechet'},ventilateur:{f:.08,t:'fer',o:60,d:.6},joint_culasse:{f:0,t:'dechet'},
+ capteur_pmh:{f:.05,t:'fer'},capteur_arbre:{f:.05,t:'fer'},debitmetre:{f:.06,t:'fer'},sonde_temp:{f:0,t:'dechet'},pompe_carburant:{f:.08,t:'fer'},
+ catalyseur:{f:.3,t:'precieux'},joint_cc:{f:0,t:'dechet'},joint_spi:{f:0,t:'dechet'},rotule:{f:.08,t:'fer'},roulement:{f:.06,t:'fer'},cardan:{f:.2,t:'consigne'},
+ volant_bimasse:{f:.1,t:'fer'}};
 const MAT={dechet:'Déchet : recyclage gratuit, ne rapporte rien.',pneu:'Pneus usés : recyclage gratuit, ne rapportent rien.',fer:'Ferraille, payée au poids.',
  plomb:'Plomb de la batterie, bien payé au recyclage.',precieux:'Contient des métaux précieux (platine) : payé au recyclage.',consigne:'Pièce d\'échange standard : le magasin rembourse la consigne.'};
 const NIV={bas:{k:.8,p:2.2,nom:'Prix bas'},juste:{k:1,p:1,nom:'Prix du marché'},haut:{k:1.25,p:.45,nom:'Prix haut'}};

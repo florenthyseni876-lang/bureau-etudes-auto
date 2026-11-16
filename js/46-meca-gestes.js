@@ -392,7 +392,7 @@ function treadTex(k){
  return TREADS[k]=new T.MeshLambertMaterial({map:tx});}
 const wearK=u=>u>=70?'worn':u>=40?'mid':'new';
 function needWheel(R,S){
- const c=R.c,ax=S[0]==='F'?'av':'ar',ids=['plaq_'+ax,'disq_'+ax,'pneus'];if(ax==='av') ids.push('amort');
+ const c=R.c,ax=S[0]==='F'?'av':'ar',ids=['plaq_'+ax,'disq_'+ax,'pneus'];if(ax==='av') ids.push('amort','rotule','roulement','cardan');
  return wantedAny(c,ids);}
 function wheelsLogic(R,ax){
  const c=R.c,a=ax==='av'?['FL','FR']:['RL','RR'],offs=a.every(S=>wst(c,S).o),ons=a.every(S=>!wst(c,S).o);
@@ -400,7 +400,7 @@ function wheelsLogic(R,ax){
  else if(ons&&c.st[ax]) L().togRoues(c,ax);}
 function tiresCheck(R){const c=R.c;if(CORN.every(S=>wst(c,S).t)&&!c.done.pneus){if(doDepL(R,'pneus')) doPoseL(R,'pneus');}}
 function inspMsg(R,id){const c=R.c,p=PARTS[id],u=c.parts[id].u;
- MW.toast(`${pname(c,id)} : `+(p.hid?"rien d'anormal à l'œil nu ; la valise de diagnostic le dira.":`usure ${u} % — ${u<35?'bon état.':u<60?'usure correcte.':u<75?'à surveiller.':(u>=90?"hors d'usage. ":'à remplacer. ')+p.usTxt}`),u>=75&&!p.hid?'warn':'info');}
+ MW.toast(`${pname(c,id)} : `+MWJ.inspLine(c,id),u>=75&&!p.hid?'warn':'info');} /* texte propre au symptôme (js/41 : inspLine) */
 const SIDE_NOM={FL:'avant gauche',FR:'avant droite',RL:'arrière gauche',RR:'arrière droite'};
 function buildWheels(R){
  const {c,g,u}=R,F=R.F,N=NUTS(c);R.wh={};
@@ -730,6 +730,15 @@ function mkProxy(kind,u){
  else if(kind==='belt'){g.add(tor(.09,.008,d?0x4a4642:0x0c0c0c,0,0,0,'x'),tor(.09,.008,d?0x4a4642:0x0c0c0c,0,.0,.0,'z'));g.add(cy(.035,.02,C.steel,0,0,0,'x','p'),cy(.035,.02,C.steel,0,.14,0,'x','p'));}
  else if(kind==='damper'){g.add(cy(.025,.3,d?0x2a2622:0x2a2e33,0,0,0),cy(.012,.2,0xd8dde2,0,.2,0,null,'p'));for(let i=0;i<6;i++) g.add(tor(.05,.005,d?0x6a5a4a:0xc02a20,0,-.12+i*.045,0,'y'));}
  else if(kind==='rail'){g.add(cy(.012,.3,C.steel,0,0,0,'x','p'));for(let i=-1;i<=1;i+=2) g.add(cy(.009,.07,d?0x3a3028:C.alu,i*.1,-.045,0));}
+ else if(kind==='egr') g.add(cy(.03,.07,d?0x2a2420:C.alu,0,0,0,'x'),cy(.012,.1,C.steel,0,.05,0));
+ else if(kind==='fap'||kind==='cata') g.add(cy(.07,.4,d?0x4a4038:C.steel,0,0,0,'z','p'),tor(.07,.006,C.dsteel,0,0,.2,'x'));
+ else if(kind==='turbo') g.add(cy(.06,.1,d?0x4a3a2a:C.dsteel,0,0,0,'x','p'),cy(.05,.06,C.alu,.07,0,0,'x'));
+ else if(kind==='sensor') g.add(cy(.008,.07,0x222222,0,0,0),hex(.012,.015,0xb9bec4,0,-.03,0));
+ else if(kind==='fan') g.add(cy(.17,.03,d?0x2a2a2a:0x1c1c1c,0,0,0,'z','p'),bx(.3,.012,.02,C.steel,0,0,.02),bx(.012,.3,.02,C.steel,0,0,.02));
+ else if(kind==='pump') g.add(cy(.045,.1,d?0x3a3a3a:C.dsteel,0,0,0,'x','p'),cy(.03,.05,C.alu,.07,0,0,'x'));
+ else if(kind==='thermo') g.add(cy(.04,.03,C.alu,0,0,0),cy(.012,.05,d?0x6a5a4a:C.steel,0,.03,0));
+ else if(kind==='fuelf') g.add(cy(.04,.12,d?0x3a2f26:0x7a838c,0,0,0,null,'p'));
+ else if(kind==='gasket') g.add(bx(.3,.01,.12,d?0x3a3028:0x1c1c1c,0,0,0));
  else g.add(bx(.1,.06,.1,C.steel,0,0,0));
  return g;}
 function buildGeneric(R,sp){
@@ -906,6 +915,38 @@ BUILD.push(buildPlugsBelt);
 
 SPECS.push({id:'liquide_frein',kind:'fluid',at:R=>LOCAL(R,'brakeFluid',0,.08,0),nfix:1,fixAt:[[0,.0,0]],fixTool:'main',fixName:'Bouchon du bocal',fixLab:'Dévisser le bouchon du bocal',fixRe:'Revisser le bouchon',vis:R=>c4(R),depTool:'seringue',depLab:"Aspirer l'ancien liquide",poseTool:'bidon',poseLab:'Remplir de liquide neuf et purger',poseHold:1.8,r:.09,ord:12});
 SPECS.push({id:'amort',kind:'damper',units:2,nfix:0,at:R=>LOCAL(R,'hubFL',0,.3,0),unitAt:(R,i)=>{const a=R.A(i?'hubFR':'hubFL');return V3(a.x,a.y+.32,a.z);},vis:R=>R.c.st.av,depTool:'cliquet',depSock:'top',depLab:"Déposer l'amortisseur et son ressort",poseTool:'cliquet',poseSock:'top',poseLab:"Monter l'amortisseur neuf",depHold:1.4,poseHold:1.4,r:.15,ord:13});
+
+/* ═══ [js/51] pièces des pannes réalistes : mêmes gestes génériques (fixations, dépose, pièce neuve, remontage), points d'ancrage existants ═══ */
+const SPF=[[.07,.07,0],[-.07,.07,0],[.07,-.07,0],[-.07,-.07,0],[0,.08,.07],[0,.08,-.07]];
+const SP=(id,o)=>SPECS.push(Object.assign({id,vis:R=>c4(R),nfix:2,fixAt:SPF,sock:'clip',fixName:'Fixation',fixLab:'Dévisser',r:.11,ord:14},o));
+const fixN=n=>SPF.slice(0,n);
+const radAt=R=>{const a=R.A('radiator');return a.lengthSq()>0?a:LOCAL(R,'coolant',-.1,-.15,.2);};
+const exAt=(R,k)=>{const e=R.A('exhaust');return V3(e.x,e.y+.05,R.u.L?R.u.L*k:0);};
+const hubAt=(R,i,dy)=>{const a=R.A(i?'hubFR':'hubFL');return V3(a.x,a.y+dy,a.z);};
+const gearAt=(R,dz)=>{const b=bayG(R),e=b&&b.userData.gear;return e?e.e.clone().add(V3(0,0,dz||0)):LOCAL(R,'bay',0,.2,dz||0);};
+SP('bobines',{kind:'coil',at:R=>LOCAL(R,'coils',0,.1,.12),nfix:2,fixAt:fixN(2),depLab:'Déposer les bobines usées',poseLab:'Monter les bobines neuves',ord:14});
+SP('vanne_egr',{kind:'egr',at:R=>LOCAL(R,'coils',.14,.06,-.1),nfix:2,fixAt:fixN(2),sock:'inj',fixName:'Vis de la vanne EGR',depLab:'Déposer la vanne EGR encrassée',poseLab:'Monter la vanne EGR neuve',ord:15});
+SP('fap',{kind:'fap',at:R=>exAt(R,.07),vis:R=>liftedNow(R.c),nfix:3,fixAt:fixN(3),sock:'bolt',fixName:"Bride d'échappement",depLab:'Déposer le filtre à particules',poseLab:'Monter le filtre à particules neuf',r:.15,ord:16});
+SP('turbo',{kind:'turbo',at:R=>LOCAL(R,'coils',-.16,.04,0),nfix:3,fixAt:fixN(3),sock:'bolt',fixName:'Écrou du turbo',depLab:'Déposer le turbocompresseur',poseLab:'Monter le turbo neuf',poseTool:'cle_dyn',poseSock:'bolt',r:.13,ord:17});
+SP('filtre_gazole',{kind:'fuelf',at:R=>LOCAL(R,'airbox',0,-.02,-.18),nfix:0,fixAt:[],depTool:'cle_filtre',depLab:'Dévisser le filtre à gazole usé',poseTool:'main',poseLab:'Visser le filtre à gazole neuf',r:.1,ord:18});
+SP('thermostat',{kind:'thermo',at:R=>LOCAL(R,'coolant',-.15,-.12,.1),nfix:3,fixAt:fixN(3),fixName:'Vis du boîtier de thermostat',depLab:'Déposer le boîtier et le thermostat',poseLab:'Monter le thermostat neuf et son joint',r:.1,ord:19});
+SP('pompe_eau',{kind:'pump',at:R=>LOCAL(R,'timing',0,-.05,.1),nfix:4,fixAt:fixN(4),sock:'bolt',fixName:'Vis de la pompe à eau',depLab:'Déposer la pompe à eau',poseLab:'Monter la pompe à eau neuve',r:.12,ord:20});
+SP('radiateur',{kind:'thermo',at:R=>radAt(R),nfix:2,fixAt:fixN(2),fixTool:'pinces',fixName:'Collier de durite du radiateur',fixLab:'Desserrer le collier',fixRe:'Resserrer le collier',depLab:'Déposer le radiateur',poseLab:'Monter le radiateur neuf',r:.2,ord:21});
+SP('durite',{kind:'thermo',at:R=>LOCAL(R,'coolant',0,-.1,0),nfix:2,fixAt:fixN(2),fixTool:'pinces',fixName:'Collier de durite',fixLab:'Desserrer le collier',fixRe:'Resserrer le collier',depLab:'Retirer la durite fendue',poseLab:'Monter la durite neuve',r:.1,ord:22});
+SP('ventilateur',{kind:'fan',at:R=>radAt(R),nfix:2,fixAt:fixN(2),fixName:'Vis du motoventilateur',depLab:'Déposer le motoventilateur',poseLab:'Monter le motoventilateur neuf',r:.18,ord:23});
+SP('joint_culasse',{kind:'gasket',at:R=>LOCAL(R,'coils',0,.16,-.14),nfix:6,fixAt:fixN(6),sock:'bolt',fixName:'Vis de culasse',fixLab:'Desserrer la vis de culasse',fixRe:'Resserrer la vis de culasse (au couple)',cover:{name:'Couvre-culasse',at:R=>LOCAL(R,'coils',0,.12,-.1),mk:()=>bx(.34,.03,.16,0x3b4046,0,0,0)},depLab:'Déposer la culasse et son joint percé',poseLab:'Poser la culasse avec un joint neuf',poseTool:'cle_dyn',poseSock:'bolt',depHold:1.6,poseHold:1.6,r:.15,ord:24});
+SP('capteur_pmh',{kind:'sensor',at:R=>LOCAL(R,'bay',.1,.02,-.1),vis:R=>liftedNow(R.c),nfix:1,fixAt:fixN(1),fixTool:'pinces',fixName:'Connecteur du capteur de vilebrequin',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'clip',depLab:'Dévisser le capteur de vilebrequin',poseTool:'cliquet',poseSock:'clip',poseLab:'Visser le capteur neuf',r:.08,ord:25});
+SP('capteur_arbre',{kind:'sensor',at:R=>LOCAL(R,'timing',0,.1,-.05),nfix:1,fixAt:fixN(1),fixTool:'pinces',fixName:"Connecteur du capteur d'arbre à cames",fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'clip',depLab:"Dévisser le capteur d'arbre à cames",poseTool:'cliquet',poseSock:'clip',poseLab:'Visser le capteur neuf',r:.08,ord:26});
+SP('debitmetre',{kind:'sensor',at:R=>LOCAL(R,'airbox',0,.06,.2),nfix:2,fixAt:fixN(2),fixTool:'tournevis',fixName:'Vis du débitmètre',fixLab:'Dévisser les vis',fixRe:'Revisser les vis',depLab:"Sortir le débitmètre d'air",poseLab:'Monter le débitmètre neuf',r:.09,ord:27});
+SP('sonde_temp',{kind:'sensor',at:R=>LOCAL(R,'coolant',.1,-.15,.15),nfix:1,fixAt:fixN(1),fixTool:'pinces',fixName:'Connecteur de la sonde de température',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'clip',depLab:'Dévisser la sonde de température',poseTool:'cliquet',poseSock:'clip',poseLab:'Visser la sonde neuve',r:.08,ord:28});
+SP('pompe_carburant',{kind:'pump',at:R=>{const a=R.A('under');return V3(a.x,a.y+.1,a.z-(R.u.L?R.u.L*.12:.5));},vis:R=>liftedNow(R.c),nfix:4,fixAt:fixN(4),fixName:'Vis de la bride de pompe',depLab:'Déposer la pompe à carburant',poseLab:'Monter la pompe neuve',r:.14,ord:29});
+SP('catalyseur',{kind:'cata',at:R=>exAt(R,.15),vis:R=>liftedNow(R.c),nfix:3,fixAt:fixN(3),sock:'bolt',fixName:"Bride d'échappement",depLab:'Déposer le catalyseur',poseLab:'Monter le catalyseur neuf',r:.15,ord:30});
+SP('joint_cc',{kind:'gasket',at:R=>LOCAL(R,'coils',0,.14,0),nfix:4,fixAt:fixN(4),fixName:'Vis du cache-culbuteurs',depLab:'Déposer le cache-culbuteurs et son joint',poseLab:'Poser le joint neuf et refermer',r:.12,ord:31});
+SP('joint_spi',{kind:'gasket',at:R=>LOCAL(R,'timing',0,-.12,0),nfix:3,fixAt:fixN(3),fixName:'Boulon de poulie',depTool:'pinces',depLab:"Extraire l'ancien joint spi",poseTool:'main',poseLab:'Monter le joint spi neuf',r:.1,ord:32});
+SP('rotule',{kind:'sensor',units:2,nfix:0,fixAt:[],at:R=>hubAt(R,0,.18),unitAt:(R,i)=>hubAt(R,i,.18),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'arm',depLab:'Déposer la rotule',poseTool:'cliquet',poseSock:'arm',poseLab:'Monter la rotule neuve',depHold:1.2,poseHold:1.2,r:.1,ord:33});
+SP('roulement',{kind:'pump',units:2,nfix:0,fixAt:[],at:R=>hubAt(R,0,0),unitAt:(R,i)=>hubAt(R,i,0),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'bolt',depLab:'Déposer le moyeu et extraire le roulement',poseTool:'cliquet',poseSock:'bolt',poseLab:'Presser le roulement neuf et remonter',depHold:1.4,poseHold:1.4,r:.12,ord:34});
+SP('cardan',{kind:'sensor',units:2,nfix:0,fixAt:[],at:R=>hubAt(R,0,-.06),unitAt:(R,i)=>hubAt(R,i,-.06),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'nut',depLab:'Déposer le cardan',poseTool:'cliquet',poseSock:'nut',poseLab:'Monter le cardan neuf',depHold:1.3,poseHold:1.3,r:.1,ord:35});
+SP('volant_bimasse',{kind:'clutch',at:R=>gearAt(R,.06),vis:R=>liftedNow(R.c)&&!!bayG(R),nfix:4,fixAt:[[.1,.08,.12],[-.1,.08,.12],[.1,-.08,.12],[-.1,-.08,.12]],sock:'gear',fixName:'Vis du volant moteur',depLab:'Déposer le volant moteur bimasse',poseLab:'Monter le volant neuf',poseTool:'cle_dyn',poseSock:'gear',depHold:1.5,poseHold:1.5,r:.14,ord:36});
 
 /* ═══════════ Blocages, malus ═══════════ */
 function blocage(c){
