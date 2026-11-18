@@ -207,7 +207,7 @@ H.hedge=hedge;
 for(const [x,z,s] of ctx.trees) tree(x,z,s);
 {const rm=D.rng(31);let n=0;
  for(const horiz of [true,false]) for(const r of (horiz?RZ:RX)) for(const sd of [-1,1]) for(let t=-266;t<=270&&n<130;t+=rm()*10+21){
-  if(near(t,horiz?RX:RZ,18)) continue;const x=horiz?t:r+sd*8.6,z=horiz?r+sd*8.6:t;
+  if(near(t,horiz?RX:RZ,18)) continue;const x=horiz?t:r+sd*7.7,z=horiz?r+sd*7.7:t; /* [ville] au bord du trottoir (bordure à 7,1) : l'arbre ne barre plus la marche, il reste 2,4 m côté façades */
   if(Math.hypot(x+25,z-8)<7||!free(x,z,.5,.5,.6)||zones.some(q=>q.porte&&Math.hypot(q.porte.x-x,q.porte.z-z)<8)) continue;if(rm()<.18) continue;
   tree(x,z,.8+rm()*.35,rm()<.8?'r':'p');addCol(x,z,.5,.5);n++;}}
 
@@ -369,9 +369,10 @@ for(const z of zones){if(!z._d.immo||z.type==='garage') continue;
   // cheminées, conteneurs, cuves
   const st=W(-fw*.25,-dp*.3);Lp.cyl(.8,1.1,15,10,-fw*.25,d.H+6.5,-dp*.3,0x8a5a4a);Lp.cyl(.9,.9,.6,10,-fw*.25,d.H+14.2,-dp*.3,0x3a3a3e);
   if(z.id==='usine2'){Lp.cyl(.7,1.0,12,10,fw*.2,d.H+5.5,-dp*.25,0x8a5a4a);Lp.cyl(.8,.8,.5,10,fw*.2,d.H+11.7,-dp*.25,0x3a3a3e);}
-  for(const [lx,lz] of [[fw/2+3.4,dp*.25],[fw/2+3.4,dp*.5]]){const q=W(lx,lz);Lp.cyl(2.2,2.2,z.id==='usine2'?11:8,14,lx,z.id==='usine2'?5.5:4,lz,0xc8ccd0);Lp.cyl(2.3,2.0,.6,14,lx,z.id==='usine2'?11.2:8.2,lz,0x8a9098);addCol(q[0],q[1],4.6,4.6);}
+  /* [ville] profondeur négative = côté arrière du bâtiment (la profondeur positive pointe vers la rue : silos et conteneurs posés au milieu de l'avenue) */
+  for(const [lx,lz] of [[fw/2+3.4,-dp*.25],[fw/2+3.4,-dp*.5]]){const q=W(lx,lz);Lp.cyl(2.2,2.2,z.id==='usine2'?11:8,14,lx,z.id==='usine2'?5.5:4,lz,0xc8ccd0);Lp.cyl(2.3,2.0,.6,14,lx,z.id==='usine2'?11.2:8.2,lz,0x8a9098);addCol(q[0],q[1],4.6,4.6);}
   const cc=[0xc0392b,0x2a5a9a,0x3a7a4a,0xd8a020];
-  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=dp*.2+i*3.2+(i%2),q=W(lx,lz);Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
+  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=-(dp*.2+i*3.2+(i%2)),q=W(lx,lz);Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
  }
 }
 D.zoneBuilt=true;

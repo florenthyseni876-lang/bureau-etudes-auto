@@ -996,6 +996,9 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;border:1.5px solid rgba(255,255,255,.75)}
 .mw-incar .mw-cross{display:none}
 .mw-toasts{position:absolute;left:50%;top:max(10px,env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;width:min(520px,60%)}
+/* les messages restent entre le tableau de bord (à gauche) et la barre de boutons Carte/Menu/Carnet (à droite) */
+@media(min-width:1180px){.mw-toasts{left:370px;right:660px;transform:none;width:auto}}
+@media(max-width:1179px){.mw-toasts{top:max(62px,env(safe-area-inset-top,0px))}}
 .mw-t{background:rgba(10,20,35,.88);padding:8px 14px;border-radius:4px;border-left:4px solid #5b8fd0;font-size:14px;line-height:1.35;animation:mw-in .25s ease-out,mw-out .5s ease-in 4.7s forwards}
 .mw-t.good{border-left-color:#3ccf6a}.mw-t.warn{border-left-color:#ffb800}.mw-t.crit{border-left-color:#ff5a4a}
 @keyframes mw-in{from{opacity:0;transform:translateY(-8px)}}
@@ -1112,6 +1115,7 @@ html.phone-land .mw-mis{top:4px;padding:5px 9px;font-size:11.5px;gap:3px}html.ph
 /* ───────── Mode Mécanicien — Gestes réalistes ───────── */
 .mg-tools{position:absolute;right:10px;bottom:90px;display:flex;flex-direction:column;gap:3px;padding:5px;background:rgba(10,20,35,.74);border:1.5px solid #35506f;border-radius:5px;z-index:5;max-height:80%;overflow:auto}
 .mg-tools[hidden],.mg-info[hidden],.mg-hold[hidden],.mg-hint[hidden],.mg-aux[hidden],.mg-bin[hidden]{display:none}
+#mwRoot:has(#mwPw:not([hidden])) .mg-hint,#mwRoot:has(#mwPw:not([hidden])) .mg-info{display:none} /* un panneau ouvert : l'aide des gestes ne recouvre pas son titre */
 .mg-t{display:flex;align-items:center;gap:6px;min-width:112px;padding:3px 7px;border:1.5px solid #35506f;border-radius:4px;background:rgba(255,255,255,.05);color:#e8f0f8;font:inherit;font-size:12px;cursor:pointer;text-align:left}
 .mg-t b{width:14px;color:#ffc533}.mg-t.on{border-color:#ffb800;background:rgba(255,184,0,.22)}.mg-t.hint{animation:mg-pulse 1s infinite}
 @keyframes mg-pulse{50%{box-shadow:0 0 0 3px rgba(255,210,58,.8)}}

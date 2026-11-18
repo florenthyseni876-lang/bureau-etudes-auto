@@ -30,7 +30,7 @@ module.exports = async function mecaNoir(page, env) {
   await e(() => { __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12; __mw.S.money = 5000; });
 
   // 0. la zone, le jour de la semaine dans l'horloge, l'ancienne sauvegarde sans données « noir »
-  const z0 = await e(() => { const z = __mw.zone('cour'); return { ok: !!z, dans: __mw.zones.includes(z), pl: z && z.ponts.length, lib: z && z.libres, type: z && z.type, hors: !!__mw.zoneAt(-30, 40) && __mw.zoneAt(-30, 40).id }; });
+  const z0 = await e(() => { const z = __mw.zone('cour'); return { ok: !!z, dans: __mw.zones.includes(z), pl: z && z.ponts.length, lib: z && z.libres, type: z && z.type, hors: !!__mw.zoneAt(-42, 40) && __mw.zoneAt(-42, 40).id }; });
   verifier(z0.ok && z0.dans && z0.pl === 2 && z0.lib === 1 && z0.type === 'cour', `la zone « cour » est mal créée (${JSON.stringify(z0)})`);
   verifier(z0.hors === 'cour', `la cour n'est pas détectée par zoneAt (${z0.hors})`);
   verifier(/^(Lun|Mar|Mer|Jeu|Ven|Sam|Dim)\. · Jour/.test(await e(() => document.getElementById('mwTime').textContent)), "le jour de la semaine n'apparaît pas dans l'horloge");
@@ -90,7 +90,7 @@ module.exports = async function mecaNoir(page, env) {
   await fermer();
 
   // 4. jauge visible dans la cour, jour de la semaine
-  await e(() => __mw.teleport(-30, 38, 0));
+  await e(() => __mw.teleport(-42, 38, 0));
   await attendreCondition(page, () => { const h = document.querySelector('.mw-z[data-h="noir"]'); return h && /agacement/.test(h.textContent); }, 'la jauge de la voisine n\'est pas affichée dans la cour', 15000);
   await e(() => __mw.teleport(-60, 5, 0));
   await attendreCondition(page, () => !document.querySelector('.mw-z[data-h="noir"]'), 'la jauge reste affichée hors de la cour', 15000);
@@ -124,7 +124,7 @@ module.exports = async function mecaNoir(page, env) {
   verifier(await e(() => __mwn.state().pal.p60 === true && __mwn.state().mots >= 1), 'pas de mot menaçant au palier 60');
 
   // 7. cadeau : la jauge baisse, l'argent aussi ; excuses de moins en moins efficaces
-  await e(() => { __mwn.setGauge(50); __mwn.state().cadeaux = []; __mwn.state().excuses = 0; __mw.teleport(-14.2, 43, Math.PI / 2); });
+  await e(() => { __mwn.setGauge(50); __mwn.state().cadeaux = []; __mwn.state().excuses = 0; __mw.teleport(-26.2, 43, Math.PI / 2); });
   await attendreCondition(page, () => /Ricard/.test(document.getElementById('mwPrompt').textContent), "pas d'invite devant la porte de la voisine", 15000);
   await appuyer('e');
   await attendreVisible(page, '.mw-pn', 'la porte de la voisine ne s\'ouvre pas');
@@ -141,7 +141,7 @@ module.exports = async function mecaNoir(page, env) {
   await fermer();
 
   // 8. service rendu : la voiture de la voisine arrive, la réparer fait chuter la jauge
-  await e(() => { __mwn.state().serviceT = -99; __mwn.setGauge(70); __mw.teleport(-14.2, 43, Math.PI / 2); });
+  await e(() => { __mwn.state().serviceT = -99; __mwn.setGauge(70); __mw.teleport(-26.2, 43, Math.PI / 2); });
   await e(() => { __mw.closePanel(); __mwn.voisine(); });
   await clic('noir:v_serv');
   const sv = await e(() => { const c = __mwn.carsNoir().find(x => x.noir.service); return c && { id: c.id, ordre: c.ordre.slice(), symp: !!c.symp }; });

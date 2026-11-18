@@ -292,13 +292,15 @@ function infoUI(){
  if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
   if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
    hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
+ if(R&&R.c){const Ow=R.c.g&&R.c.g.o;if(Ow&&Ow.on&&Ow.drain<1) hh=`<i></i>L'huile s'écoule… attendez (${Math.max(1,Math.ceil((1-Ow.drain)*DRAIN_T))} s)`+(hh?'<br>'+hh.replace('<i></i>',''):'');}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}
 function auxSet(h){const u=ensureUI();if(!u) return;if(!h){u.aux.hidden=true;return;}u.aux.innerHTML=h;u.aux.hidden=false;}
 function binUI(){
  const u=ensureUI();if(!u||!R) return;const b=R.F.bin,n=Object.keys(b).reduce((s,k)=>s+(b[k]||0),0);
  const t=n?`<b>Bac magnétique</b> : ${Object.keys(b).filter(k=>b[k]>0).map(k=>b[k]+' '+BIN_NOM[k]).join(', ')}`:'';
- if(t!==u._bt){u._bt=t;u.bin.innerHTML=t;}u.bin.hidden=!t;}
+ const tt=t?t+' <small>— reposez ces pièces avant de rendre la voiture (sinon malus à la note)</small>':'';
+ if(tt!==u._bt){u._bt=tt;u.bin.innerHTML=tt;}u.bin.hidden=!tt;}
 const BIN_NOM={ecrou:'écrou(s)',vis_et:'vis d\'étrier',vis_br:'vis de support',vis_dq:'vis de disque',bouchon:'bouchon',joint:'joint',vis:'vis',clip:'clip(s)',cosse:'borne(s)'};
 function binAdd(k,n){const b=R.F.bin;b[k]=(b[k]||0)+(n||1);}
 function binTake(k,n){const b=R.F.bin;b[k]=Math.max(0,(b[k]||0)-(n||1));if(!b[k]) delete b[k];}
@@ -770,12 +772,13 @@ function buildVidange(R){
   .concat(!O.cap&&!O.fun?[{key:'fu',lab:"Placer l'entonnoir",tool:'entonnoir',ord:73,exp:needFill(),do:()=>{O.fun=1;MWJ.toolPut('entonnoir');}}]:[]).concat(O.cap&&!O.fun?[]:[])});
  R.add({id:'fun',o:fun,r:.1,vis:()=>baySt()&&!!O.fun,name:'Entonnoir',acts:()=>[{key:'pour',lab:'Verser l\'huile (maintenir E)',tool:'bidon',cont:1,snd:'pour',ord:74,exp:needFill(),sub:()=>`Moteur : ${nf(cap,2)} l · versé : ${nf(O.pour,2)} l`,
   why:!O.fun?"Placez d'abord l'entonnoir dans l'orifice de remplissage.":(O.plug!==2?'Le bouchon de vidange doit être serré avant de remplir.':null),
-  start:()=>{},tick:(dt)=>{O.pour+=dt*.55;auxPour(O,cap);},prog:()=>clamp01(O.pour/cap),
+  start:()=>{O.warn=0;},tick:(dt)=>{O.pour+=dt*.55;if(O.pour>=cap&&!O.warn){O.warn=1;MW.toast('Repère maxi atteint : relâchez E. Au-delà, il y a trop d\'huile (on peut aspirer l\'excédent avec la jauge).','warn');}auxPour(O,cap);},prog:()=>clamp01(O.pour/cap),
   release:()=>{auxSet('');if(O.pour>=cap*.93&&!O.done){O.done=1;if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}}else if(O.pour<cap*.93) MW.toast(`Il en faut encore : ${nf(cap,2)} l au total.`,'info');
    else if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}},cancel:()=>{auxSet('');}},
   O.fun&&{key:'fun0',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;MWJ.toolTake('entonnoir');}}].filter(Boolean)});
  R.add({id:'dip',o:dipO,r:.06,vis:baySt,name:'Jauge à huile',acts:()=>[{key:'dp',lab:'Retirer et lire la jauge',tool:'main',ord:77,exp:!!O.done&&!O.dip,why:c.st.capot?null:'Ouvrez le capot.',do:()=>{O.dip=1;const lv=O.pour/cap,pos=clamp01((lv-.5)/.6);
-  auxSet(`<b>Jauge à huile</b><div class="mg-dip"><i style="bottom:${Math.round(pos*100)}%"></i><span class="mx">MAXI</span><span class="mn">MINI</span></div><small>${lv<.9?'Niveau bas : complétez.':lv>1.1?'Niveau trop haut.':'Niveau correct.'}</small>`);setTimeout(()=>auxSet(''),4500);}}]});
+  auxSet(`<b>Jauge à huile</b><div class="mg-dip"><i style="bottom:${Math.round(pos*100)}%"></i><span class="mx">MAXI</span><span class="mn">MINI</span></div><small>${lv<.9?'Niveau bas : complétez.':lv>1.1?'Niveau trop haut : aspirez l\'excédent.':'Niveau correct.'}</small>`);setTimeout(()=>auxSet(''),4500);}},
+  {key:'asp',lab:"Aspirer l'excédent d'huile",tool:'main',hold:1.2,snd:'pour',ord:78,exp:O.pour>cap*1.1,why:c.st.capot?(O.pour>cap*1.1?null:"Le niveau n'est pas trop haut."):'Ouvrez le capot.',do:()=>{O.pour=cap;O.over=0;O.dip=0;MW.toast('Excédent aspiré : le niveau est au repère maxi.','good');}}]});
  /* ── visuel et écoulement ── */
  const tick=(R2,dt)=>{
   if(O.on&&O.bac){O.drain=Math.min(1,O.drain+dt/DRAIN_T);if(O.drain>=1){O.on=0;MW.toast(`Huile vidangée : ${nf(cap,1)} l récupérés dans le bac.`,'info');syncAll(false);}}
