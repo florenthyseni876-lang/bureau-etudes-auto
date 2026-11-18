@@ -66,6 +66,7 @@ module.exports = async function mecaHabitacle(page, env) {
     log.push(h.key);
     if (h.id === 'pdoor' && h.key === 'pdo') {
       await attendre(1200); s = await etat();
+      for (let i = 0; i < 20 && s.ang <= 1; i++) { await attendre(400); s = await etat(); }   /* machine lente : la portière finit de s'ouvrir */
       verifier(s.ang > 1 && s.dm, `la portière ne pivote pas (angle ${s.ang})`);
       verifier(s.coupe && s.vitreCoupee && s.coupeActive, 'la carrosserie n\'est pas découpée côté portière');
       const cote = await e(() => { const R = MWG.rig(), H = R.hab, a = new THREE.Vector3(); H.door.getWorldPosition(a); const b = new THREE.Vector3(); R.g.getWorldPosition(b);
