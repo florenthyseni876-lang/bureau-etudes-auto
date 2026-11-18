@@ -184,11 +184,13 @@ function aimUpdate(){
   if(!worldOf(t,tmpV)) continue;
   tmpV3.copy(tmpV).sub(cp);const d=tmpV3.length();if(d>REACH||d<.05) continue;tmpV3.divideScalar(d);
   const ang=Math.acos(clamp01((tmpV3.dot(tmpV2)+1)/2)*2-1),thr=Math.atan2(t.r||.08,d)+.045;
-  let sc=ang/thr;if(!(sc<1&&sc<bs)) continue;
+  let sc=ang/thr;if(!(sc<1)) continue;
   const ac=actsOf(t);if(!ac.length) continue; /* rien à faire ici : ne masque pas une cible voisine */
   if(hid&&!ac.some(x=>!x.why&&!x.insp)) continue; /* cible cachée (pièce déposée…) : visable seulement pour y faire quelque chose */
-  if(ac.some(x=>!x.insp&&!x.why&&(x.tool===tool||x.tool2===tool))) sc*=.35; /* préférence : ce qui accepte l'outil en main */
-  else if(ac.every(x=>x.insp||x.why)) sc=Math.min(.999,sc*1.6+.15); /* seulement inspecter ou bloqué : passe après */
+  /* une cible sur laquelle on peut agir passe toujours avant une cible bloquée ou à inspecter seulement (une petite cible comme un écrou, un peu décentrée, ne doit pas perdre contre la grosse roue qui la porte) */
+  if(ac.some(x=>!x.insp&&!x.why)){if(ac.some(x=>!x.insp&&!x.why&&(x.tool===tool||x.tool2===tool))) sc*=.35;sc*=.5;} /* préférence : ce qui accepte l'outil en main */
+  else sc=.6+sc*.4;
+  sc+=d*.02; /* à regard égal, la cible la plus proche l'emporte (l'écrou de la roue d'en face, derrière la voiture, est sur la même ligne de visée) */
   if(sc<bs){bs=sc;bt=t;}}
  if(bt){const a=pickAct(bt);if(a) AIM={t:bt,a};}}
 

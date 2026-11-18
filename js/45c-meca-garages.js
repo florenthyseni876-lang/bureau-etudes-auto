@@ -137,7 +137,7 @@ function garage(z){
   for(const s of [-1,1]){
    pb.box(.9,.06,.9,s*2.15,.13,0,0x30353a);pb.box(.3,3.5,.46,s*2.15,1.9,0,st.lift);pb.box(.38,.12,.52,s*2.15,3.68,0,0x30353a);pb.box(.16,.3,.1,s*2.15-s*.03,1.4,.28,0xf2c200);
    pb.box(.06,3.1,.06,s*2.4,1.7,-.12,0x1c1c1e);pb.box(.1,.5,.06,s*2.15,.45,.26,0x1c1c1e);
-   addCol(L2W(p,s*2.15,0).x,L2W(p,s*2.15,0).z,.7,.7);} /* les colonnes arrêtent le joueur (et la caméra) */
+   addCol(L2W(p,s*2.15,0).x,L2W(p,s*2.15,0).z,1.3,1.3);} /* les colonnes arrêtent le joueur (et la caméra) : zone élargie, la caméra reste à plus de 0,65 m et la colonne ne masque plus toute la voiture */
   const hz=D.B('core','hazard'),hp=D.L(hz,p.x,p.z,p.ry,0);
   for(const s of [-1,1]){hp.box(.16,.012,5.7,s*2.75,.106,0,0xffffff);hp.box(5.6,.012,.16,0,.106,s*2.9,0xffffff);}
   const car=[],arms=[];
