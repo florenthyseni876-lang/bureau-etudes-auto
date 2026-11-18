@@ -33,7 +33,7 @@ const CH=[
   `${K('E')} : agir sur ce que vous visez. <b>Maintenez ${K('E')}</b> pour dévisser, serrer ou verser : une jauge ronde se remplit.`,
   `${K(1)} à ${K(0)}, ${K(')')} et ${K('=')} : prendre en main l'objet (outil ou pièce) de la case 1 à 12 de l'inventaire · molette ou ${K('X')} : objet suivant · ${K('V')} : mains libres.`,
   `${K('R')} : prendre la douille demandée par ce que vous visez (sinon : douille suivante). Tant que l'aide est active, ${K('E')} prend tout seul en main le bon outil… s'il est dans votre inventaire.`,
-  `${K('Tab')} : carnet (ordres, inventaire, expérience) · ${K('M')} : carte · ${K('C')} : carrière · ${K('G')} : réglages des gestes · ${K('H')} : ce guide · ${K('J')} : travail automatique (le mécanicien fait les gestes tout seul, expérience divisée par deux) · ${K('Échap')} : pause.`])}
+  `${K('Tab')} : carnet (ordres, inventaire, expérience) · ${K('M')} : carte · ${K('C')} : carrière · ${K('G')} : réglages des gestes · ${K('H')} : ce guide · ${K('J')} : travail automatique (débloqué au niveau 2 de chaque compétence : le mécanicien fait les gestes tout seul, ou toutes les voitures en mode continu ; expérience divisée par deux) · ${K('Échap')} : pause.`])}
  <h4>Une voiture, du début à la fin</h4>${ol([
   `<b>Lisez l'ordre</b> : le client annonce le travail (bandeau à gauche et carnet ${K('Tab')}). S'il décrit un symptôme, il faut d'abord trouver la panne (niveau 2).`,
   `<b>Prenez les outils</b> à la <b>servante</b>, le chariot rouge à côté du pont (visez-la, ${K('E')}) ou à l'établi. Vous n'avez rien dans les poches : le bouton <i>Prendre les outils de l'ordre</i> prend ceux du travail en cours. Rangez-les ensuite pour libérer de la place.`,
