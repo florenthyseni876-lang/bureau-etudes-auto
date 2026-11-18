@@ -1,5 +1,5 @@
 'use strict';
-const { attendre, attendreVisible, cliquer, verifier } = require('../outils.js');
+const { attendre, attendreCondition, attendreVisible, cliquer, verifier } = require('../outils.js');
 
 // Mode Mécanicien (châssis) : le dessous de la voiture levée est lisible et chaque pièce du dessous se vise et se démonte.
 //  1. le dessous est un maillage coloré (matières distinctes) et chaque voiture a les pièces qu'elle doit avoir (cardans seulement
@@ -48,7 +48,8 @@ module.exports = async function mecaChassis(page, env) {
   await e(() => MWF.crouch(true)); await attendre(1200);
   const y1 = await e(() => __mw.cam.position.y);
   verifier(y0 > 1.6 && y1 < 1.2 && y1 > .9, `se baisser : les yeux doivent passer de ~1,70 m à ~1,08 m (avant ${y0.toFixed(2)}, après ${y1.toFixed(2)})`);
-  await e(() => MWF.crouch(false)); await attendre(1000);
+  await e(() => MWF.crouch(false));
+  await attendreCondition(page, () => __mw.cam.position.y > 1.6, 'se relever : les yeux ne remontent pas', 6000).catch(() => {});
   const y2 = await e(() => __mw.cam.position.y);
   verifier(y2 > 1.6, `se relever : les yeux doivent remonter (${y2.toFixed(2)})`);
   bilan.push(`se baisser (${y0.toFixed(2)} → ${y1.toFixed(2)} m)`);
