@@ -678,7 +678,7 @@ function onMinute(){
   else if(nb()<maxCars()&&j.file.length){const w=j.file[0];if(makeCar()) j.file.shift();}}
  if(!e||MW.S.min<OPEN0||MW.S.min>=OPEN1||absT()<j.next) return;
  if(nb()>=maxCars()){ /* plus de place : le client s'installe en salle d'attente */
-  if(j.file.length<FILE_MAX){const w={t:absT(),client:pick(CIV)+' '+pick(NOMS)};j.file.push(w);MW.toast(`${w.client} attend à l'accueil (${j.file.length} en attente).`,'info');}
+  if(j.file.length<FILE_MAX){const w={t:absT(),client:pick(CIV)+' '+pick(NOMS)};j.file.push(w);}
   j.next=absT()+nextGap(e.zone);hudJobs();return;}
  if(makeCar()) j.next=absT()+nextGap(e.zone);}
 function init(){
