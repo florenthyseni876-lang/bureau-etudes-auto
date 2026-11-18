@@ -298,7 +298,10 @@ function takeNext(d){const a=inv();if(!a.length){setHeld(null);return;}
 /* outils : prendre / ranger (servante, établi) */
 function toolTake(id){if(!TOOLS_INV[id]||toolIdx(id)>=0) return false;if(inv().length>=INV_MAX){MW.toast('Inventaire plein : rangez un outil ou une pièce.','warn');return false;}inv().push({k:'outil',id});invUI();return true;}
 function toolPut(id){const i=toolIdx(id);if(i<0) return false;if(inv()[i]===selIt) selIt=null;inv().splice(i,1);invUI();MW.emit('held',selIt);return true;}
-function toolsNeeded(zid){const need=[];for(const c of J().cars) if(c.zone===zid&&!c.noir) for(const id of c.ordre) if(!c.done[id]) for(const t of TOOLS_FOR[id]||['cliquet']) if(!need.includes(t)) need.push(t);return need;}
+function toolsNeeded(zid){const need=[];for(const c of J().cars) if(c.zone===zid&&!c.noir){
+  const o=c.g&&c.g.o,posed=t=>(t==='bac'&&o&&o.bac)||(t==='entonnoir'&&o&&o.fun); /* déjà posés : le bac sous la voiture, l'entonnoir sur le moteur */
+  for(const id of c.ordre) if(!c.done[id]) for(const t of TOOLS_FOR[id]||['cliquet']) if(!need.includes(t)&&!posed(t)) need.push(t);}
+ return need;}
 /* la servante : tous les outils de l'atelier, à prendre ou à ranger */
 function servante(zid){
  const z=zid||(J().cars[0]&&J().cars[0].zone)||'garage1',need=toolsNeeded(z).filter(t=>toolIdx(t)<0);

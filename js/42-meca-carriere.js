@@ -147,9 +147,20 @@ function longGoals(){const c=C(),e=employer(),g=[];if(c.emp==='fondateur') retur
   if(!(c.emp==='ing'&&c.grade>=1)&&!(isPat(c)&&level('moteur')>=FOUND.niv.moteur)) m.push('Ingénieur confirmé, ou patron de garage avec moteur niveau '+FOUND.niv.moteur);
   g.push({id:'g_marque',titre:'Fonder votre marque',manque:m,zone:'terrain'});}
  return g.filter(x=>!x.ok);}
+/* premier client : l'objectif suit l'avancement du travail (pièces, outils, réparation, rendu) */
+function firstJobStep(){
+ const base={id:'t_client',zone:'garage1'};let car=null;try{car=MWJ.jobs().find(x=>!x.noir)||null;}catch(e){}
+ if(!car) return Object.assign(base,{titre:'Attendez votre premier client',aide:'Les clients arrivent au garage entre 8 h et 19 h. En attendant : M pour la carte, H pour le guide.'});
+ const todo=car.ordre.filter(id=>!car.done[id]);
+ if(car.ordre.length&&!todo.length) return Object.assign(base,{titre:'Rendez la voiture au client',aide:'Visez la portière conducteur, appuyez sur E, puis « Rendre la voiture ».'});
+ let parts=[];try{parts=todo.filter(id=>!car.rem[id]&&MWJ.L.newFind(car,id)<0);}catch(e){}
+ if(parts.length) return Object.assign(base,{titre:"Prenez les pièces neuves à l'étagère",aide:`Il vous faut : ${parts.map(id=>MWJ.PARTS[id].nom.toLowerCase()).join(', ')}. Étagère de l'atelier, E, puis « Prendre les pièces des ordres en cours ».`});
+ let tools=[];try{if(typeof MWG!=='undefined'&&MWG.on()) for(const id of todo) for(const t of (MWJ.TOOLS_FOR[id]||[])) if(MWJ.toolIdx(t)<0&&!tools.includes(t)) tools.push(t);}catch(e){}
+ if(tools.length&&!(car.g&&car.g.o&&car.g.o.bac)) return Object.assign(base,{titre:'Prenez les outils à la servante',aide:"Visez la servante (le chariot rouge près du pont), E, puis « Prendre les outils de l'ordre »."});
+ return Object.assign(base,{titre:'Réparez la voiture',aide:"Suivez « Étape suivante » en haut de l'écran. H : guide pas à pas · J : travail automatique."});}
 function tutorial(){const c=C();
  if(c.emp==='aucun'&&!c.everMeca&&!c.stats.jobs) return {id:'t_emb',titre:'Présentez-vous au comptoir du Garage du Coin',aide:'Allez au comptoir d\'accueil et appuyez sur E : on vous prendra comme apprenti.',zone:'garage1'};
- if(c.stats.jobs<1) return {id:'t_client',titre:'Prenez votre premier client',aide:'Une voiture cliente attend sur un pont : inspectez-la, réparez-la puis rendez-la au client.',zone:'garage1'};
+ if(c.stats.jobs<1) return firstJobStep();
  if(c.stats.vid<1) return {id:'t_vid',titre:'Faites votre première vidange',aide:'Vidange : huile et filtre à huile, au pont du garage.',zone:'garage1'};
  if(c.stats.paid<1) return {id:'t_paie',titre:'Touchez votre première paie',aide:'Rendez une voiture réparée : votre part de la main-d\'œuvre vous est versée.',zone:null};
  return null;}
@@ -256,7 +267,7 @@ function counterCoin(z){
  const c=C(),e=employer();
  if(c.emp==='aucun'||(!['apprenti','meca','patron'].includes(c.emp))){
   const back=c.everMeca;
-  MW.panel(z.nom,`<p>${back?'Le patron se souvient de vous.':'Le patron du Garage du Coin cherche un apprenti.'} Pas d'entretien : on vous prend à l'essai.</p><p class="hint">${back?'Vous reprenez votre place de mécanicien (45 % de la main-d\'œuvre).':'Vous toucherez 30 % de la main-d\'œuvre sur chaque voiture rendue, et vous apprendrez l\'entretien de base.'}</p><div class="mw-btns">${btn('join',back?'Reprendre mon poste de mécanicien':'Devenir apprenti')}${btn('close','Fermer','ghost')}</div>`,
+  MW.panel(z.nom,`<p>${back?'Le patron se souvient de vous.':'Le patron du Garage du Coin cherche un apprenti.'} Pas d'entretien : on vous prend à l'essai.</p><p class="hint">${back?'Vous reprenez votre place de mécanicien (45 % de la main-d\'œuvre).':`Vous toucherez ${Math.round(EMP.apprenti.part*100)} % de la main-d'œuvre sur chaque voiture rendue`+', et vous apprendrez l\'entretien de base.'}</p><div class="mw-btns">${btn('join',back?'Reprendre mon poste de mécanicien':'Devenir apprenti')}${btn('close','Fermer','ghost')}</div>`,
    {onClick:a=>{if(a==='join'){hire(back?'meca':'apprenti');MW.closePanel();say(back?'Bon retour au Garage du Coin.':'Vous voilà apprenti au Garage du Coin. Un client ne devrait pas tarder.','good');}}});return;}
  let extra='';
  if(c.emp==='apprenti') extra=`<p>Pour devenir mécanicien : rendre au moins ${PROMO.jobs} voitures (vous : ${c.stats.jobs}) et atteindre le niveau ${PROMO.niv} en entretien (vous : ${level('entretien')}).</p>`;
@@ -280,7 +291,7 @@ function school(z){
  for(const id in DIPL){const D=DIPL[id];
   if(c.dipl[id]){h+=`<p>✓ <b>${esc(D.nom)}</b> obtenu.</p>`;continue;}
   const ok=okAll(D.req),busy=!!c.form;
-  h+=`<div class="mw-card"><b>${esc(D.nom)}</b><br><small>${esc(fmt(D.cout))} · ${D.jours} jours · examen de ${D.n} questions (${D.min} bonnes réponses)</small>${D.req.dipl||D.req.niv?condHTML(D.req):''}<div class="mw-btns">${btn('enroll:'+id,'S\'inscrire','sm',!ok||busy||MW.S.money<D.cout)}</div></div>`;}
+  h+=`<div class="mw-card"><b>${esc(D.nom)}</b> <small>${esc(fmt(D.cout))} · ${D.jours} jours · examen de ${D.n} questions (${D.min} bonnes réponses)</small>${D.req.dipl||D.req.niv?condHTML(D.req):''}<div class="mw-btns">${btn('enroll:'+id,'S\'inscrire','sm',!ok||busy||MW.S.money<D.cout)}</div></div>`;}
  h+='<h3 class="mw-h3">Stages (gagner de l\'expérience)</h3><div class="mw-card">';
  for(const s of STAGES) h+=`<div class="mw-row"><span>${esc(s.nom)}<br><small>${esc(fmt(s.cout))} · ${s.jours} jours · +${s.xp} points</small></span>${btn('stage:'+s.id,'S\'inscrire','sm',!!c.form||MW.S.money<s.cout)}</div>`;
  h+='</div>';
