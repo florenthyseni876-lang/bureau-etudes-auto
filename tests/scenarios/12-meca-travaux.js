@@ -17,7 +17,9 @@ module.exports = async function mecaTravaux(page, env) {
   // se place sur un point d'interaction (voiture du pont 0) et ouvre son panneau avec E
   const ouvrirPoint = async (kind, texte) => {
     await e(k => { const c = __mwj.jobs()[0]; const o = __mwj.point(c, k); __mw.teleport(o.x, o.z, 0); }, kind);
-    await attendreCondition(page, () => { const p = document.getElementById('mwPrompt'); return p && !p.hidden && /^\[E\]/.test(p.textContent); }, `aucune invite d'interaction au point « ${kind} »`, 15000);
+    const NOM = { capot: 'Capot', cabine: 'Habitacle', dessous: 'Dessous', FL: 'Roue avant gauche', FR: 'Roue avant droite', RL: 'Roue arrière gauche', RR: 'Roue arrière droite' }[kind];
+    // l'invite doit désigner le bon point (et non celle du point précédent, encore affichée un instant)
+    await attendreCondition(page, nom => { const p = document.getElementById('mwPrompt'); return p && !p.hidden && /^\[E\]/.test(p.textContent) && p.textContent.includes(nom); }, `aucune invite d'interaction au point « ${kind} »`, 15000, NOM);
     await appuyer('e');
     await attendreVisible(page, '.mw-pn', `E n'ouvre pas le panneau au point « ${kind} »`);
     if (texte) verifier((await e(() => document.querySelector('.mw-pn').textContent)).includes(texte), `le panneau du point « ${kind} » n'affiche pas « ${texte} »`);
