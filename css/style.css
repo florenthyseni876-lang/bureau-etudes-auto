@@ -988,6 +988,7 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-mini{width:140px;height:140px;border:2px solid #10233d;border-radius:50%;background:#6f9a4a;box-shadow:0 0 0 2px rgba(255,255,255,.6)}
 .mw-guide{display:flex;align-items:center;gap:7px;background:rgba(10,20,35,.78);border:1.5px solid #ffc820;border-radius:16px;padding:3px 11px 3px 5px;font-size:12.5px;color:#fff;max-width:100%}
 .mw-guide[hidden]{display:none}
+.mw-friend{background:rgba(10,20,35,.78);border:1.5px solid #3cd36a;border-radius:16px;padding:3px 11px;font-size:12.5px;color:#d8ffe6;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mw-garr{width:22px;height:22px;flex:none;display:block;background:#ffc820;clip-path:polygon(50% 0,92% 88%,50% 68%,8% 88%);transition:transform .15s}
 .mw-guide span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mw-bar{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;pointer-events:auto}

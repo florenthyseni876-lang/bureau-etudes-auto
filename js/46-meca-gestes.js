@@ -225,8 +225,11 @@ function startAct(){
   why=checkAct(a);if(!why&&need) MW.toast(`En main : ${toolName(tool,TOOL[tool].sock?sock:0)}.`,'info');}
  if(why){warn(why);return;}
  if(a.gate&&!a.gate()) {snd('err');return;}
+ {const nb=netBusy(t);if(nb){warn(nb);return;}} /* [réseau] la même pièce est déjà en cours de travail chez l'ami */
  if(a.hold>0||a.cont){H={t,a,p:0,sn:0,k:0};if(a.start) a.start();return;}
  finish(t,a);}
+/* [réseau] partie à deux : js/56 dit si l'ami est déjà en train de travailler sur cette cible de la voiture */
+function netBusy(t){try{return typeof MWNET!=='undefined'&&MWNET.live()&&R&&R.c?MWNET.busyMsg(R.c.id,t.id):null;}catch(e){return null;}}
 function finish(t,a){
  spend(a);
  try{a.do&&a.do();}catch(e){console.error('do '+(a.key||a.lab),e);}
@@ -1211,13 +1214,16 @@ Object.assign(api,{
    if(ang/thr<3) out.push({id:t.id,sc:+(ang/thr).toFixed(2),d:+d.toFixed(2),vis:t.vis?!!t.vis():true,pvis:visOf(o.parent||o),acts:actsOf(t).map(x=>x.key+(x.why?'!':''))});}return out.sort((a,b)=>a.sc-b.sc).slice(0,6);},
  run:(id,key,o)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return 'cible introuvable : '+id;const a=actsOf(t).find(x=>!key||x.key===key);if(!a) return 'aucune action';
   if(!(o&&o.strict)){if(a.tool&&TOOL[a.tool]) tool=a.tool;if(a.sock) sock=a.sock;}
-  if(!(o&&o.force)){const w=checkAct(a);if(w) return w;}
+  if(!(o&&o.force)){const w=checkAct(a)||netBusy(t);if(w) return w;}
   if(a.cont){a.start&&a.start();a.tick&&a.tick(.0,{});for(let i=0;i<400&&!(a.auto&&a.auto());i++){a.tick&&a.tick(.05,{});if(a.prog&&a.prog()>=1.0) break;}a.release&&a.release();syncAll(true);return null;}
   finish(t,a);return null;},
  skip:()=>{if(R){const O=oilSt(R.c);if(O.on){O.drain=.999;}}},
  setTool:(t,s)=>{tool=t;if(s) sock=s;vmSet();lastTb='';toolUI();},cur:()=>({tool,sock}),
  nextHint:()=>{hintUpdate();return HINT?{id:HINT.t.id,key:HINT.a.key,lab:HINT.a.lab,tool:HINT.a.tool,sock:HINT.a.sock}:null;},
  release:()=>{if(R) freeRig();},
+ /* [réseau] geste maintenu en cours (pour l'indiquer à l'ami) ; remise à jour des visuels après un changement venu de l'ami */
+ holding:()=>H&&R&&R.c?{car:R.c.id,target:H.t.id}:null,
+ refresh:()=>{if(R) syncAll(true);},
  startHold:(id,key)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return false;AIM={t,a:actsOf(t).find(x=>!key||x.key===key)};eDown=true;startAct();return !!H;},
  spendAll:()=>{}});
 return api;

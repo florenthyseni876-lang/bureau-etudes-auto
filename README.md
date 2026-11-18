@@ -25,6 +25,7 @@ C'est une **application web installable** : une fois en ligne, elle s'ajoute à 
 | `js/09-son.js` | Synthèse du son moteur |
 | `js/10` à `js/14` | Chambre de combustion, roulage, pannes, rotatifs, résistance et casse |
 | `js/15` à `js/19` | Graphiques, panneaux, essais, réglages, rendu et démarrage |
+| `js/56-meca-reseau.js` | Carrière de mécanicien à deux en ligne (WebRTC via PeerJS, chargé seulement à l'ouverture du menu « Jouer à deux… ») |
 | `js/pwa.js` | Installation, fonctionnement hors connexion, avis de mise à jour |
 | `sw.js` | Service hors connexion (généré, ne pas modifier à la main) |
 | `manifest.webmanifest`, `icons/` | Nom, icône et couleurs de l'application installée |
@@ -33,6 +34,13 @@ C'est une **application web installable** : une fois en ligne, elle s'ajoute à 
 | `outils/icones.py` | Regénère les icônes |
 
 Les modules sont de simples scripts chargés dans l'ordre et partagent leurs déclarations : un nouveau module se range entre deux numéros et s'ajoute à la liste des `<script>` dans `index.html`.
+
+## Jouer à deux en ligne (carrière de mécanicien)
+
+Menu Échap → « Jouer à deux… ». L'hôte clique « Héberger » et reçoit un code de 6 lettres ; l'ami le saisit et rejoint le garage de l'hôte.
+Les deux navigateurs se parlent en direct (WebRTC, bibliothèque PeerJS 1.5.4 chargée depuis jsDelivr à l'ouverture du menu, jamais au démarrage) ;
+seul un prénom choisi dans le jeu est transmis. L'hôte fait autorité (heure, clients, argent, réputation, voitures) ; chacun garde son inventaire,
+ses outils et son expérience ; l'invité retrouve sa partie solo en partant. Le jeu solo ne change pas et marche hors connexion.
 
 ## Après chaque modification
 
