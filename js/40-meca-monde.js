@@ -330,7 +330,7 @@ function ensureUI(){
  <div class="mw-speed" id="mwSpeed" hidden></div><div class="mw-prompt" id="mwPrompt" hidden></div>
  <div class="mw-touch" id="mwTouch"><div class="mw-joy" id="mwJoy"><i id="mwKnob"></i></div><div class="mw-acts"><button type="button" class="mw-a" id="mwBtnE">E</button><button type="button" class="mw-a f" id="mwBtnF">F</button></div></div>
  <div class="mw-pw" id="mwPw" hidden><div class="mw-pn" role="dialog" aria-modal="true"><div class="mw-ph"><h2 id="mwPt"></h2><button type="button" class="mw-x" data-mw="close" aria-label="Fermer">✕</button></div><div class="mw-pb" id="mwPb"></div></div></div>
- <div class="mw-map" id="mwMap" hidden><div class="mw-ph"><h2>Carte de la ville</h2><button type="button" class="mw-x" id="mwMapX" aria-label="Fermer la carte">✕</button></div><canvas id="mwBig"></canvas><p class="mw-leg">Jaune : repère à rejoindre · flèche blanche : vous · point bleu : votre voiture · vert pointillé : à vendre · N = nord</p></div>
+ <div class="mw-map" id="mwMap" hidden><div class="mw-ph"><h2>Carte de la ville</h2><button type="button" class="mw-x" id="mwMapX" aria-label="Fermer la carte">✕</button></div><canvas id="mwBig"></canvas><p class="mw-leg">Jaune : repère à rejoindre · flèche blanche : vous · point bleu : votre voiture · pastilles vertes numérotées : biens à vendre (légende en bas à droite) · N = nord</p></div>
  <div class="mw-fade" id="mwFade"></div>`;
  document.body.appendChild(r);
  ui={r,cv:r.querySelector('#mwCv'),look:r.querySelector('#mwLook'),time:r.querySelector('#mwTime'),money:r.querySelector('#mwMoney'),zones:r.querySelector('#mwZones'),
@@ -554,21 +554,42 @@ function drawMap(c,cx,cz,sc,names,fs,mini){
   RX.forEach((r,i)=>{for(const tz of [-215,-75,75,215]){const px=X(r),py=Y(tz);if(py<30||py>H-30) continue;x.save();x.translate(px,py);x.rotate(-Math.PI/2);x.fillText(STREETS.ns[i],0,0);x.restore();}});x.restore();}
  for(const z of zones){x.fillStyle=mapCol(z);x.fillRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);x.strokeStyle='#10233d';x.lineWidth=1;x.strokeRect(X(z.x-z.w/2),Y(z.z-z.d/2),z.w*sc,z.d*sc);
   if(z.mapTag==='À vendre'||z.mapTag==='À vous'){x.save();x.strokeStyle=z.mapTag==='À vous'?'#ffd24a':'#33e08a';x.lineWidth=2.5;if(z.mapTag!=='À vous') x.setLineDash([5,3]);x.strokeRect(X(z.x-z.w/2)-1,Y(z.z-z.d/2)-1,z.w*sc+2,z.d*sc+2);x.restore();}} /* [immo] bâtiments à vendre (vert, pointillés) ou possédés (jaune) */
- // noms des lieux : placement sans chevauchement (essai de plusieurs positions autour du bâtiment)
+ // noms des lieux : biens immobiliers = pastilles numérotées + une seule légende ; autres lieux = étiquettes écartées (trait de rappel) ; objectif en jaune
  if(names){x.font='bold '+fs+'px sans-serif';x.textAlign='center';x.textBaseline='middle';
   const mk0=S&&S.marker,placed=[],boxes=zones.map(z=>[X(z.x-z.w/2),Y(z.z-z.d/2),X(z.x+z.w/2),Y(z.z+z.d/2)]);
   const ov=(a,b)=>Math.max(0,Math.min(a[2],b[2])-Math.max(a[0],b[0]))*Math.max(0,Math.min(a[3],b[3])-Math.max(a[1],b[1]));
-  const order=zones.map((z,i)=>i).sort((i,j)=>{const pr=q=>(q.id===mk0?0:(q._d&&q._d.immo)?2:1);return pr(zones[i])-pr(zones[j]);});
-  for(const i of order){const z=zones[i];
-   if(mini&&(Math.hypot(z.x-cx,z.z-cz)>((z._d&&z._d.immo)?55:85)&&z.id!==mk0)) continue;
+  const isImmo=z=>!!(z._d&&z._d.immo)&&z.id!==mk0,imm=zones.filter(isImmo);
+  // pastilles des biens
+  const bad=(z,i,k)=>{const bx=boxes[i],px=(bx[0]+bx[2])/2,py=(bx[1]+bx[3])/2;if(px<-8||px>W+8||py<-8||py>H+8) return;
+   const r=mini?4:Math.max(7,fs*.62);x.fillStyle=z.mapTag==='À vous'?'#ffd24a':'#2fc27a';x.strokeStyle='#10233d';x.lineWidth=1.5;x.beginPath();x.arc(px,py,r,0,7);x.fill();x.stroke();
+   if(!mini){x.fillStyle='#10233d';x.font='bold '+Math.round(fs*.78)+'px sans-serif';x.fillText(String(k+1),px,py+.5);x.font='bold '+fs+'px sans-serif';}
+   placed.push([px-r-1,py-r-1,px+r+1,py+r+1]);};
+  imm.forEach((z,k)=>bad(z,zones.indexOf(z),k));
+  const order=zones.map((z,i)=>i).filter(i=>!isImmo(zones[i])).sort((i,j)=>(zones[i].id===mk0?0:1)-(zones[j].id===mk0?0:1));
+  for(const i of order){const z=zones[i],obj=z.id===mk0;
+   if(mini&&!obj&&Math.hypot(z.x-cx,z.z-cz)>80) continue;
    const bx=boxes[i];if(bx[2]<0||bx[0]>W||bx[3]<0||bx[1]>H) continue;
-   const nm=(mini?z.court:z.court)+(z.mapTag&&!mini?' · '+z.mapTag:''),w=x.measureText(nm).width+4,h=fs+3,mx=(bx[0]+bx[2])/2,my=(bx[1]+bx[3])/2,g=3;
-   const cand=[[mx,bx[3]+g+h/2],[mx,bx[1]-g-h/2],[bx[2]+g+w/2,my],[bx[0]-g-w/2,my],[mx,my],[bx[2]+g+w/2,bx[3]+h/2],[bx[0]-g-w/2,bx[3]+h/2],[bx[2]+g+w/2,bx[1]-h/2],[bx[0]-g-w/2,bx[1]-h/2],[mx,bx[3]+g+h*1.5],[mx,bx[1]-g-h*1.5]];
+   x.font='bold '+(obj?fs+1:fs)+'px sans-serif';
+   const nm=z.court,w=x.measureText(nm).width+(obj?10:6),h=fs+(obj?6:4),mx=(bx[0]+bx[2])/2,my=(bx[1]+bx[3])/2,bw=bx[2]-bx[0],bh=bx[3]-bx[1];
    let best=null,bs=1e9;
-   for(const [px,py] of cand){const r=[px-w/2,py-h/2,px+w/2,py+h/2];let sc2=0;for(const q of placed) sc2+=ov(r,q)*3;if(!mini) for(const rd of RZ) sc2+=ov(r,[0,Y(rd-9),W,Y(rd+9)])*1.2;if(!mini) for(const rd of RX) sc2+=ov(r,[X(rd-9),0,X(rd+9),H])*1.2;for(let k=0;k<boxes.length;k++) if(k!==i) sc2+=ov(r,boxes[k]);
-    if(r[0]<2||r[2]>W-2||r[1]<2||r[3]>H-2) sc2+=400;if(sc2<bs){bs=sc2;best=[px,py,r];}if(sc2===0) break;}
+   for(const off of [3,12,24,40,60]) for(let k=0;k<12;k++){const a=k*Math.PI/6,ca=Math.cos(a),sa=Math.sin(a);
+    const ex=Math.min(bw/2/(Math.abs(ca)||1e-6),bh/2/(Math.abs(sa)||1e-6)),lx=Math.min(w/2/(Math.abs(ca)||1e-6),h/2/(Math.abs(sa)||1e-6));
+    const px=mx+ca*(ex+off+lx),py=my+sa*(ex+off+lx),r=[px-w/2,py-h/2,px+w/2,py+h/2];let sc2=off*.9+(k%3?0:0);
+    for(const q of placed) sc2+=ov(r,q)*4;for(let m=0;m<boxes.length;m++) if(m!==i) sc2+=ov(r,boxes[m])*1.5;
+    if(!mini){for(const rd of RZ) sc2+=ov(r,[0,Y(rd-9),W,Y(rd+9)])*.8;for(const rd of RX) sc2+=ov(r,[X(rd-9),0,X(rd+9),H])*.8;}
+    if(r[0]<2||r[2]>W-2||r[1]<2||r[3]>H-2) sc2+=900;
+    if(sc2<bs){bs=sc2;best=[px,py,r,off];}}
    placed.push(best[2]);const px=best[0],py=best[1];
-   x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.88)';x.strokeText(nm,px,py);x.fillStyle=z.id===mk0?'#ffe27a':z.mapTag==='À vendre'?'#b8ffd8':z.mapTag==='À vous'?'#ffe9a0':'#fff';x.fillText(nm,px,py);}}
+   if(best[3]>10){x.strokeStyle=obj?'#ffc820':'rgba(255,255,255,.8)';x.lineWidth=1.2;x.beginPath();x.moveTo(mx,my);x.lineTo(px,py);x.stroke();}
+   if(obj){x.fillStyle='rgba(60,40,0,.92)';x.strokeStyle='#ffc820';x.lineWidth=2;x.beginPath();x.rect(px-w/2,py-h/2,w,h);x.fill();x.stroke();x.fillStyle='#ffe27a';x.fillText(nm,px,py+.5);}
+   else{x.lineWidth=3;x.strokeStyle='rgba(10,20,35,.9)';x.strokeText(nm,px,py);x.fillStyle='#fff';x.fillText(nm,px,py);}}
+  // légende unique des biens à vendre / possédés (grande carte)
+  if(!mini&&imm.length){const f=Math.max(9,fs-1),lh=f+4,tw=Math.max(95,...imm.map(z=>{x.font=f+'px sans-serif';return x.measureText('00  '+z.court+(z.mapTag==='À vous'?' · à vous':'')).width;})),bw2=tw+20,bh2=lh*(imm.length+1)+8,lx=W-bw2-8,ly=H-bh2-8;
+   x.fillStyle='rgba(10,20,35,.86)';x.fillRect(lx,ly,bw2,bh2);x.strokeStyle='#2fc27a';x.lineWidth=1.5;x.strokeRect(lx,ly,bw2,bh2);
+   x.textAlign='left';x.font='bold '+f+'px sans-serif';x.fillStyle='#b8ffd8';x.fillText('Biens à vendre',lx+8,ly+lh*.7+2);
+   imm.forEach((z,k)=>{const yy=ly+lh*(k+1.7)+2;x.fillStyle=z.mapTag==='À vous'?'#ffd24a':'#2fc27a';x.beginPath();x.arc(lx+13,yy,5.5,0,7);x.fill();x.fillStyle='#10233d';x.font='bold '+(f-2)+'px sans-serif';x.textAlign='center';x.fillText(String(k+1),lx+13,yy+.5);
+    x.textAlign='left';x.font=f+'px sans-serif';x.fillStyle=z.mapTag==='À vous'?'#ffe9a0':'#e8fff2';x.fillText(z.court+(z.mapTag==='À vous'?' · à vous':''),lx+24,yy+.5);});
+   x.textAlign='center';}}
  // voiture
  x.fillStyle='#3a8aff';x.beginPath();x.arc(X(S.car.x),Y(S.car.z),Math.max(3,2.2*sc),0,7);x.fill();
  // repère
