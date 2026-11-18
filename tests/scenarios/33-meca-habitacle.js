@@ -88,6 +88,7 @@ module.exports = async function mecaHabitacle(page, env) {
   await e(() => { MWG.run('pdoor', 'pdo'); }); await attendre(1200);
   await e(() => { for (let i = 0; i < 2; i++) MWG.run('fx:filtre_hab:' + i); }); await attendre(1500);
   s = await etat();
+  for (let i = 0; i < 20 && s.flap >= -1; i++) { await attendre(400); s = await etat(); }   /* machine lente : la trappe finit de s'abaisser */
   verifier(s.flap < -1, `la trappe ne s'abaisse pas (angle ${s.flap})`);
 
   // 3. ampoule et essuie-glace : cibles posées sur la pièce dessinée et visables depuis le sol
