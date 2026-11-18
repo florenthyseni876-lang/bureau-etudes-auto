@@ -91,7 +91,7 @@ garage4:[['Brivio','Fulmine','sport'],['Brivio','Corsa 8','sport'],['Brivio','Ra
 const KMR={garage1:[45000,210000],garage2:[10000,120000],garage3:[6000,70000],garage4:[4000,50000],garage5:[40000,200000],garage6:[20000,160000],garage7:[8000,100000]};
 /* rythme des clients par garage (minutes de jeu entre deux arrivées) : le quartier est fréquenté, le prestige reçoit peu mais bien */
 const RYTHME={garage1:[8,20],garage2:[10,24],garage3:[18,40],garage4:[22,46],garage5:[10,22],garage6:[10,24],garage7:[14,32]};
-const FILE_MAX=3,PATIENCE=180;
+const FILE_MAX=3,PATIENCE=420; /* minutes d'ouverture (8 h – 19 h) qu'un client accepte d'attendre à l'accueil ; la nuit ne compte pas */
 function nextGap(zid){const r=RYTHME[zid]||[10,24];let g=rint(r[0],r[1]);const m=MW.S.min;
  if(m<600) g*=.75;else if(m>=720&&m<840) g*=1.4;else if(m>=1020) g*=1.2; /* rush du matin, creux du déjeuner, fin de journée plus calme */
  return Math.round(g);}
@@ -642,7 +642,8 @@ function invUI(){
 function hudJobs(){
  if(!MW.S) return;const j=J(),e=emp();
  if(!e&&!j.cars.length){MW.hud('job','');return;}
- const fq=(j.file&&j.file.length)?`<br>${j.file.length} client${j.file.length>1?'s':''} en attente à l'accueil`:'';
+ const fq=(j.file&&j.file.length)?(()=>{const w=j.file[0],att=w.ot!=null?openT()-w.ot:0,rest=Math.max(0,PATIENCE-att);
+  return `<br>${j.file.length} client${j.file.length>1?'s':''} en attente à l'accueil · patience du premier : encore ${rest>=60?Math.floor(rest/60)+' h '+String(rest%60).padStart(2,'0'):rest+' min'}${MW.S.min>=OPEN1||MW.S.min<OPEN0?' (revient à l\'ouverture)':''}`;})():'';
  if(!j.cars.length){MW.hud('job','<b>Atelier</b> : aucun client pour l\'instant.'+fq);return;}
  const l=j.cars.slice(0,3).map(c=>{const pr=c.ordre.length?c.ordre.filter(id=>c.done[id]).length+'/'+c.ordre.length:(c.symp&&c.done[c.symp.c]?'réparé':'à diagnostiquer');
   return `${c.noir?'Cour':'Pont '+(c.pont+1)} · ${esc(voit(c))} : ${esc(c.symp?'diagnostic':c.nom)} (${pr})`;});
@@ -676,12 +677,16 @@ function onMinute(){
  const nb=()=>j.cars.filter(c=>!c.noir).length;
  /* file d'attente à l'accueil : les clients patientent, repartent si l'attente dure trop */
  if(j.file.length){
-  for(const w of j.file.slice()) if(absT()-w.t>PATIENCE){j.file.splice(j.file.indexOf(w),1);MW.S.rep=clamp(R2((MW.S.rep||0)-1),0,100);MW.toast(`${w.client} est reparti : trop d'attente à l'accueil.`,'warn');}
-  if(!e||MW.S.min>=OPEN1) j.file.length=0;
-  else if(nb()<maxCars()&&j.file.length){const w=j.file[0];if(makeCar()) j.file.shift();}}
+  for(const w of j.file.slice()){if(w.ot==null) w.ot=openT(); /* anciennes sauvegardes */
+   const att=openT()-w.ot;
+   if(att>PATIENCE){j.file.splice(j.file.indexOf(w),1);MW.S.rep=clamp(R2((MW.S.rep||0)-1),0,100);MW.toast(`${w.client} est reparti : trop d'attente à l'accueil.`,'warn');}
+   else if(att>PATIENCE*.66&&!w.warn){w.warn=1;MW.toast(`${w.client} s'impatiente à l'accueil : libérez un pont rapidement.`,'warn');}}
+  if(!e) j.file.length=0;
+  else if(MW.S.min>=OPEN1&&j.file.length&&!j.fileNuit){j.fileNuit=1;MW.toast(`Fermeture : ${j.file.length>1?'les clients en attente laissent leurs clés, ils reviendront':'le client en attente laisse ses clés, il reviendra'} demain à l'ouverture.`,'info');}
+  if(e&&MW.S.min>=OPEN0&&MW.S.min<OPEN1){j.fileNuit=0;if(nb()<maxCars()&&j.file.length){if(makeCar()) j.file.shift();}}}
  if(!e||MW.S.min<OPEN0||MW.S.min>=OPEN1||absT()<j.next) return;
  if(nb()>=maxCars()){ /* plus de place : le client s'installe en salle d'attente */
-  if(j.file.length<FILE_MAX){const w={t:absT(),client:pick(CIV)+' '+pick(NOMS)};j.file.push(w);MW.toast(`${w.client} attend à l'accueil (${j.file.length} en attente).`,'info');}
+  if(j.file.length<FILE_MAX){const w={t:absT(),ot:openT(),client:pick(CIV)+' '+pick(NOMS)};j.file.push(w);MW.toast(`${w.client} attend à l'accueil (${j.file.length} en attente).`,'info');}
   j.next=absT()+nextGap(e.zone);hudJobs();return;}
  if(makeCar()) j.next=absT()+nextGap(e.zone);}
 function init(){
@@ -707,7 +712,7 @@ function engResume(){
 MW.on('open',()=>{ensureBar();if(MW.S&&MW.S.jobs) invUI();engPause();});
 MW.on('close',()=>{engResume();if(ess) essaiEnd(true);});
 MW.on('minute',onMinute);
-MW.on('day',()=>{if(MW.S&&MW.S.jobs){const j=J();j.next=absT()+120+rint(0,10);j.file=[];}});
+MW.on('day',()=>{if(MW.S&&MW.S.jobs){const j=J();j.next=absT()+120+rint(0,10);}}); /* la file d'attente est gardée : ces clients reviennent à l'ouverture */
 let fr=0;
 MW.on('tick',dt=>{
  if(!MW.S||!MW.S.jobs) return;animate(dt);
