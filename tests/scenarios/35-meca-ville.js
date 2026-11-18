@@ -24,7 +24,9 @@ module.exports = async function mecaVille(page, env) {
   await page.evaluate(() => { __mw.teleport(-26, 9, -1.57, 0); __mw.setMarker('banque'); });
   await attendreCondition(page, () => { const g = document.getElementById('mwGuide'); return g && !g.hidden && /Banque.*\d+ m/.test(g.textContent); }, 'le guidage vers la banque (nom + distance) ne s\'affiche pas', 8000);
   await page.evaluate(() => { __mw.setMarker(null); });
-  await attendreCondition(page, () => document.getElementById('mwGuide').hidden, 'le guidage reste affiché sans repère', 8000);
+  // l'objectif en cours peut reposer aussitôt son propre repère (toutes les 0,6 s) : le guidage doit toujours suivre le repère affiché
+  await attendreCondition(page, () => { const g = document.getElementById('mwGuide'), m = __mw.S.marker, z = m && __mw.zone(m);
+    return m ? (!g.hidden && !/Banque/.test(g.textContent) && (!z || g.textContent.includes((z.court || z.nom).split(' ')[0]))) : g.hidden; }, 'le guidage ne suit pas le repère affiché', 8000);
 
   // carte : s'ouvre, se redessine sans erreur, avec le repère
   await page.evaluate(() => { __mw.setMarker('garage1'); });
