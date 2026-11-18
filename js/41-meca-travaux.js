@@ -88,7 +88,13 @@ garage1:[['Lorion','Zéta','citadine'],['Pasco','Volta','citadine'],['Dacar','Me
 garage2:[['Ventoux','Alba','citadine'],['Ventoux','Marais','berline'],['Ventoux','Cime','suv'],['Ventoux','Plaine','utilitaire']],
 garage3:[['Aurèle','Solenne','berline'],['Aurèle','Régence','berline'],['Aurèle','Altesse','suv']],
 garage4:[['Brivio','Fulmine','sport'],['Brivio','Corsa 8','sport'],['Brivio','Rapace','sport']]};
-const KMR={garage1:[45000,210000],garage2:[10000,120000],garage3:[6000,70000],garage4:[4000,50000]};
+const KMR={garage1:[45000,210000],garage2:[10000,120000],garage3:[6000,70000],garage4:[4000,50000],garage5:[40000,200000],garage6:[20000,160000],garage7:[8000,100000]};
+/* rythme des clients par garage (minutes de jeu entre deux arrivées) : le quartier est fréquenté, le prestige reçoit peu mais bien */
+const RYTHME={garage1:[8,20],garage2:[10,24],garage3:[18,40],garage4:[22,46],garage5:[10,22],garage6:[10,24],garage7:[14,32]};
+const FILE_MAX=3,PATIENCE=180;
+function nextGap(zid){const r=RYTHME[zid]||[10,24];let g=rint(r[0],r[1]);const m=MW.S.min;
+ if(m<600) g*=.75;else if(m>=720&&m<840) g*=1.4;else if(m>=1020) g*=1.2; /* rush du matin, creux du déjeuner, fin de journée plus calme */
+ return Math.round(g);}
 const TAUX={garage1:62,garage2:88,garage3:118,garage4:155}; /* taux horaire de main-d'œuvre facturé (€/h) : quartier, généraliste, prestige, sport */
 const KFAC={citadine:1,berline:1.2,utilitaire:1.2,suv:1.5,sport:2.2};
 const COLS=[0xb03030,0x2f5da8,0xe8e8e8,0x2a2a2e,0x3f8a4a,0xd8b22a,0x7a7f88,0xc86a1c,0x6a3a8a];
@@ -111,7 +117,7 @@ const LH=c=>{const g=MG();return g?g.lift(c):1;}; /* hauteur du pont élévateur
 
 /* ═══════════ État ═══════════ */
 function J(){const s=MW.S;if(!s.jobs) s.jobs={};const j=s.jobs;
- if(!j.cars) j.cars=[];if(j.seq==null) j.seq=0;if(j.next==null) j.next=0;if(!j.outils) j.outils={cles:1};
+ if(!j.cars) j.cars=[];if(!j.file) j.file=[];if(j.seq==null) j.seq=0;if(j.next==null) j.next=0;if(!j.outils) j.outils={cles:1};
  if(!j.stats) j.stats={rendues:0,note:0,gain:0};if(!j.hist) j.hist=[];if(j.essai===undefined) j.essai=null;
  if(!s.inv) s.inv=[];if(!s.xp) s.xp={};return j;}
 const lv=c=>{const x=(MW.S&&MW.S.xp&&MW.S.xp[c])||0;return Math.min(10,1+Math.floor(Math.sqrt(x/50)));};
@@ -180,7 +186,7 @@ function makeCar(o){
  let mo=0;for(const id of jb.ordre) mo+=PARTS[id].mo;if(jb.symp) mo=PARTS[jb.symp.c].mo+60+((sy0&&sy0.ch)||[]).reduce((a,id)=>a+(parts[id]&&!parts[id].na?PARTS[id].mo:0),0);
  const L=()=>String.fromCharCode(65+rint(0,25));
  const c={id:'j'+(++j.seq),zone:z.id,pont,client:(NZ&&NZ.client)||pick(CIV)+' '+pick(NOMS),marque:mod[0],modele:mod[1],kind:mod[2],mdl:mod[3]||null,an:an,color:(NZ&&NZ.color!=null)?NZ.color:pick(COLS),
-  plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
+  plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:z.id==='garage7'?1.25:z.id==='garage6'?1.1:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
   rend:o.rend!=null?!!o.rend:(!NZ&&j.stats.rendues>=3&&Math.random()<.2),arrive:absT(),ot0:openT(),promis:openT()+Math.max(150,Math.round(mo*2+60)),type:jb.type,ordre:jb.ordre,symp:jb.symp?{id:jb.symp.id,txt:jb.symp.txt,c:jb.symp.c,dn:jb.symp.dn}:null,nom:jb.nom,
   parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},reemp:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
  j.cars.push(c);buildMesh(c);moveInteracts(c);hudJobs();
@@ -633,10 +639,11 @@ function invUI(){
 function hudJobs(){
  if(!MW.S) return;const j=J(),e=emp();
  if(!e&&!j.cars.length){MW.hud('job','');return;}
- if(!j.cars.length){MW.hud('job','<b>Atelier</b> : aucun client pour l\'instant.');return;}
+ const fq=(j.file&&j.file.length)?`<br>${j.file.length} client${j.file.length>1?'s':''} en attente à l'accueil`:'';
+ if(!j.cars.length){MW.hud('job','<b>Atelier</b> : aucun client pour l\'instant.'+fq);return;}
  const l=j.cars.slice(0,3).map(c=>{const pr=c.ordre.length?c.ordre.filter(id=>c.done[id]).length+'/'+c.ordre.length:(c.symp&&c.done[c.symp.c]?'réparé':'à diagnostiquer');
   return `${c.noir?'Cour':'Pont '+(c.pont+1)} · ${esc(voit(c))} : ${esc(c.symp?'diagnostic':c.nom)} (${pr})`;});
- MW.hud('job','<b>Ordres en cours</b><br>'+l.join('<br>'));}
+ MW.hud('job','<b>Ordres en cours</b><br>'+l.join('<br>')+fq);}
 
 /* ═══════════ Interactions fixes (ponts, étagères, établis) ═══════════ */
 const PTS={};
@@ -663,8 +670,17 @@ function onMinute(){
   if(!e||c.zone!==e.zone){removeCar(c,true);continue;}
   if(openT()-c.ot0>2200&&!(ess&&ess.c===c)){removeCar(c,true);MW.S.rep=clamp(R2((MW.S.rep||0)-2),0,100);MW.toast(`${c.client} a repris sa ${voit(c)} : trop d'attente. Votre réputation en souffre.`,'crit');}}
  hudJobs();
- if(!e||MW.S.min<OPEN0||MW.S.min>=OPEN1||j.cars.filter(c=>!c.noir).length>=maxCars()||absT()<j.next) return;
- if(makeCar()) j.next=absT()+rint(10,24);}
+ const nb=()=>j.cars.filter(c=>!c.noir).length;
+ /* file d'attente à l'accueil : les clients patientent, repartent si l'attente dure trop */
+ if(j.file.length){
+  for(const w of j.file.slice()) if(absT()-w.t>PATIENCE){j.file.splice(j.file.indexOf(w),1);MW.S.rep=clamp(R2((MW.S.rep||0)-1),0,100);MW.toast(`${w.client} est reparti : trop d'attente à l'accueil.`,'warn');}
+  if(!e||MW.S.min>=OPEN1) j.file.length=0;
+  else if(nb()<maxCars()&&j.file.length){const w=j.file[0];if(makeCar()) j.file.shift();}}
+ if(!e||MW.S.min<OPEN0||MW.S.min>=OPEN1||absT()<j.next) return;
+ if(nb()>=maxCars()){ /* plus de place : le client s'installe en salle d'attente */
+  if(j.file.length<FILE_MAX){const w={t:absT(),client:pick(CIV)+' '+pick(NOMS)};j.file.push(w);MW.toast(`${w.client} attend à l'accueil (${j.file.length} en attente).`,'info');}
+  j.next=absT()+nextGap(e.zone);hudJobs();return;}
+ if(makeCar()) j.next=absT()+nextGap(e.zone);}
 function init(){
  const j=J();ensureBar();
  for(const id in RT){MW.scene.remove(RT[id].g);delete RT[id];}
@@ -688,7 +704,7 @@ function engResume(){
 MW.on('open',()=>{ensureBar();if(MW.S&&MW.S.jobs) invUI();engPause();});
 MW.on('close',()=>{engResume();if(ess) essaiEnd(true);});
 MW.on('minute',onMinute);
-MW.on('day',()=>{if(MW.S&&MW.S.jobs) J().next=absT()+120+rint(0,10);});
+MW.on('day',()=>{if(MW.S&&MW.S.jobs){const j=J();j.next=absT()+120+rint(0,10);j.file=[];}});
 let fr=0;
 MW.on('tick',dt=>{
  if(!MW.S||!MW.S.jobs) return;animate(dt);
@@ -708,7 +724,7 @@ regPoints();
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>{const y=symp?SYMP.find(x=>x.id===symp.id)||symp:null;return modelFor(zid,(need||[]).concat(y?sympNeed(y):[]),y);},symDef,codesOf,clueTxt,inspLine,ESS_NOM,pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();
