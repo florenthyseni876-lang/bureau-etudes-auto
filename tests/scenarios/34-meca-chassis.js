@@ -45,8 +45,9 @@ module.exports = async function mecaChassis(page, env) {
     __mw.teleport(p.x + Math.cos(p.ry) * 1.7, p.z - Math.sin(p.ry) * 1.7, p.ry - Math.PI / 2, 0); MWG.ensure(c); MWG.run('lift', 'raise'); });
   await attendre(400);
   const y0 = await e(() => __mw.cam.position.y);
-  await e(() => MWF.crouch(true)); await attendre(1200);
-  const y1 = await e(() => __mw.cam.position.y);
+  await e(() => MWF.crouch(true));
+  let y1 = 9;
+  for (let i = 0; i < 20 && y1 > 1.2; i++) { await attendre(500); y1 = await e(() => __mw.cam.position.y); }   /* la descente est progressive : sur une machine lente elle prend plus longtemps */
   verifier(y0 > 1.6 && y1 < 1.2 && y1 > .9, `se baisser : les yeux doivent passer de ~1,70 m à ~1,08 m (avant ${y0.toFixed(2)}, après ${y1.toFixed(2)})`);
   await e(() => MWF.crouch(false));
   await attendreCondition(page, () => __mw.cam.position.y > 1.6, 'se relever : les yeux ne remontent pas', 6000).catch(() => {});

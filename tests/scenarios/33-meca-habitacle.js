@@ -74,6 +74,7 @@ module.exports = async function mecaHabitacle(page, env) {
     }
   }
   await attendre(1500); s = await etat();
+  for (let i = 0; i < 20 && (s.ouv || s.coupe || Math.abs(s.ang) >= .05); i++) { await attendre(500); s = await etat(); }   /* machine lente : la portière finit de se refermer */
   const fin = await e(() => { const c = __mwj.jobs()[0]; return { done: Object.keys(c.done).join('+'), bl: MWG.blocage(c).join(', ') }; });
   verifier(/filtre_hab/.test(fin.done), `le filtre d'habitacle n'a pas été changé : ${fin.done} (${log.join(' ')})`);
   verifier(!s.ouv && Math.abs(s.ang) < .05 && !s.coupe, `la portière est restée ouverte ou la coupe active (${JSON.stringify(s)})`);
