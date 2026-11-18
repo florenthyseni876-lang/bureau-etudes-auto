@@ -85,6 +85,10 @@
    MW.addMin(n)         fait avancer l'horloge de n minutes (émet 'minute', 'hour', 'day' au passage)
    MW.sleep()           dort jusqu'à 7 h 30 (jour suivant ; le nouveau jour commence à 6 h au passage), sauvegarde
    MW.homeInfo()        (interne) met à jour le bouton de l'accueil
+   ── Partie à deux (js/56-meca-reseau.js) ──
+   MW.net               {live, guest, players()} : live vrai quand deux joueurs sont connectés. Si live : le monde continue derrière le menu d'un joueur
+                        (pause locale seulement) et l'invité n'avance pas l'horloge lui-même (il reçoit celle de l'hôte). js/56 enveloppe MW.money, MW.addMin,
+                        MW.sleep et MW.save ; MW.mapExtra(ctx,X,Y,mini,fs) dessine l'ami sur les cartes ; MW.applyState() relit MW.S après un remplacement sur place.
    Raccourci de test : window.__mw = MW. */
 const MW=(()=>{
 const T=THREE,PI=Math.PI,SAVE_KEY='bea.meca.v1';
@@ -421,6 +425,7 @@ function pauseMenu(msg){
   <button type="button" class="btn" data-mw="resume">Reprendre</button>
   <button type="button" class="btn ghost" data-mw="save">Sauvegarder la partie</button>
   <button type="button" class="btn ghost" data-mw="quit">Retour à l'accueil (la partie est sauvegardée)</button>
+  ${typeof MWNET!=='undefined'?`<button type="button" class="btn ghost" data-mw="multi">${MWNET.live()?'Partie à deux : '+esc(MWNET.partnerName())+' (gérer)…':'Jouer à deux…'}</button>`:''}
   ${typeof MWGD!=='undefined'?'<button type="button" class="btn ghost" data-mw="guide">Guide du mécanicien (H)</button>':''}
   ${decorOn?`<button type="button" class="btn ghost" data-mw="quality">${esc(api.decor.qualityLabel())}</button>`:''}
   ${typeof MWADM!=='undefined'?`<button type="button" class="btn ghost" data-mw="admin">Mode administrateur…${MWADM.on()?' (actif)':''}</button>`:''}
@@ -428,6 +433,7 @@ function pauseMenu(msg){
   <p class="hint">La partie se sauvegarde aussi toute seule toutes les 30 secondes et quand vous revenez à l'accueil. Pour la reprendre : bouton « Carrière de mécanicien » de l'accueil.</p>
   <p class="hint">Z Q S D : marcher · Maj : courir · souris : regarder · E : agir · F : voiture · M : carte · H : guide · Échap : menu.</p>`,
   {onClick:a=>{if(a==='resume') api.closePanel();else if(a==='save'){saveNow();pauseMenu();}
+   else if(a==='multi'){try{MWNET.menu();}catch(e){console.error(e);}}
    else if(a==='guide'){api.closePanel();try{MWGD.open();}catch(e){console.error(e);}}
    else if(a==='admin'){try{MWADM.open();}catch(e){console.error(e);}}
    else if(a==='quality'){api.decor.cycleQuality();api.closePanel();pauseMenu();}
@@ -592,6 +598,8 @@ function drawMap(c,cx,cz,sc,names,fs,mini){
    x.textAlign='center';}}
  // voiture
  x.fillStyle='#3a8aff';x.beginPath();x.arc(X(S.car.x),Y(S.car.z),Math.max(3,2.2*sc),0,7);x.fill();
+ // [réseau] ami
+ if(api.mapExtra){try{api.mapExtra(x,X,Y,mini,fs);}catch(e){}}
  // repère
  const m=markerPos();if(m){let mx=X(m.x),my=Y(m.z);const pul=.5+.5*Math.sin(performance.now()/260);let clamped=false;
   const mg=10,cxm=W/2,cym=H/2;if(mx<mg||mx>W-mg||my<mg||my>H-mg){const a=Math.atan2(my-cym,mx-cxm),k=Math.min((W/2-mg)/Math.abs(Math.cos(a)||1e-6),(H/2-mg)/Math.abs(Math.sin(a)||1e-6));mx=cxm+Math.cos(a)*k;my=cym+Math.sin(a)*k;clamped=true;}
@@ -638,8 +646,10 @@ function frame(t){
  if(document.hidden){last=t;return;}
  if(t-last<14.5&&last>0) return;
  const dt=Math.min(.05,Math.max(0,(t-last)/1000));last=t;
+ const NT=api.net&&api.net.live?api.net:null; /* [réseau] partie à deux : le monde continue même si CE joueur a un menu ouvert ; l'invité reçoit l'heure de l'hôte */
+ if(NT&&!NT.guest&&api.paused){acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}}
  if(!api.paused){
-  acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}
+  if(!(NT&&NT.guest)){acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}}
   if(P.inCar) drive(dt);else walk(dt);
   saveT+=dt;if(saveT>30){saveT=0;api.save();}}
  S.player.x=P.x;S.player.z=P.z;S.player.ry=P.ry;S.player.inCar=P.inCar;
@@ -673,6 +683,7 @@ function begin(fresh){
  emit('start');
  if(fresh||!S.flags.welcomed){S.flags.welcomed=true;api.toast('Bienvenue ! Votre carrière de mécanicien commence. Rendez-vous au Garage du Coin (repère jaune).','good');}}
 api.reset=()=>{try{localStorage.removeItem(SAVE_KEY);}catch(e){}ensureUI();begin(true);api.save();};
+api.applyState=()=>{if(S&&ui) applyState();};/* [réseau] après remplacement de MW.S sur place */
 api.isOpen=()=>active;api.renderer=()=>R;api.fit=()=>fit();
 function activate(){
  if(active) return;active=true;

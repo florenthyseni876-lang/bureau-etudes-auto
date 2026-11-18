@@ -39,6 +39,11 @@ Chaque scénario est un fichier de `tests/scenarios/`, lancé dans un navigateur
 | `07-atelier.js` | Enregistrer un moteur, prendre la place de l'ingénieur, saisir une pièce avec la touche E, la poser. En mode complet, le montage entier est terminé. |
 | `08-telephone.js` | iPhone 13 : interface pivotée en paysage, défilement au doigt, aucun débordement horizontal. |
 
+Le scénario `41-meca-deux-joueurs.js` ouvre **deux pages** du même navigateur, reliées par BroadcastChannel (le serveur de rencontre PeerJS n'est pas
+joignable pendant les tests ; la bibliothèque est remplacée par un faux fichier). Il y vérifie le menu, la connexion par code, la vue de l'autre qui bouge,
+les clients à deux, les gestes à deux sur une même voiture, le refus d'une même pièce en même temps, l'argent commun, le sommeil à deux, les messages et
+la déconnexion. Les captures vont dans le dossier donné par la variable d'environnement `BEA_CAPTURES` (sinon le dossier temporaire du système, jamais le dépôt).
+
 Un scénario échoue dès qu'une erreur JavaScript (`pageerror`) ou une erreur de console apparaît,
 même si ses étapes ont réussi.
 

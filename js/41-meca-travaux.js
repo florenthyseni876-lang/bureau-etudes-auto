@@ -91,8 +91,11 @@ garage4:[['Brivio','Fulmine','sport'],['Brivio','Corsa 8','sport'],['Brivio','Ra
 const KMR={garage1:[45000,210000],garage2:[10000,120000],garage3:[6000,70000],garage4:[4000,50000],garage5:[40000,200000],garage6:[20000,160000],garage7:[8000,100000]};
 /* rythme des clients par garage (minutes de jeu entre deux arrivées) : le quartier est fréquenté, le prestige reçoit peu mais bien */
 const RYTHME={garage1:[8,20],garage2:[10,24],garage3:[18,40],garage4:[22,46],garage5:[10,22],garage6:[10,24],garage7:[14,32]};
-const FILE_MAX=3,PATIENCE=420; /* minutes d'ouverture (8 h – 19 h) qu'un client accepte d'attendre à l'accueil ; la nuit ne compte pas */
-function nextGap(zid){const r=RYTHME[zid]||[10,24];let g=rint(r[0],r[1]);const m=MW.S.min;
+/* [réseau] partie à deux : 2 joueurs = clients deux fois plus fréquents, file d'attente plus longue, un pont par joueur au minimum */
+const NP=()=>{const n=MW.net;return n&&n.live&&n.players?n.players():1;};
+const FILE_MAX0=3,PATIENCE=420;
+const FILE_MAX_N=()=>FILE_MAX0*NP(); /* minutes d'ouverture (8 h – 19 h) qu'un client accepte d'attendre à l'accueil ; la nuit ne compte pas */
+function nextGap(zid){const r=RYTHME[zid]||[10,24];let g=rint(r[0],r[1])/NP();const m=MW.S.min;
  if(m<600) g*=.75;else if(m>=720&&m<840) g*=1.4;else if(m>=1020) g*=1.2; /* rush du matin, creux du déjeuner, fin de journée plus calme */
  return Math.round(g);}
 const TAUX={garage1:62,garage2:88,garage3:118,garage4:155}; /* taux horaire de main-d'œuvre facturé (€/h) : quartier, généraliste, prestige, sport */
@@ -672,9 +675,10 @@ function regPoints(only){ /* noir : `only` = une zone sans pont élévateur (cou
   MW.addInteract({id:'mj:etabli:'+z.id,x:et.x-n.x*1.1,z:et.z-n.z*1.1,r:2.2,label:'Établi · outils',when:()=>{const m=emp();return !!m&&m.zone===z.id;},use:()=>etabli(z.id)});}}
 
 /* ═══════════ Cycle de vie ═══════════ */
-const maxCars=()=>{const e=emp(),z=e&&MW.zone(e.zone),m=maxLv();return Math.min(z&&z.ponts?z.ponts.length:1,m>=6?3:m>=3?2:1);};
+const maxCars=()=>{const e=emp(),z=e&&MW.zone(e.zone),m=maxLv();return Math.min(z&&z.ponts?z.ponts.length:1,Math.max(NP(),m>=6?3:m>=3?2:1));};
+const isGuest=()=>{const n=MW.net;return !!(n&&n.live&&n.guest);};
 function onMinute(){
- if(!MW.S||!MW.S.jobs) return;const j=J(),e=emp();
+ if(!MW.S||!MW.S.jobs||isGuest()) return; /* [réseau] l'invité ne fait pas arriver ni partir les clients : c'est l'hôte */const j=J(),e=emp();
  for(const c of j.cars.slice()){
   if(c.noir) continue; /* noir : géré par MWN */
   if(!e||c.zone!==e.zone){removeCar(c,true);continue;}
@@ -692,7 +696,7 @@ function onMinute(){
   if(e&&MW.S.min>=OPEN0&&MW.S.min<OPEN1){j.fileNuit=0;if(nb()<maxCars()&&j.file.length){if(makeCar()) j.file.shift();}}}
  if(!e||MW.S.min<OPEN0||MW.S.min>=OPEN1||absT()<j.next) return;
  if(nb()>=maxCars()){ /* plus de place : le client s'installe en salle d'attente */
-  if(j.file.length<FILE_MAX){const w={t:absT(),ot:openT(),client:pick(CIV)+' '+pick(NOMS)};j.file.push(w);MW.toast(`${w.client} attend à l'accueil (${j.file.length} en attente).`,'info');}
+  if(j.file.length<FILE_MAX_N()){const w={t:absT(),ot:openT(),client:pick(CIV)+' '+pick(NOMS)};j.file.push(w);MW.toast(`${w.client} attend à l'accueil (${j.file.length} en attente).`,'info');}
   j.next=absT()+nextGap(e.zone);hudJobs();return;}
  if(makeCar()) j.next=absT()+nextGap(e.zone);}
 function init(){
@@ -718,7 +722,7 @@ function engResume(){
 MW.on('open',()=>{ensureBar();if(MW.S&&MW.S.jobs) invUI();engPause();});
 MW.on('close',()=>{engResume();if(ess) essaiEnd(true);});
 MW.on('minute',onMinute);
-MW.on('day',()=>{if(MW.S&&MW.S.jobs){const j=J();j.next=absT()+120+rint(0,10);}}); /* la file d'attente est gardée : ces clients reviennent à l'ouverture */
+MW.on('day',()=>{if(MW.S&&MW.S.jobs&&!isGuest()){const j=J();j.next=absT()+120+rint(0,10);}}); /* la file d'attente est gardée : ces clients reviennent à l'ouverture */
 let fr=0;
 MW.on('tick',dt=>{
  if(!MW.S||!MW.S.jobs) return;animate(dt);
@@ -735,7 +739,7 @@ MW.on('key',(k,e)=>{if(!MW.S) return;
 MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
-const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
+const api={rebuild:c=>{if(c){buildMesh(c);moveInteracts(c);}hudJobs();},mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>{const y=symp?SYMP.find(x=>x.id===symp.id)||symp:null;return modelFor(zid,(need||[]).concat(y?sympNeed(y):[]),y);},symDef,codesOf,clueTxt,inspLine,ESS_NOM,pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
  state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,stock:()=>{const e=emp();return e?stockOf(e):[];},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
