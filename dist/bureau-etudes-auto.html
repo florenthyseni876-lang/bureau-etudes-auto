@@ -9064,10 +9064,11 @@ const cStat=()=>{try{return MWC.state();}catch(e){return {stats:{paid:0}};}};
 function note(t){const n=N();n.log.unshift(MW.timeStr()+' : '+t);while(n.log.length>12) n.log.pop();}
 
 /* ═══════════ Le lieu : cour et maison de Mme Ricard ═══════════ */
-const ZC={x:-22,z:40.5,w:40,d:17},YARD={x0:-42,x1:-14,z0:32,z1:49};
+/* [ville] cour décalée de 12 m vers l'ouest : la maison de Mme Ricard débordait sur l'avenue Centrale (x = 0) */
+const ZC={x:-34,z:40.5,w:40,d:17},YARD={x0:-54,x1:-26,z0:32,z1:49};
 const zone={id:'cour',nom:'Cour du studio',court:'Cour',type:'cour',x:ZC.x,z:ZC.z,w:ZC.w,d:ZC.d,side:'N',interior:true,ry:0,n:{x:0,z:-1},
- door:{x:-28,z:49},porte:{x:-28,z:47.7},col:0x55585c,ponts:[{x:-35,z:40,ry:0},{x:-25,z:40,ry:0}],libres:1};
-const HOUSE={x0:-12.5,x1:-3.5,z0:36.5,z1:44.5};
+ door:{x:-40,z:49},porte:{x:-40,z:47.7},col:0x55585c,ponts:[{x:-47,z:40,ry:0},{x:-37,z:40,ry:0}],libres:1};
+const HOUSE={x0:-24.5,x1:-15.5,z0:36.5,z1:44.5};
 const PZ=MW.zone('pieces'),board={x:PZ.porte.x+4.4,z:PZ.porte.z};
 const origZone=MW.zone;MW.zone=id=>id===zone.id?zone:origZone(id);
 MWJ.regPoints(zone);
@@ -9075,18 +9076,18 @@ let built=false,zonePushed=false;
 const M={flaques:[],barrier:[],tarp:null,paneL:null,paneD:null,fig:null,arm:null,coffre:null};
 function buildYard(){
  if(built) return;built=true;
- MW.box(28,.08,17,0x4b4e53,-28,.04,40.5);
+ MW.box(28,.08,17,0x4b4e53,-40,.04,40.5);
  for(const q of zone.ponts){
   for(const s of [-1,1]) MW.box(.1,.02,5.4,0xf2c200,q.x+s*1.35,.1,q.z);
   MW.box(2.8,.02,.1,0xf2c200,q.x,.1,q.z-2.7);}
- MW.box(28.4,.18,.3,0x9a9a94,-28,.09,49.1);MW.box(.3,.18,17,0x9a9a94,-42.1,.09,40.5);
+ MW.box(28.4,.18,.3,0x9a9a94,-40,.09,49.1);MW.box(.3,.18,17,0x9a9a94,-54.1,.09,40.5);
  // coffre à outils
- MW.box(1.6,.8,.7,0xb22a1c,-40.5,.4,36);MW.box(1.7,.1,.8,0x7a1a10,-40.5,.85,36);M.coffre=true;
+ MW.box(1.6,.8,.7,0xb22a1c,-52.5,.4,36);MW.box(1.7,.1,.8,0x7a1a10,-52.5,.85,36);M.coffre=true;
  // barrière du 2e emplacement
- for(const sx of [-1,1]){M.barrier.push(MW.cyl(.22,.6,0xff7a1a,-25+sx*1.5,.3,37.6));M.barrier.push(MW.cyl(.22,.6,0xff7a1a,-25+sx*1.5,.3,42.4));}
- M.barrier.push(MW.box(3.2,.08,.08,0xe8e8e8,-25,.55,37.6));
+ for(const sx of [-1,1]){M.barrier.push(MW.cyl(.22,.6,0xff7a1a,-37+sx*1.5,.3,37.6));M.barrier.push(MW.cyl(.22,.6,0xff7a1a,-37+sx*1.5,.3,42.4));}
+ M.barrier.push(MW.box(3.2,.08,.08,0xe8e8e8,-37,.55,37.6));
  // bâche de chantier (écran côté voisin)
- M.tarp=MW.box(.1,2,9.4,0x3b7d4a,-14,1.1,36.8);
+ M.tarp=MW.box(.1,2,9.4,0x3b7d4a,-26,1.1,36.8);
  // maison de Mme Ricard
  const hx=(HOUSE.x0+HOUSE.x1)/2,hz=(HOUSE.z0+HOUSE.z1)/2,hw=HOUSE.x1-HOUSE.x0,hd=HOUSE.z1-HOUSE.z0;
  MW.box(hw,6,hd,0xd8c7a8,hx,3,hz);MW.box(hw+.8,.5,hd+.8,0x8a4a3a,hx,6.25,hz);
@@ -9345,7 +9346,7 @@ function makeFig(){
  MW.scene.add(g);return g;}
 function startScene(){
  const n=N(),p=n.ctlPending;if(!p||ctl) return;
- ctl={g:makeFig(),ph:'in',t:0,from:{x:-28,z:58},to:{x:-30,z:42},src:p.src};
+ ctl={g:makeFig(),ph:'in',t:0,from:{x:-40,z:58},to:{x:-42,z:42},src:p.src};
  ctl.g.position.set(ctl.from.x,0,ctl.from.z);}
 function sceneTick(dt){
  if(!ctl) return;
@@ -9556,8 +9557,8 @@ MW.on('tick',dt=>{
   if(M.arm&&M.arm.visible) M.arm.rotation.z=-.3-Math.abs(Math.sin(performance.now()/260))*1.2;}});
 /* interactions */
 MW.addInteract({id:'noir:porte',x:HOUSE.x0-1.4,z:43,r:1.9,label:'Frapper chez Mme Ricard',use:voisine});
-MW.addInteract({id:'noir:coffre',x:-38.9,z:36,r:2.1,label:'Coffre à outils · cour',use:coffre});
-MW.addInteract({id:'noir:emp2',x:-25,z:40,r:2.3,label:()=>'Aménager le 2e emplacement ('+fmt(price(K.emplacement2))+')',when:()=>!!MW.S&&N().slots<2&&!MWJ.jobs().some(c=>c.zone==='cour'&&c.pont===1),use:emplacementUse});
+MW.addInteract({id:'noir:coffre',x:-50.9,z:36,r:2.1,label:'Coffre à outils · cour',use:coffre});
+MW.addInteract({id:'noir:emp2',x:-37,z:40,r:2.3,label:()=>'Aménager le 2e emplacement ('+fmt(price(K.emplacement2))+')',when:()=>!!MW.S&&N().slots<2&&!MWJ.jobs().some(c=>c.zone==='cour'&&c.pont===1),use:emplacementUse});
 MW.addInteract({id:'noir:annonces',x:board.x,z:board.z,r:2.4,label:'Panneau de petites annonces',use:()=>panel(MW.S&&unlocked()?'ann':'dem')});
 for(const id of ['ecole','banque']) (()=>{const z=MW.zone(id);if(z) MW.addInteract({id:'noir:ae:'+id,x:z.porte.x+4.6,z:z.porte.z,r:2.2,label:'Guichet auto-entrepreneur',use:statutPanel});})();
 /* jour de la semaine dans l'horloge du HUD (si le socle ne l'affiche pas déjà) */
@@ -11590,7 +11591,7 @@ H.hedge=hedge;
 for(const [x,z,s] of ctx.trees) tree(x,z,s);
 {const rm=D.rng(31);let n=0;
  for(const horiz of [true,false]) for(const r of (horiz?RZ:RX)) for(const sd of [-1,1]) for(let t=-266;t<=270&&n<130;t+=rm()*10+21){
-  if(near(t,horiz?RX:RZ,18)) continue;const x=horiz?t:r+sd*8.6,z=horiz?r+sd*8.6:t;
+  if(near(t,horiz?RX:RZ,18)) continue;const x=horiz?t:r+sd*7.7,z=horiz?r+sd*7.7:t; /* [ville] au bord du trottoir (bordure à 7,1) : l'arbre ne barre plus la marche, il reste 2,4 m côté façades */
   if(Math.hypot(x+25,z-8)<7||!free(x,z,.5,.5,.6)||zones.some(q=>q.porte&&Math.hypot(q.porte.x-x,q.porte.z-z)<8)) continue;if(rm()<.18) continue;
   tree(x,z,.8+rm()*.35,rm()<.8?'r':'p');addCol(x,z,.5,.5);n++;}}
 
@@ -11752,9 +11753,10 @@ for(const z of zones){if(!z._d.immo||z.type==='garage') continue;
   // cheminées, conteneurs, cuves
   const st=W(-fw*.25,-dp*.3);Lp.cyl(.8,1.1,15,10,-fw*.25,d.H+6.5,-dp*.3,0x8a5a4a);Lp.cyl(.9,.9,.6,10,-fw*.25,d.H+14.2,-dp*.3,0x3a3a3e);
   if(z.id==='usine2'){Lp.cyl(.7,1.0,12,10,fw*.2,d.H+5.5,-dp*.25,0x8a5a4a);Lp.cyl(.8,.8,.5,10,fw*.2,d.H+11.7,-dp*.25,0x3a3a3e);}
-  for(const [lx,lz] of [[fw/2+3.4,dp*.25],[fw/2+3.4,dp*.5]]){const q=W(lx,lz);Lp.cyl(2.2,2.2,z.id==='usine2'?11:8,14,lx,z.id==='usine2'?5.5:4,lz,0xc8ccd0);Lp.cyl(2.3,2.0,.6,14,lx,z.id==='usine2'?11.2:8.2,lz,0x8a9098);addCol(q[0],q[1],4.6,4.6);}
+  /* [ville] profondeur négative = côté arrière du bâtiment (la profondeur positive pointe vers la rue : silos et conteneurs posés au milieu de l'avenue) */
+  for(const [lx,lz] of [[fw/2+3.4,-dp*.25],[fw/2+3.4,-dp*.5]]){const q=W(lx,lz);Lp.cyl(2.2,2.2,z.id==='usine2'?11:8,14,lx,z.id==='usine2'?5.5:4,lz,0xc8ccd0);Lp.cyl(2.3,2.0,.6,14,lx,z.id==='usine2'?11.2:8.2,lz,0x8a9098);addCol(q[0],q[1],4.6,4.6);}
   const cc=[0xc0392b,0x2a5a9a,0x3a7a4a,0xd8a020];
-  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=dp*.2+i*3.2+(i%2),q=W(lx,lz);Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
+  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=-(dp*.2+i*3.2+(i%2)),q=W(lx,lz);Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
  }
 }
 D.zoneBuilt=true;
