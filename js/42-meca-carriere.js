@@ -288,12 +288,13 @@ function school(z){
   if(f.type==='dipl'){const D=DIPL[f.id];h+=`<p class="mw-soon">En cours : <b>${esc(D.nom)}</b> · ${d>=f.fin?'l\'examen est ouvert !':`encore ${f.fin-d} jour${f.fin-d>1?'s':''} (fin au jour ${f.fin})`}</p>${d>=f.fin?`<div class="mw-btns">${btn('exam','Passer l\'examen')}</div>`:''}`;}
   else{const S2=STAGES.find(x=>x.id===f.id);h+=`<p class="mw-soon">Stage en cours : <b>${esc(S2?S2.nom:'')}</b> · fin au jour ${f.fin}.</p>`;}}
  h+='<h3 class="mw-h3">Diplômes</h3>';
+ const why=(cout,ok,busy)=>{const r=[];if(!ok) r.push('conditions non remplies (voir ci-dessus)');if(busy) r.push('une formation est déjà en cours');if(MW.S.money<cout) r.push(`il vous faut ${fmt(cout)} (vous avez ${fmt(MW.S.money)})`);return r.length?`<p class="mw-soon">Inscription impossible : ${r.join(' ; ')}.</p>`:'';};
  for(const id in DIPL){const D=DIPL[id];
   if(c.dipl[id]){h+=`<p>✓ <b>${esc(D.nom)}</b> obtenu.</p>`;continue;}
   const ok=okAll(D.req),busy=!!c.form;
-  h+=`<div class="mw-card"><b>${esc(D.nom)}</b> <small>${esc(fmt(D.cout))} · ${D.jours} jours · examen de ${D.n} questions (${D.min} bonnes réponses)</small>${D.req.dipl||D.req.niv?condHTML(D.req):''}<div class="mw-btns">${btn('enroll:'+id,'S\'inscrire','sm',!ok||busy||MW.S.money<D.cout)}</div></div>`;}
+  h+=`<div class="mw-card"><b>${esc(D.nom)}</b> <small>${esc(fmt(D.cout))} · ${D.jours} jours · examen de ${D.n} questions (${D.min} bonnes réponses)</small>${D.req.dipl||D.req.niv?condHTML(D.req):''}${why(D.cout,ok,busy)}<div class="mw-btns">${btn('enroll:'+id,'S\'inscrire','sm',!ok||busy||MW.S.money<D.cout)}</div></div>`;}
  h+='<h3 class="mw-h3">Stages (gagner de l\'expérience)</h3><div class="mw-card">';
- for(const s of STAGES) h+=`<div class="mw-row"><span>${esc(s.nom)}<br><small>${esc(fmt(s.cout))} · ${s.jours} jours · +${s.xp} points</small></span>${btn('stage:'+s.id,'S\'inscrire','sm',!!c.form||MW.S.money<s.cout)}</div>`;
+ for(const s of STAGES) h+=`<div class="mw-row"><span>${esc(s.nom)}<br><small>${esc(fmt(s.cout))} · ${s.jours} jours · +${s.xp} points${c.form?' · formation en cours':MW.S.money<s.cout?' · il vous faut '+esc(fmt(s.cout)):''}</small></span>${btn('stage:'+s.id,'S\'inscrire','sm',!!c.form||MW.S.money<s.cout)}</div>`;
  h+='</div>';
  MW.panel(z.nom,h,{wide:true,onClick:a=>{
   const cc=C();

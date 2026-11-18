@@ -65,8 +65,10 @@ function scrapLbl(it){const r=rule(it);return MAT[r.t]||MAT.fer;}
 /* prix d'occasion : moitié du neuf pour une pièce comme neuve, décroît avec l'usure ; une pièce remise en état vaut 35 % de plus */
 function occOK(it){if(it.k==='neuve') return true;const r=rule(it);return !!r.o&&it.u<=r.o;}
 function occV(it){if(it.k==='neuve') return Math.round(pv(it)*.7);if(!occOK(it)) return 0;const k=Math.pow(1-it.u/100,.8)*.5*(it.ren?1.35:1);return Math.max(scrap(it)+2,Math.round(pv(it)*k));}
-function renOK(it){const r=rule(it).r;return !!r&&!it.ren&&it.u>=20;}
 const renCost=it=>Math.max(3,Math.round(pv(it)*rule(it).r.kit));
+/* remise en état : après le travail, la pièce doit se vendre plus que (ferraille + kit) */
+function renGain(it){const r=rule(it).r;if(!r) return 0;const u2=Math.max(0,it.u-r.g),o=rule(it).o,v=o&&u2<=o?Math.max(scrap(it)+2,Math.round(pv(it)*Math.pow(1-u2/100,.8)*.5*1.35)):scrap(it);return v-Math.max(occOK(it)?occV(it):scrap(it),0)-renCost(it);}
+function renOK(it){const r=rule(it).r;return !!r&&!it.ren&&it.u>=20&&renGain(it)>0;}
 function valTxt(it){if(it.k==='neuve') return `Pièce neuve dans sa boîte : environ ${fmt(occV(it))} en vente entre particuliers.${vole(it)?' Elle appartient à votre employeur : la revendre, c\'est du vol.':''}`;
  const o=occV(it),f=scrap(it),r=rule(it);let t=`Ferraille : ${f?fmt(f):'0 €'}.`;
  if(o) t+=` Occasion : environ ${fmt(o)}.`;else if(r.o) t+=` Trop usée pour l'occasion (maxi ${r.o} % d'usure)${renOK(it)?' : remettez-la en état à l\'établi':''}.`;
