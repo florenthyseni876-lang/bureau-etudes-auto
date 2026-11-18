@@ -1003,6 +1003,9 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;border:1.5px solid rgba(255,255,255,.75)}
 .mw-incar .mw-cross{display:none}
 .mw-toasts{position:absolute;left:50%;top:max(10px,env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;width:min(520px,60%)}
+/* les messages restent entre le tableau de bord (à gauche) et la barre de boutons Carte/Menu/Carnet (à droite) */
+@media(min-width:1180px){.mw-toasts{left:370px;right:660px;transform:none;width:auto}}
+@media(max-width:1179px){.mw-toasts{top:max(62px,env(safe-area-inset-top,0px))}}
 .mw-t{background:rgba(10,20,35,.88);padding:8px 14px;border-radius:4px;border-left:4px solid #5b8fd0;font-size:14px;line-height:1.35;animation:mw-in .25s ease-out,mw-out .5s ease-in 4.7s forwards}
 .mw-t.good{border-left-color:#3ccf6a}.mw-t.warn{border-left-color:#ffb800}.mw-t.crit{border-left-color:#ff5a4a}
 @keyframes mw-in{from{opacity:0;transform:translateY(-8px)}}
@@ -7814,6 +7817,7 @@ function chooseJob(e,o,mdl){
  if(o.tpl){const t=TPL.find(x=>x[0]===o.tpl);if(t) return {type:'travaux',ordre:t[2].slice(),nom:t[1]};}
  if(o.symp){const y=SYMP.find(x=>x.id===o.symp);if(y) return {type:'symptome',symp:y,ordre:[],nom:y.txt};}
  const J1=J();
+ if(J1.stats.rendues===1&&!J1.vidSeen&&ok('huile')&&ok('filtre_huile')) return {type:'travaux',ordre:['huile','filtre_huile'],nom:'Vidange'}; /* tutoriel : la 2e voiture est une vidange */
  if(J1.stats.rendues>=3&&rnd()<.3){
   const ys=SYMP.filter(y=>ok(y.c)&&(y.ch||[]).every(ok)&&fuelOK(mdl,y)&&y.dn<=lv('diagnostic')+stretch&&(!PARTS[y.c].hid||y.dn<=1||lv('electricite')>=2||PARTS[y.c].comp!=='electricite'));
   if(ys.length){const y=pick(ys);return {type:'symptome',symp:y,ordre:[],nom:y.txt};}}
@@ -7846,8 +7850,10 @@ function makeCar(o){
   plaque:L()+L()+'-'+String(rint(100,999))+'-'+L()+L(),km,fp:KFAC[mod[2]]*(z.id==='garage3'?1.5:z.id==='garage4'?1.35:z.id==='garage7'?1.25:z.id==='garage6'?1.1:1),taux:(NZ&&NZ.taux)||TAUX[z.id]||55,noir:NZ?Object.assign({},NZ):undefined,
   rend:o.rend!=null?!!o.rend:(!NZ&&j.stats.rendues>=3&&Math.random()<.2),arrive:absT(),ot0:openT(),promis:openT()+Math.max(150,Math.round(mo*2+60)),type:jb.type,ordre:jb.ordre,symp:jb.symp?{id:jb.symp.id,txt:jb.symp.txt,c:jb.symp.c,dn:jb.symp.dn}:null,nom:jb.nom,
   parts,st:{capot:0,lifted:0,av:0,ar:0},insp:{},rem:{},done:{},reemp:{},clues:[],codes:null,essai:0,comp:{},avance:0,ni:0};
+ if(jb.ordre.includes('huile')) j.vidSeen=1;
  j.cars.push(c);buildMesh(c);moveInteracts(c);hudJobs();
- if(!o.silencieux){MW.toast(`${c.client} dépose sa ${c.marque} ${c.modele} (pont n° ${pont+1}) : « ${jb.symp?jb.symp.txt:jb.nom} »${c.rend?' Il veut récupérer ses anciennes pièces.':''}`,'info');}
+ if(!o.silencieux){MW.toast(`${c.client} dépose sa ${c.marque} ${c.modele} (pont n° ${pont+1}) : « ${jb.symp?jb.symp.txt:jb.nom} »${c.rend?' Il veut récupérer ses anciennes pièces.':''}`,'info');
+  if(jb.symp&&!J().outils.valise&&!outilOK('valise',c)&&!MW.S.flags.valiseVue){MW.S.flags.valiseVue=true;MW.toast('Pour diagnostiquer une panne : la valise de diagnostic (220 €) est en vente chez Pièces Auto Express, onglet Outils.','warn');}}
  MW.emit('jobNew',c);return c;}
 function removeCar(c,silent){
  const j=J(),i=j.cars.indexOf(c);if(i>=0) j.cars.splice(i,1);
@@ -8170,7 +8176,7 @@ function openPoint(cid,kind,keep){
  else if(kind==='dessous') ctl=btn('pont',c.st.lifted?'Baisser le pont':'Lever le pont');
  if(ctl) h+=`<div class="mw-btns">${ctl}</div>`;
  if(kind==='cabine'){
-  h+=`<div class="mw-btns">${btn('valise','Valise de diagnostic','ghost')}${btn('essai','Essai sur route','ghost')}${btn('rendre','Rendre la voiture','')}</div>`;
+  h+=`<div class="mw-btns">${btn('valise',outilOK('valise',c)?'Valise de diagnostic':'Valise de diagnostic (à acheter chez Pièces Auto Express, 220 €)','ghost')}${btn('essai','Essai sur route','ghost')}${btn('rendre','Rendre la voiture','')}</div>`;
   if(c.codes) h+=`<p><b>Valise :</b><br>${c.codes.map(esc).join('<br>')}</p>`;
   if(c.clues.length) h+=`<p><b>Indices relevés :</b><br>${c.clues.map(esc).join('<br>')}</p>`;}
 
@@ -8211,11 +8217,14 @@ function rendreUI(c){
 
 /* ── étagère, établi, magasin, ferraille ── */
 const STOCK1=['huile','filtre_huile','filtre_air','filtre_hab','essuie','ampoules','pneus','batterie','plaq_av','plaq_ar','liquide_frein','bougies','courroie_acc'];
-const stockOf=e=>aSonCompte(e)?[]:(e.zone==='garage1'?STOCK1:PLIST.map(p=>p.id));
+/* Garage du Coin : réserve des pièces courantes ; pour un travail plus lourd accepté (embrayage, disques, distribution…), l'atelier commande la pièce : elle apparaît à l'étagère dès que le client dépose sa voiture */
+const stockOf=e=>{if(aSonCompte(e)) return [];if(e.zone!=='garage1') return PLIST.map(p=>p.id);
+ const l=STOCK1.slice();for(const c of J().cars) if(c.zone===e.zone&&!c.noir) for(const id of (c.ordre||[]).concat(c.symp?sympNeed(SYMP.find(x=>x.id===c.symp.id)):[])) if(PARTS[id]&&!l.includes(id)&&c.parts[id]&&!c.parts[id].na) l.push(id);
+ return l;};
 function etagere(zid){
  const e=emp();if(!e||e.zone!==zid) return MW.toast("Ce n'est pas l'étagère de votre atelier.",'info');
  const st=stockOf(e);
- let h=`<p class="hint">Réserve de ${esc(e.nom||'votre atelier')} : les pièces sont fournies par l'atelier. Emportez seulement ce qu'il faut (${inv().length}/${INV_MAX} places).</p>`;
+ let h=`<p class="hint">Réserve de ${esc(e.nom||'votre atelier')} : les pièces sont fournies par l'atelier. Emportez seulement ce qu'il faut (${inv().length}/${INV_MAX} places).${e.zone==='garage1'?' Pour un gros travail (embrayage, disques, distribution…), la pièce commandée arrive à l\'étagère dès que le client a déposé sa voiture.':''}</p>`;
  if(!st.length) h+='<p class="mw-soon">À votre compte, vous achetez vos pièces chez Pièces Auto Express.</p>';
  h+=st.map(id=>{const p=PARTS[id],n=inv().filter(it=>it.k==='neuve'&&it.id===id).length;
   return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min</small><div class="mw-btns">${btn('take:'+id,'Prendre')}</div></div>`;}).join('');
@@ -8232,7 +8241,7 @@ function etagere(zid){
 function etabli(zid){
  const e=emp(),has=Object.keys(J().outils).filter(k=>J().outils[k]),prov=e&&e.zone!=='garage1'&&!aSonCompte(e);
  const nu=inv().filter(it=>it.k==='usagee'&&!rendBloq(it)).length;
- let h=`<p>Établi de ${esc(MW.zone(zid).nom)}.</p><p><b>Votre caisse à outils :</b><br>${has.map(k=>esc(OUTILS[k].nom)).join('<br>')}${prov?'<br><span class="hint">L\'atelier fournit aussi la clé dynamométrique et la valise de diagnostic.</span>':''}</p>`;
+ let h=`<p>Établi de ${esc(MW.zone(zid).nom)}.</p><p><b>Votre caisse à outils :</b><br>${has.map(k=>esc(OUTILS[k].nom)).join('<br>')}${prov?'<br><span class="hint">L\'atelier fournit aussi la clé dynamométrique et la valise de diagnostic.</span>':(J().outils.valise?'':'<br><span class="hint">Valise de diagnostic et clé dynamométrique : à acheter chez Pièces Auto Express (onglet Outils).</span>')}</p>`;
  h+=`<div class="mw-btns">${btn('outils','Outils : prendre ou ranger')}${btn('bac','Jeter les pièces usagées au bac ('+nu+')','ghost',!nu)}${btn('carnet','Ouvrir le carnet','ghost')}</div>`;
  if(typeof MWO!=='undefined') h+=MWO.etabliHTML();
  show('Établi',h,a=>{if(a==='bac'){for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&!rendBloq(inv()[i])) inv().splice(i,1);invUI();MW.toast('Pièces usagées jetées.','info');etabli(zid);}else if(a==='carnet') carnet();else if(a==='outils') servante(zid);else if(a.startsWith('occ:')&&typeof MWO!=='undefined'){MWO.act(a.slice(4));if(MW.S) etabli(zid);}},{keep:true,wide:true});}
@@ -8389,7 +8398,7 @@ regPoints();
 const api={mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>{const y=symp?SYMP.find(x=>x.id===symp.id)||symp:null;return modelFor(zid,(need||[]).concat(y?sympNeed(y):[]),y);},symDef,codesOf,clueTxt,inspLine,ESS_NOM,pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,stock:()=>{const e=emp();return e?stockOf(e):[];},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();
@@ -8683,12 +8692,13 @@ function school(z){
   if(f.type==='dipl'){const D=DIPL[f.id];h+=`<p class="mw-soon">En cours : <b>${esc(D.nom)}</b> · ${d>=f.fin?'l\'examen est ouvert !':`encore ${f.fin-d} jour${f.fin-d>1?'s':''} (fin au jour ${f.fin})`}</p>${d>=f.fin?`<div class="mw-btns">${btn('exam','Passer l\'examen')}</div>`:''}`;}
   else{const S2=STAGES.find(x=>x.id===f.id);h+=`<p class="mw-soon">Stage en cours : <b>${esc(S2?S2.nom:'')}</b> · fin au jour ${f.fin}.</p>`;}}
  h+='<h3 class="mw-h3">Diplômes</h3>';
+ const why=(cout,ok,busy)=>{const r=[];if(!ok) r.push('conditions non remplies (voir ci-dessus)');if(busy) r.push('une formation est déjà en cours');if(MW.S.money<cout) r.push(`il vous faut ${fmt(cout)} (vous avez ${fmt(MW.S.money)})`);return r.length?`<p class="mw-soon">Inscription impossible : ${r.join(' ; ')}.</p>`:'';};
  for(const id in DIPL){const D=DIPL[id];
   if(c.dipl[id]){h+=`<p>✓ <b>${esc(D.nom)}</b> obtenu.</p>`;continue;}
   const ok=okAll(D.req),busy=!!c.form;
-  h+=`<div class="mw-card"><b>${esc(D.nom)}</b> <small>${esc(fmt(D.cout))} · ${D.jours} jours · examen de ${D.n} questions (${D.min} bonnes réponses)</small>${D.req.dipl||D.req.niv?condHTML(D.req):''}<div class="mw-btns">${btn('enroll:'+id,'S\'inscrire','sm',!ok||busy||MW.S.money<D.cout)}</div></div>`;}
+  h+=`<div class="mw-card"><b>${esc(D.nom)}</b> <small>${esc(fmt(D.cout))} · ${D.jours} jours · examen de ${D.n} questions (${D.min} bonnes réponses)</small>${D.req.dipl||D.req.niv?condHTML(D.req):''}${why(D.cout,ok,busy)}<div class="mw-btns">${btn('enroll:'+id,'S\'inscrire','sm',!ok||busy||MW.S.money<D.cout)}</div></div>`;}
  h+='<h3 class="mw-h3">Stages (gagner de l\'expérience)</h3><div class="mw-card">';
- for(const s of STAGES) h+=`<div class="mw-row"><span>${esc(s.nom)}<br><small>${esc(fmt(s.cout))} · ${s.jours} jours · +${s.xp} points</small></span>${btn('stage:'+s.id,'S\'inscrire','sm',!!c.form||MW.S.money<s.cout)}</div>`;
+ for(const s of STAGES) h+=`<div class="mw-row"><span>${esc(s.nom)}<br><small>${esc(fmt(s.cout))} · ${s.jours} jours · +${s.xp} points${c.form?' · formation en cours':MW.S.money<s.cout?' · il vous faut '+esc(fmt(s.cout)):''}</small></span>${btn('stage:'+s.id,'S\'inscrire','sm',!!c.form||MW.S.money<s.cout)}</div>`;
  h+='</div>';
  MW.panel(z.nom,h,{wide:true,onClick:a=>{
   const cc=C();
@@ -12629,13 +12639,15 @@ function infoUI(){
  if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
   if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
    hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
+ if(R&&R.c){const Ow=R.c.g&&R.c.g.o;if(Ow&&Ow.on&&Ow.drain<1) hh=`<i></i>L'huile s'écoule… attendez (${Math.max(1,Math.ceil((1-Ow.drain)*DRAIN_T))} s)`+(hh?'<br>'+hh.replace('<i></i>',''):'');}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}
 function auxSet(h){const u=ensureUI();if(!u) return;if(!h){u.aux.hidden=true;return;}u.aux.innerHTML=h;u.aux.hidden=false;}
 function binUI(){
  const u=ensureUI();if(!u||!R) return;const b=R.F.bin,n=Object.keys(b).reduce((s,k)=>s+(b[k]||0),0);
  const t=n?`<b>Bac magnétique</b> : ${Object.keys(b).filter(k=>b[k]>0).map(k=>b[k]+' '+BIN_NOM[k]).join(', ')}`:'';
- if(t!==u._bt){u._bt=t;u.bin.innerHTML=t;}u.bin.hidden=!t;}
+ const tt=t?t+' <small>— reposez ces pièces avant de rendre la voiture (sinon malus à la note)</small>':'';
+ if(tt!==u._bt){u._bt=tt;u.bin.innerHTML=tt;}u.bin.hidden=!tt;}
 const BIN_NOM={ecrou:'écrou(s)',vis_et:'vis d\'étrier',vis_br:'vis de support',vis_dq:'vis de disque',bouchon:'bouchon',joint:'joint',vis:'vis',clip:'clip(s)',cosse:'borne(s)'};
 function binAdd(k,n){const b=R.F.bin;b[k]=(b[k]||0)+(n||1);}
 function binTake(k,n){const b=R.F.bin;b[k]=Math.max(0,(b[k]||0)-(n||1));if(!b[k]) delete b[k];}
@@ -13107,12 +13119,13 @@ function buildVidange(R){
   .concat(!O.cap&&!O.fun?[{key:'fu',lab:"Placer l'entonnoir",tool:'entonnoir',ord:73,exp:needFill(),do:()=>{O.fun=1;MWJ.toolPut('entonnoir');}}]:[]).concat(O.cap&&!O.fun?[]:[])});
  R.add({id:'fun',o:fun,r:.1,vis:()=>baySt()&&!!O.fun,name:'Entonnoir',acts:()=>[{key:'pour',lab:'Verser l\'huile (maintenir E)',tool:'bidon',cont:1,snd:'pour',ord:74,exp:needFill(),sub:()=>`Moteur : ${nf(cap,2)} l · versé : ${nf(O.pour,2)} l`,
   why:!O.fun?"Placez d'abord l'entonnoir dans l'orifice de remplissage.":(O.plug!==2?'Le bouchon de vidange doit être serré avant de remplir.':null),
-  start:()=>{},tick:(dt)=>{O.pour+=dt*.55;auxPour(O,cap);},prog:()=>clamp01(O.pour/cap),
+  start:()=>{O.warn=0;},tick:(dt)=>{O.pour+=dt*.55;if(O.pour>=cap&&!O.warn){O.warn=1;MW.toast('Repère maxi atteint : relâchez E. Au-delà, il y a trop d\'huile (on peut aspirer l\'excédent avec la jauge).','warn');}auxPour(O,cap);},prog:()=>clamp01(O.pour/cap),
   release:()=>{auxSet('');if(O.pour>=cap*.93&&!O.done){O.done=1;if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}}else if(O.pour<cap*.93) MW.toast(`Il en faut encore : ${nf(cap,2)} l au total.`,'info');
    else if(O.pour>cap*1.12){O.over=1;MW.toast("Trop d'huile : le niveau dépasse le repère maxi.",'warn');}},cancel:()=>{auxSet('');}},
   O.fun&&{key:'fun0',lab:"Retirer l'entonnoir",tool:'main',ord:75,exp:!!O.done,do:()=>{O.fun=0;MWJ.toolTake('entonnoir');}}].filter(Boolean)});
  R.add({id:'dip',o:dipO,r:.06,vis:baySt,name:'Jauge à huile',acts:()=>[{key:'dp',lab:'Retirer et lire la jauge',tool:'main',ord:77,exp:!!O.done&&!O.dip,why:c.st.capot?null:'Ouvrez le capot.',do:()=>{O.dip=1;const lv=O.pour/cap,pos=clamp01((lv-.5)/.6);
-  auxSet(`<b>Jauge à huile</b><div class="mg-dip"><i style="bottom:${Math.round(pos*100)}%"></i><span class="mx">MAXI</span><span class="mn">MINI</span></div><small>${lv<.9?'Niveau bas : complétez.':lv>1.1?'Niveau trop haut.':'Niveau correct.'}</small>`);setTimeout(()=>auxSet(''),4500);}}]});
+  auxSet(`<b>Jauge à huile</b><div class="mg-dip"><i style="bottom:${Math.round(pos*100)}%"></i><span class="mx">MAXI</span><span class="mn">MINI</span></div><small>${lv<.9?'Niveau bas : complétez.':lv>1.1?'Niveau trop haut : aspirez l\'excédent.':'Niveau correct.'}</small>`);setTimeout(()=>auxSet(''),4500);}},
+  {key:'asp',lab:"Aspirer l'excédent d'huile",tool:'main',hold:1.2,snd:'pour',ord:78,exp:O.pour>cap*1.1,why:c.st.capot?(O.pour>cap*1.1?null:"Le niveau n'est pas trop haut."):'Ouvrez le capot.',do:()=>{O.pour=cap;O.over=0;O.dip=0;MW.toast('Excédent aspiré : le niveau est au repère maxi.','good');}}]});
  /* ── visuel et écoulement ── */
  const tick=(R2,dt)=>{
   if(O.on&&O.bac){O.drain=Math.min(1,O.drain+dt/DRAIN_T);if(O.drain>=1){O.on=0;MW.toast(`Huile vidangée : ${nf(cap,1)} l récupérés dans le bac.`,'info');syncAll(false);}}
@@ -13913,8 +13926,10 @@ function scrapLbl(it){const r=rule(it);return MAT[r.t]||MAT.fer;}
 /* prix d'occasion : moitié du neuf pour une pièce comme neuve, décroît avec l'usure ; une pièce remise en état vaut 35 % de plus */
 function occOK(it){if(it.k==='neuve') return true;const r=rule(it);return !!r.o&&it.u<=r.o;}
 function occV(it){if(it.k==='neuve') return Math.round(pv(it)*.7);if(!occOK(it)) return 0;const k=Math.pow(1-it.u/100,.8)*.5*(it.ren?1.35:1);return Math.max(scrap(it)+2,Math.round(pv(it)*k));}
-function renOK(it){const r=rule(it).r;return !!r&&!it.ren&&it.u>=20;}
 const renCost=it=>Math.max(3,Math.round(pv(it)*rule(it).r.kit));
+/* remise en état : après le travail, la pièce doit se vendre plus que (ferraille + kit) */
+function renGain(it){const r=rule(it).r;if(!r) return 0;const u2=Math.max(0,it.u-r.g),o=rule(it).o,v=o&&u2<=o?Math.max(scrap(it)+2,Math.round(pv(it)*Math.pow(1-u2/100,.8)*.5*1.35)):scrap(it);return v-Math.max(occOK(it)?occV(it):scrap(it),0)-renCost(it);}
+function renOK(it){const r=rule(it).r;return !!r&&!it.ren&&it.u>=20&&renGain(it)>0;}
 function valTxt(it){if(it.k==='neuve') return `Pièce neuve dans sa boîte : environ ${fmt(occV(it))} en vente entre particuliers.${vole(it)?' Elle appartient à votre employeur : la revendre, c\'est du vol.':''}`;
  const o=occV(it),f=scrap(it),r=rule(it);let t=`Ferraille : ${f?fmt(f):'0 €'}.`;
  if(o) t+=` Occasion : environ ${fmt(o)}.`;else if(r.o) t+=` Trop usée pour l'occasion (maxi ${r.o} % d'usure)${renOK(it)?' : remettez-la en état à l\'établi':''}.`;
@@ -14165,7 +14180,7 @@ const CH=[
  <h4>Une voiture, du début à la fin</h4>${ol([
   `<b>Lisez l'ordre</b> : le client annonce le travail (bandeau à gauche et carnet ${K('Tab')}). S'il décrit un symptôme, il faut d'abord trouver la panne (niveau 2).`,
   `<b>Prenez les outils</b> à la <b>servante</b>, le chariot rouge à côté du pont (visez-la, ${K('E')}) ou à l'établi. Vous n'avez rien dans les poches : le bouton <i>Prendre les outils de l'ordre</i> prend ceux du travail en cours. Rangez-les ensuite pour libérer de la place.`,
-  `<b>Prenez les pièces neuves</b> à l'<b>étagère</b> de l'atelier (${K('E')} devant l'étagère). Le bouton <i>Prendre les pièces des ordres en cours</i> prend tout d'un coup. Sans la pièce neuve sur vous, rien ne se remonte : le bandeau du haut vous le rappelle.`,
+  `<b>Prenez les pièces neuves</b> à l'<b>étagère</b> de l'atelier (${K('E')} devant l'étagère). Le bouton <i>Prendre les pièces des ordres en cours</i> prend tout d'un coup. Au Garage du Coin, l'étagère tient les pièces courantes ; pour un gros travail accepté (embrayage, disques, distribution…), l'atelier commande la pièce : elle apparaît à l'étagère dès que le client a déposé sa voiture. Dans un autre cadre (à votre compte), achetez les pièces chez <b>Pièces Auto Express</b> : elles sont avancées puis remboursées à la facture. La <b>valise de diagnostic</b> (220 €) s'achète aussi chez Pièces Auto Express (onglet Outils). Sans la pièce neuve sur vous, rien ne se remonte : le bandeau du haut vous le rappelle.`,
   `<b>Travaillez</b> : visez une pièce, son nom s'affiche avec le geste possible et l'outil demandé. Le bandeau « Étape suivante » vous guide (réglable avec ${K('G')}).`,
   `<b>Rendez la voiture</b> : ${RENDRE}`])}
  <h4>L'inventaire (barre du bas)</h4>${ul([

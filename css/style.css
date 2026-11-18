@@ -996,6 +996,9 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;border:1.5px solid rgba(255,255,255,.75)}
 .mw-incar .mw-cross{display:none}
 .mw-toasts{position:absolute;left:50%;top:max(10px,env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;width:min(520px,60%)}
+/* les messages restent entre le tableau de bord (à gauche) et la barre de boutons Carte/Menu/Carnet (à droite) */
+@media(min-width:1180px){.mw-toasts{left:370px;right:660px;transform:none;width:auto}}
+@media(max-width:1179px){.mw-toasts{top:max(62px,env(safe-area-inset-top,0px))}}
 .mw-t{background:rgba(10,20,35,.88);padding:8px 14px;border-radius:4px;border-left:4px solid #5b8fd0;font-size:14px;line-height:1.35;animation:mw-in .25s ease-out,mw-out .5s ease-in 4.7s forwards}
 .mw-t.good{border-left-color:#3ccf6a}.mw-t.warn{border-left-color:#ffb800}.mw-t.crit{border-left-color:#ff5a4a}
 @keyframes mw-in{from{opacity:0;transform:translateY(-8px)}}

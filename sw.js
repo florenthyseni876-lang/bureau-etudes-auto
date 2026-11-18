@@ -1,5 +1,5 @@
 /* Service hors connexion : fichier généré par outils/build.py, ne pas modifier sw.js à la main. */
-const VERSION='bea-0c6a7a7e68';
+const VERSION='bea-94d1224616';
 const FICHIERS=[
   './',
   'index.html',
