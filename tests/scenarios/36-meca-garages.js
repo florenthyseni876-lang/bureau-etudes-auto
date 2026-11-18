@@ -60,6 +60,16 @@ module.exports = async function mecaGarages(page, env) {
   });
   verifier(f.un === 1 && f.enAttente === 1, `la file d'attente ne se forme pas (voitures ${f.un}, en attente ${f.enAttente})`);
   verifier(f.apres === 0 && f.voitures === 1, `le client en attente ne prend pas le pont libéré (file ${f.apres}, voitures ${f.voitures})`);
+  // patience : un client en attente patiente plusieurs heures d'ouverture, garde sa place la nuit, puis repart s'il attend trop
+  const pa = await e(() => {
+    const j = __mw.S.jobs; __mw.S.min = 900; j.next = 1e12; j.file = [];
+    j.next = 0; __mw.emit('minute'); j.next = 1e12; const w = j.file[0], la = () => j.file.includes(w) ? 1 : 0; const n0 = j.file.length;
+    __mw.addMin(120); const apres5h = la(); // 17 h : toujours là
+    __mw.addMin(120 + 660 + 240); j.next = 1e12; const lendemain = la(); // fermeture, nuit, lendemain 10 h (6 h d'ouverture d'attente) : revenu
+    __mw.addMin(120); const parti = la(); // 12 h : plus de 7 h d'ouverture en tout, reparti
+    return { n0, apres5h, lendemain, parti };
+  });
+  verifier(pa.n0 === 1 && pa.apres5h === 1 && pa.lendemain === 1 && pa.parti === 0, `patience des clients en attente incorrecte (${JSON.stringify(pa)})`);
 
   // 5. clientèle cohérente : dans chaque garage (achetés compris), la voiture vient du bon catalogue et le kilométrage suit le prestige
   const cl = await e(ids => {
