@@ -21,17 +21,18 @@ module.exports = async function mecaEcrous(page, env) {
       const p = __mw.zone(c.zone).ponts[c.pont]; __mw.teleport(p.x + Math.cos(p.ry) * 1.7, p.z - Math.sin(p.ry) * 1.7, p.ry - Math.PI / 2, 0); MWG.ensure(c); }, modele);
     await attendre(400);
     const viser = async (etat) => {
-      const bad = []; let n = 0;
+      const bad = []; let n = 0, etatBaisse = -1;
       const ids = await e(() => MWG.rig().tg.filter(t => /^nut:/.test(t.id)).map(t => t.id));
-      for (const id of ids) {
+      for (const crouchTour of [0, 1]) for (const id of ids) {
         const cote = id.split(':')[1][1] === 'L' ? 1 : -1;
-        for (const [d, mode, crouch] of [[.5, 's', 0], [.8, 's', 0], [1.2, 's', 0], [1.8, 's', 0], [.8, 'f', 0], [.8, 'b', 0], [.8, 's', 1], [1.2, 'f', 1]]) {
+        for (const [d, mode, crouch] of [[.5, 's', 0], [.8, 's', 0], [1.2, 's', 0], [1.8, 's', 0], [.8, 'f', 0], [.8, 'b', 0], [.8, 's', 1], [1.2, 'f', 1]].filter(x => x[2] === crouchTour)) {
+          if (crouch !== etatBaisse) { etatBaisse = crouch; await e((c) => { MWF.crouch(!!c); __mw.eyeY = c ? 1.08 : 0; }, crouch); await attendre(2500); }
           const vis = await e(([id, d, mode, cote, crouch]) => {
             const R = MWG.rig(), t = R.tg.find(q => q.id === id), v = new THREE.Vector3(), o = t.o;
             o.updateWorldMatrix(true, false); o.getWorldPosition(v);
             const p = R.p, s = new THREE.Vector3(Math.cos(p.ry) * cote, 0, -Math.sin(p.ry) * cote), f = new THREE.Vector3(Math.sin(p.ry), 0, Math.cos(p.ry));
             const dir = mode === 's' ? s : s.clone().add(f.clone().multiplyScalar(mode === 'f' ? 1 : -1)).normalize();
-            const eye = crouch ? 1.08 : 1.7; MWF.crouch(!!crouch); __mw.eyeY = crouch ? 1.08 : 0;
+            const eye = __mw.cam.position.y;   /* la hauteur réelle des yeux (elle glisse quand on se baisse) */
             const x = v.x + dir.x * d, z = v.z + dir.z * d, dx = v.x - x, dz = v.z - z;
             __mw.teleport(x, z, Math.atan2(dx, dz), Math.atan2(v.y - eye, Math.hypot(dx, dz)));
             return null; }, [id, d, mode, cote, crouch]);
