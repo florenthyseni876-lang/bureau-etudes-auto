@@ -82,7 +82,9 @@ module.exports = async function mecaChassis(page, env) {
           __mw.teleport(x, z, Math.atan2(dx, dz), Math.atan2(v.y - 1.08, Math.hypot(dx, dz)));
         }, [id, d, mode]);
         await attendre(110);
-        const vis = await e(() => { const A = MWG.aim(); return A ? A.t.id : null; });
+        let vis = await e(() => { const A = MWG.aim(); return A ? A.t.id : null; });
+        /* une pièce encore fixée par ses vis : on vise d'abord une de ses vis (actionnable), c'est voulu */
+        if (vis && /^pt:/.test(id) && vis.startsWith('fx:' + id.split(':')[1] + ':')) vis = id;
         if (vis === id) { const m = await masque(id); if (!m) return { vis, d, mode }; dernierMasque = m; }
       }
       if (dernierMasque) return { vis: id, masque: dernierMasque };
