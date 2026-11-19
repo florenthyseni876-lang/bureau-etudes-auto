@@ -44,6 +44,8 @@ joignable pendant les tests ; la bibliothèque est remplacée par un faux fichie
 les clients à deux, les gestes à deux sur une même voiture, le refus d'une même pièce en même temps, l'argent commun, le sommeil à deux, les messages et
 la déconnexion. Les captures vont dans le dossier donné par la variable d'environnement `BEA_CAPTURES` (sinon le dossier temporaire du système, jamais le dépôt).
 
+Le scénario `42-meca-societe.js` couvre la société d'un garage acheté (joueur seul) : prêt de la société, factures et pièces sur le compte du garage, charges, salaire et dividendes taxés, bilan annuel, ancienne sauvegarde, revente. Le scénario 41 y ajoute les deux salaires distincts, l'achat à deux avec apports, la facture de l'invité dans le compte commun, et les propositions de salaire et de dividendes acceptées ou refusées.
+
 Un scénario échoue dès qu'une erreur JavaScript (`pageerror`) ou une erreur de console apparaît,
 même si ses étapes ont réussi.
 

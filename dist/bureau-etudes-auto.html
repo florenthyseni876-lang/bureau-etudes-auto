@@ -6803,7 +6803,7 @@ function mkTodo(t,prod){
    MW.homeInfo()        (interne) met à jour le bouton de l'accueil
    ── Partie à deux (js/56-meca-reseau.js) ──
    MW.net               {live, guest, players()} : live vrai quand deux joueurs sont connectés. Si live : le monde continue derrière le menu d'un joueur
-                        (pause locale seulement) et l'invité n'avance pas l'horloge lui-même (il reçoit celle de l'hôte). js/56 enveloppe MW.money, MW.addMin,
+                        (pause locale seulement) et l'invité n'avance pas l'horloge lui-même (il reçoit celle de l'hôte). js/56 enveloppe MW.addMin,
                         MW.sleep et MW.save ; MW.mapExtra(ctx,X,Y,mini,fs) dessine l'ami sur les cartes ; MW.applyState() relit MW.S après un remplacement sur place.
    Raccourci de test : window.__mw = MW. */
 const MW=(()=>{
@@ -7785,6 +7785,9 @@ const rnd=Math.random,rint=(a,b)=>a+Math.floor(rnd()*(b-a+1));
 const pick=a=>a[Math.floor(rnd()*a.length)];
 const R2=x=>Math.round(x*100)/100;
 const fmt=x=>MW.fmt(x);
+/* [société, js/57] gestion d'un garage acheté : factures, pièces, matériel passent par le compte du garage (sinon argent personnel) */
+const biz=(dx,m)=>typeof MWS!=='undefined'?MWS.biz(dx,m):MW.money(dx,m);
+const cash=()=>typeof MWS!=='undefined'?MWS.cash():MW.S.money;
 /* ── [MWG] points d'accroche des gestes réalistes (js/46-meca-gestes.js) ── */
 const MG=()=>typeof MWG!=='undefined'&&MWG&&MWG.on?MWG:null;
 const GM=(c,id,ph,m)=>{const g=MG();return g&&g.fin?g.rest(c,id,ph,m):m;}; /* minutes restantes à ajouter (les gestes ont déjà fait avancer l'horloge) */
@@ -8145,7 +8148,7 @@ function done(c){
  const refund=(c.noir||aSonCompte(e))?0:c.avance;job.avance=refund;job.pay=R2(pay+tip);job.pourboire=tip;
  const dr=R2((ev.note-3)*1.2);s.rep=clamp(R2((s.rep||0)+dr),0,100);job.rep=dr;
  for(const k in ev.comp) addXp(k,ev.comp[k]);
- const tot=R2(job.pay+refund);if(tot) MW.money(tot,c.noir?'Travail au noir (liquide) : '+voit(c):'Voiture rendue : '+voit(c));
+ const tot=R2(job.pay+refund);if(tot){if(c.noir) MW.money(tot,'Travail au noir (liquide) : '+voit(c));else biz(tot,'Voiture rendue : '+voit(c));}
  j.stats.rendues++;j.stats.note+=ev.note;j.stats.gain=R2(j.stats.gain+tot);
  j.hist.unshift({jour:s.day,client:c.client,voiture:voit(c),facture:ev.facture,pay:job.pay,note:ev.note});while(j.hist.length>15) j.hist.pop();
  if(c.rend&&!c.noir){let n=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&inv()[i].job===c.id){inv().splice(i,1);n++;}if(n){job.rendues=n;invUI();}}
@@ -8274,10 +8277,10 @@ function shop(keep){
  show('Pièces Auto Express',h,a=>{const [k,id]=a.split(':');
   if(k==='tab'){shopTab=id;}
   else if(k==='noir'&&typeof MWN!=='undefined'){MWN.shopAct(id);}
-  else if(k==='buy'){const p=PARTS[id];if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else if(MW.S.money<p.prix) MW.toast("Pas assez d'argent.",'warn');else{invAdd({k:'neuve',id,src:'achat',paye:p.prix});MW.money(-p.prix,p.nom);}}
-  else if(k==='tool'){const o=OUTILS[id];if(MW.S.money>=o.prix&&!J().outils[id]){J().outils[id]=1;MW.money(-o.prix,o.nom);}else MW.toast("Pas assez d'argent.",'warn');}
-  else if(k==='sell'){const i=+id,it=inv()[i];if(it&&it.k==='usagee'&&!rendBloq(it)){const v=scrapV(it);invDel(i);if(v) MW.money(v,'Ferraille : '+PARTS[it.id].nom);else MW.toast(PARTS[it.id].nom+' : déposé(e) au recyclage.','info');}}
-  else if(k==='sellall'){let t=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&!rendBloq(inv()[i])){t+=scrapV(inv()[i]);inv().splice(i,1);}invUI();if(t) MW.money(t,'Ferraille');}
+  else if(k==='buy'){const p=PARTS[id];if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else if(cash()<p.prix) MW.toast("Pas assez d'argent.",'warn');else{invAdd({k:'neuve',id,src:'achat',paye:p.prix});biz(-p.prix,p.nom);}}
+  else if(k==='tool'){const o=OUTILS[id];if(cash()>=o.prix&&!J().outils[id]){J().outils[id]=1;biz(-o.prix,o.nom);}else MW.toast("Pas assez d'argent.",'warn');}
+  else if(k==='sell'){const i=+id,it=inv()[i];if(it&&it.k==='usagee'&&!rendBloq(it)){const v=scrapV(it);invDel(i);if(v) biz(v,'Ferraille : '+PARTS[it.id].nom);else MW.toast(PARTS[it.id].nom+' : déposé(e) au recyclage.','info');}}
+  else if(k==='sellall'){let t=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&!rendBloq(inv()[i])){t+=scrapV(inv()[i]);inv().splice(i,1);}invUI();if(t) biz(t,'Ferraille');}
   shop(true);},{keep:true,wide:true});}
 function itemPanel(i){
  const it=inv()[i];if(!it) return;
@@ -9000,7 +9003,7 @@ MW.on('money',(dx,motif)=>{if(dx>0&&/salaire|paie/i.test(motif||'')){const c=C()
 MW.on('day',d=>{
  const c=C(),e=employer();
  // loyer du garage
- if(e.loyer) MW.money(-e.loyer,'Loyer du garage');
+ if(e.loyer&&!(MW.net&&MW.net.live&&MW.net.guest)) MW.money(-e.loyer,'Loyer du garage'); /* [réseau] le loyer du garage de l'hôte n'est pas celui de l'invité */
  // prêts
  for(const l of c.loans.slice()){const p=Math.min(l.per,l.rest);MW.money(-p,'Remboursement du prêt');l.rest=Math.round((l.rest-p)*100)/100;if(l.rest<=.5) c.loans.splice(c.loans.indexOf(l),1);}
  // paie à la semaine : tous les 7 jours de jeu (jours 8, 15, 22, …), au prorata si l'embauche est récente
@@ -14419,9 +14422,39 @@ const caution=p=>2*p.loyer;
 function refreshWorld(){
  for(const p of CAT){const z=MW.zone(p.id);if(z) z.mapTag=own(p.id)?'À vous':'À vendre';}
  placeSigns();}
+/* [société, js/57] un garage acheté appartient à une société (compte du garage, associés) : seul (100 %) ou à deux (parts selon les apports) */
+const myNom=()=>{try{return MWNET.myName();}catch(e){return 'Vous';}};
+const hasSoc=()=>typeof MWS!=='undefined';
+function buyGarage(p,how){
+ const s=MW.S,o=I(),ap=how==='cash'?p.prix:apport(p);
+ if(s.money<ap){MW.toast(how==='cash'?"Pas assez d'argent.":"Pas assez d'argent pour l'apport.",'warn');return false;}
+ MW.money(-ap,(how==='cash'?'Achat : ':'Apport (achat à crédit) : ')+p.nom);
+ MWS.create(p.id,[{pid:MWS.pid(),nom:myNom(),apport:ap}],how==='credit'?{x:pret(p),n:p.credit}:null);
+ o.owned[p.id]={mode:'achat',since:s.day,paidTo:s.day,credit:how==='credit',soc:1};
+ MW.toast(`${p.nom} : bien acquis (société du garage créée, compte du garage à 0).`,'good');
+ refreshWorld();MW.emit('immoChanged',p.id);MW.save();return true;}
+/* achat à deux (hôte) : apports de l'hôte et de l'invité, le reste emprunté par la société */
+api.buyCo=(id,aH,aG,gMoney)=>{
+ const p=BY[id],o=I(),s=MW.S,pn=typeof MWNET!=='undefined'&&MWNET.live()?MWNET.partner():null;
+ const no=t=>{MW.toast(t,'warn');try{MWNET.sendTo({t:'say',txt:t,g:'warn'});}catch(e){}return false;};
+ if(!p||p.kind!=='garage'||!o||o.owned[id]||!pn||!hasSoc()) return false;
+ aH=Math.round(+aH||0);aG=Math.round(+aG||0);
+ if(!reqOk(p)) return no("L'hôte ne remplit pas encore les conditions pour ce garage.");
+ if(aH<=0||aG<=0) return no('Chacun doit apporter une somme.');
+ if(aH+aG>p.prix) return no('Les apports dépassent le prix du garage.');
+ if(aH+aG<apport(p)) return no(`Les apports réunis doivent atteindre 20 % du prix (${fmt(apport(p))}).`);
+ if(s.money<aH) return no("L'hôte n'a pas assez d'argent pour son apport.");
+ if(!(gMoney>=aG)) return no("L'invité n'a pas assez d'argent pour son apport.");
+ const loan=p.prix-aH-aG;
+ MW.money(-aH,'Apport : '+p.nom);MWNET.sendTo({t:'pay',dx:-aG,motif:'Apport : '+p.nom});
+ MWS.create(id,[{pid:MWS.pid(),nom:myNom(),apport:aH},{pid:pn.pid,nom:pn.name,apport:aG}],loan>0?{x:loan,n:p.credit}:null);
+ o.owned[id]={mode:'achat',since:s.day,paidTo:s.day,credit:loan>0,soc:1};
+ MW.toast(`${p.nom} acheté à deux avec ${pn.name} : vos parts suivent vos apports.`,'good');try{MWNET.sendTo({t:'say',txt:`${p.nom} est acheté à deux : voir le compte du garage.`,g:'good'});}catch(e){}
+ refreshWorld();MW.emit('immoChanged',id);MW.save();return true;};
 api.buy=(id,how)=>{
  const p=BY[id],o=I();if(!p||!o||o.owned[id]) return false;
  if(!reqOk(p)){MW.toast('Vous ne remplissez pas encore les conditions pour ce bien.','warn');return false;}
+ if(p.kind==='garage'&&hasSoc()&&(how==='cash'||how==='credit')) return buyGarage(p,how);
  const s=MW.S;
  if(how==='rent'){
   if(!p.loyer||s.money<caution(p)){MW.toast("Pas assez d'argent pour la caution.",'warn');return false;}
@@ -14442,6 +14475,7 @@ api.sell=id=>{
  if(p.kind==='logement'&&w.mode==='achat'){const left=parkCap()-p.parking;if(o.cars.length>Math.max(0,left)){MW.toast('Reprenez d’abord vos voitures garées ici.','warn');return false;}}
  if(p.kind==='garage'){try{if(MWC.employer().id==='proprio'&&MWC.employer().zone===id) MWC.stopWork();}catch(e){}}
  if(w.mode==='loc'){MW.money(caution(p),'Caution rendue : '+p.nom);}
+ else if(p.kind==='garage'&&hasSoc()&&MWS.has(id)){MWS.dissoudre(id,value(id));MW.toast('Garage revendu : prêt soldé, le reste du compte est partagé selon les parts.','good');}
  else{MW.money(value(id),'Revente : '+p.nom);}
  delete o.owned[id];delete o.stock[id];
  refreshWorld();MW.emit('immoChanged',id);MW.save();return true;};
@@ -14451,7 +14485,10 @@ MW.on('day',d=>{
  const o=I();if(!o) return;let tot=0;const det=[];
  for(const id in o.owned){const p=BY[id],w=o.owned[id];if(!p){continue;}
   if(!(w.paidTo>0)) w.paidTo=d;
-  while(d-w.paidTo>=7){w.paidTo+=7;const c=w.mode==='loc'?p.loyer:p.charges;tot+=c;det.push([p.nom,c]);
+  while(d-w.paidTo>=7){w.paidTo+=7;const c=w.mode==='loc'?p.loyer:p.charges;
+   if(p.kind==='garage'&&w.mode==='achat'&&hasSoc()&&MWS.ensure(id)) MWS.charge(id,c,'Charges du garage : '+p.nom); /* le garage paie ses charges sur son compte */
+   else tot+=c;
+   det.push([p.nom,c]);
    if(w.mode==='achat'&&p.prestige&&MW.S.rep<80) MW.S.rep=Math.min(80,Math.round((MW.S.rep+p.prestige)*100)/100);}}
  if(tot>0){MW.money(-tot,'Charges de vos biens');o.hist.push({day:d,total:tot,det});while(o.hist.length>8) o.hist.shift();
   if(MW.S.money<0) MW.toast('Votre compte est à découvert : les charges de vos biens pèsent lourd.','crit');}});
@@ -14510,6 +14547,7 @@ function sheet(p,z,w){
 function fiche(z){
  const p=BY[z.id];if(!p) return;
  const w=own(p.id);
+ if(!w&&hasSoc()&&MWS.mine(p.id)) return MWS.panel(p.id); /* associé d'un garage acheté par l'hôte */
  if(!w) return offer(p,z);
  return mine(p,z,w);}
 api.fiche=fiche;
@@ -14520,10 +14558,37 @@ function offer(p,z){
  if(!ok) h+='<p class="mw-soon">Vous ne remplissez pas encore toutes les conditions. Avancez dans votre carrière puis revenez.</p>';
  else if(s.money<apport(p)) h+=`<p class="hint">Il vous faut au moins ${esc(fmt(apport(p)))} pour l’apport d’un achat à crédit.</p>`;
  h+=`<p class="hint">Crédit : apport de 20 % (${esc(fmt(apport(p)))}), le reste (${esc(fmt(pret(p)))}) prêté par la banque sur ${p.credit} jours, remboursé chaque jour comme vos autres prêts.</p>`;
- h+=`<div class="mw-btns">${btn('cash','Acheter comptant ('+esc(fmt(p.prix))+')','',!ok||s.money<p.prix)}${btn('credit','Acheter à crédit (apport '+esc(fmt(apport(p)))+')','',!ok||s.money<apport(p))}${p.loyer?btn('rent','Louer ('+esc(fmt(p.loyer))+' par semaine)','',!ok||s.money<caution(p)):''}${p.kind==='usine'?btn('visit','Visiter l’usine'):''}${btn('close','Fermer','ghost')}</div>`;
+ h+=`<div class="mw-btns">${btn('cash','Acheter comptant ('+esc(fmt(p.prix))+')','',!ok||s.money<p.prix)}${btn('credit','Acheter à crédit (apport '+esc(fmt(apport(p)))+')','',!ok||s.money<apport(p))}${p.loyer?btn('rent','Louer ('+esc(fmt(p.loyer))+' par semaine)','',!ok||s.money<caution(p)):''}${p.kind==='usine'?btn('visit','Visiter l’usine'):''}${p.kind==='garage'&&hasSoc()&&typeof MWNET!=='undefined'&&MWNET.live()?btn('duo','Acheter à deux…','',!ok):''}${btn('close','Fermer','ghost')}</div>`;
  MW.panel(z.nom+' · À vendre',h,{wide:true,onClick:a=>{
   if(a==='cash'||a==='credit'||a==='rent'){if(api.buy(p.id,a)){fiche(z);}}
+  else if(a==='duo'){offer2(p,z);}
   else if(a==='visit'){MW.closePanel();try{MWU.enter(p.id);}catch(e){}}}});}
+/* ── achat à deux : chacun propose son apport, l'autre accepte ── */
+let off=null; /* proposition en cours : {id, a (apport de celui qui propose), money, mine (je suis celui qui propose)} */
+function offer2(p,z){
+ const s=MW.S,pn=MWNET.partner();
+ MW.panel('Acheter à deux · '+p.nom,`<p>${esc(p.nom)} : ${esc(fmt(p.prix))}. Vous proposez votre apport à <b>${esc(pn.name)}</b>, qui répond par le sien. Le garage est acheté par une société commune : les parts suivent les apports, le reste du prix est emprunté (les apports réunis doivent faire au moins ${esc(fmt(apport(p)))}, soit 20 %).</p>
+  <label class="mw-lab">Votre apport (vous avez ${esc(fmt(s.money))})<input id="mwA2" class="mw-in" type="number" min="1" step="100" value="${Math.min(Math.round(s.money),Math.round(p.prix/2))}"></label>
+  <div class="mw-btns">${btn('send','Proposer à '+esc(pn.name))}${btn('close','Annuler','ghost')}</div>`,
+  {onClick:a=>{if(a==='send'){const v=Math.round(+document.getElementById('mwA2').value||0);
+   if(v<=0||v>s.money){MW.toast("Apport impossible : vous n'avez pas cette somme.",'warn');return;}
+   off={id:p.id,a:v,money:s.money,mine:true};MWNET.sendSo({k:'offer',id:p.id,a:v,money:s.money,nom:myNom()});MW.closePanel();MW.toast(`Proposition envoyée à ${pn.name} : apport de ${fmt(v)}.`,'good');}}});}
+function offerIn(m){ /* on reçoit une proposition : on répond par son apport */
+ const p=BY[m.id],s=MW.S;if(!p) return;off={id:m.id,a:m.a,money:m.money,mine:false};
+ MW.panel('Proposition d’achat à deux',`<p><b>${esc(m.nom||'Votre ami')}</b> propose d'acheter <b>${esc(p.nom)}</b> (${esc(fmt(p.prix))}) à deux, avec un apport de <b>${esc(fmt(m.a))}</b>. Quel est votre apport ? Le reste est emprunté ; les parts suivent les apports (au moins ${esc(fmt(apport(p)))} d'apports réunis).</p>
+  <label class="mw-lab">Votre apport (vous avez ${esc(fmt(s.money))})<input id="mwA2" class="mw-in" type="number" min="1" step="100" value="${Math.max(1,Math.min(Math.round(s.money),Math.round(p.prix/2)))}"></label>
+  <div class="mw-btns">${btn('ok','Accepter')}${btn('no','Refuser','ghost')}</div>`,
+  {onClick:a=>{
+   if(a==='no'){MWNET.sendSo({k:'offerno',id:m.id});off=null;MW.closePanel();return;}
+   if(a==='ok'){const v=Math.round(+document.getElementById('mwA2').value||0);if(v<=0||v>s.money){MW.toast("Apport impossible : vous n'avez pas cette somme.",'warn');return;}
+    MW.closePanel();
+    if(MWNET.role()==='host'){api.buyCo(m.id,v,m.a,m.money);off=null;}
+    else{MWNET.sendSo({k:'offerok',id:m.id,a:v,money:s.money});}}}});}
+/* messages d'achat à deux venus de l'autre joueur (js/56) */
+api.onSo=m=>{
+ if(m.k==='offer') offerIn(m);
+ else if(m.k==='offerno'){off=null;MW.toast("Votre ami refuse l'achat à deux.",'warn');}
+ else if(m.k==='offerok'&&off&&off.mine&&off.id===m.id&&MWNET.role()==='host'){const a=off.a;off=null;api.buyCo(m.id,a,m.a,m.money);}};
 function mine(p,z,w){
  const o=I(),s=MW.S;let h=sheet(p,z,w),btns='';
  if(p.kind==='logement'){
@@ -14537,7 +14602,8 @@ function mine(p,z,w){
   const here=!!e&&e.id==='proprio'&&e.zone===p.id;
   if(here) h+='<p class="mw-soon">Vous travaillez ici à votre compte : les clients arrivent de 8 h à 19 h, approchez-vous d’un pont.</p>';
   else{h+='<p class="hint">Les clients ne viennent que si vous travaillez ici.'+(e&&e.id!=='aucun'?' Vous quitterez votre poste actuel : '+esc(e.nom)+'.':'')+'</p>';}
-  btns+=here?btn('stopwork','Cesser de travailler ici','ghost'):btn('work','Travailler ici à mon compte');}
+  btns+=here?btn('stopwork','Cesser de travailler ici','ghost'):btn('work','Travailler ici à mon compte');
+  if(hasSoc()&&MWS.ensure(p.id)) btns+=btn('compte','Compte du garage');}
  if(p.kind==='usine'){
   let lines=[],okF=false;try{lines=MWC.foundLines(p.capital);okF=MWC.foundOk(p.capital);}catch(e){}
   h+='<h3 class="mw-h3">Fonder votre marque ici</h3><ul class="mw-cond">'+lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')+'</ul>';
@@ -14554,6 +14620,7 @@ function mine(p,z,w){
   else if(a==='cars') carsPanel(p.id,z);
   else if(a==='work'){MWC.workAt(p.id);MW.toast(`Vous travaillez à votre compte au ${p.nom}.`,'good');fiche(z);}
   else if(a==='stopwork'){MWC.stopWork();fiche(z);}
+  else if(a==='compte') MWS.panel(p.id);
   else if(a==='sell'){if(api.sell(p.id)){MW.closePanel();}else fiche(z);}
   else if(a==='biens') carnet();
   else if(a==='found'){const inp=document.getElementById('mwBrand');api.found(p.id,inp&&inp.value.trim());if(own(p.id)) fiche(z);}
@@ -14605,13 +14672,15 @@ function carnet(){
  h+='<h3 class="mw-h3">Vos biens</h3>';
  const mine=CAT.filter(p=>own(p.id));
  h+=mine.length?'<div class="mw-card">'+mine.map(p=>{const w=own(p.id);
-  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag ok">${KIND[p.kind]}${w.mode==='loc'?' · loué':''}</span><br><small>${w.mode==='loc'?'Loyer':'Charges'} ${esc(fmt(weekly(p.id)))} par semaine${w.mode==='achat'?' · valeur '+esc(fmt(value(p.id))):''}</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>'
+  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag ok">${KIND[p.kind]}${w.mode==='loc'?' · loué':''}</span><br><small>${w.mode==='loc'?'Loyer':'Charges'} ${esc(fmt(weekly(p.id)))} par semaine${w.mode==='achat'?' · valeur '+esc(fmt(value(p.id))):''}</small></span>${p.kind==='garage'&&hasSoc()&&MWS.ensure(p.id)?btn('acct:'+p.id,'Compte du garage','sm'):''}${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>'
   :'<p class="hint">Vous ne possédez aucun bien. Les bâtiments « À vendre » sont indiqués en vert sur la carte (touche M) et par un panneau sur leur façade.</p>';
+ if(hasSoc()){const cp=MWS.copies().filter(x=>!own(x.zid));
+  if(cp.length) h+='<h3 class="mw-h3">Parts dans une société</h3><div class="mw-card">'+cp.map(x=>`<div class="mw-row"><span><b>${esc(x.nom)}</b><br><small>${esc(x.pct+' %')} · garage de ${esc(x.hote||'votre ami')} (le compte s'ouvre quand vous jouez avec lui)</small></span>${MWS.has(x.zid)?btn('acct:'+x.zid,'Compte du garage','sm'):''}</div>`).join('')+'</div>';}
  const sale=CAT.filter(p=>!own(p.id));
  if(sale.length){h+='<h3 class="mw-h3">À vendre</h3><div class="mw-card">'+sale.map(p=>{const ok=reqOk(p);
   return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag${ok?' ok':' warn'}">${KIND[p.kind]}${ok?'':' · conditions à remplir'}</span><br><small>${esc(fmt(p.prix))} · charges ${esc(fmt(p.charges))} par semaine${(()=>{try{return p.kind==='logement'?' · '+MWL.info(p.id).surface+' m²':'';}catch(e){return '';}})()}</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>';}
  h+=`<div class="mw-btns">${btn('close','Fermer','ghost')}</div>`;
- MW.panel('Mes biens',h,{wide:true,onClick:a=>{if(a.startsWith('go:')){const id=a.slice(3);MW.closePanel();MW.setMarker(id,BY[id]?BY[id].nom:'');MW.toast('Repère placé : '+(BY[id]?BY[id].nom:id)+' (carte : M).','info');}}});}
+ MW.panel('Mes biens',h,{wide:true,onClick:a=>{if(a.startsWith('acct:')){MWS.panel(a.slice(5));return;}if(a.startsWith('go:')){const id=a.slice(3);MW.closePanel();MW.setMarker(id,BY[id]?BY[id].nom:'');MW.toast('Repère placé : '+(BY[id]?BY[id].nom:id)+' (carte : M).','info');}}});}
 api.panel=carnet;
 MW.addButton('biens','Mes biens (B)',()=>{if(MW.S) carnet();});
 MW.on('key',k=>{if(k==='b'&&MW.S) carnet();});
@@ -16107,7 +16176,7 @@ function pieces(c){
  for(const id of ids){if(c.done[id]) continue;if(MWJ.L.newFind(c,id)>=0) continue;
   if(MWJ.inv().length>=MWJ.INV_MAX) ferraille(null);
   if(MWJ.inv().length>=MWJ.INV_MAX) return {ok:false,why:"Inventaire plein : rangez des objets pour que le mécanicien prenne les pièces."};
-  if(aSonCompte()){const p=MWJ.PARTS[id];if(MW.S.money<p.prix) return {ok:false,why:`Pas assez d'argent pour acheter : ${p.nom}.`};MW.money(-p.prix,'Pièces Auto Express : '+p.nom);cout+=p.prix;MWJ.L.invAdd({k:'neuve',id,src:'achat',paye:p.prix});}
+  if(aSonCompte()){const p=MWJ.PARTS[id];if((typeof MWS!=='undefined'?MWS.cash():MW.S.money)<p.prix) return {ok:false,why:`Pas assez d'argent pour acheter : ${p.nom}.`};(typeof MWS!=='undefined'?MWS.biz:MW.money)(-p.prix,'Pièces Auto Express : '+p.nom);cout+=p.prix;MWJ.L.invAdd({k:'neuve',id,src:'achat',paye:p.prix});}
   else MWJ.L.invAdd({k:'neuve',id,src:'etagere'});}
  return {ok:true,cout};}
 /* revend à la ferraille les pièces usagées déposées par le travail automatique (jobId), ou toutes celles qui ne sont pas
@@ -16116,7 +16185,7 @@ function ferraille(jobIds){
  const inv=MWJ.inv();let t=0,n=0;
  for(let i=inv.length-1;i>=0;i--){const it=inv[i];if(it.k!=='usagee'||MWJ.rendBloq(it)) continue;if(jobIds&&!jobIds.includes(it.job)) continue;
   t+=typeof MWO!=='undefined'&&MWO.scrap?MWO.scrap(it):0;inv.splice(i,1);n++;}
- if(n){MWJ.invUI();if(t) MW.money(t,'Ferraille (travail automatique)');}
+ if(n){MWJ.invUI();if(t) (typeof MWS!=='undefined'?MWS.biz:MW.money)(t,'Ferraille (travail automatique)');}
  return {n,t};}
 
 function hud(t){MW.hud('auto',t?`<b>${svc?'Mode automatique continu':'Travail automatique'}</b> · ${t} · <span class="hint">J : arrêter</span>`:'');}
@@ -16230,6 +16299,7 @@ window.__mwauto=MWAUTO;
      les changements. L'hôte vérifie ceux de l'invité (« la valeur d'avant est-elle encore la même ? ») : si l'ami a déjà démonté la même
      pièce, le geste est refusé et annulé (voiture et inventaire remis comme avant). Deux joueurs peuvent donc travailler sur la même
      voiture (roues d'un côté, capot de l'autre), mais jamais sur la même pièce au même moment.
+   · L'argent PERSONNEL de chacun reste dans sa propre sauvegarde (chacun touche sa paie) ; le compte du garage (js/57, société) est géré par l'hôte.
    · Le temps : MW.addMin de l'invité est exécuté par l'hôte ; dormir demande l'accord des deux (MW.sleep attend l'ami) ; le menu d'un
      joueur ne met en pause que SON écran (le monde continue).
    · L'état est envoyé à 10 Hz au plus, les positions de l'ami sont interpolées. Seul un prénom choisi dans le jeu est transmis.
@@ -16336,7 +16406,7 @@ api.transports.peer={kind:'peer',
 
 /* ═══════════ Session ═══════════ */
 let role=null,link=null,status='idle',code='',myName='',other=null,backup=null,timer=0,lastRx=0,seq=0,frozen=false;
-let lastN={},lastStr={},pend={},invPrev=[],lastFile='',sw={me:0,he:0},swT=0,selfStart=false,lastChat=0,msgTxt='';
+let lastN={},lastStr={},pend={},invPrev=[],lastFile='',lastSoc='',sw={me:0,he:0},swT=0,selfStart=false,lastChat=0,msgTxt='';
 const jobs=()=>{try{return MWJ.state().cars;}catch(e){return [];}};
 const carById=id=>jobs().find(c=>c.id===id)||null;
 const send=m=>{if(link){try{link.send(m);}catch(e){}}};
@@ -16344,7 +16414,7 @@ const cleanName=s=>(String(s||'').replace(/[^A-Za-zÀ-ÿ0-9 '\-]/g,'').trim().sl
 const savedName=()=>{try{return localStorage.getItem(NAME_KEY)||'';}catch(e){return '';}};
 const saveName=n=>{try{localStorage.setItem(NAME_KEY,n);}catch(e){}};
 const toast=(t,g)=>{try{MW.toast(t,g||'info');}catch(e){}};
-const origMoney=MW.money,origAdd=MW.addMin,origSleep=MW.sleep,origSave=MW.save;
+const origAdd=MW.addMin,origSleep=MW.sleep,origSave=MW.save;
 
 function makeCode(){let s='';for(let i=0;i<6;i++) s+=ALPHA[Math.floor(Math.random()*ALPHA.length)];return s;}
 const myPos=()=>{const p=MW.player(),c=MW.playerCar(),w=typeof MWG!=='undefined'&&MWG.holding?MWG.holding():null;
@@ -16379,7 +16449,7 @@ api.join=function(c,o){
   const to=setTimeout(()=>fin('timeout'),15000);
   api._welcome=w=>{if(w.v!==1) return fin('version');becomeGuest(w);fin(null);};
   api._full=()=>fin('full');
-  link=tr.join(c,{onOpen:l=>{l.send({t:'hello',name:myName,v:1});},onMsg:onMsg,onErr:e=>fin(e),onClose:()=>{if(!done) fin('network');else drop('Connexion perdue.');}});});};
+  link=tr.join(c,{onOpen:l=>{l.send({t:'hello',name:myName,pid:MWS.pid(),v:1});},onMsg:onMsg,onErr:e=>fin(e),onClose:()=>{if(!done) fin('network');else drop('Connexion perdue.');}});});};
 
 function onGuestOpen(l){ /* l'hôte : le 1er message « hello » arrive juste après */ }
 function startLive(){
@@ -16394,38 +16464,41 @@ function startLive(){
 function hostWelcome(m){
  if(N.live){send({t:'full'});return;}
  if(m.v!==1){send({t:'welcome',v:2});return;}
- other={name:cleanName(m.name)===myName?cleanName(m.name).slice(0,11)+' (2)':cleanName(m.name),tgt:null,cur:null,seen:0,speed:0};
+ other={name:cleanName(m.name)===myName?cleanName(m.name).slice(0,11)+' (2)':cleanName(m.name),pid:String(m.pid||'').slice(0,20),tgt:null,cur:null,seen:0,speed:0};
  const S=MW.S,C=(typeof MWC!=='undefined'&&MWC.state)?MWC.state():(S.career||{});
  const cars=jobs().filter(c=>!c.noir),J=MWJ.state(),pl=MW.player();
  startLive();
  for(const c of cars){lastN[c.id]=clone(c);lastStr[c.id]=JSON.stringify(c);}
- send({t:'welcome',v:1,name:myName,day:S.day,min:S.min,money:S.money,rep:S.rep||0,seq:J.seq,next:J.next,file:clone(J.file)||[],cars:clone(cars),
+ send({t:'welcome',v:1,name:myName,pid:MWS.pid(),day:S.day,min:S.min,rep:S.rep||0,soc:clone(S.soc||{}),seq:J.seq,next:J.next,file:clone(J.file)||[],cars:clone(cars),
   career:{emp:C.emp,grade:C.grade,ownZone:C.ownZone,founded:C.founded,everMeca:C.everMeca},px:pl.x,pz:pl.z,zone:(MWC&&MWC.employer?MWC.employer().zone:null)});
+ {const due=MWS.flushDue(other.pid);if(due>0) send({t:'pay',dx:due,motif:'Versements de la société en attente'});}
+ lastSoc=MWS.snapshot();
  toast(`${other.name} a rejoint votre garage. Les clients arrivent deux fois plus vite : chacun peut prendre une voiture.`,'good');}
 
 /* ── l'invité rejoint le monde de l'hôte ── */
 function becomeGuest(w){
- const S=MW.S;backup=clone(S);selfStart=true;
+ const S=MW.S;MWS.pid();backup=clone(S);selfStart=true;
  try{
-  S.day=w.day;S.min=w.min;S.money=w.money;S.rep=w.rep;
+  S.day=w.day;S.min=w.min;S.rep=w.rep;
   if(!isObj(S.career)) S.career={};Object.assign(S.career,w.career||{});
   const J=MWJ.state();J.seq=w.seq;J.next=w.next;J.file=w.file||[];J.cars=clone(w.cars)||[];
-  other={name:cleanName(w.name),tgt:null,cur:null,seen:0,speed:0};
-  startLive();
+  other={name:cleanName(w.name),pid:String(w.pid||'').slice(0,20),tgt:null,cur:null,seen:0,speed:0};
+  S.career.payFrom=w.day; /* sa paie à la semaine commence à son arrivée */
+  startLive();MWS.setMirror(clone(w.soc||{}),other.pid,other.name);
   for(const c of J.cars){lastN[c.id]=clone(c);lastStr[c.id]=JSON.stringify(c);}
   MW.emit('start'); /* les modules reconstruisent le monde (voitures de l'hôte, employeur) */
   const z=w.zone&&MW.zone(w.zone);
   if(z){MW.setMarker(z.id);const p=z.accueil||z.porte;MW.teleport(p.x-(z.n?z.n.x:0)*1.5,p.z-(z.n?z.n.z:0)*1.5,z.ry);}
   else if(typeof w.px==='number') MW.teleport(w.px+1.5,w.pz,0);
  }finally{selfStart=false;}
- toast(`Vous avez rejoint le garage de ${other.name}. L'argent et la réputation sont partagés ; votre expérience reste la vôtre.`,'good');}
+ toast(`Vous avez rejoint le garage de ${other.name}. La réputation est partagée ; votre argent et votre expérience restent les vôtres.`,'good');}
 function restoreSolo(){
  const S=MW.S;if(!S||!backup){backup=null;return;}
- const xp=S.xp,inv=(S.inv||[]),tools=S.jobs&&S.jobs.outils,gest=S.gest;
+ const xp=S.xp,inv=(S.inv||[]),tools=S.jobs&&S.jobs.outils,gest=S.gest,money=S.money,copy=S.socCopy;
  const b=backup;backup=null;selfStart=true;
  try{
   for(const k of Object.keys(S)) delete S[k];Object.assign(S,b);
-  S.xp=xp||S.xp||{};if(gest) S.gest=gest;
+  S.xp=xp||S.xp||{};if(gest) S.gest=gest;if(typeof money==='number') S.money=money;if(copy) S.socCopy=copy;
   const ids=new Set(((S.jobs&&S.jobs.cars)||[]).map(c=>c.id));
   S.inv=inv.filter(it=>it.k!=='usagee'||ids.has(it.job));
   if(S.jobs&&tools) S.jobs.outils=Object.assign({},S.jobs.outils,tools);
@@ -16446,7 +16519,11 @@ function onMsg(m){
   case 'rej': if(N.live&&role==='guest') onRej(m);break;
   case 'rm': if(N.live&&role==='host') onRm(m);break;
   case 'am': if(N.live&&role==='host') origAdd.call(MW,m.n);break;
-  case 'mo': if(N.live&&role==='host') origMoney.call(MW,m.dx,(m.motif||'')+(other?' ('+other.name+')':''));break;
+  case 'so': if(N.live&&m.m){const k=m.m.k;if(k==='offer'||k==='offerok'||k==='offerno'){try{MWI.onSo(m.m);}catch(e){console.error(e);}}else if(role==='host') MWS.onGuestMsg(m.m,{pid:other.pid,name:other.name});}break;
+  case 'pay': if(N.live&&role==='guest'&&isFinite(m.dx)) MW.money(+m.dx,String(m.motif||'').slice(0,120));break;
+  case 'say': if(N.live) toast(String(m.txt||'').slice(0,200),m.g==='warn'||m.g==='good'||m.g==='crit'?m.g:'info');break;
+  case 'soc': if(N.live&&role==='guest') MWS.setMirror(m.s,m.hp,m.hn);break;
+  case 'emp': if(N.live&&role==='guest'){Object.assign(MW.S.career,m.career||{});MW.emit('employerChanged',MW.S.career.emp);}break;
   case 'slq': if(N.live&&role==='host'){sw.he=m.on?(m.wk||1):0;swT=performance.now();toastSleep(m.on);swCheck();}break;
   case 'sleep': if(N.live&&role==='guest') runSleep(m.wk);break;
   case 'chat': if(N.live&&other) toast(`${other.name} : ${String(m.s||'').slice(0,80)}`,'good');break;}}
@@ -16454,7 +16531,8 @@ function onState(m){
  const p=m.t==='st'?m.p:m;if(!p||!other) return;
  other.tgt=p;other.seen=performance.now();if(!other.cur) other.cur={x:p.x,z:p.z,ry:p.ry,cx:p.cx,cz:p.cz,cr:p.cr};
  if(m.t==='st'&&role==='guest'){
-  const S=MW.S;S.day=m.day;S.min=m.min;S.money=m.money;S.rep=m.rep;
+  const S=MW.S,d0=S.day;S.day=m.day;S.min=m.min;S.rep=m.rep;
+  if(m.day>d0&&m.day-d0<4) for(let d=d0+1;d<=m.day;d++) MW.emit('day',d); /* sa propre paie, ses prêts et ses charges personnelles */
   if(m.fl!==undefined){MWJ.state().file=m.fl;MWJ.rebuild(null);}
   sw.he=m.sw?m.sw[0]:0;sw.me=m.sw?m.sw[1]:0;showSleepHud();}}
 function onCars(m){
@@ -16510,9 +16588,10 @@ function netTick(){
    for(const c of add){lastN[c.id]=clone(c);lastStr[c.id]=JSON.stringify(c);}
    send({t:'cars',add:clone(add),del,seq:J.seq,next:J.next});}
   for(const c of cars){if(add.includes(c)) continue;const ops=diffCar(c);if(ops) send({t:'cp',id:c.id,ops});}
-  const fl=JSON.stringify(J.file||[]),m={t:'st',day:S.day,min:S.min,money:S.money,rep:S.rep||0,p:myPos(),sw:[sw.me?1:0,sw.he?1:0]};
+  const fl=JSON.stringify(J.file||[]),m={t:'st',day:S.day,min:S.min,rep:S.rep||0,p:myPos(),sw:[sw.me?1:0,sw.he?1:0]};
   if(fl!==lastFile){lastFile=fl;m.fl=J.file||[];}
   send(m);
+  const sn=MWS.snapshot();if(sn!==lastSoc){lastSoc=sn;send({t:'soc',s:JSON.parse(sn),hp:MWS.pid(),hn:myName});}
   if(sw.me&&now-swT>90000){sw.me=0;showSleepHud();} if(sw.he&&now-swT>90000) sw.he=0;}
  else{
   send(Object.assign({t:'pos'},myPos()));
@@ -16582,9 +16661,6 @@ MW.mapExtra=(x,X,Y,mini,fs)=>{
 MW.on('tick',dt=>{if(N.live){avatarFrame(dt);friendTick();}});
 
 /* ═══════════ Argent, temps, sommeil, sauvegarde ═══════════ */
-MW.money=function(dx,motif){
- if(N.live&&role==='guest'&&dx) send({t:'mo',dx,motif:motif||''});
- return origMoney.call(MW,dx,motif);};
 function guestAdvance(n){const S=MW.S;let m=S.min;for(let i=0;i<n;i++){m++;if(m>=1440) m=0;if(m===360) S.day++;}S.min=m;}
 MW.addMin=function(n){
  if(N.live&&role==='guest'){n=Math.max(0,Math.min(3000,Math.round(n)));if(N.sleeping){guestAdvance(n);return;}if(n) send({t:'am',n});return;}
@@ -16608,7 +16684,7 @@ MW.sleep=function(wk){
 /* la sauvegarde de l'invité reste SA partie solo (le monde de l'hôte n'y entre jamais) */
 MW.save=function(){
  if(N.live&&role==='guest'&&backup){
-  try{const o=clone(backup),S=MW.S;o.xp=clone(S.xp);o.inv=(S.inv||[]).filter(it=>it.k!=='usagee');if(o.jobs&&S.jobs&&S.jobs.outils) o.jobs.outils=clone(S.jobs.outils);
+  try{const o=clone(backup),S=MW.S;o.xp=clone(S.xp);o.money=S.money;if(S.socCopy) o.socCopy=clone(S.socCopy);o.inv=(S.inv||[]).filter(it=>it.k!=='usagee');if(o.jobs&&S.jobs&&S.jobs.outils) o.jobs.outils=clone(S.jobs.outils);
    localStorage.setItem(SAVE_KEY,JSON.stringify(o));return true;}catch(e){return false;}}
  return origSave.call(MW);};
 /* voiture rendue par l'invité : l'hôte retire la voiture et applique la réputation */
@@ -16636,11 +16712,12 @@ function leave(why,o){
  if(link){if(hadLink&&!o.noBye){try{link.send({t:'bye'});}catch(e){}}try{link.close();}catch(e){}link=null;}
  N.live=false;N.guest=false;N.sleeping=false;role=null;status='idle';api._welcome=null;api._full=null;
  removeAvatar();friendUI(false);try{MW.removeButton('chat');MW.hud('netsleep','');}catch(e){}
- other=null;lastN={};lastStr={};pend={};sw={me:0,he:0};
+ other=null;lastN={};lastStr={};pend={};sw={me:0,he:0};MWS.clearMirror();
  if(wasGuest&&!o.noRestore) restoreSolo();else backup=null;
  if(was&&why&&!o.silent) toast(why+(wasGuest?' Vous retrouvez votre partie solo.':' Vous continuez seul.'),'warn');
  refreshPanel();}
 api.leave=()=>{leave(null,{silent:true});};
+MW.on('employerChanged',()=>{if(N.live&&role==='host'){const C=MWC.state();send({t:'emp',career:{emp:C.emp,grade:C.grade,ownZone:C.ownZone,founded:C.founded}});}});
 MW.on('close',()=>{if(role) leave('Partie à deux terminée.',{silent:true});});
 MW.on('start',()=>{if(!selfStart&&role){leave('La partie a été remplacée.',{noRestore:true});}});
 window.addEventListener('pagehide',()=>{if(link){try{link.send({t:'bye'});}catch(e){}}});
@@ -16650,7 +16727,7 @@ let panelOpen=false;
 function inputVal(id){const e=document.getElementById(id);return e?e.value:'';}
 function panelHTML(){
  if(N.live) return `<p>Vous jouez avec <b>${esc2(other.name)}</b> ${role==='host'?'dans <b>votre</b> garage (vous êtes l\'hôte).':'dans <b>son</b> garage.'}</p>
-  <p class="hint">Argent et réputation du garage partagés · chacun son inventaire et son expérience · T : message · dormir demande l'accord des deux · le menu ne met en pause que votre écran.</p>
+  <p class="hint">Réputation et compte du garage partagés · chacun son argent, son inventaire et son expérience · T : message · dormir demande l'accord des deux · le menu ne met en pause que votre écran.</p>
   <div class="mw-btns v"><button type="button" class="btn" data-mw="chat">Écrire un message (T)</button><button type="button" class="btn ghost" data-mw="leave">Quitter la partie à deux</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`;
  const m=msgTxt?`<p class="mw-soon" role="alert">${esc2(msgTxt)}</p>`:'';
  if(status==='hosting') return `<p>Donnez ce code à votre ami :</p><p class="mw-netcode" id="mwNetCode" style="font:700 40px/1.1 monospace;letter-spacing:.25em;text-align:center;margin:10px 0">${esc2(code)}</p>
@@ -16687,11 +16764,241 @@ Object.assign(api,{
  avatar:()=>av,friendText:()=>fTxt,
  busyMsg:(carId,target)=>{const a=other&&other.tgt&&other.tgt.ac;if(!N.live||!a||performance.now()-other.seen>1500) return null;
   return a.car===carId&&a.target===target?`${other.name} est déjà en train de travailler sur cette pièce.`:null;},
+ myName:()=>myName||savedName()||'Vous',partner:()=>other?{pid:other.pid,name:other.name}:null,
+ sendSoc:m=>send({t:'so',m}),sendSo:m=>send({t:'so',m}),sendTo:m=>send(m),
  freeze:f=>{frozen=!!f;},      /* test : retarde les échanges pour simuler deux gestes simultanés */
  pending:()=>Object.keys(pend).length,
  swWant:()=>({me:sw.me,he:sw.he}),
  _diff:{diff,applyOps,prune,same}});
 window.__mwnet=api;
+return api;})();
+
+/* ───────────── Mode « Mécanicien » — SOCIÉTÉ DU GARAGE (compte du garage, associés, salaires, dividendes) ─────────────
+   Un garage acheté (js/52, MWI) appartient à une SOCIÉTÉ : un compte bancaire du garage, séparé de l'argent personnel.
+   Seul ou à deux (achat « à deux » : chacun apporte une somme, les parts suivent les apports), c'est la même logique.
+   Le compte reçoit les factures des clients du garage et paie les pièces, le matériel, les charges du bâtiment et le prêt.
+   Pour toucher de l'argent personnel, les associés se versent un SALAIRE (mensuel) ou des DIVIDENDES, taxés (règles simplifiées) :
+     · salaire : brut décidé pour chaque associé ; le compte paie le brut + environ 45 % de charges patronales ; l'associé reçoit le brut moins
+       environ 22 % de charges salariales (argent personnel) ; versé tous les 30 jours de jeu ;
+     · dividendes : seulement sur le bénéfice de l'exercice (chiffre d'affaires − charges), après l'impôt sur les sociétés
+       (15 % jusqu'à 42 500 €, 25 % au-delà), puis prélèvement forfaitaire de 30 % ; répartis selon les parts ;
+     · à deux : un versement de dividendes ou un changement de salaire est proposé par l'un et doit être accepté par l'autre ;
+       jamais plus que le solde du compte ; l'exercice dure 360 jours de jeu, avec un bilan annuel (chiffre d'affaires, charges, bénéfice, impôts).
+   Simplifications : le remboursement du prêt compte comme une charge ; pas de TVA ; les charges du bâtiment sont celles de js/52.
+   Le Garage du Coin repris par le joueur (employeur « patron », js/42) garde son argent personnel : seuls les garages achetés ont une société.
+
+   ═══ En partie à deux ═══
+   L'hôte fait autorité : la société est dans SA sauvegarde (identifiant et prénom de chaque associé). L'invité reçoit une copie de l'état
+   (MWS.setMirror), envoie ses demandes (js/56, message « so ») et garde dans sa propre sauvegarde une copie de ses parts. Un versement pour un
+   associé absent est mis « en attente » et lui arrive à sa prochaine connexion.
+
+   ═══ API `MWS` (aussi `window.__mws`) ═══
+   MWS.get(zid) / MWS.has(zid)      société du garage `zid` (ou null)        MWS.active()  zone de la société où le joueur travaille (ou null)
+   MWS.cash()                       solde dont dispose le joueur pour ses achats professionnels (compte du garage, sinon argent personnel)
+   MWS.biz(dx, motif)               mouvement professionnel : compte du garage si le joueur travaille dans son garage, sinon argent personnel
+   MWS.charge(zid, x, motif)        charges du bâtiment (js/52)               MWS.create(zid, parts, pret)  fonde la société (achat du garage)
+   MWS.salaire(zid, pid, brut)      fixe un salaire mensuel (proposé à l'autre s'il y a deux associés)
+   MWS.dividendes(zid, montant)     verse des dividendes (idem)               MWS.accepter(zid) / MWS.refuser(zid)   réponse à la proposition en attente
+   MWS.distribuable(zid)            {benefice, is, deja, dist, payable}       MWS.tax  barèmes ; MWS.isOf(benefice)
+   MWS.tick(jour)                   traitement quotidien (prêts, salaires, clôture d'exercice) : appelé à l'événement 'day' (hôte seulement)
+   MWS.panel(zid)                   panneau « Compte du garage »              MWS.dissoudre(zid, produit)  vente du garage : prêt soldé, solde partagé */
+const MWS=(()=>{
+const api={};
+const TAX={chPat:.45,chSal:.22,is1:.15,is2:.25,seuil:42500,pfu:.30,mois:30,exo:360};
+api.tax=TAX;
+const r2=x=>Math.round(x*100)/100;
+const fmt=x=>MW.fmt(x);
+const E=s=>esc(s);
+const isGuest=()=>{const n=MW.net;return !!(n&&n.live&&n.guest);};
+const live=()=>!!(MW.net&&MW.net.live);
+const NET=()=>typeof MWNET!=='undefined'?MWNET:null;
+let mirror=null,hostPid='',hostNom='';
+const pid=()=>{const s=MW.S;if(!s.pid) s.pid='p'+Math.random().toString(36).slice(2,12);return s.pid;};
+const myNom=()=>{let n='';try{n=NET()&&NET().myName?NET().myName():'';}catch(e){}if(!n){try{n=localStorage.getItem('bea.meca.prenom')||'';}catch(e){}}return n||'Vous';};
+api.pid=pid;
+const book=()=>isGuest()?(mirror||{}):(MW.S.soc||(MW.S.soc={}));
+const get=zid=>book()[zid]||null;
+api.get=get;api.has=zid=>!!get(zid);
+api.all=()=>book();
+
+/* ═══ Barèmes ═══ */
+const isOf=b=>b>0?r2(Math.min(b,TAX.seuil)*TAX.is1+Math.max(0,b-TAX.seuil)*TAX.is2):0;
+api.isOf=isOf;
+function distribuable(c){
+ const b=r2(c.ex.ca-c.ex.ch),is=isOf(b),dist=Math.max(0,r2(b-is-c.ex.div));
+ return {benefice:b,is,deja:c.ex.div,dist,payable:Math.max(0,Math.min(dist,Math.floor(c.compte*100)/100))};}
+api.distribuable=zid=>{const c=get(zid);return c?distribuable(c):null;};
+
+/* ═══ Création, opérations ═══ */
+api.create=(zid,parts,pret)=>{
+ const s=MW.S;s.soc=s.soc||{};const z=MW.zone(zid);
+ const tot=parts.reduce((a,p)=>a+(+p.apport||0),0)||1;let acc=0;
+ const ps=parts.map((p,i)=>{const pct=i===parts.length-1?r2(100-acc):r2((+p.apport||0)/tot*100);acc=r2(acc+pct);return {pid:p.pid,nom:p.nom,pct,apport:+p.apport||0};});
+ const c={zid,nom:'Société '+(z?z.court:zid),compte:0,parts:ps,prets:[],ops:[],ex:{debut:s.day,ca:0,ch:0,div:0,pfu:0,sal:0,is:0},bilans:[],sal:{},due:{},next:s.day+TAX.mois,prop:null,depuis:s.day};
+ if(pret&&pret.x>0){const n=pret.n||240,tot2=Math.round(pret.x*(1+.07*n/365));c.prets.push({rest:tot2,per:Math.ceil(tot2/n),n,x:pret.x});}
+ s.soc[zid]=c;return c;};
+/* ancienne sauvegarde : un garage déjà acheté reçoit sa société (compte à 0) */
+function ensure(zid){
+ if(isGuest()||get(zid)) return get(zid);
+ let ok=false;try{ok=MWI.owned(zid)&&MWI.CAT.some(p=>p.id===zid&&p.kind==='garage');}catch(e){}
+ return ok?api.create(zid,[{pid:pid(),nom:myNom(),apport:0}]):null;}
+api.ensure=ensure;
+function op(c,dx,motif,cat){
+ c.compte=r2(c.compte+dx);
+ if(cat==='ca') c.ex.ca=r2(c.ex.ca+dx);else if(cat==='ch') c.ex.ch=r2(c.ex.ch-dx);
+ c.ops.push({t:MW.timeStr(),dx:r2(dx),motif,solde:c.compte});while(c.ops.length>30) c.ops.shift();
+ return c.compte;}
+api.active=()=>{
+ try{const e=MWC.employer();if(e&&e.id==='proprio'&&e.zone){if(get(e.zone)) return e.zone;if(!isGuest()&&ensure(e.zone)) return e.zone;}}catch(x){}
+ return null;};
+api.cash=()=>{const z=api.active();return z?get(z).compte:MW.S.money;};
+const note=(dx,motif)=>{try{MW.toast((dx>0?'+ ':'− ')+fmt(Math.abs(dx))+' · '+motif+' (compte du garage)',dx>0?'good':'warn');}catch(e){}};
+api.biz=(dx,motif)=>{
+ const z=api.active();if(!z) return MW.money(dx,motif);
+ if(isGuest()){NET().sendSoc({k:'biz',zid:z,dx,motif});note(dx,motif);return get(z).compte;}
+ const c=get(z);op(c,dx,motif,dx>0?'ca':'ch');note(dx,motif);return c.compte;};
+api.charge=(zid,x,motif)=>{const c=get(zid);if(!c) return false;op(c,-x,motif,'ch');return true;};
+api.deposit=(zid,x,motif)=>{const c=get(zid);if(!c) return false;op(c,x,motif||'Apport en compte courant','cap');return true;}; /* hors bilan : apport d'associé */
+
+/* ═══ Versements aux associés ═══ */
+const partOf=(c,p)=>c.parts.find(x=>x.pid===p)||null;
+const partnerPid=()=>{try{return NET()&&NET().partner?NET().partner().pid:null;}catch(e){return null;}};
+function payTo(c,p,x,motif){
+ if(!(x>0)) return;
+ if(p===pid()){MW.money(x,motif);return;}
+ if(live()&&partnerPid()===p){NET().sendTo({t:'pay',dx:x,motif});return;}
+ c.due[p]=r2((c.due[p]||0)+x);} /* associé absent : lui arrive à sa prochaine connexion */
+api.flushDue=p=>{ /* hôte : somme due à l'associé qui vient de se connecter */
+ let tot=0;for(const z in (MW.S.soc||{})){const c=MW.S.soc[z];if(c.due&&c.due[p]>0){tot+=c.due[p];delete c.due[p];}}return r2(tot);};
+function applySal(c,p,brut){
+ brut=Math.max(0,Math.round(+brut||0));
+ if(brut>0) c.sal[p]=brut;else delete c.sal[p];
+ say(brut>0?`Salaire fixé : ${fmt(brut)} brut par mois pour ${(partOf(c,p)||{}).nom||'l\'associé'} (coût pour le garage : ${fmt(r2(brut*(1+TAX.chPat)))}).`:`Salaire supprimé pour ${(partOf(c,p)||{}).nom||'l\'associé'}.`,'good');}
+function applyDiv(c,D){
+ const d=distribuable(c);D=r2(+D||0);
+ if(!(D>0)) return 'Montant invalide.';
+ if(D>d.dist+.005) return `Pas plus que le bénéfice distribuable (${fmt(d.dist)}).`;
+ if(D>c.compte+.005) return `Le compte du garage ne contient que ${fmt(c.compte)}.`;
+ op(c,-D,'Dividendes versés (brut)','div');c.ex.div=r2(c.ex.div+D);
+ let acc=0,pfuT=0;
+ c.parts.forEach((q,i)=>{const brut=i===c.parts.length-1?r2(D-acc):r2(D*q.pct/100);acc=r2(acc+brut);const pfu=r2(brut*TAX.pfu),net=r2(brut-pfu);pfuT=r2(pfuT+pfu);
+  payTo(c,q.pid,net,`Dividendes de ${c.nom} (brut ${fmt(brut)}, prélèvement de 30 % : ${fmt(pfu)})`);});
+ c.ex.pfu=r2(c.ex.pfu+pfuT);
+ say(`Dividendes versés : ${fmt(D)} brut, ${fmt(r2(D-pfuT))} net après le prélèvement forfaitaire de 30 %.`,'good');return null;}
+function say(t,g){try{MW.toast(t,g||'info');}catch(e){}if(live()&&!isGuest()&&NET()&&NET().sendTo) try{NET().sendTo({t:'say',txt:t,g:g||'info'});}catch(e){}}
+
+/* ═══ Demandes (l'hôte exécute ; l'invité envoie) ═══ */
+function other(c,by){return c.parts.find(x=>x.pid!==by.pid)||null;}
+function exec(m,by){ /* hôte : by = {pid,nom} de celui qui demande */
+ const c=get(m.zid);if(!c) return 'Société introuvable.';
+ const me=partOf(c,by.pid);if(!me) return "Vous n'êtes pas associé de ce garage.";
+ if(m.k==='sal'||m.k==='div'){
+  if(!partOf(c,m.pid||by.pid)&&m.k==='sal') return 'Associé inconnu.';
+  if(c.parts.length<2){return m.k==='sal'?(applySal(c,m.pid,m.brut),null):applyDiv(c,m.montant);}
+  if(c.prop) return 'Une proposition est déjà en attente : acceptez-la ou refusez-la d\'abord.';
+  if(m.k==='div'){const d=distribuable(c),D=r2(+m.montant||0);if(!(D>0)||D>d.dist+.005||D>c.compte+.005) return `Montant impossible (distribuable : ${fmt(d.dist)}, solde : ${fmt(c.compte)}).`;}
+  c.prop={k:m.k,pid:m.pid,brut:m.brut,montant:m.montant,by:{pid:by.pid,nom:by.nom}};
+  const o=other(c,by);toastTo(o.pid,`${by.nom} propose ${m.k==='div'?`de verser ${fmt(r2(+m.montant))} de dividendes`:`un salaire de ${fmt(Math.round(+m.brut))} brut par mois pour ${(partOf(c,m.pid)||{}).nom}`} : voir le compte du garage.`);
+  return null;}
+ if(m.k==='acc'||m.k==='ref'){
+  const pr=c.prop;if(!pr) return 'Aucune proposition en attente.';
+  if(pr.by.pid===by.pid){if(m.k==='ref'){c.prop=null;return null;}return 'Votre ami doit accepter votre proposition.';}
+  c.prop=null;
+  if(m.k==='ref'){toastTo(pr.by.pid,`${by.nom} refuse votre proposition.`);return null;}
+  return pr.k==='sal'?(applySal(c,pr.pid,pr.brut),null):applyDiv(c,pr.montant);}
+ return 'Demande inconnue.';}
+function toastTo(p,t){if(p===pid()){say(t,'info');return;}if(live()&&partnerPid()===p&&NET().sendTo) NET().sendTo({t:'say',txt:t,g:'info'});}
+/* appelé par js/56 pour un message d'invité */
+api.onGuestMsg=(m,who)=>{
+ const by={pid:who.pid,nom:who.name};
+ if(m.k==='biz'){const c=get(m.zid);if(c&&partOf(c,who.pid)){const dx=+m.dx||0;op(c,dx,String(m.motif||'').slice(0,80),dx>0?'ca':'ch');}return null;}
+ const err=exec(m,by);if(err&&NET().sendTo) NET().sendTo({t:'say',txt:err,g:'warn'});return err;};
+function request(m){
+ if(isGuest()){NET().sendSoc(m);return null;}
+ const err=exec(m,{pid:pid(),nom:myNom()});if(err) say(err,'warn');return err;}
+api.salaire=(zid,p,brut)=>request({k:'sal',zid,pid:p,brut});
+api.dividendes=(zid,montant)=>request({k:'div',zid,montant});
+api.accepter=zid=>request({k:'acc',zid});
+api.refuser=zid=>request({k:'ref',zid});
+
+/* ═══ Traitement quotidien (hôte seulement) ═══ */
+function closeYear(c,d){
+ const b=r2(c.ex.ca-c.ex.ch),is=isOf(b);
+ if(is>0) op(c,-is,"Impôt sur les sociétés de l'exercice",'is');
+ c.bilans.push({annee:c.bilans.length+1,debut:c.ex.debut,fin:d,ca:c.ex.ca,ch:c.ex.ch,benefice:b,is,div:c.ex.div,pfu:c.ex.pfu,sal:c.ex.sal});while(c.bilans.length>10) c.bilans.shift();
+ c.ex={debut:d,ca:0,ch:0,div:0,pfu:0,sal:0,is:0};
+ say(`Exercice clos : bénéfice ${fmt(b)}, impôt sur les sociétés ${fmt(is)}. Voir le compte du garage.`,'info');}
+api.tick=d=>{
+ if(isGuest()||!MW.S.soc) return;
+ for(const zid in MW.S.soc){const c=MW.S.soc[zid];
+  for(const l of c.prets.slice()){const p=Math.min(l.per,l.rest);op(c,-p,'Remboursement du prêt du garage','ch');l.rest=r2(l.rest-p);if(l.rest<=.5) c.prets.splice(c.prets.indexOf(l),1);}
+  while(d>=c.next){
+   const ids=Object.keys(c.sal).filter(p=>partOf(c,p));
+   const cost=r2(ids.reduce((a,p)=>a+c.sal[p]*(1+TAX.chPat),0));
+   if(ids.length&&c.compte<cost){if(!c.warnSal){c.warnSal=1;say(`${c.nom} : solde insuffisant pour les salaires (${fmt(cost)}). Ils seront versés dès que le compte le permet.`,'crit');}break;}
+   c.warnSal=0;
+   for(const p of ids){const brut=c.sal[p],pat=r2(brut*TAX.chPat),netS=r2(brut*(1-TAX.chSal));
+    op(c,-r2(brut+pat),`Salaire de ${partOf(c,p).nom} : brut ${fmt(brut)} + charges patronales ${fmt(pat)}`,'ch');c.ex.sal=r2(c.ex.sal+brut);
+    payTo(c,p,netS,`Salaire de ${c.nom} (brut ${fmt(brut)}, charges salariales ${fmt(r2(brut-netS))})`);}
+   c.next+=TAX.mois;}
+  if(d-c.ex.debut>=TAX.exo) closeYear(c,d);}};
+MW.on('day',d=>api.tick(d));
+
+/* vente du garage : le prêt est soldé, ce qui reste du compte est partagé selon les parts (capital rendu, non taxé) */
+api.dissoudre=(zid,produit)=>{
+ const c=get(zid);if(!c) return false;
+ if(produit>0) op(c,produit,'Revente du garage','cap');
+ for(const l of c.prets) op(c,-Math.min(l.rest,Math.max(0,c.compte)),'Prêt soldé à la revente','cap');
+ const reste=Math.max(0,c.compte);let acc=0;
+ c.parts.forEach((q,i)=>{const x=i===c.parts.length-1?r2(reste-acc):r2(reste*q.pct/100);acc=r2(acc+x);payTo(c,q.pid,x,`Part de la revente du garage (${q.pct} %)`);});
+ delete MW.S.soc[zid];return true;};
+
+/* ═══ Panneau « Compte du garage » ═══ */
+const row=(a,b)=>`<div class="mw-row"><span>${a}</span><b>${b}</b></div>`;
+const btn=(a,l,cls,dis)=>`<button type="button" class="btn${cls?' '+cls:''}" data-mw="${a}"${dis?' disabled':''}>${l}</button>`;
+let panelZ=null;
+function html(c){
+ const me=pid(),d=distribuable(c),multi=c.parts.length>1,pr=c.prop;
+ let h=`<div class="mw-card">${row('Solde du compte',E(fmt(c.compte)))}${row('Associés',c.parts.map(p=>`${E(p.nom)} ${p.pct} %`).join(' · '))}${c.prets.length?row('Prêt du garage (reste à rembourser)',E(fmt(c.prets.reduce((a,l)=>a+l.rest,0)))):''}</div>`;
+ if(pr){const mine=pr.by.pid===me;
+  h+=`<div class="mw-card"><b>Proposition en attente</b><br>${E(pr.by.nom)} propose ${pr.k==='div'?`de verser <b>${E(fmt(+pr.montant))}</b> de dividendes (brut)`:`un salaire de <b>${E(fmt(+pr.brut))}</b> brut par mois pour ${E((partOf(c,pr.pid)||{}).nom||'')}`}.<div class="mw-btns">${mine?`<small>En attente de l'accord de votre associé.</small>${btn('ref','Retirer','ghost')}`:`${btn('acc','Accepter')}${btn('ref','Refuser','ghost')}`}</div></div>`;}
+ h+='<h3 class="mw-h3">Salaires mensuels (versés tous les 30 jours)</h3><div class="mw-card">';
+ for(const p of c.parts){const b=c.sal[p.pid]||0;
+  h+=`<div class="mw-row"><span>${E(p.nom)}<br><small>${b?`Brut ${E(fmt(b))} · coût pour le garage ${E(fmt(r2(b*(1+TAX.chPat))))} · net ${E(fmt(r2(b*(1-TAX.chSal))))}`:'Pas de salaire'}</small></span><span><input id="mwSal_${E(p.pid)}" class="mw-in" type="number" min="0" step="50" value="${b||''}" placeholder="brut" style="width:6.5em"> ${btn('sal:'+p.pid,multi?'Proposer':'Fixer','sm',!!pr)}</span></div>`;}
+ h+='</div>';
+ h+=`<h3 class="mw-h3">Dividendes</h3><div class="mw-card">${row('Bénéfice de l\'exercice (chiffre d\'affaires − charges)',E(fmt(d.benefice)))}${row('Impôt sur les sociétés dû',E(fmt(d.is)))}${row('Déjà versé cet exercice (brut)',E(fmt(d.deja)))}${row('Distribuable',E(fmt(d.dist)))}<div class="mw-row"><span><input id="mwDiv" class="mw-in" type="number" min="0" step="10" placeholder="montant brut" style="width:8em"></span>${btn('div',multi?'Proposer un versement':'Verser','sm',!!pr||d.dist<=0)}</div></div>`;
+ h+='<h3 class="mw-h3">Dernières opérations</h3><div class="mw-card">'+(c.ops.length?c.ops.slice(-8).reverse().map(o=>`<div class="mw-row"><span><small>${E(o.t)}</small><br>${E(o.motif)}</span><b>${o.dx>0?'+':'−'} ${E(fmt(Math.abs(o.dx)))}</b></div>`).join(''):'<small>Aucune opération.</small>')+'</div>';
+ const ex=c.ex,last=c.bilans[c.bilans.length-1];
+ h+=`<h3 class="mw-h3">Bilan</h3><div class="mw-card">${row('Exercice en cours (depuis le jour '+ex.debut+')','')}${row('Chiffre d\'affaires',E(fmt(ex.ca)))}${row('Charges (pièces, matériel, bâtiment, prêt, salaires)',E(fmt(ex.ch)))}${row('Bénéfice',E(fmt(r2(ex.ca-ex.ch))))}${row('Dividendes bruts / prélèvement 30 %',E(fmt(ex.div))+' / '+E(fmt(ex.pfu)))}`;
+ if(last) h+=row('Dernier exercice clos (n° '+last.annee+')','')+row('Chiffre d\'affaires / charges',E(fmt(last.ca))+' / '+E(fmt(last.ch)))+row('Bénéfice · impôt sur les sociétés',E(fmt(last.benefice))+' · '+E(fmt(last.is)));
+ h+='</div>';
+ h+=`<details class="mw-aide"><summary>Règles (simplifiées)</summary><ul class="mw-cond"><li>Salaire : le garage paie le brut + 45 % de charges patronales ; vous recevez le brut − 22 % de charges salariales.</li><li>Dividendes : seulement sur le bénéfice de l'exercice, après l'impôt sur les sociétés (15 % jusqu'à 42 500 €, 25 % au-delà), puis 30 % de prélèvement forfaitaire. Répartis selon les parts.</li><li>À deux, un versement ou un changement de salaire doit être accepté par l'autre associé. On ne peut pas verser plus que le solde.</li><li>Le remboursement du prêt compte comme une charge. L'exercice dure 360 jours de jeu.</li></ul></details>`;
+ return h;}
+api.panel=zid=>{
+ const c=get(zid);if(!c){MW.toast("Ce garage n'a pas de société.",'warn');return;}
+ panelZ=zid;
+ MW.panel('Compte du garage · '+c.nom,html(c)+`<div class="mw-btns">${btn('close','Fermer','ghost')}</div>`,{wide:true,
+  onClose:()=>{if(panelZ===zid) panelZ=null;},
+  onClick:a=>{
+   const rd=id=>{const i=document.getElementById(id);return i?+i.value:0;};
+   if(a.startsWith('sal:')){const p=a.slice(4);api.salaire(zid,p,rd('mwSal_'+p));}
+   else if(a==='div') api.dividendes(zid,rd('mwDiv'));
+   else if(a==='acc') api.accepter(zid);
+   else if(a==='ref') api.refuser(zid);
+   setTimeout(()=>{if(panelZ===zid) api.panel(zid);},isGuest()?400:0);}});};
+api.refresh=()=>{if(panelZ&&get(panelZ)) api.panel(panelZ);};
+
+/* ═══ Copie côté invité ═══ */
+api.snapshot=()=>JSON.stringify(MW.S.soc||{});
+api.setMirror=(s,hp,hn)=>{mirror=s||{};hostPid=hp||hostPid;hostNom=hn||hostNom;
+ const me=pid(),cp=MW.S.socCopy||(MW.S.socCopy={});
+ for(const z in mirror){const q=partOf(mirror[z],me);if(q) cp[hostPid+':'+z]={zid:z,nom:mirror[z].nom,pct:q.pct,hote:hostNom,hpid:hostPid};}
+ api.refresh();};
+api.clearMirror=()=>{mirror=null;panelZ=null;};
+api.copies=()=>Object.values(MW.S.socCopy||{});
+api.mine=zid=>{const c=get(zid);return !!c&&!!partOf(c,pid());};
+
+window.__mws=api;
 return api;})();
 
 /* ───────────── Rendu ───────────── */

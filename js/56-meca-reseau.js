@@ -14,6 +14,7 @@
      les changements. L'hôte vérifie ceux de l'invité (« la valeur d'avant est-elle encore la même ? ») : si l'ami a déjà démonté la même
      pièce, le geste est refusé et annulé (voiture et inventaire remis comme avant). Deux joueurs peuvent donc travailler sur la même
      voiture (roues d'un côté, capot de l'autre), mais jamais sur la même pièce au même moment.
+   · L'argent PERSONNEL de chacun reste dans sa propre sauvegarde (chacun touche sa paie) ; le compte du garage (js/57, société) est géré par l'hôte.
    · Le temps : MW.addMin de l'invité est exécuté par l'hôte ; dormir demande l'accord des deux (MW.sleep attend l'ami) ; le menu d'un
      joueur ne met en pause que SON écran (le monde continue).
    · L'état est envoyé à 10 Hz au plus, les positions de l'ami sont interpolées. Seul un prénom choisi dans le jeu est transmis.
@@ -120,7 +121,7 @@ api.transports.peer={kind:'peer',
 
 /* ═══════════ Session ═══════════ */
 let role=null,link=null,status='idle',code='',myName='',other=null,backup=null,timer=0,lastRx=0,seq=0,frozen=false;
-let lastN={},lastStr={},pend={},invPrev=[],lastFile='',sw={me:0,he:0},swT=0,selfStart=false,lastChat=0,msgTxt='';
+let lastN={},lastStr={},pend={},invPrev=[],lastFile='',lastSoc='',sw={me:0,he:0},swT=0,selfStart=false,lastChat=0,msgTxt='';
 const jobs=()=>{try{return MWJ.state().cars;}catch(e){return [];}};
 const carById=id=>jobs().find(c=>c.id===id)||null;
 const send=m=>{if(link){try{link.send(m);}catch(e){}}};
@@ -128,7 +129,7 @@ const cleanName=s=>(String(s||'').replace(/[^A-Za-zÀ-ÿ0-9 '\-]/g,'').trim().sl
 const savedName=()=>{try{return localStorage.getItem(NAME_KEY)||'';}catch(e){return '';}};
 const saveName=n=>{try{localStorage.setItem(NAME_KEY,n);}catch(e){}};
 const toast=(t,g)=>{try{MW.toast(t,g||'info');}catch(e){}};
-const origMoney=MW.money,origAdd=MW.addMin,origSleep=MW.sleep,origSave=MW.save;
+const origAdd=MW.addMin,origSleep=MW.sleep,origSave=MW.save;
 
 function makeCode(){let s='';for(let i=0;i<6;i++) s+=ALPHA[Math.floor(Math.random()*ALPHA.length)];return s;}
 const myPos=()=>{const p=MW.player(),c=MW.playerCar(),w=typeof MWG!=='undefined'&&MWG.holding?MWG.holding():null;
@@ -163,7 +164,7 @@ api.join=function(c,o){
   const to=setTimeout(()=>fin('timeout'),15000);
   api._welcome=w=>{if(w.v!==1) return fin('version');becomeGuest(w);fin(null);};
   api._full=()=>fin('full');
-  link=tr.join(c,{onOpen:l=>{l.send({t:'hello',name:myName,v:1});},onMsg:onMsg,onErr:e=>fin(e),onClose:()=>{if(!done) fin('network');else drop('Connexion perdue.');}});});};
+  link=tr.join(c,{onOpen:l=>{l.send({t:'hello',name:myName,pid:MWS.pid(),v:1});},onMsg:onMsg,onErr:e=>fin(e),onClose:()=>{if(!done) fin('network');else drop('Connexion perdue.');}});});};
 
 function onGuestOpen(l){ /* l'hôte : le 1er message « hello » arrive juste après */ }
 function startLive(){
@@ -178,38 +179,41 @@ function startLive(){
 function hostWelcome(m){
  if(N.live){send({t:'full'});return;}
  if(m.v!==1){send({t:'welcome',v:2});return;}
- other={name:cleanName(m.name)===myName?cleanName(m.name).slice(0,11)+' (2)':cleanName(m.name),tgt:null,cur:null,seen:0,speed:0};
+ other={name:cleanName(m.name)===myName?cleanName(m.name).slice(0,11)+' (2)':cleanName(m.name),pid:String(m.pid||'').slice(0,20),tgt:null,cur:null,seen:0,speed:0};
  const S=MW.S,C=(typeof MWC!=='undefined'&&MWC.state)?MWC.state():(S.career||{});
  const cars=jobs().filter(c=>!c.noir),J=MWJ.state(),pl=MW.player();
  startLive();
  for(const c of cars){lastN[c.id]=clone(c);lastStr[c.id]=JSON.stringify(c);}
- send({t:'welcome',v:1,name:myName,day:S.day,min:S.min,money:S.money,rep:S.rep||0,seq:J.seq,next:J.next,file:clone(J.file)||[],cars:clone(cars),
+ send({t:'welcome',v:1,name:myName,pid:MWS.pid(),day:S.day,min:S.min,rep:S.rep||0,soc:clone(S.soc||{}),seq:J.seq,next:J.next,file:clone(J.file)||[],cars:clone(cars),
   career:{emp:C.emp,grade:C.grade,ownZone:C.ownZone,founded:C.founded,everMeca:C.everMeca},px:pl.x,pz:pl.z,zone:(MWC&&MWC.employer?MWC.employer().zone:null)});
+ {const due=MWS.flushDue(other.pid);if(due>0) send({t:'pay',dx:due,motif:'Versements de la société en attente'});}
+ lastSoc=MWS.snapshot();
  toast(`${other.name} a rejoint votre garage. Les clients arrivent deux fois plus vite : chacun peut prendre une voiture.`,'good');}
 
 /* ── l'invité rejoint le monde de l'hôte ── */
 function becomeGuest(w){
- const S=MW.S;backup=clone(S);selfStart=true;
+ const S=MW.S;MWS.pid();backup=clone(S);selfStart=true;
  try{
-  S.day=w.day;S.min=w.min;S.money=w.money;S.rep=w.rep;
+  S.day=w.day;S.min=w.min;S.rep=w.rep;
   if(!isObj(S.career)) S.career={};Object.assign(S.career,w.career||{});
   const J=MWJ.state();J.seq=w.seq;J.next=w.next;J.file=w.file||[];J.cars=clone(w.cars)||[];
-  other={name:cleanName(w.name),tgt:null,cur:null,seen:0,speed:0};
-  startLive();
+  other={name:cleanName(w.name),pid:String(w.pid||'').slice(0,20),tgt:null,cur:null,seen:0,speed:0};
+  S.career.payFrom=w.day; /* sa paie à la semaine commence à son arrivée */
+  startLive();MWS.setMirror(clone(w.soc||{}),other.pid,other.name);
   for(const c of J.cars){lastN[c.id]=clone(c);lastStr[c.id]=JSON.stringify(c);}
   MW.emit('start'); /* les modules reconstruisent le monde (voitures de l'hôte, employeur) */
   const z=w.zone&&MW.zone(w.zone);
   if(z){MW.setMarker(z.id);const p=z.accueil||z.porte;MW.teleport(p.x-(z.n?z.n.x:0)*1.5,p.z-(z.n?z.n.z:0)*1.5,z.ry);}
   else if(typeof w.px==='number') MW.teleport(w.px+1.5,w.pz,0);
  }finally{selfStart=false;}
- toast(`Vous avez rejoint le garage de ${other.name}. L'argent et la réputation sont partagés ; votre expérience reste la vôtre.`,'good');}
+ toast(`Vous avez rejoint le garage de ${other.name}. La réputation est partagée ; votre argent et votre expérience restent les vôtres.`,'good');}
 function restoreSolo(){
  const S=MW.S;if(!S||!backup){backup=null;return;}
- const xp=S.xp,inv=(S.inv||[]),tools=S.jobs&&S.jobs.outils,gest=S.gest;
+ const xp=S.xp,inv=(S.inv||[]),tools=S.jobs&&S.jobs.outils,gest=S.gest,money=S.money,copy=S.socCopy;
  const b=backup;backup=null;selfStart=true;
  try{
   for(const k of Object.keys(S)) delete S[k];Object.assign(S,b);
-  S.xp=xp||S.xp||{};if(gest) S.gest=gest;
+  S.xp=xp||S.xp||{};if(gest) S.gest=gest;if(typeof money==='number') S.money=money;if(copy) S.socCopy=copy;
   const ids=new Set(((S.jobs&&S.jobs.cars)||[]).map(c=>c.id));
   S.inv=inv.filter(it=>it.k!=='usagee'||ids.has(it.job));
   if(S.jobs&&tools) S.jobs.outils=Object.assign({},S.jobs.outils,tools);
@@ -230,7 +234,11 @@ function onMsg(m){
   case 'rej': if(N.live&&role==='guest') onRej(m);break;
   case 'rm': if(N.live&&role==='host') onRm(m);break;
   case 'am': if(N.live&&role==='host') origAdd.call(MW,m.n);break;
-  case 'mo': if(N.live&&role==='host') origMoney.call(MW,m.dx,(m.motif||'')+(other?' ('+other.name+')':''));break;
+  case 'so': if(N.live&&m.m){const k=m.m.k;if(k==='offer'||k==='offerok'||k==='offerno'){try{MWI.onSo(m.m);}catch(e){console.error(e);}}else if(role==='host') MWS.onGuestMsg(m.m,{pid:other.pid,name:other.name});}break;
+  case 'pay': if(N.live&&role==='guest'&&isFinite(m.dx)) MW.money(+m.dx,String(m.motif||'').slice(0,120));break;
+  case 'say': if(N.live) toast(String(m.txt||'').slice(0,200),m.g==='warn'||m.g==='good'||m.g==='crit'?m.g:'info');break;
+  case 'soc': if(N.live&&role==='guest') MWS.setMirror(m.s,m.hp,m.hn);break;
+  case 'emp': if(N.live&&role==='guest'){Object.assign(MW.S.career,m.career||{});MW.emit('employerChanged',MW.S.career.emp);}break;
   case 'slq': if(N.live&&role==='host'){sw.he=m.on?(m.wk||1):0;swT=performance.now();toastSleep(m.on);swCheck();}break;
   case 'sleep': if(N.live&&role==='guest') runSleep(m.wk);break;
   case 'chat': if(N.live&&other) toast(`${other.name} : ${String(m.s||'').slice(0,80)}`,'good');break;}}
@@ -238,7 +246,8 @@ function onState(m){
  const p=m.t==='st'?m.p:m;if(!p||!other) return;
  other.tgt=p;other.seen=performance.now();if(!other.cur) other.cur={x:p.x,z:p.z,ry:p.ry,cx:p.cx,cz:p.cz,cr:p.cr};
  if(m.t==='st'&&role==='guest'){
-  const S=MW.S;S.day=m.day;S.min=m.min;S.money=m.money;S.rep=m.rep;
+  const S=MW.S,d0=S.day;S.day=m.day;S.min=m.min;S.rep=m.rep;
+  if(m.day>d0&&m.day-d0<4) for(let d=d0+1;d<=m.day;d++) MW.emit('day',d); /* sa propre paie, ses prêts et ses charges personnelles */
   if(m.fl!==undefined){MWJ.state().file=m.fl;MWJ.rebuild(null);}
   sw.he=m.sw?m.sw[0]:0;sw.me=m.sw?m.sw[1]:0;showSleepHud();}}
 function onCars(m){
@@ -294,9 +303,10 @@ function netTick(){
    for(const c of add){lastN[c.id]=clone(c);lastStr[c.id]=JSON.stringify(c);}
    send({t:'cars',add:clone(add),del,seq:J.seq,next:J.next});}
   for(const c of cars){if(add.includes(c)) continue;const ops=diffCar(c);if(ops) send({t:'cp',id:c.id,ops});}
-  const fl=JSON.stringify(J.file||[]),m={t:'st',day:S.day,min:S.min,money:S.money,rep:S.rep||0,p:myPos(),sw:[sw.me?1:0,sw.he?1:0]};
+  const fl=JSON.stringify(J.file||[]),m={t:'st',day:S.day,min:S.min,rep:S.rep||0,p:myPos(),sw:[sw.me?1:0,sw.he?1:0]};
   if(fl!==lastFile){lastFile=fl;m.fl=J.file||[];}
   send(m);
+  const sn=MWS.snapshot();if(sn!==lastSoc){lastSoc=sn;send({t:'soc',s:JSON.parse(sn),hp:MWS.pid(),hn:myName});}
   if(sw.me&&now-swT>90000){sw.me=0;showSleepHud();} if(sw.he&&now-swT>90000) sw.he=0;}
  else{
   send(Object.assign({t:'pos'},myPos()));
@@ -366,9 +376,6 @@ MW.mapExtra=(x,X,Y,mini,fs)=>{
 MW.on('tick',dt=>{if(N.live){avatarFrame(dt);friendTick();}});
 
 /* ═══════════ Argent, temps, sommeil, sauvegarde ═══════════ */
-MW.money=function(dx,motif){
- if(N.live&&role==='guest'&&dx) send({t:'mo',dx,motif:motif||''});
- return origMoney.call(MW,dx,motif);};
 function guestAdvance(n){const S=MW.S;let m=S.min;for(let i=0;i<n;i++){m++;if(m>=1440) m=0;if(m===360) S.day++;}S.min=m;}
 MW.addMin=function(n){
  if(N.live&&role==='guest'){n=Math.max(0,Math.min(3000,Math.round(n)));if(N.sleeping){guestAdvance(n);return;}if(n) send({t:'am',n});return;}
@@ -392,7 +399,7 @@ MW.sleep=function(wk){
 /* la sauvegarde de l'invité reste SA partie solo (le monde de l'hôte n'y entre jamais) */
 MW.save=function(){
  if(N.live&&role==='guest'&&backup){
-  try{const o=clone(backup),S=MW.S;o.xp=clone(S.xp);o.inv=(S.inv||[]).filter(it=>it.k!=='usagee');if(o.jobs&&S.jobs&&S.jobs.outils) o.jobs.outils=clone(S.jobs.outils);
+  try{const o=clone(backup),S=MW.S;o.xp=clone(S.xp);o.money=S.money;if(S.socCopy) o.socCopy=clone(S.socCopy);o.inv=(S.inv||[]).filter(it=>it.k!=='usagee');if(o.jobs&&S.jobs&&S.jobs.outils) o.jobs.outils=clone(S.jobs.outils);
    localStorage.setItem(SAVE_KEY,JSON.stringify(o));return true;}catch(e){return false;}}
  return origSave.call(MW);};
 /* voiture rendue par l'invité : l'hôte retire la voiture et applique la réputation */
@@ -420,11 +427,12 @@ function leave(why,o){
  if(link){if(hadLink&&!o.noBye){try{link.send({t:'bye'});}catch(e){}}try{link.close();}catch(e){}link=null;}
  N.live=false;N.guest=false;N.sleeping=false;role=null;status='idle';api._welcome=null;api._full=null;
  removeAvatar();friendUI(false);try{MW.removeButton('chat');MW.hud('netsleep','');}catch(e){}
- other=null;lastN={};lastStr={};pend={};sw={me:0,he:0};
+ other=null;lastN={};lastStr={};pend={};sw={me:0,he:0};MWS.clearMirror();
  if(wasGuest&&!o.noRestore) restoreSolo();else backup=null;
  if(was&&why&&!o.silent) toast(why+(wasGuest?' Vous retrouvez votre partie solo.':' Vous continuez seul.'),'warn');
  refreshPanel();}
 api.leave=()=>{leave(null,{silent:true});};
+MW.on('employerChanged',()=>{if(N.live&&role==='host'){const C=MWC.state();send({t:'emp',career:{emp:C.emp,grade:C.grade,ownZone:C.ownZone,founded:C.founded}});}});
 MW.on('close',()=>{if(role) leave('Partie à deux terminée.',{silent:true});});
 MW.on('start',()=>{if(!selfStart&&role){leave('La partie a été remplacée.',{noRestore:true});}});
 window.addEventListener('pagehide',()=>{if(link){try{link.send({t:'bye'});}catch(e){}}});
@@ -434,7 +442,7 @@ let panelOpen=false;
 function inputVal(id){const e=document.getElementById(id);return e?e.value:'';}
 function panelHTML(){
  if(N.live) return `<p>Vous jouez avec <b>${esc2(other.name)}</b> ${role==='host'?'dans <b>votre</b> garage (vous êtes l\'hôte).':'dans <b>son</b> garage.'}</p>
-  <p class="hint">Argent et réputation du garage partagés · chacun son inventaire et son expérience · T : message · dormir demande l'accord des deux · le menu ne met en pause que votre écran.</p>
+  <p class="hint">Réputation et compte du garage partagés · chacun son argent, son inventaire et son expérience · T : message · dormir demande l'accord des deux · le menu ne met en pause que votre écran.</p>
   <div class="mw-btns v"><button type="button" class="btn" data-mw="chat">Écrire un message (T)</button><button type="button" class="btn ghost" data-mw="leave">Quitter la partie à deux</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`;
  const m=msgTxt?`<p class="mw-soon" role="alert">${esc2(msgTxt)}</p>`:'';
  if(status==='hosting') return `<p>Donnez ce code à votre ami :</p><p class="mw-netcode" id="mwNetCode" style="font:700 40px/1.1 monospace;letter-spacing:.25em;text-align:center;margin:10px 0">${esc2(code)}</p>
@@ -471,6 +479,8 @@ Object.assign(api,{
  avatar:()=>av,friendText:()=>fTxt,
  busyMsg:(carId,target)=>{const a=other&&other.tgt&&other.tgt.ac;if(!N.live||!a||performance.now()-other.seen>1500) return null;
   return a.car===carId&&a.target===target?`${other.name} est déjà en train de travailler sur cette pièce.`:null;},
+ myName:()=>myName||savedName()||'Vous',partner:()=>other?{pid:other.pid,name:other.name}:null,
+ sendSoc:m=>send({t:'so',m}),sendSo:m=>send({t:'so',m}),sendTo:m=>send(m),
  freeze:f=>{frozen=!!f;},      /* test : retarde les échanges pour simuler deux gestes simultanés */
  pending:()=>Object.keys(pend).length,
  swWant:()=>({me:sw.me,he:sw.he}),

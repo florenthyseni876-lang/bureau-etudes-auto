@@ -110,8 +110,8 @@ module.exports = async function mecaImmo(page, env) {
   await ev(() => { __mw.S.money = 100000; });
   await ouvrir('garage5', 'credit');
   await attendreCondition(page, () => __mwi.owned('garage5'), "l'achat du garage à crédit échoue");
-  const cr = await ev(() => ({ prets: MWC.state().loans.length, dette: MWC.owed(), argent: __mw.S.money }));
-  verifier(cr.prets === 1 && cr.dette > 30000, `crédit inattendu : ${JSON.stringify(cr)}`);
+  const cr = await ev(() => { const c = __mws.get('garage5'); return { prets: c.prets.length, dette: c.prets.reduce((a, l) => a + l.rest, 0), perso: MWC.state().loans.length, argent: __mw.S.money }; });
+  verifier(cr.prets === 1 && cr.dette > 30000 && cr.perso === 0, `crédit inattendu (le prêt est celui de la société du garage) : ${JSON.stringify(cr)}`);
   verifier(Math.abs(cr.argent - (100000 - 7600)) < 1, `l'apport de 20 % n'est pas le seul décaissement : ${cr.argent}`);
   await cliquer(page, '[data-mw="work"]', 'bouton « Travailler ici » absent');
   await attendreCondition(page, () => MWC.employer().id === 'proprio' && MWC.employer().zone === 'garage5', 'le garage acheté ne devient pas le lieu de travail');
@@ -130,9 +130,9 @@ module.exports = async function mecaImmo(page, env) {
   verifier(eq, 'établi ou étagère du garage acheté mal placés');
   await ev(() => { __mwj.clear(); });
   // charges du garage (380 par semaine) et prêt quotidien
-  const g0 = await ev(() => { const m = __mw.S.money; __mw.S.day += 7; __mw.emit('day', __mw.S.day); return m; });
-  const g1 = await ev(() => __mw.S.money);
-  verifier(g0 - g1 >= 380 + 80, `les charges du garage ne sont pas prélevées (${g0 - g1})`);
+  const g0 = await ev(() => { const m = __mws.get('garage5').compte; __mw.S.day += 7; __mw.emit('day', __mw.S.day); return m; });
+  const g1 = await ev(() => __mws.get('garage5').compte);
+  verifier(g0 - g1 >= 380 + 80, `les charges du garage ne sont pas prélevées sur le compte du garage (${g0 - g1})`);
 
   // 7. « Mes biens » (touche B)
   await page.keyboard.press('b');

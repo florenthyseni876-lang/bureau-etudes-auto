@@ -169,14 +169,11 @@ async function mecaDeuxJoueurs(page, env) {
   await eb(() => __mwnet.freeze(false));
   await attendreCondition(A, () => __mwj.jobs()[0].done.batterie === 1, "l'hôte ne voit pas la batterie reposée par l'invité", 15000);
 
-  // 7. argent commun, expérience propre
+  // 7. chacun son argent et son expérience : l'invité rend une voiture, sa paie est dans SA poche (employeur de l'hôte), pas chez l'hôte
   const m0 = await ea(() => __mw.S.money);
   await eb(() => __mw.money(40, 'essai invité'));
-  await attendreCondition(A, m => Math.abs(__mw.S.money - (m + 40)) < .01, "l'argent gagné par l'invité n'arrive pas dans la caisse de l'hôte", 15000, m0);
-  await attendreCondition(B, m => Math.abs(__mw.S.money - (m + 40)) < .01, "l'invité ne voit pas la caisse commune", 15000, m0);
-  await ea(() => __mw.money(-15, 'essai hôte'));
-  await attendreCondition(B, m => Math.abs(__mw.S.money - (m + 25)) < .01, "la dépense de l'hôte n'est pas vue par l'invité", 15000, m0);
-  // l'invité rend une voiture simple : paie dans la caisse commune, expérience pour lui seul
+  await attendre(900);
+  verifier(await ea(m => __mw.S.money === m, m0), "l'argent gagné par l'invité est arrivé dans la poche de l'hôte");
   await ea(() => { __mwj.clear(); __mw.S.inv.length = 0; });
   await attendreCondition(B, () => __mwj.jobs().length === 0, "l'invité garde l'ancienne voiture", 15000);
   await ea(() => __mwj.spawn({ tpl: 'essuie', silencieux: true }));
@@ -184,6 +181,7 @@ async function mecaDeuxJoueurs(page, env) {
   const xpB0 = await eb(() => JSON.stringify(__mw.S.xp));
   const xpA1 = await ea(() => JSON.stringify(__mw.S.xp));
   const mA = await ea(() => __mw.S.money);
+  const mB = await eb(() => __mw.S.money);
   const rendu = await eb(() => {
     const c = __mwj.jobs()[0]; c.st.lifted = 0;
     __mw.S.inv.push({ k: 'neuve', id: 'essuie', src: 'etagere' });
@@ -192,9 +190,114 @@ async function mecaDeuxJoueurs(page, env) {
   });
   verifier(rendu, "l'invité n'arrive pas à rendre la voiture");
   await attendreCondition(A, () => __mwj.jobs().length === 0, "la voiture rendue par l'invité reste chez l'hôte", 15000);
-  await attendreCondition(A, m => __mw.S.money > m + 1, "la paie de l'invité n'arrive pas dans la caisse commune", 15000, mA);
+  verifier(await eb(m => __mw.S.money > m + 1, mB), "la paie de l'invité n'arrive pas dans sa propre poche");
+  verifier(await ea(m => __mw.S.money === m, mA), "la paie de l'invité a fuité chez l'hôte");
   verifier(await eb(() => JSON.stringify(__mw.S.xp)) !== xpB0, "l'invité n'a pas gagné d'expérience");
   verifier(await ea(() => JSON.stringify(__mw.S.xp)) === xpA1, "l'expérience de l'invité a fuité chez l'hôte");
+
+  // 7b. deux salaires, chacun dans sa propre sauvegarde (employeur salarié de l'hôte ; arrivée à des dates différentes → paies différentes)
+  await ea(() => { MWC.hire('ventoux'); });
+  await attendreCondition(B, () => MWC.employer().id === 'ventoux', "l'invité ne suit pas le poste de l'hôte", 15000);
+  await ea(() => { __mw.S.day = 14; MWC.state().payFrom = 9; });
+  await attendreCondition(B, () => __mw.S.day === 14, "l'invité ne reçoit pas le jour de l'hôte", 15000);
+  await eb(() => { MWC.state().payFrom = 13; });
+  const sa0 = await ea(() => __mw.S.money), sb0 = await eb(() => __mw.S.money);
+  await ea(() => { __mw.S.day = 15; __mw.emit('day', 15); });
+  await attendreCondition(B, b => __mw.S.money > b + 1, "l'invité ne touche pas sa propre paie hebdomadaire", 15000, sb0);
+  const sa1 = await ea(() => __mw.S.money), sb1 = await eb(() => __mw.S.money);
+  verifier(Math.abs((sa1 - sa0) - 1500) < 1 && Math.abs((sb1 - sb0) - 500) < 1, `les deux paies devraient être de 1500 € (hôte) et 500 € (invité, arrivé plus tard) : ${sa1 - sa0} / ${sb1 - sb0}`);
+
+  // 7c. acheter un garage à deux : l'invité refuse d'abord, puis accepte avec son apport ; les parts suivent les apports
+  await ea(() => { __mw.S.money = 100000; __mw.S.rep = 70; });
+  await eb(() => { __mw.S.money = 50000; });
+  await ea(() => __mwi.fiche(__mw.zone('garage5')));
+  await attendreVisible(A, '.mw-pn [data-mw="duo"]', "le panneau d'achat d'un garage n'offre pas « Acheter à deux… »");
+  await A.click('.mw-pn [data-mw="duo"]');
+  await attendreVisible(A, '#mwA2', "le panneau d'apport ne s'ouvre pas");
+  await A.fill('#mwA2', '6000');
+  await A.click('.mw-pn [data-mw="send"]');
+  await attendreVisible(B, '.mw-pn [data-mw="no"]', "l'invité ne reçoit pas la proposition d'achat à deux");
+  await B.click('.mw-pn [data-mw="no"]');
+  await attendre(900);
+  verifier(!(await ea(() => __mwi.owned('garage5'))), 'le garage a été acheté malgré le refus');
+  await attendreCondition(A, () => [...document.querySelectorAll('.mw-t')].some(e => /refuse l'achat/.test(e.textContent)), "l'hôte n'est pas prévenu du refus", 15000);
+  await ea(() => __mw.closePanel());
+  await ea(() => __mwi.fiche(__mw.zone('garage5')));
+  await attendreVisible(A, '.mw-pn [data-mw="duo"]', "« Acheter à deux… » n'est plus proposé");
+  await A.click('.mw-pn [data-mw="duo"]');
+  await attendreVisible(A, '#mwA2', "le panneau d'apport ne s'ouvre pas la 2e fois");
+  await A.fill('#mwA2', '6000');
+  await A.click('.mw-pn [data-mw="send"]');
+  await attendreVisible(B, '.mw-pn [data-mw="ok"]', "l'invité ne reçoit pas la 2e proposition");
+  await B.fill('#mwA2', '4000');
+  await B.click('.mw-pn [data-mw="ok"]');
+  await attendreCondition(A, () => __mwi.owned('garage5'), "le garage n'est pas acheté à deux", 15000);
+  await attendreCondition(B, () => __mws.has('garage5') && __mws.mine('garage5'), "l'invité ne voit pas sa part de la société", 15000);
+  const ach = await ea(() => { const c = __mws.get('garage5'); return { parts: c.parts.map(p => [p.nom, p.pct]), pret: c.prets[0] && c.prets[0].x, compte: c.compte, m: __mw.S.money }; });
+  verifier(ach.parts.length === 2 && ach.parts[0][1] === 60 && ach.parts[1][1] === 40 && ach.parts[0][0] === 'Léa' && ach.parts[1][0] === 'Tom', `les parts ne suivent pas les apports : ${JSON.stringify(ach)}`);
+  verifier(ach.pret === 28000 && ach.compte === 0 && ach.m === 94000, `achat à deux inattendu (prêt de la société, apport de l'hôte débité) : ${JSON.stringify(ach)}`);
+  await attendreCondition(B, () => __mw.S.money === 46000, "l'apport de l'invité n'est pas débité de sa propre poche", 15000);
+  verifier(await eb(() => __mws.get('garage5').parts.map(p => p.pct).join() === '60,40' && JSON.stringify(__mw.S.socCopy).includes('garage5')), "l'invité ne garde pas une copie de ses parts");
+  await capturer(A, '7-achat-a-deux');
+
+  // 7d. compte du garage alimenté par la facture d'un client que l'invité répare
+  await ea(() => { MWC.workAt('garage5'); __mw.S.min = 600; __mwj.clear(); __mw.S.inv.length = 0; __mws.deposit('garage5', 1000); });
+  await attendreCondition(B, () => MWC.employer().id === 'proprio' && __mws.active() === 'garage5' && __mws.get('garage5').compte === 1000, "l'invité ne travaille pas pour le compte du garage de l'hôte", 15000);
+  await ea(() => __mwj.spawn({ tpl: 'essuie', silencieux: true }));
+  await attendreCondition(B, () => __mwj.jobs().length === 1 && __mwj.jobs()[0].zone === 'garage5', "l'invité ne reçoit pas le client du garage acheté", 15000);
+  const pm = [await ea(() => __mw.S.money), await eb(() => __mw.S.money)];
+  const fac = await eb(() => {
+    const c = __mwj.jobs()[0]; c.st.lifted = 0;
+    __mws.biz(-16, 'Pièces Auto Express : balais'); __mw.S.inv.push({ k: 'neuve', id: 'essuie', src: 'achat', paye: 16 });
+    MWJ.L.doDep(c, 'essuie'); MWJ.L.doPose(c, 'essuie');
+    const j = MWJ.done(c); return j ? j.pay : 0;
+  });
+  verifier(fac > 0, "l'invité ne peut pas rendre la voiture du garage");
+  await attendreCondition(A, p => Math.abs(__mws.get('garage5').compte - (1000 - 16 + p)) < .02, "la facture et les pièces n'arrivent pas dans le compte du garage", 15000, fac);
+  await attendreCondition(B, p => Math.abs(__mws.get('garage5').compte - (1000 - 16 + p)) < .02, "l'invité ne voit pas le compte du garage à jour", 15000, fac);
+  verifier(await ea(m => __mw.S.money === m, pm[0]) && await eb(m => __mw.S.money === m, pm[1]), "la facture du garage est tombée dans une poche personnelle");
+
+  // 7e. salaire et dividendes à deux : proposés par l'un, acceptés par l'autre ; montants taxés exacts ; refus
+  const gpid = await eb(() => __mws.pid());
+  await ea(() => { const c = __mws.get('garage5'); c.compte = 20000; });
+  await attendreCondition(B, () => __mws.get('garage5').compte === 20000, "l'invité ne voit pas le compte du garage", 15000);
+  await eb(g => __mws.salaire('garage5', g, 1000), gpid);
+  await attendreCondition(A, () => !!__mws.get('garage5').prop, "l'hôte ne reçoit pas la proposition de salaire", 15000);
+  verifier(await ea(g => !__mws.get('garage5').sal[g], gpid), 'le salaire est appliqué avant que l\'hôte accepte');
+  await ea(() => __mws.accepter('garage5'));
+  await attendreCondition(B, g => __mws.get('garage5').sal[g] === 1000 && !__mws.get('garage5').prop, "le salaire accepté n'arrive pas chez l'invité", 15000, gpid);
+  const w0 = [await ea(() => __mws.get('garage5').compte), await eb(() => __mw.S.money)];
+  await ea(() => { const c = __mws.get('garage5'); __mw.S.day = c.next; __mw.emit('day', __mw.S.day); });
+  await attendreCondition(B, m => __mw.S.money > m + 1, "le salaire de l'invité n'arrive pas dans sa poche", 15000, w0[1]);
+  const w1 = [await ea(() => __mws.get('garage5').compte), await eb(() => __mw.S.money)];
+  verifier(Math.abs((w1[1] - w0[1]) - 780) < .01, `le net de l'invité devrait être de 780 € (brut 1000 − 22 %) : ${w1[1] - w0[1]}`);
+  const opSal = await ea(() => { const o = __mws.get('garage5').ops.filter(x => /Salaire de Tom/.test(x.motif)).pop(); return o ? o.dx : null; });
+  verifier(opSal === -1450 && w1[0] < w0[0], `le garage devrait payer 1450 € (brut 1000 + 45 % de charges patronales) : ${opSal}`);
+  // dividendes : bénéfice 20000, impôt 3000, distribuable 17000 ; 1000 brut → 600 / 400 → net 420 / 280
+  await ea(() => { const c = __mws.get('garage5'); c.ex = { debut: __mw.S.day, ca: 20000, ch: 0, div: 0, pfu: 0, sal: 0, is: 0 }; c.compte = 20000; });
+  await attendreCondition(B, () => __mws.distribuable('garage5').dist === 17000, "l'invité ne voit pas le bénéfice distribuable", 15000);
+  const dv0 = [await ea(() => __mw.S.money), await eb(() => __mw.S.money)];
+  await eb(() => __mws.dividendes('garage5', 500));
+  await attendreCondition(A, () => !!__mws.get('garage5').prop, "l'hôte ne reçoit pas la proposition de dividendes", 15000);
+  await ea(() => __mws.refuser('garage5'));
+  await attendreCondition(B, () => !__mws.get('garage5').prop, "le refus n'arrive pas chez l'invité", 15000);
+  await attendre(600);
+  verifier(await ea(m => __mw.S.money === m, dv0[0]) && await eb(m => __mw.S.money === m, dv0[1]), 'des dividendes ont été versés malgré le refus');
+  await ea(() => __mws.dividendes('garage5', 2000000));
+  await attendre(500);
+  verifier(!(await ea(() => __mws.get('garage5').prop)), 'une proposition de dividendes supérieurs au distribuable a été acceptée');
+  await ea(() => __mws.dividendes('garage5', 1000));
+  await attendreCondition(B, () => !!__mws.get('garage5').prop, "l'invité ne reçoit pas la proposition de dividendes", 15000);
+  verifier(await eb(m => __mw.S.money === m, dv0[1]), "les dividendes sont versés avant l'accord de l'invité");
+  await eb(() => __mws.accepter('garage5'));
+  await attendreCondition(B, m => __mw.S.money > m + 1, "les dividendes n'arrivent pas dans la poche de l'invité", 15000, dv0[1]);
+  const dv1 = [await ea(() => __mw.S.money), await eb(() => __mw.S.money)];
+  verifier(Math.abs((dv1[0] - dv0[0]) - 420) < .01 && Math.abs((dv1[1] - dv0[1]) - 280) < .01, `dividendes nets inattendus (attendu 420 € et 280 € après 30 %) : ${dv1[0] - dv0[0]} / ${dv1[1] - dv0[1]}`);
+  verifier(await ea(() => { const c = __mws.get('garage5'); return c.compte === 19000 && c.ex.pfu === 300 && c.ex.div === 1000; }), 'le compte ou le bilan ne reflètent pas les dividendes');
+  await ea(() => __mws.panel('garage5'));
+  await attendreVisible(A, '.mw-pn', 'le panneau du compte ne s\'ouvre pas chez l\'hôte');
+  await capturer(A, '7-compte-du-garage');
+  await ea(() => __mw.closePanel());
 
   // 8. le temps : pas de sommeil sans l'accord des deux ; le menu ne met en pause qu'un écran
   await ea(() => { __mw.S.min = 1200; });
@@ -230,10 +333,11 @@ async function mecaDeuxJoueurs(page, env) {
 
   // 10. déconnexion propre : l'invité retrouve sa partie solo (avec son expérience), l'hôte continue seul
   const xpFin = await eb(() => JSON.stringify(__mw.S.xp));
+  const moneyFin = await eb(() => __mw.S.money);
   await eb(() => __mwnet.leave());
   const apresB = await eb(() => ({ live: __mwnet.live(), money: __mw.S.money, emp: MWC.employer().id, net: __mw.net.live, xp: JSON.stringify(__mw.S.xp), cars: __mwj.jobs().length, avatar: !!__mwnet.avatar(), restant: document.querySelectorAll('#mwFriend').length }));
   verifier(!apresB.live && !apresB.net, "l'invité est encore en ligne");
-  verifier(apresB.money === soloB.money && apresB.emp === soloB.emp, `l'invité n'a pas retrouvé sa partie solo (${JSON.stringify(apresB)} / ${JSON.stringify(soloB)})`);
+  verifier(apresB.money === moneyFin && apresB.emp === soloB.emp, `l'invité n'a pas retrouvé sa partie solo (${JSON.stringify(apresB)} / ${JSON.stringify(soloB)})`);
   verifier(apresB.xp === xpFin, "l'invité a perdu l'expérience gagnée à deux");
   verifier(!apresB.avatar && apresB.restant === 0, "l'invité garde la silhouette ou l'indication de l'ami");
   await attendreCondition(A, () => !__mwnet.live(), "l'hôte ne remarque pas le départ de son ami", 15000);

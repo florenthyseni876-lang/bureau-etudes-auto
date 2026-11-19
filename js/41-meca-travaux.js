@@ -113,6 +113,9 @@ const rnd=Math.random,rint=(a,b)=>a+Math.floor(rnd()*(b-a+1));
 const pick=a=>a[Math.floor(rnd()*a.length)];
 const R2=x=>Math.round(x*100)/100;
 const fmt=x=>MW.fmt(x);
+/* [société, js/57] gestion d'un garage acheté : factures, pièces, matériel passent par le compte du garage (sinon argent personnel) */
+const biz=(dx,m)=>typeof MWS!=='undefined'?MWS.biz(dx,m):MW.money(dx,m);
+const cash=()=>typeof MWS!=='undefined'?MWS.cash():MW.S.money;
 /* ── [MWG] points d'accroche des gestes réalistes (js/46-meca-gestes.js) ── */
 const MG=()=>typeof MWG!=='undefined'&&MWG&&MWG.on?MWG:null;
 const GM=(c,id,ph,m)=>{const g=MG();return g&&g.fin?g.rest(c,id,ph,m):m;}; /* minutes restantes à ajouter (les gestes ont déjà fait avancer l'horloge) */
@@ -473,7 +476,7 @@ function done(c){
  const refund=(c.noir||aSonCompte(e))?0:c.avance;job.avance=refund;job.pay=R2(pay+tip);job.pourboire=tip;
  const dr=R2((ev.note-3)*1.2);s.rep=clamp(R2((s.rep||0)+dr),0,100);job.rep=dr;
  for(const k in ev.comp) addXp(k,ev.comp[k]);
- const tot=R2(job.pay+refund);if(tot) MW.money(tot,c.noir?'Travail au noir (liquide) : '+voit(c):'Voiture rendue : '+voit(c));
+ const tot=R2(job.pay+refund);if(tot){if(c.noir) MW.money(tot,'Travail au noir (liquide) : '+voit(c));else biz(tot,'Voiture rendue : '+voit(c));}
  j.stats.rendues++;j.stats.note+=ev.note;j.stats.gain=R2(j.stats.gain+tot);
  j.hist.unshift({jour:s.day,client:c.client,voiture:voit(c),facture:ev.facture,pay:job.pay,note:ev.note});while(j.hist.length>15) j.hist.pop();
  if(c.rend&&!c.noir){let n=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&inv()[i].job===c.id){inv().splice(i,1);n++;}if(n){job.rendues=n;invUI();}}
@@ -602,10 +605,10 @@ function shop(keep){
  show('Pièces Auto Express',h,a=>{const [k,id]=a.split(':');
   if(k==='tab'){shopTab=id;}
   else if(k==='noir'&&typeof MWN!=='undefined'){MWN.shopAct(id);}
-  else if(k==='buy'){const p=PARTS[id];if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else if(MW.S.money<p.prix) MW.toast("Pas assez d'argent.",'warn');else{invAdd({k:'neuve',id,src:'achat',paye:p.prix});MW.money(-p.prix,p.nom);}}
-  else if(k==='tool'){const o=OUTILS[id];if(MW.S.money>=o.prix&&!J().outils[id]){J().outils[id]=1;MW.money(-o.prix,o.nom);}else MW.toast("Pas assez d'argent.",'warn');}
-  else if(k==='sell'){const i=+id,it=inv()[i];if(it&&it.k==='usagee'&&!rendBloq(it)){const v=scrapV(it);invDel(i);if(v) MW.money(v,'Ferraille : '+PARTS[it.id].nom);else MW.toast(PARTS[it.id].nom+' : déposé(e) au recyclage.','info');}}
-  else if(k==='sellall'){let t=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&!rendBloq(inv()[i])){t+=scrapV(inv()[i]);inv().splice(i,1);}invUI();if(t) MW.money(t,'Ferraille');}
+  else if(k==='buy'){const p=PARTS[id];if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else if(cash()<p.prix) MW.toast("Pas assez d'argent.",'warn');else{invAdd({k:'neuve',id,src:'achat',paye:p.prix});biz(-p.prix,p.nom);}}
+  else if(k==='tool'){const o=OUTILS[id];if(cash()>=o.prix&&!J().outils[id]){J().outils[id]=1;biz(-o.prix,o.nom);}else MW.toast("Pas assez d'argent.",'warn');}
+  else if(k==='sell'){const i=+id,it=inv()[i];if(it&&it.k==='usagee'&&!rendBloq(it)){const v=scrapV(it);invDel(i);if(v) biz(v,'Ferraille : '+PARTS[it.id].nom);else MW.toast(PARTS[it.id].nom+' : déposé(e) au recyclage.','info');}}
+  else if(k==='sellall'){let t=0;for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='usagee'&&!rendBloq(inv()[i])){t+=scrapV(inv()[i]);inv().splice(i,1);}invUI();if(t) biz(t,'Ferraille');}
   shop(true);},{keep:true,wide:true});}
 function itemPanel(i){
  const it=inv()[i];if(!it) return;

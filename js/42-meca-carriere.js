@@ -580,7 +580,7 @@ MW.on('money',(dx,motif)=>{if(dx>0&&/salaire|paie/i.test(motif||'')){const c=C()
 MW.on('day',d=>{
  const c=C(),e=employer();
  // loyer du garage
- if(e.loyer) MW.money(-e.loyer,'Loyer du garage');
+ if(e.loyer&&!(MW.net&&MW.net.live&&MW.net.guest)) MW.money(-e.loyer,'Loyer du garage'); /* [réseau] le loyer du garage de l'hôte n'est pas celui de l'invité */
  // prêts
  for(const l of c.loans.slice()){const p=Math.min(l.per,l.rest);MW.money(-p,'Remboursement du prêt');l.rest=Math.round((l.rest-p)*100)/100;if(l.rest<=.5) c.loans.splice(c.loans.indexOf(l),1);}
  // paie à la semaine : tous les 7 jours de jeu (jours 8, 15, 22, …), au prorata si l'embauche est récente

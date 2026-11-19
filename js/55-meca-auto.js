@@ -43,7 +43,7 @@ function pieces(c){
  for(const id of ids){if(c.done[id]) continue;if(MWJ.L.newFind(c,id)>=0) continue;
   if(MWJ.inv().length>=MWJ.INV_MAX) ferraille(null);
   if(MWJ.inv().length>=MWJ.INV_MAX) return {ok:false,why:"Inventaire plein : rangez des objets pour que le mécanicien prenne les pièces."};
-  if(aSonCompte()){const p=MWJ.PARTS[id];if(MW.S.money<p.prix) return {ok:false,why:`Pas assez d'argent pour acheter : ${p.nom}.`};MW.money(-p.prix,'Pièces Auto Express : '+p.nom);cout+=p.prix;MWJ.L.invAdd({k:'neuve',id,src:'achat',paye:p.prix});}
+  if(aSonCompte()){const p=MWJ.PARTS[id];if((typeof MWS!=='undefined'?MWS.cash():MW.S.money)<p.prix) return {ok:false,why:`Pas assez d'argent pour acheter : ${p.nom}.`};(typeof MWS!=='undefined'?MWS.biz:MW.money)(-p.prix,'Pièces Auto Express : '+p.nom);cout+=p.prix;MWJ.L.invAdd({k:'neuve',id,src:'achat',paye:p.prix});}
   else MWJ.L.invAdd({k:'neuve',id,src:'etagere'});}
  return {ok:true,cout};}
 /* revend à la ferraille les pièces usagées déposées par le travail automatique (jobId), ou toutes celles qui ne sont pas
@@ -52,7 +52,7 @@ function ferraille(jobIds){
  const inv=MWJ.inv();let t=0,n=0;
  for(let i=inv.length-1;i>=0;i--){const it=inv[i];if(it.k!=='usagee'||MWJ.rendBloq(it)) continue;if(jobIds&&!jobIds.includes(it.job)) continue;
   t+=typeof MWO!=='undefined'&&MWO.scrap?MWO.scrap(it):0;inv.splice(i,1);n++;}
- if(n){MWJ.invUI();if(t) MW.money(t,'Ferraille (travail automatique)');}
+ if(n){MWJ.invUI();if(t) (typeof MWS!=='undefined'?MWS.biz:MW.money)(t,'Ferraille (travail automatique)');}
  return {n,t};}
 
 function hud(t){MW.hud('auto',t?`<b>${svc?'Mode automatique continu':'Travail automatique'}</b> · ${t} · <span class="hint">J : arrêter</span>`:'');}

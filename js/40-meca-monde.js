@@ -87,7 +87,7 @@
    MW.homeInfo()        (interne) met à jour le bouton de l'accueil
    ── Partie à deux (js/56-meca-reseau.js) ──
    MW.net               {live, guest, players()} : live vrai quand deux joueurs sont connectés. Si live : le monde continue derrière le menu d'un joueur
-                        (pause locale seulement) et l'invité n'avance pas l'horloge lui-même (il reçoit celle de l'hôte). js/56 enveloppe MW.money, MW.addMin,
+                        (pause locale seulement) et l'invité n'avance pas l'horloge lui-même (il reçoit celle de l'hôte). js/56 enveloppe MW.addMin,
                         MW.sleep et MW.save ; MW.mapExtra(ctx,X,Y,mini,fs) dessine l'ami sur les cartes ; MW.applyState() relit MW.S après un remplacement sur place.
    Raccourci de test : window.__mw = MW. */
 const MW=(()=>{

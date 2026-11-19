@@ -97,9 +97,39 @@ const caution=p=>2*p.loyer;
 function refreshWorld(){
  for(const p of CAT){const z=MW.zone(p.id);if(z) z.mapTag=own(p.id)?'À vous':'À vendre';}
  placeSigns();}
+/* [société, js/57] un garage acheté appartient à une société (compte du garage, associés) : seul (100 %) ou à deux (parts selon les apports) */
+const myNom=()=>{try{return MWNET.myName();}catch(e){return 'Vous';}};
+const hasSoc=()=>typeof MWS!=='undefined';
+function buyGarage(p,how){
+ const s=MW.S,o=I(),ap=how==='cash'?p.prix:apport(p);
+ if(s.money<ap){MW.toast(how==='cash'?"Pas assez d'argent.":"Pas assez d'argent pour l'apport.",'warn');return false;}
+ MW.money(-ap,(how==='cash'?'Achat : ':'Apport (achat à crédit) : ')+p.nom);
+ MWS.create(p.id,[{pid:MWS.pid(),nom:myNom(),apport:ap}],how==='credit'?{x:pret(p),n:p.credit}:null);
+ o.owned[p.id]={mode:'achat',since:s.day,paidTo:s.day,credit:how==='credit',soc:1};
+ MW.toast(`${p.nom} : bien acquis (société du garage créée, compte du garage à 0).`,'good');
+ refreshWorld();MW.emit('immoChanged',p.id);MW.save();return true;}
+/* achat à deux (hôte) : apports de l'hôte et de l'invité, le reste emprunté par la société */
+api.buyCo=(id,aH,aG,gMoney)=>{
+ const p=BY[id],o=I(),s=MW.S,pn=typeof MWNET!=='undefined'&&MWNET.live()?MWNET.partner():null;
+ const no=t=>{MW.toast(t,'warn');try{MWNET.sendTo({t:'say',txt:t,g:'warn'});}catch(e){}return false;};
+ if(!p||p.kind!=='garage'||!o||o.owned[id]||!pn||!hasSoc()) return false;
+ aH=Math.round(+aH||0);aG=Math.round(+aG||0);
+ if(!reqOk(p)) return no("L'hôte ne remplit pas encore les conditions pour ce garage.");
+ if(aH<=0||aG<=0) return no('Chacun doit apporter une somme.');
+ if(aH+aG>p.prix) return no('Les apports dépassent le prix du garage.');
+ if(aH+aG<apport(p)) return no(`Les apports réunis doivent atteindre 20 % du prix (${fmt(apport(p))}).`);
+ if(s.money<aH) return no("L'hôte n'a pas assez d'argent pour son apport.");
+ if(!(gMoney>=aG)) return no("L'invité n'a pas assez d'argent pour son apport.");
+ const loan=p.prix-aH-aG;
+ MW.money(-aH,'Apport : '+p.nom);MWNET.sendTo({t:'pay',dx:-aG,motif:'Apport : '+p.nom});
+ MWS.create(id,[{pid:MWS.pid(),nom:myNom(),apport:aH},{pid:pn.pid,nom:pn.name,apport:aG}],loan>0?{x:loan,n:p.credit}:null);
+ o.owned[id]={mode:'achat',since:s.day,paidTo:s.day,credit:loan>0,soc:1};
+ MW.toast(`${p.nom} acheté à deux avec ${pn.name} : vos parts suivent vos apports.`,'good');try{MWNET.sendTo({t:'say',txt:`${p.nom} est acheté à deux : voir le compte du garage.`,g:'good'});}catch(e){}
+ refreshWorld();MW.emit('immoChanged',id);MW.save();return true;};
 api.buy=(id,how)=>{
  const p=BY[id],o=I();if(!p||!o||o.owned[id]) return false;
  if(!reqOk(p)){MW.toast('Vous ne remplissez pas encore les conditions pour ce bien.','warn');return false;}
+ if(p.kind==='garage'&&hasSoc()&&(how==='cash'||how==='credit')) return buyGarage(p,how);
  const s=MW.S;
  if(how==='rent'){
   if(!p.loyer||s.money<caution(p)){MW.toast("Pas assez d'argent pour la caution.",'warn');return false;}
@@ -120,6 +150,7 @@ api.sell=id=>{
  if(p.kind==='logement'&&w.mode==='achat'){const left=parkCap()-p.parking;if(o.cars.length>Math.max(0,left)){MW.toast('Reprenez d’abord vos voitures garées ici.','warn');return false;}}
  if(p.kind==='garage'){try{if(MWC.employer().id==='proprio'&&MWC.employer().zone===id) MWC.stopWork();}catch(e){}}
  if(w.mode==='loc'){MW.money(caution(p),'Caution rendue : '+p.nom);}
+ else if(p.kind==='garage'&&hasSoc()&&MWS.has(id)){MWS.dissoudre(id,value(id));MW.toast('Garage revendu : prêt soldé, le reste du compte est partagé selon les parts.','good');}
  else{MW.money(value(id),'Revente : '+p.nom);}
  delete o.owned[id];delete o.stock[id];
  refreshWorld();MW.emit('immoChanged',id);MW.save();return true;};
@@ -129,7 +160,10 @@ MW.on('day',d=>{
  const o=I();if(!o) return;let tot=0;const det=[];
  for(const id in o.owned){const p=BY[id],w=o.owned[id];if(!p){continue;}
   if(!(w.paidTo>0)) w.paidTo=d;
-  while(d-w.paidTo>=7){w.paidTo+=7;const c=w.mode==='loc'?p.loyer:p.charges;tot+=c;det.push([p.nom,c]);
+  while(d-w.paidTo>=7){w.paidTo+=7;const c=w.mode==='loc'?p.loyer:p.charges;
+   if(p.kind==='garage'&&w.mode==='achat'&&hasSoc()&&MWS.ensure(id)) MWS.charge(id,c,'Charges du garage : '+p.nom); /* le garage paie ses charges sur son compte */
+   else tot+=c;
+   det.push([p.nom,c]);
    if(w.mode==='achat'&&p.prestige&&MW.S.rep<80) MW.S.rep=Math.min(80,Math.round((MW.S.rep+p.prestige)*100)/100);}}
  if(tot>0){MW.money(-tot,'Charges de vos biens');o.hist.push({day:d,total:tot,det});while(o.hist.length>8) o.hist.shift();
   if(MW.S.money<0) MW.toast('Votre compte est à découvert : les charges de vos biens pèsent lourd.','crit');}});
@@ -188,6 +222,7 @@ function sheet(p,z,w){
 function fiche(z){
  const p=BY[z.id];if(!p) return;
  const w=own(p.id);
+ if(!w&&hasSoc()&&MWS.mine(p.id)) return MWS.panel(p.id); /* associé d'un garage acheté par l'hôte */
  if(!w) return offer(p,z);
  return mine(p,z,w);}
 api.fiche=fiche;
@@ -198,10 +233,37 @@ function offer(p,z){
  if(!ok) h+='<p class="mw-soon">Vous ne remplissez pas encore toutes les conditions. Avancez dans votre carrière puis revenez.</p>';
  else if(s.money<apport(p)) h+=`<p class="hint">Il vous faut au moins ${esc(fmt(apport(p)))} pour l’apport d’un achat à crédit.</p>`;
  h+=`<p class="hint">Crédit : apport de 20 % (${esc(fmt(apport(p)))}), le reste (${esc(fmt(pret(p)))}) prêté par la banque sur ${p.credit} jours, remboursé chaque jour comme vos autres prêts.</p>`;
- h+=`<div class="mw-btns">${btn('cash','Acheter comptant ('+esc(fmt(p.prix))+')','',!ok||s.money<p.prix)}${btn('credit','Acheter à crédit (apport '+esc(fmt(apport(p)))+')','',!ok||s.money<apport(p))}${p.loyer?btn('rent','Louer ('+esc(fmt(p.loyer))+' par semaine)','',!ok||s.money<caution(p)):''}${p.kind==='usine'?btn('visit','Visiter l’usine'):''}${btn('close','Fermer','ghost')}</div>`;
+ h+=`<div class="mw-btns">${btn('cash','Acheter comptant ('+esc(fmt(p.prix))+')','',!ok||s.money<p.prix)}${btn('credit','Acheter à crédit (apport '+esc(fmt(apport(p)))+')','',!ok||s.money<apport(p))}${p.loyer?btn('rent','Louer ('+esc(fmt(p.loyer))+' par semaine)','',!ok||s.money<caution(p)):''}${p.kind==='usine'?btn('visit','Visiter l’usine'):''}${p.kind==='garage'&&hasSoc()&&typeof MWNET!=='undefined'&&MWNET.live()?btn('duo','Acheter à deux…','',!ok):''}${btn('close','Fermer','ghost')}</div>`;
  MW.panel(z.nom+' · À vendre',h,{wide:true,onClick:a=>{
   if(a==='cash'||a==='credit'||a==='rent'){if(api.buy(p.id,a)){fiche(z);}}
+  else if(a==='duo'){offer2(p,z);}
   else if(a==='visit'){MW.closePanel();try{MWU.enter(p.id);}catch(e){}}}});}
+/* ── achat à deux : chacun propose son apport, l'autre accepte ── */
+let off=null; /* proposition en cours : {id, a (apport de celui qui propose), money, mine (je suis celui qui propose)} */
+function offer2(p,z){
+ const s=MW.S,pn=MWNET.partner();
+ MW.panel('Acheter à deux · '+p.nom,`<p>${esc(p.nom)} : ${esc(fmt(p.prix))}. Vous proposez votre apport à <b>${esc(pn.name)}</b>, qui répond par le sien. Le garage est acheté par une société commune : les parts suivent les apports, le reste du prix est emprunté (les apports réunis doivent faire au moins ${esc(fmt(apport(p)))}, soit 20 %).</p>
+  <label class="mw-lab">Votre apport (vous avez ${esc(fmt(s.money))})<input id="mwA2" class="mw-in" type="number" min="1" step="100" value="${Math.min(Math.round(s.money),Math.round(p.prix/2))}"></label>
+  <div class="mw-btns">${btn('send','Proposer à '+esc(pn.name))}${btn('close','Annuler','ghost')}</div>`,
+  {onClick:a=>{if(a==='send'){const v=Math.round(+document.getElementById('mwA2').value||0);
+   if(v<=0||v>s.money){MW.toast("Apport impossible : vous n'avez pas cette somme.",'warn');return;}
+   off={id:p.id,a:v,money:s.money,mine:true};MWNET.sendSo({k:'offer',id:p.id,a:v,money:s.money,nom:myNom()});MW.closePanel();MW.toast(`Proposition envoyée à ${pn.name} : apport de ${fmt(v)}.`,'good');}}});}
+function offerIn(m){ /* on reçoit une proposition : on répond par son apport */
+ const p=BY[m.id],s=MW.S;if(!p) return;off={id:m.id,a:m.a,money:m.money,mine:false};
+ MW.panel('Proposition d’achat à deux',`<p><b>${esc(m.nom||'Votre ami')}</b> propose d'acheter <b>${esc(p.nom)}</b> (${esc(fmt(p.prix))}) à deux, avec un apport de <b>${esc(fmt(m.a))}</b>. Quel est votre apport ? Le reste est emprunté ; les parts suivent les apports (au moins ${esc(fmt(apport(p)))} d'apports réunis).</p>
+  <label class="mw-lab">Votre apport (vous avez ${esc(fmt(s.money))})<input id="mwA2" class="mw-in" type="number" min="1" step="100" value="${Math.max(1,Math.min(Math.round(s.money),Math.round(p.prix/2)))}"></label>
+  <div class="mw-btns">${btn('ok','Accepter')}${btn('no','Refuser','ghost')}</div>`,
+  {onClick:a=>{
+   if(a==='no'){MWNET.sendSo({k:'offerno',id:m.id});off=null;MW.closePanel();return;}
+   if(a==='ok'){const v=Math.round(+document.getElementById('mwA2').value||0);if(v<=0||v>s.money){MW.toast("Apport impossible : vous n'avez pas cette somme.",'warn');return;}
+    MW.closePanel();
+    if(MWNET.role()==='host'){api.buyCo(m.id,v,m.a,m.money);off=null;}
+    else{MWNET.sendSo({k:'offerok',id:m.id,a:v,money:s.money});}}}});}
+/* messages d'achat à deux venus de l'autre joueur (js/56) */
+api.onSo=m=>{
+ if(m.k==='offer') offerIn(m);
+ else if(m.k==='offerno'){off=null;MW.toast("Votre ami refuse l'achat à deux.",'warn');}
+ else if(m.k==='offerok'&&off&&off.mine&&off.id===m.id&&MWNET.role()==='host'){const a=off.a;off=null;api.buyCo(m.id,a,m.a,m.money);}};
 function mine(p,z,w){
  const o=I(),s=MW.S;let h=sheet(p,z,w),btns='';
  if(p.kind==='logement'){
@@ -215,7 +277,8 @@ function mine(p,z,w){
   const here=!!e&&e.id==='proprio'&&e.zone===p.id;
   if(here) h+='<p class="mw-soon">Vous travaillez ici à votre compte : les clients arrivent de 8 h à 19 h, approchez-vous d’un pont.</p>';
   else{h+='<p class="hint">Les clients ne viennent que si vous travaillez ici.'+(e&&e.id!=='aucun'?' Vous quitterez votre poste actuel : '+esc(e.nom)+'.':'')+'</p>';}
-  btns+=here?btn('stopwork','Cesser de travailler ici','ghost'):btn('work','Travailler ici à mon compte');}
+  btns+=here?btn('stopwork','Cesser de travailler ici','ghost'):btn('work','Travailler ici à mon compte');
+  if(hasSoc()&&MWS.ensure(p.id)) btns+=btn('compte','Compte du garage');}
  if(p.kind==='usine'){
   let lines=[],okF=false;try{lines=MWC.foundLines(p.capital);okF=MWC.foundOk(p.capital);}catch(e){}
   h+='<h3 class="mw-h3">Fonder votre marque ici</h3><ul class="mw-cond">'+lines.map(x=>`<li class="${x.ok?'ok':'no'}">${x.ok?'✓':'✗'} ${esc(x.t)} <small>(${x.now})</small></li>`).join('')+'</ul>';
@@ -232,6 +295,7 @@ function mine(p,z,w){
   else if(a==='cars') carsPanel(p.id,z);
   else if(a==='work'){MWC.workAt(p.id);MW.toast(`Vous travaillez à votre compte au ${p.nom}.`,'good');fiche(z);}
   else if(a==='stopwork'){MWC.stopWork();fiche(z);}
+  else if(a==='compte') MWS.panel(p.id);
   else if(a==='sell'){if(api.sell(p.id)){MW.closePanel();}else fiche(z);}
   else if(a==='biens') carnet();
   else if(a==='found'){const inp=document.getElementById('mwBrand');api.found(p.id,inp&&inp.value.trim());if(own(p.id)) fiche(z);}
@@ -283,13 +347,15 @@ function carnet(){
  h+='<h3 class="mw-h3">Vos biens</h3>';
  const mine=CAT.filter(p=>own(p.id));
  h+=mine.length?'<div class="mw-card">'+mine.map(p=>{const w=own(p.id);
-  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag ok">${KIND[p.kind]}${w.mode==='loc'?' · loué':''}</span><br><small>${w.mode==='loc'?'Loyer':'Charges'} ${esc(fmt(weekly(p.id)))} par semaine${w.mode==='achat'?' · valeur '+esc(fmt(value(p.id))):''}</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>'
+  return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag ok">${KIND[p.kind]}${w.mode==='loc'?' · loué':''}</span><br><small>${w.mode==='loc'?'Loyer':'Charges'} ${esc(fmt(weekly(p.id)))} par semaine${w.mode==='achat'?' · valeur '+esc(fmt(value(p.id))):''}</small></span>${p.kind==='garage'&&hasSoc()&&MWS.ensure(p.id)?btn('acct:'+p.id,'Compte du garage','sm'):''}${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>'
   :'<p class="hint">Vous ne possédez aucun bien. Les bâtiments « À vendre » sont indiqués en vert sur la carte (touche M) et par un panneau sur leur façade.</p>';
+ if(hasSoc()){const cp=MWS.copies().filter(x=>!own(x.zid));
+  if(cp.length) h+='<h3 class="mw-h3">Parts dans une société</h3><div class="mw-card">'+cp.map(x=>`<div class="mw-row"><span><b>${esc(x.nom)}</b><br><small>${esc(x.pct+' %')} · garage de ${esc(x.hote||'votre ami')} (le compte s'ouvre quand vous jouez avec lui)</small></span>${MWS.has(x.zid)?btn('acct:'+x.zid,'Compte du garage','sm'):''}</div>`).join('')+'</div>';}
  const sale=CAT.filter(p=>!own(p.id));
  if(sale.length){h+='<h3 class="mw-h3">À vendre</h3><div class="mw-card">'+sale.map(p=>{const ok=reqOk(p);
   return `<div class="mw-row"><span><b>${esc(p.nom)}</b> <span class="mw-tag${ok?' ok':' warn'}">${KIND[p.kind]}${ok?'':' · conditions à remplir'}</span><br><small>${esc(fmt(p.prix))} · charges ${esc(fmt(p.charges))} par semaine${(()=>{try{return p.kind==='logement'?' · '+MWL.info(p.id).surface+' m²':'';}catch(e){return '';}})()}</small></span>${btn('go:'+p.id,'Repérer','sm ghost')}</div>`;}).join('')+'</div>';}
  h+=`<div class="mw-btns">${btn('close','Fermer','ghost')}</div>`;
- MW.panel('Mes biens',h,{wide:true,onClick:a=>{if(a.startsWith('go:')){const id=a.slice(3);MW.closePanel();MW.setMarker(id,BY[id]?BY[id].nom:'');MW.toast('Repère placé : '+(BY[id]?BY[id].nom:id)+' (carte : M).','info');}}});}
+ MW.panel('Mes biens',h,{wide:true,onClick:a=>{if(a.startsWith('acct:')){MWS.panel(a.slice(5));return;}if(a.startsWith('go:')){const id=a.slice(3);MW.closePanel();MW.setMarker(id,BY[id]?BY[id].nom:'');MW.toast('Repère placé : '+(BY[id]?BY[id].nom:id)+' (carte : M).','info');}}});}
 api.panel=carnet;
 MW.addButton('biens','Mes biens (B)',()=>{if(MW.S) carnet();});
 MW.on('key',k=>{if(k==='b'&&MW.S) carnet();});
