@@ -195,6 +195,70 @@ async function mecaDeuxJoueurs(page, env) {
   verifier(await eb(() => JSON.stringify(__mw.S.xp)) !== xpB0, "l'invité n'a pas gagné d'expérience");
   verifier(await ea(() => JSON.stringify(__mw.S.xp)) === xpA1, "l'expérience de l'invité a fuité chez l'hôte");
 
+  // 7a. tâches bien divisées : une voiture par joueur ; étagère, servante et mode auto ne servent que SES voitures ; on peut aider l'ami
+  await ea(() => { __mwj.clear(); __mw.S.inv.length = 0; __mw.S.min = 600; __mw.S.jobs.next = 1e12; });
+  await eb(() => { __mw.S.inv.length = 0; });
+  await attendreCondition(B, () => __mwj.jobs().length === 0, "l'invité garde d'anciennes voitures", 15000);
+  await ea(() => { __mwj.spawn({ tpl: 'vidange', silencieux: true, force: true, rend: false }); __mwj.spawn({ tpl: 'plaq_av', silencieux: true, force: true, rend: false }); });
+  await attendreCondition(B, () => __mwj.jobs().length === 2, "l'invité ne reçoit pas les deux voitures", 15000);
+  const [vid, plq] = await ea(() => { const l = __mwj.jobs(); return [l.find(c => c.ordre.includes('huile')).id, l.find(c => c.ordre.includes('plaq_av')).id]; });
+  const presV = (p, id) => p.evaluate(id => { const c = __mwj.jobs().find(x => x.id === id), q = __mw.zone(c.zone).ponts[c.pont]; const x = q.x + Math.cos(q.ry) * 1.6, z = q.z - Math.sin(q.ry) * 1.6; __mw.teleport(x, z, Math.atan2(q.x - x, q.z - z), .1); MWG.ensure(c); }, id);
+  verifier(await ea(() => __mwj.jobs().every(c => !c.resp)), 'des voitures neuves ont déjà un responsable');
+  await presV(A, vid);
+  await presV(B, plq);
+  // le premier geste fait de l'hôte sa voiture, celui de l'invité la sienne
+  verifier(!(await ea(() => MWG.run('lift', 'raise'))), "l'hôte ne peut pas lever le pont de sa voiture");
+  verifier(!(await eb(() => MWG.run('lift', 'raise'))), "l'invité ne peut pas lever le pont de sa voiture");
+  const hp = await ea(() => __mws.pid()), gp = await eb(() => __mws.pid());
+  await attendreCondition(A, ([v, q, h, g]) => { const l = __mwj.jobs(); return l.find(c => c.id === v).resp === h && l.find(c => c.id === q).resp === g; }, "les deux voitures n'ont pas leur responsable côté hôte", 15000, [vid, plq, hp, gp]);
+  await attendreCondition(B, ([v, q, h, g]) => { const l = __mwj.jobs(); return l.find(c => c.id === v).resp === h && l.find(c => c.id === q).resp === g; }, "les deux voitures n'ont pas leur responsable côté invité", 15000, [vid, plq, hp, gp]);
+  const ban = await eb(() => document.querySelector('[data-h="job"]').textContent);
+  verifier(/\(votre ami\)/.test(ban) && ban.split('(votre ami)').length === 2, `le bandeau de l'atelier ne marque pas la voiture de l'ami : ${ban}`);
+  await eb(() => MWJ.openCarnet());
+  await attendreVisible(B, '.mw-pn', "le carnet ne s'ouvre pas");
+  verifier(await eb(() => /\(votre ami\)/.test(document.querySelector('.mw-pn').textContent)), "le carnet ne marque pas la voiture de l'ami");
+  await eb(() => __mw.closePanel());
+  // étagère : chacun ne prend que les pièces de sa voiture
+  for (const [p, nom] of [[A, 'hôte'], [B, 'invité']]) {
+    await p.evaluate(() => __mwj.etagere('garage1'));
+    await attendreVisible(p, '.mw-pn [data-mw="need"]', `l'étagère de l'${nom} n'offre pas « Prendre les pièces des ordres en cours »`);
+    await p.click('.mw-pn [data-mw="need"]');
+    await p.evaluate(() => __mw.closePanel());
+  }
+  const piA = await ea(() => __mw.S.inv.filter(i => i.k === 'neuve').map(i => i.id).sort().join());
+  const piB = await eb(() => __mw.S.inv.filter(i => i.k === 'neuve').map(i => i.id).sort().join());
+  verifier(piA === 'filtre_huile,huile', `l'hôte devrait ne recevoir que les pièces de sa vidange (${piA})`);
+  verifier(piB === 'plaq_av', `l'invité devrait ne recevoir que les plaquettes de sa voiture (${piB})`);
+  // servante : chacun ne prend que les outils de sa voiture
+  for (const p of [A, B]) {
+    await p.evaluate(() => __mwj.servante('garage1'));
+    await attendreVisible(p, '.mw-pn [data-mw="need"]', 'la servante n\'offre pas « Prendre les outils de l\'ordre »');
+    await p.click('.mw-pn [data-mw="need"]');
+    await p.evaluate(() => __mw.closePanel());
+  }
+  const ta = await ea(() => __mw.S.inv.filter(i => i.k === 'outil').map(i => i.id));
+  const tb = await eb(() => __mw.S.inv.filter(i => i.k === 'outil').map(i => i.id));
+  verifier(ta.includes('bac') && ta.includes('entonnoir') && !ta.includes('boulonneuse') && !ta.includes('presse'), `outils de l'hôte inattendus (vidange seulement) : ${ta}`);
+  verifier(tb.includes('boulonneuse') && tb.includes('presse') && !tb.includes('bac') && !tb.includes('entonnoir'), `outils de l'invité inattendus (plaquettes seulement) : ${tb}`);
+  // aider l'ami : on peut ouvrir le capot de SA voiture, elle reste la sienne ; mais ses pièces ne sont pas prises à sa place
+  await presV(A, plq);
+  verifier(!(await ea(() => MWG.run('hood', 'hopen'))), "l'hôte ne peut pas aider sur la voiture de l'ami");
+  await attendreCondition(B, q => __mwj.jobs().find(c => c.id === q).st.capot === 1, "l'aide de l'hôte n'arrive pas sur la voiture de l'ami", 15000, plq);
+  verifier(await ea(([q, g]) => __mwj.jobs().find(c => c.id === q).resp === g, [plq, gp]), "la voiture de l'ami a changé de responsable après une aide");
+  // mode auto : refuse la voiture de l'ami (touche J à côté d'elle), le mode continu ne prend que la mienne
+  await ea(() => { __mw.S.inv.length = 0; MWG.release(); });
+  await presV(A, plq);
+  await ea(() => __mwauto.start(false));
+  verifier(await ea(() => !__mwauto.busy()), "le travail automatique démarre sur la voiture de l'ami");
+  verifier(await ea(() => [...document.querySelectorAll('.mw-t')].some(e => /à votre ami/.test(e.textContent))), "le refus du travail automatique n'est pas expliqué");
+  await ea(() => { MWG.release(); __mwauto.service(); });
+  await attendreCondition(A, v => __mwauto.cont() && MWG.rig() && MWG.rig().c.id === v, "le mode continu ne va pas à la voiture de l'hôte", 40000, vid);
+  await ea(() => __mwauto.stop());
+  verifier(await ea(q => { const c = __mwj.jobs().find(x => x.id === q); return !c.auto && Object.keys(c.done).length === 0 && !__mw.S.inv.some(i => i.k === 'neuve' && i.id === 'plaq_av'); }, plq), "le mode automatique a touché la voiture ou les pièces de l'ami");
+  await ea(() => { __mwj.clear(); __mw.S.inv.length = 0; MWG.release(); });
+  await eb(() => { MWG.release(); __mw.S.inv.length = 0; });
+  await attendreCondition(B, () => __mwj.jobs().length === 0, "l'invité garde des voitures après le nettoyage", 15000);
+
   // 7b. deux salaires, chacun dans sa propre sauvegarde (employeur salarié de l'hôte ; arrivée à des dates différentes → paies différentes)
   await ea(() => { MWC.hire('ventoux'); });
   await attendreCondition(B, () => MWC.employer().id === 'ventoux', "l'invité ne suit pas le poste de l'hôte", 15000);

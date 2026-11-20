@@ -11,7 +11,8 @@
      · à deux : un versement de dividendes ou un changement de salaire est proposé par l'un et doit être accepté par l'autre ;
        jamais plus que le solde du compte ; l'exercice dure 360 jours de jeu, avec un bilan annuel (chiffre d'affaires, charges, bénéfice, impôts).
    Simplifications : le remboursement du prêt compte comme une charge ; pas de TVA ; les charges du bâtiment sont celles de js/52.
-   Le Garage du Coin repris par le joueur (employeur « patron », js/42) garde son argent personnel : seuls les garages achetés ont une société.
+   Le Garage du Coin repris par le joueur (employeur « patron », js/42) a aussi sa société (clé « garage1 ») : fonds de commerce et fonds de roulement en apport,
+   loyer, pièces et factures sur le compte. Compte courant d'associé : ce qu'on y verse de sa poche (MWS.fund) peut être repris (MWS.retirer), non taxé.
 
    ═══ En partie à deux ═══
    L'hôte fait autorité : la société est dans SA sauvegarde (identifiant et prénom de chaque associé). L'invité reçoit une copie de l'état
@@ -22,6 +23,7 @@
    MWS.get(zid) / MWS.has(zid)      société du garage `zid` (ou null)        MWS.active()  zone de la société où le joueur travaille (ou null)
    MWS.cash()                       solde dont dispose le joueur pour ses achats professionnels (compte du garage, sinon argent personnel)
    MWS.biz(dx, motif)               mouvement professionnel : compte du garage si le joueur travaille dans son garage, sinon argent personnel
+   MWS.fund(zid, x) / MWS.retirer(zid, x)   verse de sa poche au compte (compte courant) / reprend ses versements
    MWS.charge(zid, x, motif)        charges du bâtiment (js/52)               MWS.create(zid, parts, pret)  fonde la société (achat du garage)
    MWS.salaire(zid, pid, brut)      fixe un salaire mensuel (proposé à l'autre s'il y a deux associés)
    MWS.dividendes(zid, montant)     verse des dividendes (idem)               MWS.accepter(zid) / MWS.refuser(zid)   réponse à la proposition en attente
@@ -41,7 +43,7 @@ const NET=()=>typeof MWNET!=='undefined'?MWNET:null;
 let mirror=null,hostPid='',hostNom='';
 const pid=()=>{const s=MW.S;if(!s.pid) s.pid='p'+Math.random().toString(36).slice(2,12);return s.pid;};
 const myNom=()=>{let n='';try{n=NET()&&NET().myName?NET().myName():'';}catch(e){}if(!n){try{n=localStorage.getItem('bea.meca.prenom')||'';}catch(e){}}return n||'Vous';};
-api.pid=pid;
+api.pid=pid;api.myNom=()=>myNom();
 const book=()=>isGuest()?(mirror||{}):(MW.S.soc||(MW.S.soc={}));
 const get=zid=>book()[zid]||null;
 api.get=get;api.has=zid=>!!get(zid);
@@ -60,13 +62,14 @@ api.create=(zid,parts,pret)=>{
  const s=MW.S;s.soc=s.soc||{};const z=MW.zone(zid);
  const tot=parts.reduce((a,p)=>a+(+p.apport||0),0)||1;let acc=0;
  const ps=parts.map((p,i)=>{const pct=i===parts.length-1?r2(100-acc):r2((+p.apport||0)/tot*100);acc=r2(acc+pct);return {pid:p.pid,nom:p.nom,pct,apport:+p.apport||0};});
- const c={zid,nom:'Société '+(z?z.court:zid),compte:0,parts:ps,prets:[],ops:[],ex:{debut:s.day,ca:0,ch:0,div:0,pfu:0,sal:0,is:0},bilans:[],sal:{},due:{},next:s.day+TAX.mois,prop:null,depuis:s.day};
+ const c={zid,nom:'Société '+(z?z.court:zid),compte:0,parts:ps,prets:[],ops:[],cc:{},ex:{debut:s.day,ca:0,ch:0,div:0,pfu:0,sal:0,is:0},bilans:[],sal:{},due:{},next:s.day+TAX.mois,prop:null,depuis:s.day};
  if(pret&&pret.x>0){const n=pret.n||240,tot2=Math.round(pret.x*(1+.07*n/365));c.prets.push({rest:tot2,per:Math.ceil(tot2/n),n,x:pret.x});}
  s.soc[zid]=c;return c;};
 /* ancienne sauvegarde : un garage déjà acheté reçoit sa société (compte à 0) */
 function ensure(zid){
  if(isGuest()||get(zid)) return get(zid);
  let ok=false;try{ok=MWI.owned(zid)&&MWI.CAT.some(p=>p.id===zid&&p.kind==='garage');}catch(e){}
+ if(!ok){try{ok=zid==='garage1'&&MWC.employer().id==='patron';}catch(e){}} /* Garage du Coin repris en patron */
  return ok?api.create(zid,[{pid:pid(),nom:myNom(),apport:0}]):null;}
 api.ensure=ensure;
 function op(c,dx,motif,cat){
@@ -75,7 +78,7 @@ function op(c,dx,motif,cat){
  c.ops.push({t:MW.timeStr(),dx:r2(dx),motif,solde:c.compte});while(c.ops.length>30) c.ops.shift();
  return c.compte;}
 api.active=()=>{
- try{const e=MWC.employer();if(e&&e.id==='proprio'&&e.zone){if(get(e.zone)) return e.zone;if(!isGuest()&&ensure(e.zone)) return e.zone;}}catch(x){}
+ try{const e=MWC.employer();if(e&&(e.id==='proprio'||e.id==='patron')&&e.zone){if(get(e.zone)) return e.zone;if(!isGuest()&&ensure(e.zone)) return e.zone;}}catch(x){}
  return null;};
 api.cash=()=>{const z=api.active();return z?get(z).compte:MW.S.money;};
 const note=(dx,motif)=>{try{MW.toast((dx>0?'+ ':'− ')+fmt(Math.abs(dx))+' · '+motif+' (compte du garage)',dx>0?'good':'warn');}catch(e){}};
@@ -84,7 +87,7 @@ api.biz=(dx,motif)=>{
  if(isGuest()){NET().sendSoc({k:'biz',zid:z,dx,motif});note(dx,motif);return get(z).compte;}
  const c=get(z);op(c,dx,motif,dx>0?'ca':'ch');note(dx,motif);return c.compte;};
 api.charge=(zid,x,motif)=>{const c=get(zid);if(!c) return false;op(c,-x,motif,'ch');return true;};
-api.deposit=(zid,x,motif)=>{const c=get(zid);if(!c) return false;op(c,x,motif||'Apport en compte courant','cap');return true;}; /* hors bilan : apport d'associé */
+api.deposit=(zid,x,motif)=>{const c=get(zid)||ensure(zid);if(!c) return false;op(c,x,motif||'Apport en compte courant','cap');return true;}; /* hors bilan : apport d'associé */
 
 /* ═══ Versements aux associés ═══ */
 const partOf=(c,p)=>c.parts.find(x=>x.pid===p)||null;
@@ -113,11 +116,25 @@ function applyDiv(c,D){
  say(`Dividendes versés : ${fmt(D)} brut, ${fmt(r2(D-pfuT))} net après le prélèvement forfaitaire de 30 %.`,'good');return null;}
 function say(t,g){try{MW.toast(t,g||'info');}catch(e){}if(live()&&!isGuest()&&NET()&&NET().sendTo) try{NET().sendTo({t:'say',txt:t,g:g||'info'});}catch(e){}}
 
+/* compte courant d'associé : on verse de sa poche, on peut reprendre ce qu'on a versé (non taxé) */
+api.fund=(zid,x)=>{
+ x=Math.round(+x||0);const c=get(zid)||ensure(zid);if(!c||!(x>0)) return false;
+ if(MW.S.money<x){say("Pas assez d'argent personnel.",'warn');return false;}
+ MW.money(-x,'Versement au compte du garage');
+ if(isGuest()){NET().sendSoc({k:'dep',zid,x});return true;}
+ execDep(c,{pid:pid(),nom:myNom()},x);return true;};
+api.retirer=(zid,x)=>{x=Math.round(+x||0);if(!(x>0)) return false;return !request({k:'wd',zid,x});};
+function execDep(c,by,x){c.cc=c.cc||{};c.cc[by.pid]=r2((c.cc[by.pid]||0)+x);op(c,x,'Versement de '+by.nom+' (compte courant)','cap');}
+
 /* ═══ Demandes (l'hôte exécute ; l'invité envoie) ═══ */
 function other(c,by){return c.parts.find(x=>x.pid!==by.pid)||null;}
 function exec(m,by){ /* hôte : by = {pid,nom} de celui qui demande */
  const c=get(m.zid);if(!c) return 'Société introuvable.';
  const me=partOf(c,by.pid);if(!me) return "Vous n'êtes pas associé de ce garage.";
+if(m.k==='dep'){const x=r2(+m.x||0);if(!(x>0)) return 'Montant invalide.';execDep(c,by,x);return null;}
+ if(m.k==='wd'){const x=r2(+m.x||0);c.cc=c.cc||{};const dispo=Math.min(c.cc[by.pid]||0,Math.max(0,c.compte));
+  if(!(x>0)||x>dispo+.005) return `Vous pouvez reprendre au plus ${fmt(dispo)} (vos versements, dans la limite du solde).`;
+  c.cc[by.pid]=r2((c.cc[by.pid]||0)-x);op(c,-x,'Reprise de compte courant par '+by.nom,'cap');payTo(c,by.pid,x,'Reprise de votre compte courant (garage)');say(`${by.nom} reprend ${fmt(x)} de son compte courant.`,'info');return null;}
  if(m.k==='sal'||m.k==='div'){
   if(!partOf(c,m.pid||by.pid)&&m.k==='sal') return 'Associé inconnu.';
   if(c.parts.length<2){return m.k==='sal'?(applySal(c,m.pid,m.brut),null):applyDiv(c,m.montant);}
@@ -188,6 +205,8 @@ function html(c){
  let h=`<div class="mw-card">${row('Solde du compte',E(fmt(c.compte)))}${row('Associés',c.parts.map(p=>`${E(p.nom)} ${p.pct} %`).join(' · '))}${c.prets.length?row('Prêt du garage (reste à rembourser)',E(fmt(c.prets.reduce((a,l)=>a+l.rest,0)))):''}</div>`;
  if(pr){const mine=pr.by.pid===me;
   h+=`<div class="mw-card"><b>Proposition en attente</b><br>${E(pr.by.nom)} propose ${pr.k==='div'?`de verser <b>${E(fmt(+pr.montant))}</b> de dividendes (brut)`:`un salaire de <b>${E(fmt(+pr.brut))}</b> brut par mois pour ${E((partOf(c,pr.pid)||{}).nom||'')}`}.<div class="mw-btns">${mine?`<small>En attente de l'accord de votre associé.</small>${btn('ref','Retirer','ghost')}`:`${btn('acc','Accepter')}${btn('ref','Refuser','ghost')}`}</div></div>`;}
+ const cc=(c.cc&&c.cc[me])||0;
+ h+=`<h3 class="mw-h3">Votre compte courant</h3><div class="mw-card"><div class="mw-row"><span>Vos versements repris plus tard, sans impôt : <b>${E(fmt(cc))}</b><br><small>Argent de votre poche : ${E(fmt(MW.S.money))}</small></span><span><input id="mwCc" class="mw-in" type="number" min="0" step="50" placeholder="montant" style="width:6.5em"> ${btn('fund','Verser','sm')}${btn('wd','Reprendre','sm',cc<=0)}</span></div></div>`;
  h+='<h3 class="mw-h3">Salaires mensuels (versés tous les 30 jours)</h3><div class="mw-card">';
  for(const p of c.parts){const b=c.sal[p.pid]||0;
   h+=`<div class="mw-row"><span>${E(p.nom)}<br><small>${b?`Brut ${E(fmt(b))} · coût pour le garage ${E(fmt(r2(b*(1+TAX.chPat))))} · net ${E(fmt(r2(b*(1-TAX.chSal))))}`:'Pas de salaire'}</small></span><span><input id="mwSal_${E(p.pid)}" class="mw-in" type="number" min="0" step="50" value="${b||''}" placeholder="brut" style="width:6.5em"> ${btn('sal:'+p.pid,multi?'Proposer':'Fixer','sm',!!pr)}</span></div>`;}
@@ -209,6 +228,8 @@ api.panel=zid=>{
    const rd=id=>{const i=document.getElementById(id);return i?+i.value:0;};
    if(a.startsWith('sal:')){const p=a.slice(4);api.salaire(zid,p,rd('mwSal_'+p));}
    else if(a==='div') api.dividendes(zid,rd('mwDiv'));
+   else if(a==='fund') api.fund(zid,rd('mwCc'));
+   else if(a==='wd') api.retirer(zid,rd('mwCc'));
    else if(a==='acc') api.accepter(zid);
    else if(a==='ref') api.refuser(zid);
    setTimeout(()=>{if(panelZ===zid) api.panel(zid);},isGuest()?400:0);}});};

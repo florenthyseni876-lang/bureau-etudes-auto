@@ -273,10 +273,13 @@ function counterCoin(z){
  if(c.emp==='apprenti') extra=`<p>Pour devenir mécanicien : rendre au moins ${PROMO.jobs} voitures (vous : ${c.stats.jobs}) et atteindre le niveau ${PROMO.niv} en entretien (vous : ${level('entretien')}).</p>`;
  if(c.emp==='meca') extra=`<p>Le patron songe à prendre sa retraite. Reprendre le fonds de commerce : <b>${esc(fmt(OWN.prix))}</b>, plus de quoi acheter vos premières pièces (gardez ${esc(fmt(OWN.reserve))} en poche). Loyer et charges : ${esc(fmt(EMP.patron.loyer))} par jour de jeu. Vous encaisseriez toutes les factures, mais paieriez vous-même les pièces : un client mécontent ou une pièce changée pour rien, et c'est vous qui perdez.</p>${condHTML(OWN.req)}`;
  if(c.emp==='patron') extra=`<p>Vous êtes propriétaire du garage. Loyer et charges : ${esc(fmt(EMP.patron.loyer))} par jour de jeu.</p>`;
- MW.panel(z.nom,`<p>Vous travaillez ici : <b>${esc(e.nom)}</b>.</p>${extra}<div class="mw-btns">${c.emp==='meca'?btn('buy','Reprendre le garage ('+esc(fmt(OWN.prix))+')','',!okAll(OWN.req)||MW.S.money<OWN.prix+OWN.reserve):''}${c.emp==='patron'?btn('sell','Revendre le fonds ('+esc(fmt(OWN.prix*.6))+')','ghost'):''}${btn('resign','Démissionner','ghost')}${btn('close','Fermer','ghost')}</div>`,
+ MW.panel(z.nom,`<p>Vous travaillez ici : <b>${esc(e.nom)}</b>.</p>${extra}<div class="mw-btns">${c.emp==='meca'?btn('buy','Reprendre le garage ('+esc(fmt(OWN.prix))+')','',!okAll(OWN.req)||MW.S.money<OWN.prix+OWN.reserve):''}${c.emp==='patron'?btn('compte','Compte du garage')+btn('sell','Revendre le fonds ('+esc(fmt(OWN.prix*.6))+')','ghost'):''}${btn('resign','Démissionner','ghost')}${btn('close','Fermer','ghost')}</div>`,
   {onClick:a=>{
-   if(a==='buy'){MW.money(-OWN.prix,'Reprise du Garage du Coin');hire('patron');MW.closePanel();say('Le Garage du Coin est à vous ! Vous gardez la main-d\'œuvre, mais payez les pièces et le loyer.','good');}
-   else if(a==='sell'){MW.money(OWN.prix*.6,'Revente du fonds de commerce');hire('meca');MW.closePanel();}
+   if(a==='buy'){MW.money(-OWN.prix,'Reprise du Garage du Coin');hire('patron');
+    if(typeof MWS!=='undefined'){MWS.create('garage1',[{pid:MWS.pid(),nom:MWS.myNom(),apport:OWN.prix}]);MWS.fund('garage1',OWN.reserve);} /* le fonds de roulement part de votre poche vers le compte du garage */
+    MW.closePanel();say('Le Garage du Coin est à vous ! Une société est créée : son compte du garage paie les pièces et le loyer et reçoit les factures.','good');}
+   else if(a==='compte'){if(typeof MWS!=='undefined'){MWS.ensure('garage1');MWS.panel('garage1');}}
+   else if(a==='sell'){if(typeof MWS!=='undefined'&&MWS.has('garage1')) MWS.dissoudre('garage1',OWN.prix*.6);else MW.money(OWN.prix*.6,'Revente du fonds de commerce');hire('meca');MW.closePanel();}
    else if(a==='resign'){resign();MW.closePanel();say('Vous avez quitté votre poste.','warn');}}});}
 
 /* ── Centre de formation ── */
@@ -580,7 +583,7 @@ MW.on('money',(dx,motif)=>{if(dx>0&&/salaire|paie/i.test(motif||'')){const c=C()
 MW.on('day',d=>{
  const c=C(),e=employer();
  // loyer du garage
- if(e.loyer&&!(MW.net&&MW.net.live&&MW.net.guest)) MW.money(-e.loyer,'Loyer du garage'); /* [réseau] le loyer du garage de l'hôte n'est pas celui de l'invité */
+ if(e.loyer&&!(MW.net&&MW.net.live&&MW.net.guest)) (typeof MWS!=='undefined'?MWS.biz:MW.money)(-e.loyer,'Loyer du garage'); /* patron : payé par le compte du garage */ /* [réseau] le loyer du garage de l'hôte n'est pas celui de l'invité */
  // prêts
  for(const l of c.loans.slice()){const p=Math.min(l.per,l.rest);MW.money(-p,'Remboursement du prêt');l.rest=Math.round((l.rest-p)*100)/100;if(l.rest<=.5) c.loans.splice(c.loans.indexOf(l),1);}
  // paie à la semaine : tous les 7 jours de jeu (jours 8, 15, 22, …), au prorata si l'embauche est récente

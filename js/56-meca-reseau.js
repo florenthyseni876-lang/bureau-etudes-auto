@@ -182,6 +182,7 @@ function hostWelcome(m){
  other={name:cleanName(m.name)===myName?cleanName(m.name).slice(0,11)+' (2)':cleanName(m.name),pid:String(m.pid||'').slice(0,20),tgt:null,cur:null,seen:0,speed:0};
  const S=MW.S,C=(typeof MWC!=='undefined'&&MWC.state)?MWC.state():(S.career||{});
  const cars=jobs().filter(c=>!c.noir),J=MWJ.state(),pl=MW.player();
+ for(const c of cars) delete c.resp; /* nouvelle partie à deux : plus de responsable de voiture */
  startLive();
  for(const c of cars){lastN[c.id]=clone(c);lastStr[c.id]=JSON.stringify(c);}
  send({t:'welcome',v:1,name:myName,pid:MWS.pid(),day:S.day,min:S.min,rep:S.rep||0,soc:clone(S.soc||{}),seq:J.seq,next:J.next,file:clone(J.file)||[],cars:clone(cars),
@@ -427,6 +428,7 @@ function leave(why,o){
  if(link){if(hadLink&&!o.noBye){try{link.send({t:'bye'});}catch(e){}}try{link.close();}catch(e){}link=null;}
  N.live=false;N.guest=false;N.sleeping=false;role=null;status='idle';api._welcome=null;api._full=null;
  removeAvatar();friendUI(false);try{MW.removeButton('chat');MW.hud('netsleep','');}catch(e){}
+ if(was&&!wasGuest){for(const c of jobs()) delete c.resp;}
  other=null;lastN={};lastStr={};pend={};sw={me:0,he:0};MWS.clearMirror();
  if(wasGuest&&!o.noRestore) restoreSolo();else backup=null;
  if(was&&why&&!o.silent) toast(why+(wasGuest?' Vous retrouvez votre partie solo.':' Vous continuez seul.'),'warn');

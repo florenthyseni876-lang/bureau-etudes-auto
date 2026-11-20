@@ -233,6 +233,7 @@ function startAct(){
 /* [réseau] partie à deux : js/56 dit si l'ami est déjà en train de travailler sur cette cible de la voiture */
 function netBusy(t){try{return typeof MWNET!=='undefined'&&MWNET.live()&&R&&R.c?MWNET.busyMsg(R.c.id,t.id):null;}catch(e){return null;}}
 function finish(t,a){
+ try{if(R&&R.c&&typeof MWJ.claim==='function') MWJ.claim(R.c);}catch(e){} /* [à deux] premier geste = on prend la voiture en charge */
  spend(a);
  try{a.do&&a.do();}catch(e){console.error('do '+(a.key||a.lab),e);}
  if(a.snd) snd(a.snd);

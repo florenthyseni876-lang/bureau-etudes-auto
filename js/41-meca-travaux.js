@@ -93,6 +93,19 @@ const KMR={garage1:[45000,210000],garage2:[10000,120000],garage3:[6000,70000],ga
 const RYTHME={garage1:[8,20],garage2:[10,24],garage3:[18,40],garage4:[22,46],garage5:[10,22],garage6:[10,24],garage7:[14,32]};
 /* [réseau] partie à deux : 2 joueurs = clients deux fois plus fréquents, file d'attente plus longue, un pont par joueur au minimum */
 const NP=()=>{const n=MW.net;return n&&n.live&&n.players?n.players():1;};
+/* [à deux] chaque voiture a un responsable (c.resp = identifiant du joueur) : celui qui la prend en charge (1er geste, inspection ou « Je prends cette voiture »).
+   En solo, toutes les voitures sont à moi. Étagère, servante et travail automatique ne servent que MES voitures (ou, sans voiture, la plus proche non prise par l'ami). */
+const netOn=()=>{const n=MW.net;return !!(n&&n.live);};
+const myPid=()=>typeof MWS!=='undefined'?MWS.pid():'solo';
+const isFriend=c=>netOn()&&!!c&&!c.noir&&!!c.resp&&c.resp!==myPid();
+const claim=c=>{if(c&&!c.noir&&netOn()&&!c.resp) c.resp=myPid();};
+const tagF=c=>isFriend(c)?' (votre ami)':'';
+function myCars(zid){
+ const all=J().cars.filter(c=>c.zone===zid&&!c.noir);
+ if(!netOn()) return all;
+ const m=all.filter(c=>c.resp===myPid());if(m.length) return m;
+ const p=MW.player(),z=MW.zone(zid),d=c=>{const q=z&&z.ponts&&z.ponts[c.pont];return q?Math.hypot(q.x-p.x,q.z-p.z):1e9;};
+ const f=all.filter(c=>!c.resp).sort((a,b)=>d(a)-d(b));return f.length?[f[0]]:[];}
 const FILE_MAX0=3,PATIENCE=420;
 const FILE_MAX_N=()=>FILE_MAX0*NP(); /* minutes d'ouverture (8 h – 19 h) qu'un client accepte d'attendre à l'accueil ; la nuit ne compte pas */
 function nextGap(zid){const r=RYTHME[zid]||[10,24];let g=rint(r[0],r[1])/NP();const m=MW.S.min;
@@ -265,11 +278,11 @@ function gesteOK(c,p){
  if(!outilOK(p.outil,c)) return warn(`Il vous faut : ${OUTILS[p.outil].nom.toLowerCase()} (en vente chez Pièces Auto Express).`);
  return true;}
 function doInspect(c,id){
- const p=PARTS[id],a=acces(c,p);if(!a.ok) return warn(a.why);
+ const p=PARTS[id],a=acces(c,p);if(!a.ok) return warn(a.why);claim(c);
  MW.addMin(4);NG(c,'insp',p,4);if(!c.insp[id]){c.insp[id]=1;c.ni++;if(c.ni<=8) c.comp.diagnostic=(c.comp.diagnostic||0)+2;}
  MW.emit('inspected',c,id);return true;}
 function doDep(c,id){
- const p=PARTS[id];if(c.done[id]||c.rem[id]) return false;if(!gesteOK(c,p)) return false;
+ const p=PARTS[id];if(c.done[id]||c.rem[id]) return false;if(!gesteOK(c,p)) return false;claim(c);
  if(inv().length>=INV_MAX) return warn('Inventaire plein : jetez ou revendez des pièces usagées.');
  {const m=Math.max(4,Math.round(p.mo*.4));MW.addMin(GM(c,id,'dep',m));NG(c,'dep',p,m);}c.rem[id]=1;if(!c.insp[id]){c.insp[id]=1;}
  invAdd({k:'usagee',id,u:c.parts[id].u,job:c.id,pv:pprice(c,p),car:voit(c),rend:c.rend?1:undefined});MW.toast(`${pn(c,p)} déposé(e) : rangé(e) dans l'inventaire${c.rend?' (le client veut la récupérer)':''}.`,'info');return true;}
@@ -307,7 +320,7 @@ function takeNext(d){const a=inv();if(!a.length){setHeld(null);return;}
 /* outils : prendre / ranger (servante, établi) */
 function toolTake(id){if(!TOOLS_INV[id]||toolIdx(id)>=0) return false;if(inv().length>=INV_MAX){MW.toast('Inventaire plein : rangez un outil ou une pièce.','warn');return false;}inv().push({k:'outil',id});invUI();return true;}
 function toolPut(id){const i=toolIdx(id);if(i<0) return false;if(inv()[i]===selIt) selIt=null;inv().splice(i,1);invUI();MW.emit('held',selIt);return true;}
-function toolsNeeded(zid){const need=[];for(const c of J().cars) if(c.zone===zid&&!c.noir){
+function toolsNeeded(zid){const need=[];for(const c of myCars(zid)){
   const o=c.g&&c.g.o,posed=t=>(t==='bac'&&o&&o.bac)||(t==='entonnoir'&&o&&o.fun); /* déjà posés : le bac sous la voiture, l'entonnoir sur le moteur */
   for(const id of c.ordre) if(!c.done[id]) for(const t of TOOLS_FOR[id]||['cliquet']) if(!need.includes(t)&&!posed(t)) need.push(t);}
  return need;}
@@ -324,7 +337,7 @@ function servante(zid){
   else if(k==='putall'){for(const t of Object.keys(TOOLS_INV)) toolPut(t);}
   servante(z);},{keep:true,wide:true});}
 function doPose(c,id){
- const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;
+ const p=PARTS[id];if(!c.rem[id]) return false;if(!gesteOK(c,p)) return false;claim(c);
  const i=newFind(c,id);if(i<0) return warn(`Il vous faut ${pn(c,p).toLowerCase()} neuf(ve) : prenez-le à l'étagère ou achetez-le chez Pièces Auto Express (ou une pièce d'occasion en bon état).`);
  const it=inv()[i];invDel(i);const re=it.k==='usagee'?it:null;{const m=Math.max(4,Math.round(p.mo*.6));MW.addMin(GM(c,id,'pose',m));NG(c,'pose',p,m);}
  if(it.src==='achat') c.avance=R2(c.avance+(it.paye||0));
@@ -337,13 +350,16 @@ function doRem(c,id){
  invDel(i);{const m=Math.max(3,Math.round(p.mo*.3));MW.addMin(m);NG(c,'rem',p,m);}delete c.rem[id];MW.toast(`${pn(c,p)} : ancienne pièce remise en place.`,'info');return true;}
 const remIn=(c,f)=>Object.keys(c.rem).some(id=>f(PARTS[id]));
 function togCapot(c){
+ claim(c);
  if(c.st.capot){if(remIn(c,p=>p.zone==='capot')) return warn('Une pièce est démontée sous le capot.');c.st.capot=0;MW.addMin(1);NG(c,'capot',null,1);}
  else{c.st.capot=1;MW.addMin(1);NG(c,'capot',null,1);}applyVisual(c);return true;}
 function togPont(c){
+ claim(c);
  if(c.st.lifted){if(c.st.av||c.st.ar) return warn("Remontez d'abord les roues.");if(remIn(c,p=>p.zone==='dessous'||p.zone==='roue')) return warn('Une pièce est démontée sous la voiture.');c.st.lifted=0;MW.addMin(2);NG(c,'baisser',null,2);}
  else{if(c.noir&&typeof MWN!=='undefined'&&MWN.canLift&&!MWN.canLift(c)) return false; /* noir */
   c.st.lifted=1;MW.addMin(3);NG(c,'lever',null,3);}applyVisual(c);return true;}
 function togRoues(c,ax){
+ claim(c);
  if(!c.st.lifted) return warn("Levez d'abord le pont.");
  if(c.st[ax]){if(remIn(c,p=>p.zone==='roue'&&(p.ax===ax||(p.ax==='*')))) return warn('Une pièce est démontée sur ces roues.');c.st[ax]=0;MW.addMin(8);NG(c,'roues',null,8);}
  else{c.st[ax]=1;MW.addMin(8);NG(c,'roues',null,8);}applyVisual(c);return true;}
@@ -574,7 +590,7 @@ function etagere(zid){
  if(!st.length) h+='<p class="mw-soon">À votre compte, vous achetez vos pièces chez Pièces Auto Express.</p>';
  h+=st.map(id=>{const p=PARTS[id],n=inv().filter(it=>it.k==='neuve'&&it.id===id).length;
   return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min</small><div class="mw-btns">${btn('take:'+id,'Prendre')}</div></div>`;}).join('');
- const besoin=[];for(const c of J().cars) if(c.zone===zid&&!c.noir) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&st.includes(id)&&!besoin.includes(id)&&invFind('neuve',id)<0) besoin.push(id);
+ const besoin=[];for(const c of myCars(zid)) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&st.includes(id)&&!besoin.includes(id)&&invFind('neuve',id)<0) besoin.push(id);
  if(besoin.length) h=`<div class="mw-btns">${btn('need','Prendre les pièces des ordres en cours ('+besoin.map(id=>PARTS[id].nom).join(', ')+')')}</div>`+h;
  const nm=inv().filter(it=>it.k==='neuve'&&it.src==='etagere').length;
  if(nm) h+=`<div class="mw-btns">${btn('putall','Rapporter mes pièces neuves non achetées','ghost')}</div>`;
@@ -623,7 +639,7 @@ function carnet(){
  let h=`<h3 class="mw-h3">Ordres en cours</h3>`;
  if(!j.cars.length) h+=`<p>${e?'Aucun client pour le moment. Les voitures arrivent de 8 h à 19 h.':'Vous n\'êtes employé nulle part : pas de clients.'}</p>`;
  for(const c of j.cars){const pr=c.ordre.length?c.ordre.filter(id=>c.done[id]).length+'/'+c.ordre.length:(c.symp&&c.done[c.symp.c]?'réparé':'à diagnostiquer'),late=openT()>c.promis;
-  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${c.noir?'Cour (noir)':'Pont '+(c.pont+1)} · ${esc(voit(c))}</b><span class="mw-tag${late?' warn':''}">${esc(pr)}</span></div><small>${esc(c.client)} · ${esc(c.plaque)} · ${esc(c.an?c.an+' · ':'')}${nf(c.km)} km</small><div>${esc(demande(c))}</div>${c.rend&&!c.noir?'<small>Le client veut récupérer ses anciennes pièces.</small>':''}${c.codes?`<small>Valise : ${c.codes.map(esc).join(' ; ')}</small>`:''}${c.clues.length?`<small>Indices : ${c.clues.map(esc).join(' ')}</small>`:''}<small>${late?'En retard sur la promesse faite au client.':'Promis dans environ '+nf(Math.max(0,c.promis-openT()))+' min de travail.'}</small></div>`;}
+  h+=`<div class="mw-prt"><div class="mw-prt-h"><b>${c.noir?'Cour (noir)':'Pont '+(c.pont+1)} · ${esc(voit(c))}${tagF(c)}</b><span class="mw-tag${late?' warn':''}">${esc(pr)}</span></div><small>${esc(c.client)} · ${esc(c.plaque)} · ${esc(c.an?c.an+' · ':'')}${nf(c.km)} km</small><div>${esc(demande(c))}</div>${netOn()&&!c.resp&&!c.noir?`<div class="mw-btns">${btn('take:'+c.id,'Je prends cette voiture','sm')}</div>`:''}${c.rend&&!c.noir?'<small>Le client veut récupérer ses anciennes pièces.</small>':''}${c.codes?`<small>Valise : ${c.codes.map(esc).join(' ; ')}</small>`:''}${c.clues.length?`<small>Indices : ${c.clues.map(esc).join(' ')}</small>`:''}<small>${late?'En retard sur la promesse faite au client.':'Promis dans environ '+nf(Math.max(0,c.promis-openT()))+' min de travail.'}</small></div>`;}
  h+=`<h3 class="mw-h3">Inventaire (${inv().length}/${INV_MAX})</h3>`;
  h+=inv().length?`<div class="mw-chips">${inv().map((it,i)=>`<button type="button" class="mw-tag ${it.k==='neuve'?'ok':isTool(it)?'':'warn'}" data-mw="item:${i}">${esc(itNom(it))} (${it.k==='neuve'?'neuf':isTool(it)?'outil':'usagé'})</button>`).join('')}</div>`:'<p>Vide.</p>';
  h+=`<h3 class="mw-h3">Outils</h3><p>${Object.keys(j.outils).filter(k=>j.outils[k]).map(k=>esc(OUTILS[k].nom)).join(' · ')}</p>`;
@@ -633,7 +649,7 @@ function carnet(){
  if(typeof MWA!=='undefined') h+=MWA.carnetHTML();
  if(typeof MWN!=='undefined'&&MWN.carnetHTML) h+=MWN.carnetHTML(); /* noir : section « Travail au noir » */
  if(j.hist.length) h+=`<small>${j.hist.slice(0,5).map(x=>`Jour ${x.jour} : ${esc(x.voiture)} · ${stars(x.note)} · ${fmt(x.pay)}`).join('<br>')}</small>`;
- show('Carnet',h,a=>{const [k,id]=a.split(':');if(k==='item') itemPanel(+id);else if(k==='noir'&&typeof MWN!=='undefined') MWN.act(id);},{wide:true});}
+ show('Carnet',h,a=>{const [k,id]=a.split(':');if(k==='item') itemPanel(+id);else if(k==='take'){claim(carById(id));hudJobs();carnet();}else if(k==='noir'&&typeof MWN!=='undefined') MWN.act(id);},{wide:true});}
 
 /* ═══════════ Barre d'inventaire et HUD ═══════════ */
 function ensureBar(){
@@ -658,7 +674,7 @@ function hudJobs(){
   return `<br>${j.file.length} client${j.file.length>1?'s':''} en attente à l'accueil · patience du premier : encore ${rest>=60?Math.floor(rest/60)+' h '+String(rest%60).padStart(2,'0'):rest+' min'}${MW.S.min>=OPEN1||MW.S.min<OPEN0?' (revient à l\'ouverture)':''}`;})():'';
  if(!j.cars.length){MW.hud('job','<b>Atelier</b> : aucun client pour l\'instant.'+fq);return;}
  const l=j.cars.slice(0,3).map(c=>{const pr=c.ordre.length?c.ordre.filter(id=>c.done[id]).length+'/'+c.ordre.length:(c.symp&&c.done[c.symp.c]?'réparé':'à diagnostiquer');
-  return `${c.noir?'Cour':'Pont '+(c.pont+1)} · ${esc(voit(c))} : ${esc(c.symp?'diagnostic':c.nom)} (${pr})`;});
+  return `${c.noir?'Cour':'Pont '+(c.pont+1)} · ${esc(voit(c))}${tagF(c)} : ${esc(c.symp?'diagnostic':c.nom)} (${pr})`;});
  MW.hud('job','<b>Ordres en cours</b><br>'+l.join('<br>')+fq);}
 
 /* ═══════════ Interactions fixes (ponts, étagères, établis) ═══════════ */
@@ -672,6 +688,9 @@ function regPoints(only){ /* noir : `only` = une zone sans pont élévateur (cou
      when:()=>{if(ess||MG()&&MG().on(true)) return false;const c=carAt(z.id,i);return !!c&&(k!=='dessous'||!!c.st.lifted);},
      use:()=>{const c=carAt(z.id,i);if(c) openPoint(c.id,k);}});
     PTS[z.id+':'+i+':'+k]=o;}});
+  if(!only) z.ponts.forEach((p,i)=>MW.addInteract({id:'mj:take:'+z.id+':'+i,x:p.x,z:p.z,r:2.6,key:'F',label:'Je prends cette voiture',
+   when:()=>{if(!netOn()) return false;const c=carAt(z.id,i);return !!c&&!c.noir&&!c.resp;},
+   use:()=>{const c=carAt(z.id,i);if(c){claim(c);hudJobs();MW.toast('Cette voiture est à vous : ses pièces et ses outils vous reviennent.','good');}}}));
   if(!z.etagere||only) continue;
   const e=z.etagere,n=z.n,et=z.etabli;
   MW.addInteract({id:'mj:etagere:'+z.id,x:e.x-n.x*1.1,z:e.z-n.z*1.1,r:2.2,label:'Étagère de pièces',when:()=>{const m=emp();return !!m&&m.zone===z.id;},use:()=>etagere(z.id)});
@@ -742,7 +761,7 @@ MW.on('key',(k,e)=>{if(!MW.S) return;
 MW.setDoor('pieces',()=>{if(MW.S) shop();});
 regPoints();
 
-const api={rebuild:c=>{if(c){buildMesh(c);moveInteracts(c);}hudJobs();},mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
+const api={claim,isFriend,isMine:c=>!isFriend(c),myCars,rebuild:c=>{if(c){buildMesh(c);moveInteracts(c);}hudJobs();},mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>{const y=symp?SYMP.find(x=>x.id===symp.id)||symp:null;return modelFor(zid,(need||[]).concat(y?sympNeed(y):[]),y);},symDef,codesOf,clueTxt,inspLine,ESS_NOM,pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
  state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,stock:()=>{const e=emp();return e?stockOf(e):[];},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};

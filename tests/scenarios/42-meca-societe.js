@@ -103,6 +103,61 @@ module.exports = async function mecaSociete(page, env) {
   verifier(await e(() => __mwi.sell('garage5')), 'la revente du garage échoue');
   const v1 = await e(() => ({ m: __mw.S.money, soc: __mws.has('garage5') }));
   verifier(!v1.soc && v1.m > v0, `la société n'est pas dissoute à la revente (${JSON.stringify(v1)} / ${v0})`);
-  return 'achat à crédit par la société, factures et pièces sur le compte, charges, salaire taxé, dividendes taxés, bilan annuel, revente';
+  // 10. Garage du Coin repris en patron : société et compte du garage aussi (fonds de roulement, loyer, factures, salaire, dividendes)
+  await e(() => { MWC.hire('meca'); __mw.S.money = 10000; __mw.S.rep = 70; __mw.S.xp.entretien = 900; __mw.S.xp.moteur = 900; delete __mw.S.soc; __mwj.clear(); });
+  await e(() => __mw.useDoor('garage1'));
+  await attendreVisible(page, '.mw-pn [data-mw="buy"]', "le comptoir du Garage du Coin n'offre pas la reprise du garage");
+  await page.click('.mw-pn [data-mw="buy"]');
+  const p1 = await e(() => { const c = __mws.get('garage1'); return { emp: MWC.employer().id, parts: c && c.parts.map(p => p.pct), compte: c && c.compte, m: __mw.S.money, cc: c && Object.values(c.cc)[0] }; });
+  verifier(p1.emp === 'patron' && p1.parts && p1.parts[0] === 100 && p1.compte === 500 && p1.m === 10000 - 1300 - 500 && p1.cc === 500, `reprise du Garage du Coin inattendue (société, fonds de roulement de 500 € en compte courant) : ${JSON.stringify(p1)}`);
+  // loyer (200 par jour) payé par le compte, pas par la poche
+  const l0 = await e(() => ({ m: __mw.S.money, k: __mws.get('garage1').compte }));
+  await e(() => { __mw.S.day += 1; __mw.emit('day', __mw.S.day); });
+  const l1 = await e(() => ({ m: __mw.S.money, k: __mws.get('garage1').compte }));
+  verifier(l1.m === l0.m && Math.abs((l0.k - l1.k) - 200) < .01, `le loyer du garage doit être payé par le compte (${JSON.stringify([l0, l1])})`);
+  // facture et pièces sur le compte
+  const f = await e(() => {
+    __mw.S.min = 600; __mws.deposit('garage1', 1000);
+    const c = __mwj.spawn({ tpl: 'essuie', silencieux: true }); if (!c) return null; c.st.lifted = 0;
+    const k0 = __mws.get('garage1').compte, m0 = __mw.S.money;
+    __mws.biz(-16, 'Pièces Auto Express : balais'); __mw.S.inv.push({ k: 'neuve', id: 'essuie', src: 'achat', paye: 16 });
+    MWJ.L.doDep(c, 'essuie'); MWJ.L.doPose(c, 'essuie'); const j = MWJ.done(c);
+    return { d: __mws.get('garage1').compte - k0, pay: j && j.pay, m: __mw.S.money - m0 };
+  });
+  verifier(f && f.pay > 0 && Math.abs(f.d - (f.pay - 16)) < .02 && f.m === 0, `la facture du patron doit arriver sur le compte du garage : ${JSON.stringify(f)}`);
+  // compte courant : verser de sa poche puis reprendre (sans impôt) ; le panneau est accessible depuis le comptoir
+  const cc0 = await e(() => ({ m: __mw.S.money, k: __mws.get('garage1').compte }));
+  await e(() => { __mws.fund('garage1', 100); __mws.retirer('garage1', 60); });
+  const cc1 = await e(() => ({ m: __mw.S.money, k: __mws.get('garage1').compte, cc: Object.values(__mws.get('garage1').cc)[0] }));
+  verifier(Math.abs(cc1.m - (cc0.m - 40)) < .01 && Math.abs(cc1.k - (cc0.k + 40)) < .01 && cc1.cc === 540, `compte courant inattendu : ${JSON.stringify([cc0, cc1])}`);
+  await e(() => __mws.retirer('garage1', 999999));
+  verifier(await e(k => __mws.get('garage1').compte === k, cc1.k), 'on a pu reprendre plus que ses versements');
+  await e(() => __mw.useDoor('garage1'));
+  await attendreVisible(page, '.mw-pn [data-mw="compte"]', 'le comptoir du patron n\'a pas de bouton « Compte du garage »');
+  await page.click('.mw-pn [data-mw="compte"]');
+  await attendreVisible(page, '#mwSal_' + (await e(() => __mws.pid())), 'le panneau du compte du Garage du Coin ne s\'ouvre pas');
+  await verifierTextes(page, 'Compte du Garage du Coin');
+  await e(() => __mw.closePanel());
+  // salaire de 1000 brut : 1450 payés par le garage, 780 net en poche ; dividendes sur le bénéfice : 1000 brut → 700 net
+  await e(() => { const c = __mws.get('garage1'); c.compte = 20000; __mws.salaire('garage1', __mws.pid(), 1000); });
+  const q0 = await e(() => __mw.S.money);
+  await e(() => { const c = __mws.get('garage1'); __mw.S.day = c.next; __mw.emit('day', __mw.S.day); });
+  verifier(Math.abs(await e(() => __mw.S.money) - q0 - 780) < .01, 'le salaire net du patron devrait être de 780 €');
+  await e(() => { const c = __mws.get('garage1'); c.ex = { debut: __mw.S.day, ca: 2000, ch: 0, div: 0, pfu: 0, sal: 0, is: 0 }; c.compte = 10000; });
+  const q1 = await e(() => __mw.S.money);
+  await e(() => __mws.dividendes('garage1', 1000));
+  verifier(Math.abs(await e(() => __mw.S.money) - q1 - 700) < .01, 'les dividendes nets du patron devraient être de 700 € (30 % de prélèvement)');
+  // ancienne sauvegarde : patron sans société → compte à 0, rien n'est perdu
+  const o = await e(() => { delete __mw.S.soc; const m = __mw.S.money; const c = __mws.ensure('garage1'); return { m, m2: __mw.S.money, k: c && c.compte }; });
+  verifier(o.k === 0 && o.m === o.m2, `ancienne sauvegarde de patron mal reprise : ${JSON.stringify(o)}`);
+  // revente du fonds : la société est dissoute, le solde revient au patron
+  await e(() => { __mws.deposit('garage1', 700); });
+  const r0 = await e(() => __mw.S.money);
+  await e(() => __mw.useDoor('garage1'));
+  await attendreVisible(page, '.mw-pn [data-mw="sell"]', 'le comptoir du patron n\'offre pas la revente du fonds');
+  await page.click('.mw-pn [data-mw="sell"]');
+  const r1 = await e(() => ({ m: __mw.S.money, soc: __mws.has('garage1'), emp: MWC.employer().id }));
+  verifier(!r1.soc && r1.emp === 'meca' && Math.abs(r1.m - r0 - (1300 * .6 + 700)) < .01, `revente du fonds inattendue : ${JSON.stringify(r1)} (avant : ${r0})`);
+  return 'achat à crédit par la société, factures et pièces sur le compte, charges, salaire taxé, dividendes taxés, bilan annuel, revente, Garage du Coin repris en patron (société, loyer, compte courant, salaire, dividendes)';
 };
 module.exports.titre = 'Mécanicien : société et compte du garage (joueur seul)';

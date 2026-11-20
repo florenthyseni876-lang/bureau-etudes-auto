@@ -101,19 +101,22 @@ function step(){
 function start(rendre){
  if(job||svc) return stop('Travail automatique arrêté.');
  const c=carHere();if(!c) return MW.toast('Approchez-vous de la voiture à réparer (près du pont).','warn');
+ if(MWJ.isFriend&&MWJ.isFriend(c)) return MW.toast("Cette voiture est à votre ami : ses pièces et ses outils ne sont pas pris à sa place. Prenez-en une autre, ou aidez-le à la main.",'warn');
+ if(MWJ.claim) MWJ.claim(c);
  begin(c,rendre,null);}
 
 /* ── mode continu : toutes les voitures du garage, l'une après l'autre ── */
 function nextCar(){const z=empZone();if(!z) return null;
- return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
+ return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!(MWJ.isFriend&&MWJ.isFriend(c))).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
 function loop(){
  if(!svc||job) return;
  if(MW.paused){svc.t=setTimeout(loop,500);return;}
  if(!empZone()) return stop("Mode automatique arrêté : il faut un emploi dans un garage (ou être à son compte).",'warn');
  const c=nextCar();
- if(!c){const att=MWJ.jobs().filter(x=>x.zone===empZone()&&!x.noir).length;hud(att?`${att} voiture(s) laissée(s) pour vous · en attente du prochain client`:'en attente du prochain client');svc.t=setTimeout(loop,1000);return;}
+ if(!c){const att=MWJ.jobs().filter(x=>x.zone===empZone()&&!x.noir&&!(MWJ.isFriend&&MWJ.isFriend(x))).length;hud(att?`${att} voiture(s) laissée(s) pour vous · en attente du prochain client`:'en attente du prochain client');svc.t=setTimeout(loop,1000);return;}
  const o=ok(c);
  if(!o.ok){svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} (pont ${c.pont+1}) laissée pour vous : travail automatique débloqué au niveau ${NIV} en ${manqueTxt(o.manque)}.`,'warn');svc.t=setTimeout(loop,300);return;}
+ if(MWJ.claim) MWJ.claim(c);
  goTo(c);hud(`${esc(c.marque+' '+c.modele)} · préparation`);
  begin(c,true,res=>{
   if(res!=='ok'&&MWJ.jobs().includes(c)){svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} laissée pour vous. ${res}`,'warn');}
