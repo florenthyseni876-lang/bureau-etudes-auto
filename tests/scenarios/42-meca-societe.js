@@ -103,6 +103,25 @@ module.exports = async function mecaSociete(page, env) {
   verifier(await e(() => __mwi.sell('garage5')), 'la revente du garage échoue');
   const v1 = await e(() => ({ m: __mw.S.money, soc: __mws.has('garage5') }));
   verifier(!v1.soc && v1.m > v0, `la société n'est pas dissoute à la revente (${JSON.stringify(v1)} / ${v0})`);
-  return 'achat à crédit par la société, factures et pièces sur le compte, charges, salaire taxé, dividendes taxés, bilan annuel, revente';
+
+  // Garage du Coin repris en patron : une société aussi (reprise = apport, réserve versée sur le compte, loyer payé par le compte)
+  const gc = await e(() => {
+    MWC.hire('meca'); __mwj.clear(); __mw.S.jobs.next = 1e12; __mw.S.min = 600; __mw.S.rep = 60; __mw.S.money = 5000;
+    for (const k of __mwj.SKILLS) __mw.S.xp[k] = 2000; delete (__mw.S.soc || {}).garage1;
+    MWC.comptoir('garage1');
+    return { panneau: !!document.querySelector('.mw-pn [data-mw="buy"]') };
+  });
+  verifier(gc.panneau, 'le comptoir du Garage du Coin ne propose pas la reprise');
+  const achat = await e(() => {
+    const b = document.querySelector('.mw-pn [data-mw="buy"]'); if (b) b.click();
+    const c = __mws.get('garage1');
+    return { emp: MWC.employer().id, perso: __mw.S.money, compte: c && c.compte, apport: c && c.parts[0].apport };
+  });
+  verifier(achat.emp === 'patron' && achat.compte === 500 && achat.apport === 1300 && achat.perso === 5000 - 1800, `reprise du Garage du Coin : société mal créée (${JSON.stringify(achat)})`);
+  const gl = await e(() => { const k0 = __mws.get('garage1').compte, m0 = __mw.S.money; __mw.emit('day', __mw.S.day + 1);
+    const c = __mwj.spawn({ tpl: 'vidange', force: true, rend: false }); c.done = { huile: 1, filtre_huile: 1 }; const k1 = __mws.get('garage1').compte; __mwj.done(c);
+    return { loyer: Math.round(k0 - k1), facture: Math.round(__mws.get('garage1').compte - k1), perso: Math.round(__mw.S.money - m0) }; });
+  verifier(gl.loyer === 200 && gl.facture > 0 && gl.perso === 0, `Garage du Coin : loyer ou facture pas sur le compte du garage (${JSON.stringify(gl)})`);
+  return 'achat à crédit par la société, factures et pièces sur le compte, charges, salaire taxé, dividendes taxés, bilan annuel, revente ; Garage du Coin repris en patron (société, réserve, loyer et factures sur le compte)';
 };
 module.exports.titre = 'Mécanicien : société et compte du garage (joueur seul)';

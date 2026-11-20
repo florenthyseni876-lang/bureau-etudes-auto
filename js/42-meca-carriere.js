@@ -605,5 +605,6 @@ MW.on('tick',dt=>{gT+=dt;if(gT>.6){gT=0;if(MW.S&&MW.isOpen()) refresh();}});
 
 /* ── portes ── */
 for(const id of ['garage1','garage2','garage3','garage4']) MW.setDoor(id,counter);
+api.comptoir=id=>counter(MW.zone(id)); /* tests : ouvre le comptoir d'un garage */
 MW.setDoor('ecole',school);MW.setDoor('bureau',bureau);MW.setDoor('banque',bank);MW.setDoor('concess',dealer);MW.setDoor('terrain',land);
 return api;})();
