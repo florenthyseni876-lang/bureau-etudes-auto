@@ -41,7 +41,7 @@ Les modules sont de simples scripts chargés dans l'ordre et partagent leurs dé
 Menu Échap → « Jouer à deux… ». L'hôte clique « Héberger » et reçoit un code de 6 lettres ; l'ami le saisit et rejoint le garage de l'hôte.
 Les deux navigateurs se parlent en direct (WebRTC, bibliothèque PeerJS 1.5.4 chargée depuis jsDelivr à l'ouverture du menu, jamais au démarrage) ;
 seul un prénom choisi dans le jeu est transmis. L'hôte fait autorité (heure, clients, argent, réputation, voitures) ; chacun garde son inventaire,
-ses outils et son expérience ; l'invité retrouve sa partie solo en partant. Chacun garde son argent personnel (et sa paie) ; un garage acheté appartient à une société avec un compte du garage (achat « à deux » possible, parts selon les apports, salaires et dividendes taxés). Le jeu solo ne change pas et marche hors connexion.
+ses outils et son expérience ; l'invité retrouve sa partie solo en partant. Chacun garde son argent personnel (et sa paie) ; un garage acheté appartient à une société avec un compte du garage (achat « à deux » possible, parts selon les apports, salaires et dividendes taxés) ; le Garage du Coin repris en patron a la sienne. À deux, chaque voiture a un responsable : étagère, servante et travail automatique ne servent que ses propres voitures. Le jeu solo ne change pas et marche hors connexion.
 
 ## Après chaque modification
 
