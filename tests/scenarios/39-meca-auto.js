@@ -35,12 +35,12 @@ module.exports = async function mecaAuto(page, env) {
   const xp = await e(() => { const c = __mwj.jobs()[0]; const a = __mwj.evalJob(c).comp; c.auto = 0; const b = __mwj.evalJob(c).comp; c.auto = 1; const s = o => Object.values(o).reduce((x, y) => x + y, 0); return [s(a), s(b)]; });
   verifier(xp[0] > 0 && xp[0] <= Math.ceil(xp[1] / 2) + 1, `l'expérience n'est pas divisée par deux (${xp})`);
   // 2. à son compte : une panne, pièces achetées, diagnostic, voiture rendue
-  await e(() => { __mwj.clear(); MWC.hire('patron'); __mw.S.money = 5000; for (const k of __mwj.SKILLS) __mw.S.xp[k] = 60; __mw.S.inv.length = 0; __mwj.spawn({ symp: 'feu', force: true, rend: false }); });
+  await e(() => { __mwj.clear(); MWC.hire('patron'); __mw.S.money = 5000; __mws.deposit('garage1', 5000); for (const k of __mwj.SKILLS) __mw.S.xp[k] = 60; __mw.S.inv.length = 0; __mwj.spawn({ symp: 'feu', force: true, rend: false }); });
   await pres(); await attendre(600);
-  const r0 = await e(() => ({ m: __mw.S.money, n: __mw.S.jobs.stats.rendues }));
+  const r0 = await e(() => ({ m: __mws.get('garage1').compte, n: __mw.S.jobs.stats.rendues }));
   await e(() => __mwauto.start(true));
   await attendreCondition(page, () => !__mwauto.busy(), 'le travail automatique (panne) ne se termine pas', 120000);
-  const r1 = await e(() => ({ m: __mw.S.money, n: __mw.S.jobs.stats.rendues, cars: __mwj.jobs().length }));
+  const r1 = await e(() => ({ m: __mws.get('garage1').compte, n: __mw.S.jobs.stats.rendues, cars: __mwj.jobs().length }));
   verifier(r1.n === r0.n + 1 && r1.cars === 0, `la voiture n'est pas rendue automatiquement (${JSON.stringify(r1)})`);
   // 3. mode continu : deux voitures arrivent ; la vidange est faite et rendue, les plaquettes (freinage niveau 1) sont laissées au joueur,
   //    les pièces usagées partent à la ferraille, une voiture qui arrive ensuite est prise en charge
@@ -56,7 +56,7 @@ module.exports = async function mecaAuto(page, env) {
   verifier(s2.cont && s2.n === s1.n + 1 && s2.hud, `le mode continu s'arrête ou n'enchaîne pas (${JSON.stringify(s2)})`);
   await page.keyboard.press('j');
   verifier(!(await e(() => __mwauto.busy())), 'la touche J n\'arrête pas le mode continu');
-  return `déblocage au niveau 2, vidange en gestes automatiques (salarié), panne diagnostiquée et voiture rendue à son compte (${Math.round(r1.m - r0.m)} € net), mode continu (2 voitures, plaquettes laissées au joueur)`;
+  return `déblocage au niveau 2, vidange en gestes automatiques (salarié), panne diagnostiquée et voiture rendue à son compte (${Math.round(r1.m - r0.m)} € net sur le compte du garage), mode continu (2 voitures, plaquettes laissées au joueur)`;
 };
 module.exports.titre = 'mécanicien : travail automatique (touche J)';
 module.exports.appareil = 'bureau';
