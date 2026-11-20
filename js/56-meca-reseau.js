@@ -58,7 +58,8 @@ function diff(a,b,path,out){
 const SOFT_D=/^(g\.n|g\.min\..+|g\.bin\..+|comp\..+|ni|avance)$/,SOFT_W=/^(essai|clues|codes|autoDiag)$/;
 function kind(op){const k=op.p.join('.');
  if(SOFT_D.test(k)&&(op.a===undefined||typeof op.a==='number')&&typeof op.b==='number') return 'd';
- if(SOFT_W.test(k)) return 'w';return 's';}
+ if(SOFT_W.test(k)) return 'w';
+ if(k==='resp') return 'f';return 's';} /* 'f' : premier arrivé gagne, sans refuser le reste du geste (responsable d'une voiture) */
 const getP=(c,p)=>{let o=c;for(const k of p){if(o==null) return undefined;o=o[k];}return o;};
 function setP(c,p,v){let o=c;
  for(let i=0;i<p.length-1;i++){if(!isObj(o[p[i]])){if(v===undefined) return;o[p[i]]={};}o=o[p[i]];}
@@ -67,7 +68,10 @@ function ensureG(c){const g=c.g;if(!isObj(g)) return;for(const k of ['w','k','p'
 /* applique des différences ; check = vérification de l'hôte : refuse tout (et ne change rien) si une valeur d'avant a déjà bougé */
 function applyOps(c,ops,check,keepG){
  if(check) for(const op of ops) if(kind(op)==='s'&&!same(getP(c,op.p),op.a)) return false;
- for(const op of ops){if(kind(op)==='d') setP(c,op.p,r2((getP(c,op.p)||0)+(op.b-(op.a||0))));else setP(c,op.p,op.b);}
+ for(const op of ops){const k=kind(op);
+  if(k==='d') setP(c,op.p,r2((getP(c,op.p)||0)+(op.b-(op.a||0))));
+  else if(k==='f'&&check&&getP(c,op.p)&&!same(getP(c,op.p),op.b)) continue; /* déjà pris par l'autre : on garde le premier */
+  else setP(c,op.p,op.b);}
  if(!keepG&&c.g) ensureG(c);return true;}
 
 /* inventaire : on retire / on remet ce qui a changé pendant une fenêtre refusée */
