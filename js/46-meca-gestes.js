@@ -228,6 +228,7 @@ function startAct(){
  if(why){warn(why);return;}
  if(a.gate&&!a.gate()) {snd('err');return;}
  {const nb=netBusy(t);if(nb){warn(nb);return;}} /* [réseau] la même pièce est déjà en cours de travail chez l'ami */
+ if(R&&R.c) MWJ.claim(R.c); /* à deux : le premier geste sur une voiture libre la met à mon nom */
  if(a.hold>0||a.cont){H={t,a,p:0,sn:0,k:0};if(a.start) a.start();return;}
  finish(t,a);}
 /* [réseau] partie à deux : js/56 dit si l'ami est déjà en train de travailler sur cette cible de la voiture */
@@ -1220,6 +1221,7 @@ Object.assign(api,{
  run:(id,key,o)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return 'cible introuvable : '+id;const a=actsOf(t).find(x=>!key||x.key===key);if(!a) return 'aucune action';
   if(!(o&&o.strict)){if(a.tool&&TOOL[a.tool]) tool=a.tool;if(a.sock) sock=a.sock;}
   if(!(o&&o.force)){const w=checkAct(a)||netBusy(t);if(w) return w;}
+  if(R&&R.c) MWJ.claim(R.c);
   if(a.cont){a.start&&a.start();a.tick&&a.tick(.0,{});for(let i=0;i<400&&!(a.auto&&a.auto());i++){a.tick&&a.tick(.05,{});if(a.prog&&a.prog()>=1.0) break;}a.release&&a.release();syncAll(true);return null;}
   finish(t,a);return null;},
  skip:()=>{if(R){const O=oilSt(R.c);if(O.on){O.drain=.999;}}},

@@ -169,6 +169,32 @@ async function mecaDeuxJoueurs(page, env) {
   await eb(() => __mwnet.freeze(false));
   await attendreCondition(A, () => __mwj.jobs()[0].done.batterie === 1, "l'hôte ne voit pas la batterie reposée par l'invité", 15000);
 
+  // 6b. tâches divisées : une voiture par joueur ; l'étagère et la servante ne donnent que ce qu'il faut pour SA voiture,
+  //     les voitures de l'ami sont marquées, le travail automatique laisse la voiture de l'ami
+  await ea(() => { __mwj.clear(); __mw.S.inv.length = 0; __mwj.spawn({ tpl: 'vidange', silencieux: true, force: true }); __mwj.spawn({ tpl: 'plaq_av', silencieux: true, force: true }); });
+  await attendreCondition(B, () => __mwj.jobs().length === 2, "l'invité ne reçoit pas les deux voitures", 15000);
+  await eb(() => { __mw.S.inv.length = 0; __mwj.invUI(); });
+  const vid = await ea(() => { const c = __mwj.jobs().find(x => x.ordre.includes('huile')); __mwj.claim(c); return c.id; });
+  await attendreCondition(B, id => (__mwj.jobs().find(x => x.id === id) || {}).resp === 'h', "l'invité ne voit pas que la vidange est prise par l'hôte", 15000, vid);
+  await eb(() => __mwj.claim(__mwj.jobs().find(x => x.ordre.includes('plaq_av'))));
+  await attendreCondition(A, () => (__mwj.jobs().find(x => x.ordre.includes('plaq_av')) || {}).resp === 'g', "l'hôte ne voit pas que les plaquettes sont prises par l'invité", 15000);
+  const prendre = p => p.evaluate(async () => {
+    const z = __mwj.jobs()[0].zone, pause = () => new Promise(r => setTimeout(r, 250));
+    __mwj.etagere(z); const b1 = document.querySelector('.mw-pn [data-mw="need"]'); if (b1) b1.click(); await pause(); __mw.closePanel();
+    __mwj.servante(z); const b2 = document.querySelector('.mw-pn [data-mw="need"]'); if (b2) b2.click(); await pause(); __mw.closePanel();
+    return __mw.S.inv.map(i => i.k + ':' + i.id).sort().join(','); });
+  const invA = await prendre(A), invB = await prendre(B);
+  verifier(/neuve:huile/.test(invA) && /neuve:filtre_huile/.test(invA) && !/plaq_av/.test(invA), `l'hôte ne reçoit pas seulement les pièces de sa vidange (${invA})`);
+  verifier(/neuve:plaq_av/.test(invB) && !/huile/.test(invB) && !/outil:bac/.test(invB) && !/outil:entonnoir/.test(invB), `l'invité reçoit des pièces ou des outils de la voiture de l'hôte (${invB})`);
+  verifier(/outil:/.test(invB), `l'invité ne reçoit pas les outils de sa voiture (${invB})`);
+  verifier(await eb(() => /\(Léa\)/.test(document.getElementById('mwRoot').textContent)), "la voiture de l'hôte n'est pas marquée « (Léa) » chez l'invité");
+  const auto = await eb(id => { const c = __mwj.jobs().find(x => x.id === id), q = __mw.zone(c.zone).ponts[c.pont]; __mw.teleport(q.x + Math.cos(q.ry) * 1.6, q.z - Math.sin(q.ry) * 1.6, q.ry - Math.PI / 2, 0); MWG.ensure(c);
+    __mwauto.start(false); const busy = __mwauto.busy(); __mwauto.stop(); return { busy, ami: __mwj.aAmi(c) }; }, vid);
+  verifier(!auto.busy && auto.ami, `le travail automatique de l'invité ne doit pas prendre la voiture de l'hôte (${JSON.stringify(auto)})`);
+  await ea(() => { __mwj.clear(); __mw.S.inv.length = 0; __mwj.invUI(); });
+  await eb(() => { __mw.S.inv.length = 0; __mwj.invUI(); });
+  await attendreCondition(B, () => __mwj.jobs().length === 0, "l'invité garde les voitures de l'étape des tâches", 15000);
+
   // 7. chacun son argent et son expérience : l'invité rend une voiture, sa paie est dans SA poche (employeur de l'hôte), pas chez l'hôte
   const m0 = await ea(() => __mw.S.money);
   await eb(() => __mw.money(40, 'essai invité'));

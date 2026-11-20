@@ -23,6 +23,7 @@ let svc=null; /* mode continu : {n,gain,xp,ferraille,skip:{}} */
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const rig=()=>typeof MWG!=='undefined'&&MWG.rig?MWG.rig():null;
 const carHere=()=>{const r=rig();return r&&r.c&&MWJ.jobs().includes(r.c)&&!r.c.noir?r.c:null;};
+const ami=c=>!!(MWJ.aAmi&&MWJ.aAmi(c)); /* à deux : voiture prise en charge par l'ami (js/41) */
 const aSonCompte=()=>{try{const e=MWC.employer();return !!(e&&(e.compte||e.net));}catch(x){return false;}};
 const empZone=()=>{try{const e=MWC.employer();return e&&e.id!=='aucun'&&e.zone?e.zone:null;}catch(x){return null;}};
 const fmtXp=o=>Object.values(o||{}).reduce((a,b)=>a+(b||0),0);
@@ -65,6 +66,8 @@ function goTo(c){const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) re
  MW.teleport(p.x+Math.cos(p.ry)*1.7,p.z-Math.sin(p.ry)*1.7,p.ry-Math.PI/2,0);}
 /* lance le travail d'une voiture ; fin(res) est appelé quand il se termine (res : 'ok' | message d'arrêt) */
 function begin(c,rendre,fin){
+ if(ami(c)){const m=`Cette voiture est celle de ${MWJ.amiNom()} : le travail automatique ne s'en occupe pas.`;if(fin) return fin(m);return MW.toast(m,'warn');}
+ MWJ.claim(c);
  const o=ok(c);if(!o.ok){const m=`Travail automatique pas encore débloqué : il faut le niveau ${NIV} en ${manqueTxt(o.manque)}.`;if(fin) return fin(m);return MW.toast(m,'warn');}
  const g=MW.S.gest||{},classic=!!g.classic;
  if(classic) MWG.set({classic:false});MWG.ensure(c);
@@ -105,13 +108,13 @@ function start(rendre){
 
 /* ── mode continu : toutes les voitures du garage, l'une après l'autre ── */
 function nextCar(){const z=empZone();if(!z) return null;
- return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
+ return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!ami(c)).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
 function loop(){
  if(!svc||job) return;
  if(MW.paused){svc.t=setTimeout(loop,500);return;}
  if(!empZone()) return stop("Mode automatique arrêté : il faut un emploi dans un garage (ou être à son compte).",'warn');
  const c=nextCar();
- if(!c){const att=MWJ.jobs().filter(x=>x.zone===empZone()&&!x.noir).length;hud(att?`${att} voiture(s) laissée(s) pour vous · en attente du prochain client`:'en attente du prochain client');svc.t=setTimeout(loop,1000);return;}
+ if(!c){const att=MWJ.jobs().filter(x=>x.zone===empZone()&&!x.noir&&!ami(x)).length;hud(att?`${att} voiture(s) laissée(s) pour vous · en attente du prochain client`:'en attente du prochain client');svc.t=setTimeout(loop,1000);return;}
  const o=ok(c);
  if(!o.ok){svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} (pont ${c.pont+1}) laissée pour vous : travail automatique débloqué au niveau ${NIV} en ${manqueTxt(o.manque)}.`,'warn');svc.t=setTimeout(loop,300);return;}
  goTo(c);hud(`${esc(c.marque+' '+c.modele)} · préparation`);
@@ -136,7 +139,7 @@ function open(){
  <li><b>Expérience</b> : vous en gagnez, mais deux fois moins qu'en faisant le travail vous-même.</li>
  <li>J ou Échap pendant le travail : arrêter.</li></ul><div class="mw-chips">${chips}</div>`;
  let car='';
- if(c){const o=ok(c);car=`<p><b>${esc(c.marque+' '+c.modele)}</b> · ${esc(c.symp?c.symp.txt:c.nom)}</p>`+(o.ok?`<div class="mw-btns"><button type="button" class="btn" data-mw="auto:go">Faire ce travail</button><button type="button" class="btn ghost" data-mw="auto:rendre">Faire ce travail et rendre la voiture</button></div>`
+ if(c){const o=ok(c);car=`<p><b>${esc(c.marque+' '+c.modele)}</b> · ${esc(c.symp?c.symp.txt:c.nom)}</p>`+(ami(c)?`<p class="mw-need">C'est la voiture de ${esc(MWJ.amiNom())} : vous pouvez l'aider à la main, mais le travail automatique ne s'en occupe pas.</p>`:o.ok?`<div class="mw-btns"><button type="button" class="btn" data-mw="auto:go">Faire ce travail</button><button type="button" class="btn ghost" data-mw="auto:rendre">Faire ce travail et rendre la voiture</button></div>`
   :`<p class="mw-need">Pas encore débloqué pour cette voiture : il faut le niveau ${NIV} en ${esc(manqueTxt(o.manque))}. Faites ce travail à la main pour progresser.</p>`);}
  else car=`<p class="mw-soon">Pour une seule voiture : approchez-vous d'abord d'une voiture à réparer, près de son pont.</p>`;
  const can=!!empZone()&&MWJ.SKILLS.some(unlocked);

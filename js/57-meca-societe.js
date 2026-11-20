@@ -11,7 +11,9 @@
      · à deux : un versement de dividendes ou un changement de salaire est proposé par l'un et doit être accepté par l'autre ;
        jamais plus que le solde du compte ; l'exercice dure 360 jours de jeu, avec un bilan annuel (chiffre d'affaires, charges, bénéfice, impôts).
    Simplifications : le remboursement du prêt compte comme une charge ; pas de TVA ; les charges du bâtiment sont celles de js/52.
-   Le Garage du Coin repris par le joueur (employeur « patron », js/42) garde son argent personnel : seuls les garages achetés ont une société.
+   Le Garage du Coin repris par le joueur (employeur « patron », js/42) a lui aussi sa société (zone garage1) : le prix de reprise est l'apport,
+   la réserve pour les premières pièces est versée sur le compte, le loyer est payé par le compte. Ancienne sauvegarde : compte à 0
+   (le patron peut y apporter de son argent depuis le panneau).
 
    ═══ En partie à deux ═══
    L'hôte fait autorité : la société est dans SA sauvegarde (identifiant et prénom de chaque associé). L'invité reçoit une copie de l'état
@@ -67,6 +69,7 @@ api.create=(zid,parts,pret)=>{
 function ensure(zid){
  if(isGuest()||get(zid)) return get(zid);
  let ok=false;try{ok=MWI.owned(zid)&&MWI.CAT.some(p=>p.id===zid&&p.kind==='garage');}catch(e){}
+ if(!ok&&zid==='garage1'){try{ok=MWC.employer().id==='patron';}catch(e){}} /* Garage du Coin repris en patron (js/42) */
  return ok?api.create(zid,[{pid:pid(),nom:myNom(),apport:0}]):null;}
 api.ensure=ensure;
 function op(c,dx,motif,cat){
@@ -75,7 +78,7 @@ function op(c,dx,motif,cat){
  c.ops.push({t:MW.timeStr(),dx:r2(dx),motif,solde:c.compte});while(c.ops.length>30) c.ops.shift();
  return c.compte;}
 api.active=()=>{
- try{const e=MWC.employer();if(e&&e.id==='proprio'&&e.zone){if(get(e.zone)) return e.zone;if(!isGuest()&&ensure(e.zone)) return e.zone;}}catch(x){}
+ try{const e=MWC.employer();if(e&&(e.id==='proprio'||e.id==='patron')&&e.zone){if(get(e.zone)) return e.zone;if(!isGuest()&&ensure(e.zone)) return e.zone;}}catch(x){}
  return null;};
 api.cash=()=>{const z=api.active();return z?get(z).compte:MW.S.money;};
 const note=(dx,motif)=>{try{MW.toast((dx>0?'+ ':'− ')+fmt(Math.abs(dx))+' · '+motif+' (compte du garage)',dx>0?'good':'warn');}catch(e){}};
@@ -193,6 +196,7 @@ function html(c){
   h+=`<div class="mw-row"><span>${E(p.nom)}<br><small>${b?`Brut ${E(fmt(b))} · coût pour le garage ${E(fmt(r2(b*(1+TAX.chPat))))} · net ${E(fmt(r2(b*(1-TAX.chSal))))}`:'Pas de salaire'}</small></span><span><input id="mwSal_${E(p.pid)}" class="mw-in" type="number" min="0" step="50" value="${b||''}" placeholder="brut" style="width:6.5em"> ${btn('sal:'+p.pid,multi?'Proposer':'Fixer','sm',!!pr)}</span></div>`;}
  h+='</div>';
  h+=`<h3 class="mw-h3">Dividendes</h3><div class="mw-card">${row('Bénéfice de l\'exercice (chiffre d\'affaires − charges)',E(fmt(d.benefice)))}${row('Impôt sur les sociétés dû',E(fmt(d.is)))}${row('Déjà versé cet exercice (brut)',E(fmt(d.deja)))}${row('Distribuable',E(fmt(d.dist)))}<div class="mw-row"><span><input id="mwDiv" class="mw-in" type="number" min="0" step="10" placeholder="montant brut" style="width:8em"></span>${btn('div',multi?'Proposer un versement':'Verser','sm',!!pr||d.dist<=0)}</div></div>`;
+ if(!isGuest()) h+=`<h3 class="mw-h3">Apporter de mon argent au compte</h3><div class="mw-card"><div class="mw-row"><span><small>Pour payer les premières pièces ou une grosse dépense. C'est un apport en compte courant : il ne compte ni dans le chiffre d'affaires ni dans le bénéfice. Vous avez ${E(fmt(MW.S.money))}.</small></span><span><input id="mwDep" class="mw-in" type="number" min="0" step="50" placeholder="montant" style="width:7em"> ${btn('dep','Apporter','sm')}</span></div></div>`;
  h+='<h3 class="mw-h3">Dernières opérations</h3><div class="mw-card">'+(c.ops.length?c.ops.slice(-8).reverse().map(o=>`<div class="mw-row"><span><small>${E(o.t)}</small><br>${E(o.motif)}</span><b>${o.dx>0?'+':'−'} ${E(fmt(Math.abs(o.dx)))}</b></div>`).join(''):'<small>Aucune opération.</small>')+'</div>';
  const ex=c.ex,last=c.bilans[c.bilans.length-1];
  h+=`<h3 class="mw-h3">Bilan</h3><div class="mw-card">${row('Exercice en cours (depuis le jour '+ex.debut+')','')}${row('Chiffre d\'affaires',E(fmt(ex.ca)))}${row('Charges (pièces, matériel, bâtiment, prêt, salaires)',E(fmt(ex.ch)))}${row('Bénéfice',E(fmt(r2(ex.ca-ex.ch))))}${row('Dividendes bruts / prélèvement 30 %',E(fmt(ex.div))+' / '+E(fmt(ex.pfu)))}`;
@@ -210,6 +214,7 @@ api.panel=zid=>{
    if(a.startsWith('sal:')){const p=a.slice(4);api.salaire(zid,p,rd('mwSal_'+p));}
    else if(a==='div') api.dividendes(zid,rd('mwDiv'));
    else if(a==='acc') api.accepter(zid);
+   else if(a==='dep'){const x=Math.round(rd('mwDep')*100)/100;if(!(x>0)) MW.toast('Indiquez un montant.','warn');else if(x>MW.S.money) MW.toast("Vous n'avez pas autant d'argent.",'warn');else{MW.money(-x,'Apport au compte du garage');api.deposit(zid,x,'Apport en compte courant');MW.toast(`${fmt(x)} versés sur le compte du garage.`,'good');}}
    else if(a==='ref') api.refuser(zid);
    setTimeout(()=>{if(panelZ===zid) api.panel(zid);},isGuest()?400:0);}});};
 api.refresh=()=>{if(panelZ&&get(panelZ)) api.panel(panelZ);};
