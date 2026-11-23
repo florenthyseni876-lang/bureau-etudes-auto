@@ -154,6 +154,7 @@ function firstJobStep(){
  const todo=car.ordre.filter(id=>!car.done[id]);
  if(car.ordre.length&&!todo.length) return Object.assign(base,{titre:'Rendez la voiture au client',aide:'Visez la portière conducteur, appuyez sur E, puis « Rendre la voiture ».'});
  let parts=[];try{parts=todo.filter(id=>!car.rem[id]&&MWJ.L.newFind(car,id)<0);}catch(e){}
+ try{const z=car.zone,rupt=parts.filter(id=>typeof MWST!=='undefined'&&MWST.qty(z,id)<=0);if(rupt.length) return Object.assign(base,{titre:'Pièce en rupture : commandez-la',aide:`Il manque : ${rupt.map(id=>MWJ.PARTS[id].nom.toLowerCase()).join(', ')}. Ordinateur du bureau (près de l'entrée), E : livraison demain à 9 h. En attendant, avancez le démontage.`});}catch(e){}
  if(parts.length) return Object.assign(base,{titre:"Prenez les pièces neuves à l'étagère",aide:`Il vous faut : ${parts.map(id=>MWJ.PARTS[id].nom.toLowerCase()).join(', ')}. Étagère de l'atelier, E, puis « Prendre les pièces des ordres en cours ».`});
  let tools=[];try{if(typeof MWG!=='undefined'&&MWG.on()) for(const id of todo) for(const t of (MWJ.TOOLS_FOR[id]||[])) if(MWJ.toolIdx(t)<0&&!tools.includes(t)) tools.push(t);}catch(e){}
  if(tools.length&&!(car.g&&car.g.o&&car.g.o.bac)) return Object.assign(base,{titre:'Prenez les outils à la servante',aide:"Visez la servante (le chariot rouge près du pont), E, puis « Prendre les outils de l'ordre »."});

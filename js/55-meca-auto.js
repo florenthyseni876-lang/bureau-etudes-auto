@@ -7,7 +7,7 @@
    Deux façons :
    · « Faire ce travail » : la voiture devant soi, gestes faits un par un sous les yeux du joueur ;
    · « Mode automatique continu » : le jeu fait tout tout seul. Il va à chaque voiture qui arrive au garage,
-     prend les pièces (étagère quand on est salarié, achat chez Pièces Auto Express à son compte), diagnostique
+     prend les pièces dans le stock du garage (s'il en manque une, elle est commandée et la voiture attend sa livraison), diagnostique
      la panne (+20 min), fait les gestes, rend la voiture, revend à la ferraille les pièces usagées déposées
      (les pièces que le client veut récupérer lui sont rendues), puis attend le client suivant.
      Les voitures dont un travail n'est pas encore débloqué sont laissées au joueur.
@@ -44,6 +44,13 @@ function pieces(c){
  for(const id of ids){if(c.done[id]) continue;if(MWJ.L.newFind(c,id)>=0) continue;
   if(MWJ.inv().length>=MWJ.INV_MAX) ferraille(null);
   if(MWJ.inv().length>=MWJ.INV_MAX) return {ok:false,why:"Inventaire plein : rangez des objets pour que le mécanicien prenne les pièces."};
+  if(typeof MWST!=='undefined'&&c.zone){ /* stock réel (js/59) : on prend dans le stock du garage ; s'il manque la pièce, on la commande et la voiture attend sa livraison */
+   if(MWST.take(c.zone,id)){MWJ.L.invAdd({k:'neuve',id,src:'etagere',lieu:c.zone});continue;}
+   const p=MWJ.PARTS[id],r=MWST.orderFor(c.zone,[id]);
+   if(r.ord){c.attendLivraison=r.ord.due;return {ok:false,attente:r.ord.due,why:`Pièce manquante : ${p.nom.toLowerCase()} commandée, livraison ${MWST.dueText(r.ord.due)}. La voiture attend sa livraison.`};}
+   const pe=MWST.pending(c.zone).filter(o=>o.items[id]).sort((x,y)=>x.due-y.due)[0];
+   if(pe){c.attendLivraison=pe.due;return {ok:false,attente:pe.due,why:`Pièce manquante : ${p.nom.toLowerCase()} déjà commandée, livraison ${MWST.dueText(pe.due)}. La voiture attend sa livraison.`};}
+   return {ok:false,why:`Pièce manquante : ${p.nom.toLowerCase()}. ${r.why||'Commandez-la à l\'ordinateur du bureau.'}`};}
   if(aSonCompte()){const p=MWJ.PARTS[id];if((typeof MWS!=='undefined'?MWS.cash():MW.S.money)<p.prix) return {ok:false,why:`Pas assez d'argent pour acheter : ${p.nom}.`};(typeof MWS!=='undefined'?MWS.biz:MW.money)(-p.prix,'Pièces Auto Express : '+p.nom);cout+=p.prix;MWJ.L.invAdd({k:'neuve',id,src:'achat',paye:p.prix});}
   else MWJ.L.invAdd({k:'neuve',id,src:'etagere'});}
  return {ok:true,cout};}
@@ -108,7 +115,7 @@ function start(rendre){
 
 /* ── mode continu : toutes les voitures du garage, l'une après l'autre ── */
 function nextCar(){const z=empZone();if(!z) return null;
- return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!ami(c)).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
+ return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!ami(c)&&!(c.attendLivraison>MWJ.absT())).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
 function loop(){
  if(!svc||job) return;
  if(MW.paused){svc.t=setTimeout(loop,500);return;}
@@ -119,7 +126,7 @@ function loop(){
  if(!o.ok){svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} (pont ${c.pont+1}) laissée pour vous : travail automatique débloqué au niveau ${NIV} en ${manqueTxt(o.manque)}.`,'warn');svc.t=setTimeout(loop,300);return;}
  goTo(c);hud(`${esc(c.marque+' '+c.modele)} · préparation`);
  begin(c,true,res=>{
-  if(res!=='ok'&&MWJ.jobs().includes(c)){svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} laissée pour vous. ${res}`,'warn');}
+  if(res!=='ok'&&MWJ.jobs().includes(c)){if(!(c.attendLivraison>MWJ.absT())) svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} laissée pour vous. ${res}`,'warn');}
   if(svc) svc.t=setTimeout(loop,600);});}
 function service(){
  if(job||svc) return stop('Travail automatique arrêté.');

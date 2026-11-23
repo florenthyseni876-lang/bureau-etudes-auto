@@ -16,7 +16,7 @@ module.exports = async function mecaGarages(page, env) {
 
   // 1. repères posés dans chaque garage
   const rep = await e(ids => ids.map(id => [id, (MWT.REPERES[id] || []).map(r => r.cat).sort().join(',')]), IDS);
-  for (const [id, cats] of rep) verifier(cats === 'accueil,etabli,outils,pieces', `${id} : repères attendus (accueil, établi, outils, pièces), trouvés « ${cats} »`);
+  for (const [id, cats] of rep) verifier(cats === 'accueil,etabli,outils,pc,pieces', `${id} : repères attendus (accueil, établi, outils, pc, pièces), trouvés « ${cats} »`);
 
   // 2. parcours : de l'entrée à chaque poste, sans obstacle (grille de 0,25 m, rayon du joueur 0,42 m)
   const bad = await e(ids => {
@@ -38,7 +38,7 @@ module.exports = async function mecaGarages(page, env) {
       if (q.length < 400) out.push(id + ' : zone accessible trop petite (' + q.length + ')');
       const atteint = (x, zz, rad) => { for (let b = 0; b < nz; b++) for (let a = 0; a < nx; a++) if (seen[b * nx + a] && Math.hypot(x0 + a * g - x, z0 + b * g - zz) <= rad) return true; return false; };
       const n = z.n, cibles = [['étagère', z.etagere.x - n.x * 1.1, z.etagere.z - n.z * 1.1, 2.0], ['établi', z.etabli.x - n.x * 1.1, z.etabli.z - n.z * 1.1, 2.0],
-        ['comptoir', z.accueil.x, z.accueil.z, 2.4], ['servante', z.loc(-d.w / 2 + 2.2, d.d * .3 + .8).x, z.loc(-d.w / 2 + 2.2, d.d * .3 + .8).z, 1.5]];
+        ['comptoir', z.accueil.x, z.accueil.z, 2.4], ['ordinateur', z.pc.x, z.pc.z, 1.5], ['servante', z.loc(-d.w / 2 + 2.2, d.d * .3 + .8).x, z.loc(-d.w / 2 + 2.2, d.d * .3 + .8).z, 1.5]];
       z.ponts.forEach((p, i) => cibles.push(['pont ' + (i + 1), p.x, p.z, 4.0]));
       for (const [nom, x, zz, rad] of cibles) if (!atteint(x, zz, rad)) out.push(id + ' : ' + nom + ' inaccessible');
     }

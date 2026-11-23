@@ -16,7 +16,7 @@ MWD.ateliers=(z,k)=>{
  const ROT={door:ryO,back:ryO+PI,'u+':PI/2,'u-':-PI/2};
  const lux=id==='garage3',race=id==='garage4';
  /* ═══ panneaux suspendus aux poutres ═══ */
- const CAT={pieces:['#e8b81c','#161616','PIÈCES','Étagère'],etabli:['#e86a1c','#ffffff','ÉTABLI','Pose des pièces'],outils:['#c02a2a','#ffffff','OUTILS','Servante'],accueil:['#2a8a4a','#ffffff','ACCUEIL','Clients']};
+ const CAT={pieces:['#e8b81c','#161616','PIÈCES','Étagère'],etabli:['#e86a1c','#ffffff','ÉTABLI','Pose des pièces'],outils:['#c02a2a','#ffffff','OUTILS','Servante'],accueil:['#2a8a4a','#ffffff','ACCUEIL','Clients'],pc:['#2a6ab0','#ffffff','COMMANDES','Pièces en ligne']};
  function hang(cat,u,v,y,wd,face){
   const c=CAT[cat],h=wd*.26,ry=ROT[face],p=loc(u,v),nx=Math.sin(ry),nz=Math.cos(ry),ax=Math.cos(ry),az=-Math.sin(ry);
   const bg=lux?'#15151b':race?'#161616':c[0],fg=lux?'#e6c46a':race?'#ffffff':c[1];
@@ -39,6 +39,8 @@ MWD.ateliers=(z,k)=>{
  hang('etabli',-hx+3.6,dp-2.4,sy,4.4,'door');
  {const nCh=w>30?3:2;hang('outils',-hx+1.25,dp*.30+(nCh-1)*.8,3.6,3.4,'u+');}
  hang('accueil',hx-3.2,3.0,3.4,3.2,'u-');
+ /* ordinateur de commande des pièces (js/59, MWST) : bureau près de l'entrée, côté comptoir */
+ z.pc=loc(hx-6.4,3.3);hang('pc',hx-6.4,2.6,3.3,3.0,'u-');
  /* ═══ petits meubles réutilisables ═══ */
  const bench=(u,v,face,c)=>{const l=P(core('plain'),u,v,face,0);l.box(1.8,.1,.5,0,.46,0,c||0x6a4a2a);l.box(1.8,.5,.08,0,.8,-.22,c||0x6a4a2a);for(const s of [-.8,.8]) l.box(.08,.44,.4,s,.22,0,0x30343a);};
  const table=(u,v,face,c,rw)=>{const l=P(det('plain'),u,v,face,0);l.box(rw||.9,.05,.6,0,.5,0,c||0xdcdcdc);for(const sx of [-1,1]) l.box(.05,.48,.05,sx*(rw||.9)/2*.85,.24,0,0x30343a);
@@ -62,6 +64,7 @@ MWD.ateliers=(z,k)=>{
   l.box(.6,1.0,.5,2.4,.5,.8,0xcfd3d6);l.box(.56,.4,.04,2.4,1.3,.56,0x14161a);dl.box(.5,.3,.02,2.4,1.32,.53,0x6ad0f0);l.box(.5,.04,.3,2.4,1.02,.95,0x30343a);
   col(u+2.4,v+.8,.7,.6);};
  const rug=(u,v,wu,wv,c,b)=>{const l=P(det('plain'),u,v,'door',0);l.box(wu,.012,wv,0,.106,0,c);l.box(wu-.2,.014,wv-.2,0,.108,0,b);};
+ desk(hx-6.4,2.2,'back',0x3a4a5c);
  /* ═══ chaque garage a son caractère ═══ */
  if(id==='garage1'){ /* atelier de quartier : radio, calendrier, gamelle du chat, bidons — le désordre sympathique */
   const dl=P(det('plain'),hx-.5,dp*.34,'u-',0);dl.box(.5,.4,.6,0,.22,0,0xc8a020);dl.box(.3,.3,.4,0,.6,0,0x8a8e94);
