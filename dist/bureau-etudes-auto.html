@@ -8250,25 +8250,27 @@ function rendreUI(c){
 
 /* ── étagère, établi, magasin, ferraille ── */
 const STOCK1=['huile','filtre_huile','filtre_air','filtre_hab','essuie','ampoules','pneus','batterie','plaq_av','plaq_ar','liquide_frein','bougies','courroie_acc'];
-/* Garage du Coin : réserve des pièces courantes ; pour un travail plus lourd accepté (embrayage, disques, distribution…), l'atelier commande la pièce : elle apparaît à l'étagère dès que le client dépose sa voiture */
-const stockOf=e=>{if(aSonCompte(e)) return [];if(e.zone!=='garage1') return PLIST.map(p=>p.id);
- const l=STOCK1.slice();for(const c of J().cars) if(c.zone===e.zone&&!c.noir) for(const id of (c.ordre||[]).concat(c.symp?sympNeed(SYMP.find(x=>x.id===c.symp.id)):[])) if(PARTS[id]&&!l.includes(id)&&c.parts[id]&&!c.parts[id].na) l.push(id);
- return l;};
+/* Stock réel (js/59, MWST) : l'étagère montre les quantités ; prendre une pièce la retire du stock ; une pièce absente se commande à l'ordinateur du bureau */
 function etagere(zid){
  const e=emp();if(!e||e.zone!==zid) return MW.toast("Ce n'est pas l'étagère de votre atelier.",'info');
- const st=stockOf(e);
- let h=`<p class="hint">Réserve de ${esc(e.nom||'votre atelier')} : les pièces sont fournies par l'atelier. Emportez seulement ce qu'il faut (${inv().length}/${INV_MAX} places).${e.zone==='garage1'?' Pour un gros travail (embrayage, disques, distribution…), la pièce commandée arrive à l\'étagère dès que le client a déposé sa voiture.':''}</p>`;
- if(!st.length) h+='<p class="mw-soon">À votre compte, vous achetez vos pièces chez Pièces Auto Express.</p>';
- h+=st.map(id=>{const p=PARTS[id],n=inv().filter(it=>it.k==='neuve'&&it.id===id).length;
-  return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min</small><div class="mw-btns">${btn('take:'+id,'Prendre')}</div></div>`;}).join('');
- const besoin=[];for(const c of myCars(zid)) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&st.includes(id)&&!besoin.includes(id)&&invFind('neuve',id)<0) besoin.push(id);
+ const S=typeof MWST!=='undefined'?MWST:null;if(!S) return MW.toast("Le stock de l'atelier n'est pas disponible.",'warn');
+ const own=aSonCompte(e),tot=S.total(zid),cap=S.cap(zid);
+ let h=`<p class="hint">Réserve de ${esc(e.nom||'votre atelier')} : <b>${tot}/${cap}</b> pièces en stock. Prendre une pièce la retire du stock (emportez seulement ce qu'il faut : ${inv().length}/${INV_MAX} places). Une pièce en rupture se commande à l'ordinateur du bureau (livraison ${own?'demain à 9 h ou express':'demain à 9 h'}) ou s'achète au magasin Pièces Auto Express.</p>`;
+ h+=PLIST.map(p=>{const q=S.qty(zid,p.id),n=inv().filter(it=>it.k==='neuve'&&it.id===p.id).length,pe=S.pendQty(zid,p.id);
+  return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b><span class="mw-tag${q?' ok':' warn'}">${q} en stock</span>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min${pe?' · '+pe+' en commande ('+S.dueText(S.pending(zid).find(c=>c.items[p.id]).due)+')':''}</small><div class="mw-btns">${btn('take:'+p.id,q?'Prendre':'En rupture','',q<=0)}</div></div>`;}).join('');
+ const reste={},besoin=[],manque=[];for(const id of PLIST.map(p=>p.id)) reste[id]=S.qty(zid,id);
+ for(const c of myCars(zid)) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&invFind('neuve',id)<0&&!besoin.includes(id)&&!manque.includes(id)){if(reste[id]>0){reste[id]--;besoin.push(id);}else manque.push(id);}
+ if(manque.length) h=`<p class="mw-soon">À commander (ordinateur du bureau) : ${manque.map(id=>esc(PARTS[id].nom)).join(', ')}.</p>`+h;
  if(besoin.length) h=`<div class="mw-btns">${btn('need','Prendre les pièces des ordres en cours ('+besoin.map(id=>PARTS[id].nom).join(', ')+')')}</div>`+h;
- const nm=inv().filter(it=>it.k==='neuve'&&it.src==='etagere').length;
+ const nm=inv().filter(it=>it.k==='neuve'&&it.src==='etagere').length,na=own?inv().filter(it=>it.k==='neuve'&&it.src==='achat').length:0;
  if(nm) h+=`<div class="mw-btns">${btn('putall','Rapporter mes pièces neuves non achetées','ghost')}</div>`;
- const fn=(a,keep)=>{const [k,id]=a.split(':');
-  if(k==='take'){if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else{invAdd({k:'neuve',id,src:'etagere'});MW.toast(PARTS[id].nom+' : pris(e) à l\'étagère.','info');}}
-  else if(k==='need'){let n=0;for(const id of besoin){if(inv().length>=INV_MAX){MW.toast('Inventaire plein.','warn');break;}invAdd({k:'neuve',id,src:'etagere'});n++;}if(n) MW.toast(`${n} pièce(s) prise(s) à l'étagère.`,'good');}
-  else if(k==='putall'){for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='neuve'&&inv()[i].src==='etagere') inv().splice(i,1);invUI();}
+ if(na) h+=`<div class="mw-btns">${btn('rangeachat','Ranger mes pièces achetées au magasin ('+na+') : remboursées par le compte du garage','ghost')}</div>`;
+ const fn=a=>{const [k,id]=a.split(':');
+  if(k==='take'){if(S.qty(zid,id)<=0) MW.toast(PARTS[id].nom+' : en rupture, à commander.','warn');else if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else if(S.take(zid,id)){invAdd({k:'neuve',id,src:'etagere',lieu:zid});MW.toast(PARTS[id].nom+' : pris(e) à l\'étagère.','info');}}
+  else if(k==='need'){let n=0;for(const id of besoin){if(inv().length>=INV_MAX){MW.toast('Inventaire plein.','warn');break;}if(S.take(zid,id)){invAdd({k:'neuve',id,src:'etagere',lieu:zid});n++;}}if(n) MW.toast(`${n} pièce(s) prise(s) à l'étagère.`,'good');}
+  else if(k==='putall'){for(let i=inv().length-1;i>=0;i--){const it=inv()[i];if(it.k==='neuve'&&it.src==='etagere'){if(S.add(zid,it.id,1)) inv().splice(i,1);else{MW.toast("Le stock est plein.",'warn');break;}}}invUI();}
+  else if(k==='rangeachat'){let n=0,r=0;for(let i=inv().length-1;i>=0;i--){const it=inv()[i];if(it.k==='neuve'&&it.src==='achat'){if(!S.add(zid,it.id,1)){MW.toast("Le stock est plein.",'warn');break;}inv().splice(i,1);n++;if(it.paye) r+=it.paye;}}invUI();
+   if(r){MW.money(r,'Pièces rangées au stock du garage (remboursées)');if(typeof MWS!=='undefined') MWS.biz(-r,'Pièces achetées au magasin : rangées au stock');}if(n) MW.toast(`${n} pièce(s) rangée(s) au stock.`,'good');}
   etagere(zid);};
  show('Étagère de pièces',h,fn,{keep:true,wide:true});}
 function etabli(zid){
@@ -8432,7 +8434,7 @@ regPoints();
 const api={rebuild:c=>{if(c){buildMesh(c);moveInteracts(c);}hudJobs();},mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>{const y=symp?SYMP.find(x=>x.id===symp.id)||symp:null;return modelFor(zid,(need||[]).concat(y?sympNeed(y):[]),y);},symDef,codesOf,clueTxt,inspLine,ESS_NOM,pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- claim,myCars,aAmi,meId,amiNom,etagere,state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,stock:()=>{const e=emp();return e?stockOf(e):[];},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ claim,myCars,aAmi,meId,amiNom,etagere,STOCK1,state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();
@@ -8592,6 +8594,7 @@ function firstJobStep(){
  const todo=car.ordre.filter(id=>!car.done[id]);
  if(car.ordre.length&&!todo.length) return Object.assign(base,{titre:'Rendez la voiture au client',aide:'Visez la portière conducteur, appuyez sur E, puis « Rendre la voiture ».'});
  let parts=[];try{parts=todo.filter(id=>!car.rem[id]&&MWJ.L.newFind(car,id)<0);}catch(e){}
+ try{const z=car.zone,rupt=parts.filter(id=>typeof MWST!=='undefined'&&MWST.qty(z,id)<=0);if(rupt.length) return Object.assign(base,{titre:'Pièce en rupture : commandez-la',aide:`Il manque : ${rupt.map(id=>MWJ.PARTS[id].nom.toLowerCase()).join(', ')}. Ordinateur du bureau (près de l'entrée), E : livraison demain à 9 h. En attendant, avancez le démontage.`});}catch(e){}
  if(parts.length) return Object.assign(base,{titre:"Prenez les pièces neuves à l'étagère",aide:`Il vous faut : ${parts.map(id=>MWJ.PARTS[id].nom.toLowerCase()).join(', ')}. Étagère de l'atelier, E, puis « Prendre les pièces des ordres en cours ».`});
  let tools=[];try{if(typeof MWG!=='undefined'&&MWG.on()) for(const id of todo) for(const t of (MWJ.TOOLS_FOR[id]||[])) if(MWJ.toolIdx(t)<0&&!tools.includes(t)) tools.push(t);}catch(e){}
  if(tools.length&&!(car.g&&car.g.o&&car.g.o.bac)) return Object.assign(base,{titre:'Prenez les outils à la servante',aide:"Visez la servante (le chariot rouge près du pont), E, puis « Prendre les outils de l'ordre »."});
@@ -12298,7 +12301,7 @@ MWD.ateliers=(z,k)=>{
  const ROT={door:ryO,back:ryO+PI,'u+':PI/2,'u-':-PI/2};
  const lux=id==='garage3',race=id==='garage4';
  /* ═══ panneaux suspendus aux poutres ═══ */
- const CAT={pieces:['#e8b81c','#161616','PIÈCES','Étagère'],etabli:['#e86a1c','#ffffff','ÉTABLI','Pose des pièces'],outils:['#c02a2a','#ffffff','OUTILS','Servante'],accueil:['#2a8a4a','#ffffff','ACCUEIL','Clients']};
+ const CAT={pieces:['#e8b81c','#161616','PIÈCES','Étagère'],etabli:['#e86a1c','#ffffff','ÉTABLI','Pose des pièces'],outils:['#c02a2a','#ffffff','OUTILS','Servante'],accueil:['#2a8a4a','#ffffff','ACCUEIL','Clients'],pc:['#2a6ab0','#ffffff','COMMANDES','Pièces en ligne']};
  function hang(cat,u,v,y,wd,face){
   const c=CAT[cat],h=wd*.26,ry=ROT[face],p=loc(u,v),nx=Math.sin(ry),nz=Math.cos(ry),ax=Math.cos(ry),az=-Math.sin(ry);
   const bg=lux?'#15151b':race?'#161616':c[0],fg=lux?'#e6c46a':race?'#ffffff':c[1];
@@ -12321,6 +12324,8 @@ MWD.ateliers=(z,k)=>{
  hang('etabli',-hx+3.6,dp-2.4,sy,4.4,'door');
  {const nCh=w>30?3:2;hang('outils',-hx+1.25,dp*.30+(nCh-1)*.8,3.6,3.4,'u+');}
  hang('accueil',hx-3.2,3.0,3.4,3.2,'u-');
+ /* ordinateur de commande des pièces (js/59, MWST) : bureau près de l'entrée, côté comptoir */
+ z.pc=loc(hx-6.4,3.3);hang('pc',hx-6.4,2.6,3.3,3.0,'u-');
  /* ═══ petits meubles réutilisables ═══ */
  const bench=(u,v,face,c)=>{const l=P(core('plain'),u,v,face,0);l.box(1.8,.1,.5,0,.46,0,c||0x6a4a2a);l.box(1.8,.5,.08,0,.8,-.22,c||0x6a4a2a);for(const s of [-.8,.8]) l.box(.08,.44,.4,s,.22,0,0x30343a);};
  const table=(u,v,face,c,rw)=>{const l=P(det('plain'),u,v,face,0);l.box(rw||.9,.05,.6,0,.5,0,c||0xdcdcdc);for(const sx of [-1,1]) l.box(.05,.48,.05,sx*(rw||.9)/2*.85,.24,0,0x30343a);
@@ -12344,6 +12349,7 @@ MWD.ateliers=(z,k)=>{
   l.box(.6,1.0,.5,2.4,.5,.8,0xcfd3d6);l.box(.56,.4,.04,2.4,1.3,.56,0x14161a);dl.box(.5,.3,.02,2.4,1.32,.53,0x6ad0f0);l.box(.5,.04,.3,2.4,1.02,.95,0x30343a);
   col(u+2.4,v+.8,.7,.6);};
  const rug=(u,v,wu,wv,c,b)=>{const l=P(det('plain'),u,v,'door',0);l.box(wu,.012,wv,0,.106,0,c);l.box(wu-.2,.014,wv-.2,0,.108,0,b);};
+ desk(hx-6.4,2.2,'back',0x3a4a5c);
  /* ═══ chaque garage a son caractère ═══ */
  if(id==='garage1'){ /* atelier de quartier : radio, calendrier, gamelle du chat, bidons — le désordre sympathique */
   const dl=P(det('plain'),hx-.5,dp*.34,'u-',0);dl.box(.5,.4,.6,0,.22,0,0xc8a020);dl.box(.3,.3,.4,0,.6,0,0x8a8e94);
@@ -12697,8 +12703,8 @@ function infoUI(){
   hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${ht?' · '+esc(toolName(ht,HINT.a.sock)):''}${miss?' <b>(à prendre à la servante, le chariot rouge)</b>':''}`;}
  /* pièce déposée sans pièce neuve en poche : on le dit toujours, même sans l'aide (c'est l'étape qui bloque le plus souvent) */
  if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
-  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=!!(e&&(e.compte||e.aSonCompte));
-   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${shop?'achetez-la chez Pièces Auto Express':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
+  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=false,rupt=typeof MWST!=='undefined'&&e&&e.zone&&miss.some(id=>MWST.qty(e.zone,id)<=0);
+   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${rupt?'en rupture au stock : commandez-la à l\'ordinateur du bureau (ou achetez-la chez Pièces Auto Express)':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
  if(R&&R.c){const Ow=R.c.g&&R.c.g.o;if(Ow&&Ow.on&&Ow.drain<1) hh=`<i></i>L'huile s'écoule… attendez (${Math.max(1,Math.ceil((1-Ow.drain)*DRAIN_T))} s)`+(hh?'<br>'+hh.replace('<i></i>',''):'');}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}
@@ -14244,7 +14250,7 @@ const CH=[
  <h4>Une voiture, du début à la fin</h4>${ol([
   `<b>Lisez l'ordre</b> : le client annonce le travail (bandeau à gauche et carnet ${K('Tab')}). S'il décrit un symptôme, il faut d'abord trouver la panne (niveau 2).`,
   `<b>Prenez les outils</b> à la <b>servante</b>, le chariot rouge à côté du pont (visez-la, ${K('E')}) ou à l'établi. Vous n'avez rien dans les poches : le bouton <i>Prendre les outils de l'ordre</i> prend ceux du travail en cours. Rangez-les ensuite pour libérer de la place.`,
-  `<b>Prenez les pièces neuves</b> à l'<b>étagère</b> de l'atelier (${K('E')} devant l'étagère). Le bouton <i>Prendre les pièces des ordres en cours</i> prend tout d'un coup. Au Garage du Coin, l'étagère tient les pièces courantes ; pour un gros travail accepté (embrayage, disques, distribution…), l'atelier commande la pièce : elle apparaît à l'étagère dès que le client a déposé sa voiture. Dans un autre cadre (à votre compte), achetez les pièces chez <b>Pièces Auto Express</b> : elles sont avancées puis remboursées à la facture. La <b>valise de diagnostic</b> (220 €) s'achète aussi chez Pièces Auto Express (onglet Outils). Sans la pièce neuve sur vous, rien ne se remonte : le bandeau du haut vous le rappelle.`,
+  `<b>Prenez les pièces neuves</b> à l'<b>étagère</b> de l'atelier (${K('E')} devant l'étagère). Le bouton <i>Prendre les pièces des ordres en cours</i> prend tout d'un coup. <b>Le stock est réel</b> : l'étagère montre les quantités et prendre une pièce la retire du stock. Une pièce en rupture se <b>commande à l'ordinateur du bureau</b> (près de l'entrée de chaque garage, et dans le bureau de votre logement) : site Pièces Auto Express, panier, livraison demain à 9 h ou express le jour même (plus cher, jusqu'à 17 h). La camionnette se gare devant et le colis entre dans le stock du lieu. Vous pouvez aussi <b>aller les chercher</b> au magasin Pièces Auto Express, puis les ranger (étagère, ou coffre de votre logement). Qui paie : <b>salarié</b>, l'employeur (réapprovisionnement chaque matin pour les pièces courantes ; une pièce rare arrive le lendemain, le client attend) ; <b>à votre compte</b>, le compte du garage ; <b>chez vous</b>, votre argent. Le travail automatique prend dans le stock et commande ce qui manque. La <b>valise de diagnostic</b> (220 €) s'achète aussi chez Pièces Auto Express (onglet Outils). Sans la pièce neuve sur vous, rien ne se remonte : le bandeau du haut vous le rappelle.`,
   `<b>Travaillez</b> : visez une pièce, son nom s'affiche avec le geste possible et l'outil demandé. Le bandeau « Étape suivante » vous guide (réglable avec ${K('G')}).`,
   `<b>Rendez la voiture</b> : ${RENDRE}`])}
  <h4>L'inventaire (barre du bas)</h4>${ul([
@@ -15041,8 +15047,8 @@ function bedPanel(id,z){
  MW.panel(nm+' · Chambre',`<p>${night?'Il est tard : une bonne nuit vous fera du bien (réveil à '+reveil+').':'Il est trop tôt pour dormir : revenez à partir de 19 h.'} ${esc(MW.timeStr())}.</p><div class="mw-btns">${night?`<button type="button" class="btn" data-mw="sleep">Dormir (réveil à ${reveil})</button>`:''}<button type="button" class="btn ghost" data-mw="save">Sauvegarder</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,
   {onClick:a=>{if(a==='sleep'){if(!night) return;MW.closePanel();if(id==='appart') MW.sleep();else MWI.sleepIn(id);}else if(a==='save'){MW.save();MW.toast('Partie sauvegardée.','good');}}});}
 function deskPanel(id,z){
- MW.panel(LAY[id].nom+' · Bureau',`<p>Votre bureau : tout ce qui concerne votre métier se règle ici.</p><div class="mw-btns v"><button type="button" class="btn" data-mw="car">Carrière (C) : poste, diplômes, banque</button><button type="button" class="btn" data-mw="biens">Mes biens (B) : logements, garages, usines</button><button type="button" class="btn" data-mw="carnet">Carnet (Tab) : voitures rendues, notes</button><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,
-  {onClick:a=>{if(a==='car'){try{MWC.panel();}catch(e){console.error(e);}}else if(a==='biens'){MWI.panel();}else if(a==='carnet'){try{MWJ.openCarnet();}catch(e){console.error(e);}}}});}
+ MW.panel(LAY[id].nom+' · Bureau',`<p>Votre bureau : tout ce qui concerne votre métier se règle ici.</p><div class="mw-btns v"><button type="button" class="btn" data-mw="car">Carrière (C) : poste, diplômes, banque</button><button type="button" class="btn" data-mw="biens">Mes biens (B) : logements, garages, usines</button><button type="button" class="btn" data-mw="carnet">Carnet (Tab) : voitures rendues, notes</button>${typeof MWST!=='undefined'?'<button type="button" class="btn" data-mw="pieces">Ordinateur : commander des pièces (livrées chez vous, rangées au coffre)</button>':''}<button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,
+  {onClick:a=>{if(a==='car'){try{MWC.panel();}catch(e){console.error(e);}}else if(a==='biens'){MWI.panel();}else if(a==='carnet'){try{MWJ.openCarnet();}catch(e){console.error(e);}}else if(a==='pieces'){try{MWST.site(id);}catch(e){console.error(e);}}}});}
 
 /* ═══ Décor qui suit la progression : cadres, trophées, maquettes, voitures du garage ═══ */
 function tex2(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);const t=new T.CanvasTexture(c);if(LIN) t.encoding=T.sRGBEncoding;t.anisotropy=4;return t;}
@@ -16177,7 +16183,7 @@ window.__mwadm=MWADM;
    Deux façons :
    · « Faire ce travail » : la voiture devant soi, gestes faits un par un sous les yeux du joueur ;
    · « Mode automatique continu » : le jeu fait tout tout seul. Il va à chaque voiture qui arrive au garage,
-     prend les pièces (étagère quand on est salarié, achat chez Pièces Auto Express à son compte), diagnostique
+     prend les pièces dans le stock du garage (s'il en manque une, elle est commandée et la voiture attend sa livraison), diagnostique
      la panne (+20 min), fait les gestes, rend la voiture, revend à la ferraille les pièces usagées déposées
      (les pièces que le client veut récupérer lui sont rendues), puis attend le client suivant.
      Les voitures dont un travail n'est pas encore débloqué sont laissées au joueur.
@@ -16214,6 +16220,13 @@ function pieces(c){
  for(const id of ids){if(c.done[id]) continue;if(MWJ.L.newFind(c,id)>=0) continue;
   if(MWJ.inv().length>=MWJ.INV_MAX) ferraille(null);
   if(MWJ.inv().length>=MWJ.INV_MAX) return {ok:false,why:"Inventaire plein : rangez des objets pour que le mécanicien prenne les pièces."};
+  if(typeof MWST!=='undefined'&&c.zone){ /* stock réel (js/59) : on prend dans le stock du garage ; s'il manque la pièce, on la commande et la voiture attend sa livraison */
+   if(MWST.take(c.zone,id)){MWJ.L.invAdd({k:'neuve',id,src:'etagere',lieu:c.zone});continue;}
+   const p=MWJ.PARTS[id],r=MWST.orderFor(c.zone,[id]);
+   if(r.ord){c.attendLivraison=r.ord.due;return {ok:false,attente:r.ord.due,why:`Pièce manquante : ${p.nom.toLowerCase()} commandée, livraison ${MWST.dueText(r.ord.due)}. La voiture attend sa livraison.`};}
+   const pe=MWST.pending(c.zone).filter(o=>o.items[id]).sort((x,y)=>x.due-y.due)[0];
+   if(pe){c.attendLivraison=pe.due;return {ok:false,attente:pe.due,why:`Pièce manquante : ${p.nom.toLowerCase()} déjà commandée, livraison ${MWST.dueText(pe.due)}. La voiture attend sa livraison.`};}
+   return {ok:false,why:`Pièce manquante : ${p.nom.toLowerCase()}. ${r.why||'Commandez-la à l\'ordinateur du bureau.'}`};}
   if(aSonCompte()){const p=MWJ.PARTS[id];if((typeof MWS!=='undefined'?MWS.cash():MW.S.money)<p.prix) return {ok:false,why:`Pas assez d'argent pour acheter : ${p.nom}.`};(typeof MWS!=='undefined'?MWS.biz:MW.money)(-p.prix,'Pièces Auto Express : '+p.nom);cout+=p.prix;MWJ.L.invAdd({k:'neuve',id,src:'achat',paye:p.prix});}
   else MWJ.L.invAdd({k:'neuve',id,src:'etagere'});}
  return {ok:true,cout};}
@@ -16278,7 +16291,7 @@ function start(rendre){
 
 /* ── mode continu : toutes les voitures du garage, l'une après l'autre ── */
 function nextCar(){const z=empZone();if(!z) return null;
- return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!ami(c)).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
+ return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!ami(c)&&!(c.attendLivraison>MWJ.absT())).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
 function loop(){
  if(!svc||job) return;
  if(MW.paused){svc.t=setTimeout(loop,500);return;}
@@ -16289,7 +16302,7 @@ function loop(){
  if(!o.ok){svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} (pont ${c.pont+1}) laissée pour vous : travail automatique débloqué au niveau ${NIV} en ${manqueTxt(o.manque)}.`,'warn');svc.t=setTimeout(loop,300);return;}
  goTo(c);hud(`${esc(c.marque+' '+c.modele)} · préparation`);
  begin(c,true,res=>{
-  if(res!=='ok'&&MWJ.jobs().includes(c)){svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} laissée pour vous. ${res}`,'warn');}
+  if(res!=='ok'&&MWJ.jobs().includes(c)){if(!(c.attendLivraison>MWJ.absT())) svc.skip[c.id]=1;MW.toast(`${c.marque} ${c.modele} laissée pour vous. ${res}`,'warn');}
   if(svc) svc.t=setTimeout(loop,600);});}
 function service(){
  if(job||svc) return stop('Travail automatique arrêté.');
@@ -16564,6 +16577,7 @@ function onMsg(m){
   case 'pay': if(N.live&&role==='guest'&&isFinite(m.dx)) MW.money(+m.dx,String(m.motif||'').slice(0,120));break;
   case 'say': if(N.live) toast(String(m.txt||'').slice(0,200),m.g==='warn'||m.g==='good'||m.g==='crit'?m.g:'info');break;
   case 'soc': if(N.live&&role==='guest') MWS.setMirror(m.s,m.hp,m.hn);break;
+  case 'stk': case 'stkq': if(N.live&&typeof MWST!=='undefined'&&(m.t==='stk'?role==='guest':role==='host')) MWST.onNet(m);break;
   case 'emp': if(N.live&&role==='guest'){Object.assign(MW.S.career,m.career||{});MW.emit('employerChanged',MW.S.career.emp);}break;
   case 'slq': if(N.live&&role==='host'){sw.he=m.on?(m.wk||1):0;swT=performance.now();toastSleep(m.on);swCheck();}break;
   case 'sleep': if(N.live&&role==='guest') runSleep(m.wk);break;
@@ -17046,6 +17060,182 @@ api.mine=zid=>{const c=get(zid);return !!c&&!!partOf(c,pid());};
 
 window.__mws=api;
 return api;})();
+
+/* ───────────── Mode « Mécanicien » — STOCK DE PIÈCES, COMMANDE EN LIGNE, LIVRAISON ─────────────
+   Plus de stock infini : chaque lieu a un stock de pièces avec des quantités et une capacité.
+   · Garages (Garage du Coin, Ventoux, Maison Aurèle, Scuderia Brivio, garages achetés) : réserve de l'atelier (étagère). Prendre une pièce à
+     l'étagère la retire du stock ; une pièce absente se commande à l'ordinateur du bureau, ou se rachète au magasin Pièces Auto Express.
+   · Chez soi (studio, logements) : la réserve est le COFFRE du logement (js/52, MWI.stock), compté en pièces neuves ; l'ordinateur est celui du
+     bureau (js/52a). Capacité = places du coffre.
+   · Commander par internet (site « Pièces Auto Express ») : catalogue (prix en ligne 8 % sous le comptoir), panier, frais de livraison et délai :
+     livraison le lendemain à 9 h (6 €) ou express le jour même (environ 1 h 30, 18 €, seulement si la commande est passée avant 17 h).
+     Une camionnette se gare devant le lieu et le colis entre dans le stock de ce lieu.
+   · Aller les chercher : au magasin (zone « pièces »), on achète au comptoir, les pièces vont dans l'inventaire, puis on les range dans le stock.
+   · Qui paie : SALARIÉ → l'employeur commande (gratuit pour le joueur, livraison du lendemain seulement), l'atelier est réapprovisionné chaque
+     matin pour les pièces courantes, une pièce rare se commande et arrive avec un délai (le client attend). À SON COMPTE / PATRON / SOCIÉTÉ →
+     compte du garage (js/57, MWS.biz). CHEZ SOI → argent personnel.
+   · À deux (js/56) : le stock du garage est commun, l'hôte fait autorité (l'invité lit une copie et envoie ses demandes).
+   · Anciennes sauvegardes : stock initial raisonnable créé à la première visite du lieu.
+
+   ═══ API `MWST` (aussi `window.__mwst`) ═══
+   MWST.get(lieu)                      {parts:{id:quantité}, total, cap, free, pend:{id:quantité en commande}} (lieu : 'garage1'…'garage7', 'appart', 'loge1'…'loge4')
+   MWST.qty(lieu,id)                   quantité en stock                         MWST.cap(lieu) / MWST.total(lieu) / MWST.free(lieu)
+   MWST.add(lieu,id,n=1)               range n pièces (dans la limite de la capacité) → nombre rangé
+   MWST.take(lieu,id,n=1)              retire n pièces du stock → vrai si elles y étaient toutes
+   MWST.order(lieu,{id:n},mode,opt)    commande en ligne : mode 'next' (demain 9 h) | 'express' → {ok,why,ord} ; paie selon MWST.payer(lieu)
+   MWST.orderFor(lieu,ids,opt)         commande une pièce de chaque id manquant (livraison du lendemain) → {ok,why,ord,manque}
+   MWST.pending(lieu)                  commandes en cours [{id,lieu,items,due,mode,cout}] ; MWST.pendQty(lieu,id)
+   MWST.payer(lieu)                    'emp' (l'employeur paie) | 'biz' (compte du garage) | 'perso' | null (pas d'accès)
+   MWST.lieuDeTravail()                lieu où travaille le joueur (garage de l'employeur) ou null
+   MWST.common(id)                     pièce « courante » (réapprovisionnée chaque matin pour un salarié)
+   MWST.site(lieu)                     ouvre le site de commande ; MWST.panel(lieu) ouvre l'état du stock
+   MWST.restock(lieu)                  réapprovisionnement du matin (pièces courantes) ; MWST.tick() livre les commandes arrivées
+   MWST.dueText(due)                   « demain à 9 h », « aujourd'hui à 14 h 30 »…
+   Données sauvegardées : MW.S.reserve = {lieux:{garageN:{p:{id:n}}}, cmd:[commandes], seq}. */
+const MWST=(()=>{
+const api={};
+const CAP={garage1:90,garage2:150,garage3:130,garage4:110,garage5:70,garage6:110,garage7:200};
+const NIV={garage1:3,garage2:4,garage3:4,garage4:3,garage5:2,garage6:3,garage7:3}; /* quantité cible des pièces courantes par lieu */
+const HOMES=['appart','loge1','loge2','loge3','loge4'];
+const FRAIS={next:6,express:18},WEB=.92,H9=540,H_EXP_MAX=1020,EXP_MIN=90;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const r2=x=>Math.round(x*100)/100,fmt=x=>MW.fmt(x);
+const isHome=z=>HOMES.includes(z),isGarage=z=>/^garage\d$/.test(z);
+const NOM={garage1:'Garage du Coin',garage2:'Ventoux',garage3:'Maison Aurèle',garage4:'Scuderia Brivio',garage5:'Atelier de la Rue Basse',garage6:'Garage Delmas',garage7:"Grand Garage de l'Esplanade",appart:'le studio',loge1:'la maison de ville',loge2:"l'appartement du Centre",loge3:'le pavillon',loge4:'la villa'};
+const nomLieu=z=>{try{const q=MW.zone(z);if(q&&q.nom) return q.nom;}catch(e){}return NOM[z]||z;};
+const guest=()=>!!(MW.net&&MW.net.live&&MW.net.guest);
+let mirror=null;
+const P=()=>MWJ.PARTS,PL=()=>MWJ.PARTS_LIST;
+/* ── état ── */
+function R(){const s=MW.S;if(!s.reserve||typeof s.reserve!=='object') s.reserve={lieux:{},cmd:[],seq:0};const r=s.reserve;if(!r.lieux) r.lieux={};if(!r.cmd) r.cmd=[];if(r.seq==null) r.seq=0;return r;}
+const D=()=>guest()?(mirror||(mirror={lieux:{},cmd:[],seq:0})):R();
+const common=id=>{const p=P()[id];if(!p) return false;try{if(MWJ.STOCK1&&MWJ.STOCK1.includes(id)) return true;}catch(e){}return p.niv<=2&&p.prix<=80;};
+api.common=common;
+/* ── capacité, quantités ── */
+function homeChest(z){try{const o=MWI.state();return o.stock[z]||(o.stock[z]=[]);}catch(e){return [];}}
+api.cap=z=>{if(isHome(z)){try{return MWI.cap(z)||0;}catch(e){return 0;}}return CAP[z]||40;};
+function lieu(z){const d=D();let l=d.lieux[z];if(!l){l=d.lieux[z]={p:{}};if(!guest()) init(z,l);}return l;}
+function init(z,l){ /* stock de départ raisonnable : pièces courantes, et de quoi faire les travaux lourds dans les grands garages */
+ const cap=api.cap(z),com=PL().filter(p=>common(p.id)),rare=PL().filter(p=>!common(p.id)),n=NIV[z]||3;let t=0;
+ const put=(id,k)=>{const m=Math.min(k,cap-t);if(m>0){l.p[id]=(l.p[id]||0)+m;t+=m;}};
+ for(const p of com) put(p.id,n);
+ if(z==='garage2'||z==='garage3'||z==='garage4') for(const p of rare) put(p.id,1);}
+api.qty=(z,id)=>{if(isHome(z)) return homeChest(z).filter(it=>it&&it.k==='neuve'&&it.id===id).length;return (lieu(z).p[id])||0;};
+api.total=z=>{if(isHome(z)) return homeChest(z).filter(it=>it&&it.k==='neuve').length;const p=lieu(z).p;let t=0;for(const k in p) t+=p[k]||0;return t;};
+const pendTot=z=>D().cmd.filter(c=>c.lieu===z).reduce((a,c)=>a+Object.values(c.items).reduce((s,x)=>s+x,0),0);
+api.free=z=>{if(isHome(z)){const st=homeChest(z);return Math.max(0,api.cap(z)-st.length);}return Math.max(0,api.cap(z)-api.total(z));};
+api.pendQty=(z,id)=>D().cmd.filter(c=>c.lieu===z).reduce((a,c)=>a+(c.items[id]||0),0);
+api.pending=z=>D().cmd.filter(c=>!z||c.lieu===z);
+api.get=z=>{const parts={};for(const p of PL()){const q=api.qty(z,p.id);if(q) parts[p.id]=q;}const pend={};for(const c of D().cmd) if(c.lieu===z) for(const id in c.items) pend[id]=(pend[id]||0)+c.items[id];
+ return {parts,total:api.total(z),cap:api.cap(z),free:api.free(z),pend};};
+function sync(){if(guest()||!(MW.net&&MW.net.live)) return;try{MWNET.sendTo({t:'stk',s:JSON.parse(JSON.stringify(R()))});}catch(e){}}
+function req(m){try{MWNET.sendTo(Object.assign({t:'stkq'},m));}catch(e){}}
+api.add=(z,id,n)=>{n=n||1;if(!P()[id]) return 0;const m=Math.min(n,api.free(z));if(m<=0) return 0;
+ if(isHome(z)){const st=homeChest(z);for(let i=0;i<m;i++) st.push({k:'neuve',id,src:'stock'});return m;}
+ const l=lieu(z);l.p[id]=(l.p[id]||0)+m;if(guest()) req({op:'add',z,id,n:m});else sync();return m;};
+api.take=(z,id,n)=>{n=n||1;if(api.qty(z,id)<n) return false;
+ if(isHome(z)){const st=homeChest(z);for(let k=0;k<n;k++){const i=st.findIndex(it=>it&&it.k==='neuve'&&it.id===id);if(i>=0) st.splice(i,1);}return true;}
+ const l=lieu(z);l.p[id]-=n;if(l.p[id]<=0) delete l.p[id];if(guest()) req({op:'take',z,id,n});else sync();return true;};
+/* ── lieu de travail et payeur ── */
+const emp=()=>{try{return MWC.employer();}catch(e){return null;}};
+api.lieuDeTravail=()=>{const e=emp();return e&&e.id!=='aucun'&&e.zone?e.zone:null;};
+api.payer=z=>{if(isHome(z)) return 'perso';const e=emp();if(!e||e.zone!==z) return null;return (e.compte||e.net)?'biz':'emp';};
+const cash=k=>k==='biz'?(typeof MWS!=='undefined'?MWS.cash():MW.S.money):MW.S.money;
+const pay=(k,x,motif)=>{if(k==='biz'&&typeof MWS!=='undefined') MWS.biz(-x,motif);else MW.money(-x,motif);};
+/* ── délais ── */
+const dayEff=()=>MW.S.min<360?MW.S.day-1:MW.S.day;
+const absT=()=>MW.S.day*1440+(MW.S.min<360?MW.S.min+1440:MW.S.min);
+const nextMorning=()=>(dayEff()+1)*1440+H9;
+api.dueText=due=>{const d=Math.floor(due/1440),m=due%1440,h=Math.floor(m/60),mm=m%60,hh=h+' h'+(mm?' '+String(mm).padStart(2,'0'):'');return (d===dayEff()?"aujourd'hui":d===dayEff()+1?'demain':'jour '+d)+' à '+hh;};
+const dueOf=mode=>{if(mode==='express'){const t=absT(),lim=dayEff()*1440+H_EXP_MAX;return t<=lim?t+EXP_MIN:nextMorning();}return nextMorning();};
+const expressOK=z=>api.payer(z)!=='emp'&&absT()<=dayEff()*1440+H_EXP_MAX;
+const wprice=id=>Math.max(1,Math.round(P()[id].prix*WEB*100)/100);
+/* ── commande ── */
+api.order=(z,items,mode,opt)=>{opt=opt||{};mode=mode==='express'?'express':'next';
+ const k=opt.payer||api.payer(z);if(!k) return {ok:false,why:'Cet ordinateur est réservé au personnel du garage.'};
+ if(mode==='express'&&k==='emp') mode='next';
+ const ids=Object.keys(items).filter(id=>P()[id]&&items[id]>0);if(!ids.length) return {ok:false,why:'Le panier est vide.'};
+ const n=ids.reduce((a,id)=>a+items[id],0);
+ if(n>api.free(z)-pendTot(z)) return {ok:false,why:`Pas assez de place dans le stock de ${nomLieu(z)} : ${Math.max(0,api.free(z)-pendTot(z))} place(s) libre(s) pour ${n} pièce(s).`};
+ let cout=0;if(k!=='emp'){for(const id of ids) cout+=wprice(id)*items[id];cout=r2(cout+FRAIS[mode]);if(cash(k)<cout) return {ok:false,why:`Il manque ${fmt(r2(cout-cash(k)))} (${k==='biz'?'compte du garage':'votre argent'}).`};}
+ if(cout) pay(k,cout,'Pièces Auto Express : commande en ligne');
+ const ord={id:'c'+(++D().seq),lieu:z,items:Object.fromEntries(ids.map(id=>[id,items[id]])),due:dueOf(mode),mode,cout,payer:k,jour:MW.S.day};
+ if(guest()){req({op:'order',z,items:ord.items,mode,payer:'emp'});return {ok:true,ord};}
+ D().cmd.push(ord);sync();return {ok:true,ord};};
+api.orderFor=(z,ids,opt)=>{const need={};for(const id of ids) if(!(api.qty(z,id)+api.pendQty(z,id)>=1+(need[id]||0))) need[id]=1;
+ const manque=Object.keys(need);if(!manque.length) return {ok:true,manque:[],ord:null};
+ const r=api.order(z,need,'next',opt);return Object.assign({manque},r);};
+/* ── livraison ── */
+function deliver(c){const l=nomLieu(c.lieu);let n=0;for(const id in c.items) n+=api.add(c.lieu,id,c.items[id]);
+ const t=Object.keys(c.items).map(id=>`${c.items[id]} × ${P()[id].nom.toLowerCase()}`).join(', ');
+ MW.toast(`Livraison reçue à ${l} : ${t}.`,'good');MW.emit('stockLivre',c);}
+api.tick=()=>{if(guest()||!MW.S) return;const d=R(),t=absT();let ch=false;
+ for(const c of d.cmd.slice()) if(c.due<=t){d.cmd.splice(d.cmd.indexOf(c),1);deliver(c);ch=true;}
+ if(ch) sync();vanStep();};
+/* ── réapprovisionnement du matin (salarié) ── */
+api.restock=z=>{if(guest()) return 0;let n=0;const tgt=NIV[z]||3;
+ for(const p of PL()){if(!common(p.id)) continue;const q=api.qty(z,p.id),m=Math.min(tgt-q,api.free(z)-pendTot(z));if(m>0) n+=api.add(z,p.id,m);}return n;};
+function matin(){if(guest()||!MW.S) return;const z=api.lieuDeTravail();if(!z||!isGarage(z)||api.payer(z)!=='emp') return;
+ const n=api.restock(z);if(n) MW.toast(`${nomLieu(z)} : l'employeur a réapprovisionné les pièces courantes (${n}).`,'info');}
+/* un client apporte un travail précis : l'employeur commande ce qui manque (livraison demain 9 h) ; les pannes se diagnostiquent d'abord */
+function jobNew(c){if(guest()||!c||c.noir||c.zone!==api.lieuDeTravail()||api.payer(c.zone)!=='emp'||c.type!=='travaux') return;
+ const r=api.orderFor(c.zone,c.ordre.filter(id=>c.parts[id]&&!c.parts[id].na));
+ if(r.ord) MW.toast(`${nomLieu(c.zone)} commande ${r.manque.map(id=>P()[id].nom.toLowerCase()).join(', ')} : livraison ${api.dueText(r.ord.due)}. ${c.client} attend.`,'info');}
+/* ── camionnette de livraison ── */
+let van=null,vanNear=null;
+function buildVan(){const T=MW.THREE,g=new T.Group(),m=(w,h,d,x,y,z,c)=>{const o=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshLambertMaterial({color:c}));o.position.set(x,y,z);g.add(o);return o;};
+ m(2.1,2.0,4.0,0,1.5,-.6,0xf2f2ee);m(2.0,1.3,1.4,0,1.15,1.9,0xf2f2ee);m(1.9,.6,.1,0,1.5,2.62,0x7ab0d8);m(2.12,.3,4.02,0,.6,-.6,0xe8b81c);
+ for(const x of [-1,1]) for(const z of [-1.6,1.6]){const w=new T.Mesh(new T.CylinderGeometry(.42,.42,.3,12),new T.MeshLambertMaterial({color:0x1a1a1c}));w.rotation.z=Math.PI/2;w.position.set(x*1.0,.42,z);g.add(w);}
+ g.visible=false;MW.scene.add(g);return g;}
+function vanStep(){if(!MW.S||!MW.scene) return;const t=absT();let best=null;
+ for(const c of D().cmd) if(c.due-20<=t&&c.due>t-1){const z=MW.zone(c.lieu);if(z&&z.door&&(!best||c.due<best.due)) best={c,z};}
+ if(best&&!van) van=buildVan();if(!van) return;
+ if(!best){van.visible=false;return;}
+ const z=best.z,out={x:-z.n.x,z:-z.n.z},lat={x:Math.abs(z.n.z),z:Math.abs(z.n.x)};
+ van.position.set(z.door.x+out.x*8+lat.x*7,0,z.door.z+out.z*8+lat.z*7);van.rotation.y=Math.atan2(lat.x,lat.z);van.visible=true;}
+/* ── interface : site de commande ── */
+const btn=(a,t,cls,dis)=>`<button type="button" class="btn sm${cls?' '+cls:''}" data-mw="${a}"${dis?' disabled':''}>${t}</button>`;
+let cart={},mode='next',tab='tout',cur=null;
+function payerTxt(z){const k=api.payer(z);return k==='emp'?`<b>Payé par l'employeur</b> (livraison du lendemain seulement ; vous ne payez rien).`:k==='biz'?`Payé par le <b>compte du garage</b> : ${fmt(cash('biz'))} disponibles.`:`Payé avec <b>votre argent</b> : ${fmt(MW.S.money)}.`;}
+function site(z){
+ const k=api.payer(z);if(!k){MW.toast('Cet ordinateur est réservé au personnel du garage.','warn');return;}
+ if(cur!==z){cur=z;cart={};mode='next';}
+ if(mode==='express'&&!expressOK(z)) mode='next';
+ const n=Object.values(cart).reduce((a,x)=>a+x,0),sub=Object.keys(cart).reduce((a,id)=>a+wprice(id)*cart[id],0),fee=k==='emp'?0:FRAIS[mode],tot=r2(sub+fee);
+ const dd=api.dueText(dueOf(mode));
+ let h=`<p class="hint">Site de livraison <b>Pièces Auto Express</b> pour <b>${esc(nomLieu(z))}</b>. ${payerTxt(z)} Stock : <b>${api.total(z)}/${api.cap(z)}</b>${pendTot(z)?` (+ ${pendTot(z)} en commande)`:''}.</p>`;
+ const pend=api.pending(z);if(pend.length) h+=`<p class="mw-soon">En cours de livraison : ${pend.map(c=>Object.keys(c.items).map(id=>c.items[id]+' × '+esc(P()[id].nom.toLowerCase())).join(', ')+' — '+api.dueText(c.due)).join(' · ')}.</p>`;
+ h+=`<div class="mw-btns">${btn('tab:tout','Tout',tab==='tout'?'':'ghost')}${btn('tab:courant','Pièces courantes',tab==='courant'?'':'ghost')}${btn('tab:rare','Pièces rares',tab==='rare'?'':'ghost')}${btn('tab:manque','À réapprovisionner',tab==='manque'?'':'ghost')}</div>`;
+ const list=PL().filter(p=>tab==='tout'||(tab==='courant'&&common(p.id))||(tab==='rare'&&!common(p.id))||(tab==='manque'&&api.qty(z,p.id)+api.pendQty(z,p.id)<=0));
+ h+=list.map(p=>{const q=api.qty(z,p.id),c=cart[p.id]||0,pe=api.pendQty(z,p.id);
+  return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b><span class="mw-tag${q?' ok':' warn'}">${q} en stock</span><span class="mw-tag">${k==='emp'?'fourni':fmt(wprice(p.id))}</span></div><small>${esc(MWJ.SK_NOM[p.comp])} niv. ${p.niv}${pe?' · '+pe+' en commande':''}${c?' · panier : '+c:''}</small><div class="mw-btns">${btn('add:'+p.id,'+1')}${btn('add5:'+p.id,'+5','ghost')}${btn('sub:'+p.id,'−1','ghost',!c)}</div></div>`;}).join('')||'<p class="hint">Rien à afficher ici.</p>';
+ h+=`<div class="mw-card"><b>Panier : ${n} pièce${n>1?'s':''}</b><br><small>Pièces ${k==='emp'?'(fournies par l\'employeur)':fmt(r2(sub))} · livraison ${k==='emp'?'(offerte)':fmt(fee)}</small><div class="mw-btns">${btn('mode:next',`Demain à 9 h${k==='emp'?'':' ('+fmt(FRAIS.next)+')'}`,mode==='next'?'':'ghost')}${k!=='emp'?btn('mode:express',`Express ${expressOK(z)?'· '+fmt(FRAIS.express):'(avant 17 h)'}`,mode==='express'?'':'ghost',!expressOK(z)):''}</div><small>Livraison prévue : ${dd}.</small><div class="mw-btns">${btn('cmd','Commander'+(k==='emp'?'':' · '+fmt(tot)),'',!n)}${btn('clr','Vider le panier','ghost',!n)}${btn('close','Fermer','ghost')}</div></div>`;
+ MW.panel('Pièces Auto Express · '+nomLieu(z),h,{wide:true,onClick:a=>{const [c,id]=a.split(':');
+  if(c==='add') cart[id]=(cart[id]||0)+1;else if(c==='add5') cart[id]=(cart[id]||0)+5;else if(c==='sub'){cart[id]=Math.max(0,(cart[id]||0)-1);if(!cart[id]) delete cart[id];}
+  else if(c==='tab') tab=id;else if(c==='mode') mode=id;else if(c==='clr') cart={};
+  else if(c==='cmd'){const r=api.order(z,cart,mode);if(!r.ok){MW.toast(r.why,'warn');}else{MW.toast(`Commande passée : livraison ${api.dueText(r.ord.due)}${r.ord.cout?' ('+fmt(r.ord.cout)+')':''}.`,'good');cart={};}}
+  else if(c==='close'){MW.closePanel();return;}
+  site(z);}});}
+api.site=site;
+api.panel=z=>{const g=api.get(z);MW.panel('Stock · '+nomLieu(z),`<p>${g.total}/${g.cap} pièces.</p>`+Object.keys(g.parts).map(id=>`<div class="mw-row"><span>${esc(P()[id].nom)}</span><b>${g.parts[id]}</b></div>`).join('')+`<div class="mw-btns"><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,{onClick:()=>MW.closePanel()});};
+/* ── ordinateurs : un par garage ── */
+function start(){if(start.done) return;start.done=true;
+ for(const z of MW.zones) if(isGarage(z.id)&&z.pc) MW.addInteract({id:'mst:pc:'+z.id,x:z.pc.x,z:z.pc.z,r:1.5,label:'Ordinateur · commander des pièces (Pièces Auto Express)',use:()=>site(z.id)});}
+MW.on('start',()=>{start();api.tick();});
+MW.on('minute',api.tick);
+MW.on('day',()=>{matin();api.tick();});
+MW.on('jobNew',jobNew);
+/* ── réseau (à deux) : l'hôte fait autorité ── */
+api.onNet=m=>{if(m.t==='stk'&&guest()) mirror=m.s;
+ else if(m.t==='stkq'&&MW.net&&MW.net.live&&!guest()){const z=m.z;if(m.op==='add'){const l=lieu(z);if(api.free(z)>0) l.p[m.id]=(l.p[m.id]||0)+Math.min(m.n,api.free(z));}
+  else if(m.op==='take'){const l=lieu(z);l.p[m.id]=Math.max(0,(l.p[m.id]||0)-m.n);if(!l.p[m.id]) delete l.p[m.id];}
+  else if(m.op==='order') api.order(z,m.items,m.mode,{payer:'emp'});
+  sync();}};
+setInterval(()=>{try{if(MW.S&&MW.net&&MW.net.live&&!guest()) sync();}catch(e){}},3000);
+api.R=R;
+return api;
+})();
+window.__mwst=MWST;
 
 /* ───────────── Rendu ───────────── */
 function renderKeys(){

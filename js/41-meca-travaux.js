@@ -578,25 +578,27 @@ function rendreUI(c){
 
 /* ── étagère, établi, magasin, ferraille ── */
 const STOCK1=['huile','filtre_huile','filtre_air','filtre_hab','essuie','ampoules','pneus','batterie','plaq_av','plaq_ar','liquide_frein','bougies','courroie_acc'];
-/* Garage du Coin : réserve des pièces courantes ; pour un travail plus lourd accepté (embrayage, disques, distribution…), l'atelier commande la pièce : elle apparaît à l'étagère dès que le client dépose sa voiture */
-const stockOf=e=>{if(aSonCompte(e)) return [];if(e.zone!=='garage1') return PLIST.map(p=>p.id);
- const l=STOCK1.slice();for(const c of J().cars) if(c.zone===e.zone&&!c.noir) for(const id of (c.ordre||[]).concat(c.symp?sympNeed(SYMP.find(x=>x.id===c.symp.id)):[])) if(PARTS[id]&&!l.includes(id)&&c.parts[id]&&!c.parts[id].na) l.push(id);
- return l;};
+/* Stock réel (js/59, MWST) : l'étagère montre les quantités ; prendre une pièce la retire du stock ; une pièce absente se commande à l'ordinateur du bureau */
 function etagere(zid){
  const e=emp();if(!e||e.zone!==zid) return MW.toast("Ce n'est pas l'étagère de votre atelier.",'info');
- const st=stockOf(e);
- let h=`<p class="hint">Réserve de ${esc(e.nom||'votre atelier')} : les pièces sont fournies par l'atelier. Emportez seulement ce qu'il faut (${inv().length}/${INV_MAX} places).${e.zone==='garage1'?' Pour un gros travail (embrayage, disques, distribution…), la pièce commandée arrive à l\'étagère dès que le client a déposé sa voiture.':''}</p>`;
- if(!st.length) h+='<p class="mw-soon">À votre compte, vous achetez vos pièces chez Pièces Auto Express.</p>';
- h+=st.map(id=>{const p=PARTS[id],n=inv().filter(it=>it.k==='neuve'&&it.id===id).length;
-  return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min</small><div class="mw-btns">${btn('take:'+id,'Prendre')}</div></div>`;}).join('');
- const besoin=[];for(const c of myCars(zid)) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&st.includes(id)&&!besoin.includes(id)&&invFind('neuve',id)<0) besoin.push(id);
+ const S=typeof MWST!=='undefined'?MWST:null;if(!S) return MW.toast("Le stock de l'atelier n'est pas disponible.",'warn');
+ const own=aSonCompte(e),tot=S.total(zid),cap=S.cap(zid);
+ let h=`<p class="hint">Réserve de ${esc(e.nom||'votre atelier')} : <b>${tot}/${cap}</b> pièces en stock. Prendre une pièce la retire du stock (emportez seulement ce qu'il faut : ${inv().length}/${INV_MAX} places). Une pièce en rupture se commande à l'ordinateur du bureau (livraison ${own?'demain à 9 h ou express':'demain à 9 h'}) ou s'achète au magasin Pièces Auto Express.</p>`;
+ h+=PLIST.map(p=>{const q=S.qty(zid,p.id),n=inv().filter(it=>it.k==='neuve'&&it.id===p.id).length,pe=S.pendQty(zid,p.id);
+  return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b><span class="mw-tag${q?' ok':' warn'}">${q} en stock</span>${n?`<span class="mw-tag ok">${n} en main</span>`:''}</div><small>${esc(SK_NOM[p.comp])} niv. ${p.niv} · ${p.mo} min${pe?' · '+pe+' en commande ('+S.dueText(S.pending(zid).find(c=>c.items[p.id]).due)+')':''}</small><div class="mw-btns">${btn('take:'+p.id,q?'Prendre':'En rupture','',q<=0)}</div></div>`;}).join('');
+ const reste={},besoin=[],manque=[];for(const id of PLIST.map(p=>p.id)) reste[id]=S.qty(zid,id);
+ for(const c of myCars(zid)) for(const id of c.ordre) if(!c.done[id]&&c.parts[id]&&!c.parts[id].na&&invFind('neuve',id)<0&&!besoin.includes(id)&&!manque.includes(id)){if(reste[id]>0){reste[id]--;besoin.push(id);}else manque.push(id);}
+ if(manque.length) h=`<p class="mw-soon">À commander (ordinateur du bureau) : ${manque.map(id=>esc(PARTS[id].nom)).join(', ')}.</p>`+h;
  if(besoin.length) h=`<div class="mw-btns">${btn('need','Prendre les pièces des ordres en cours ('+besoin.map(id=>PARTS[id].nom).join(', ')+')')}</div>`+h;
- const nm=inv().filter(it=>it.k==='neuve'&&it.src==='etagere').length;
+ const nm=inv().filter(it=>it.k==='neuve'&&it.src==='etagere').length,na=own?inv().filter(it=>it.k==='neuve'&&it.src==='achat').length:0;
  if(nm) h+=`<div class="mw-btns">${btn('putall','Rapporter mes pièces neuves non achetées','ghost')}</div>`;
- const fn=(a,keep)=>{const [k,id]=a.split(':');
-  if(k==='take'){if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else{invAdd({k:'neuve',id,src:'etagere'});MW.toast(PARTS[id].nom+' : pris(e) à l\'étagère.','info');}}
-  else if(k==='need'){let n=0;for(const id of besoin){if(inv().length>=INV_MAX){MW.toast('Inventaire plein.','warn');break;}invAdd({k:'neuve',id,src:'etagere'});n++;}if(n) MW.toast(`${n} pièce(s) prise(s) à l'étagère.`,'good');}
-  else if(k==='putall'){for(let i=inv().length-1;i>=0;i--) if(inv()[i].k==='neuve'&&inv()[i].src==='etagere') inv().splice(i,1);invUI();}
+ if(na) h+=`<div class="mw-btns">${btn('rangeachat','Ranger mes pièces achetées au magasin ('+na+') : remboursées par le compte du garage','ghost')}</div>`;
+ const fn=a=>{const [k,id]=a.split(':');
+  if(k==='take'){if(S.qty(zid,id)<=0) MW.toast(PARTS[id].nom+' : en rupture, à commander.','warn');else if(inv().length>=INV_MAX) MW.toast('Inventaire plein.','warn');else if(S.take(zid,id)){invAdd({k:'neuve',id,src:'etagere',lieu:zid});MW.toast(PARTS[id].nom+' : pris(e) à l\'étagère.','info');}}
+  else if(k==='need'){let n=0;for(const id of besoin){if(inv().length>=INV_MAX){MW.toast('Inventaire plein.','warn');break;}if(S.take(zid,id)){invAdd({k:'neuve',id,src:'etagere',lieu:zid});n++;}}if(n) MW.toast(`${n} pièce(s) prise(s) à l'étagère.`,'good');}
+  else if(k==='putall'){for(let i=inv().length-1;i>=0;i--){const it=inv()[i];if(it.k==='neuve'&&it.src==='etagere'){if(S.add(zid,it.id,1)) inv().splice(i,1);else{MW.toast("Le stock est plein.",'warn');break;}}}invUI();}
+  else if(k==='rangeachat'){let n=0,r=0;for(let i=inv().length-1;i>=0;i--){const it=inv()[i];if(it.k==='neuve'&&it.src==='achat'){if(!S.add(zid,it.id,1)){MW.toast("Le stock est plein.",'warn');break;}inv().splice(i,1);n++;if(it.paye) r+=it.paye;}}invUI();
+   if(r){MW.money(r,'Pièces rangées au stock du garage (remboursées)');if(typeof MWS!=='undefined') MWS.biz(-r,'Pièces achetées au magasin : rangées au stock');}if(n) MW.toast(`${n} pièce(s) rangée(s) au stock.`,'good');}
   etagere(zid);};
  show('Étagère de pièces',h,fn,{keep:true,wide:true});}
 function etabli(zid){
@@ -760,7 +762,7 @@ regPoints();
 const api={rebuild:c=>{if(c){buildMesh(c);moveInteracts(c);}hudJobs();},mesh:c=>RT[c.id]?RT[c.id].g:null,rt:c=>RT[c.id]||null,openPoint,applyVisual,carById,
  L:{REEMP,reempFind,newFind,doInspect,doDep,doPose,doRem,togCapot,togPont,togRoues,gesteOK,canDo,outilOK,invFind,invDel,invAdd,acces,PT_NOM,sockOf:null},
  modelFor:(zid,need,symp)=>{const y=symp?SYMP.find(x=>x.id===symp.id)||symp:null;return modelFor(zid,(need||[]).concat(y?sympNeed(y):[]),y);},symDef,codesOf,clueTxt,inspLine,ESS_NOM,pn,lbl,PARTS,PARTS_LIST:PLIST,SKILLS,SK_NOM,OUTILS,INV_MAX,TPL,SYMP,skillOf,level:lv,done,jobs:()=>J().cars,spawn:makeCar,openCarnet:carnet,shop,inv,evalJob,
- claim,myCars,aAmi,meId,amiNom,etagere,state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,stock:()=>{const e=emp();return e?stockOf(e):[];},quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
+ claim,myCars,aAmi,meId,amiNom,etagere,STOCK1,state:()=>J(),take,takeNext,hold,holdTool,toolTake,toolPut,toolIdx,servante,TOOLS_INV,TOOLS_FOR,SLOTK,itNom,held:()=>selIt,hands:()=>setHeld(null),rendBloq,etabli,rendre:rendreUI,act:pointAct,acces,absT,openT,regPoints,remove:removeCar,invUI,noirData:{MODELS,COLS,NOMS,CIV,TAUX,KFAC,SYMP_LIST:SYMP},RYTHME,KMR,filePending:()=>J().file.length,quote,clear:()=>{for(const c of J().cars.slice()) removeCar(c,true);J().file=[];hudJobs();},meshY:c=>RT[c.id]?RT[c.id].g.position.y:null,point:(c,k)=>PTS[c.zone+':'+c.pont+':'+k]||null,shelf:zid=>{const z=MW.zone(zid);return {x:z.etagere.x-z.n.x*1.1,z:z.etagere.z-z.n.z*1.1};}};
 window.__mwj=api;
 return api;
 })();
