@@ -87,7 +87,7 @@ function garage(z){
    rb(cn,-hx-t,hx+t,dp+.2,dp+.2+t,y0,y1,col);rb(cn,-hx-.2-t,-hx-.2,-.2-t,dp+.2+t,y0,y1,col);rb(cn,hx+.2,hx+.2+t,-.2-t,dp+.2+t,y0,y1,col);};
   ring(0,.55,.08,pc,true);ring(Hh-.22,Hh,.15,0xdad6cd,false);}
  // encadrement de l'ouverture
- for(const s of [-1,1]) rb(core('plain'),s*(GW/2)+(s>0?0:-.34),s*(GW/2)+(s>0?.34:0),-.3,.3,0,3.95,0x3a3f46);
+ for(const s of [-1,1]) rb(core('plain'),s*(GW/2)+(s>0?-.04:-.34),s*(GW/2)+(s>0?.34:.04),-.3,.3,0,3.95,0x3a3f46); /* [textures] encadrement débordant de 4 cm dans l'ouverture : plus de face confondue avec la tranche du mur */
  rb(core('plain'),-GW/2-.34,GW/2+.34,-.3,.3,3.8,4.0,0x3a3f46);
  /* toit plat à rebord */
  H.roofFlat(z.x,z.z,w+.5,dp+.5,Hh,{layer:'core',wall:'plaster',tint:st.parapet,parapet:st.parapet,clutter:1});
@@ -120,7 +120,7 @@ function garage(z){
  rb(core('ceil'),ic.u0,ic.u1,ic.v0,ic.v1,Hh-.06,Hh-.005,st.ceil);
  const lin=(u0,u1,v0,v1)=>{ // un pan de mur : lambris + haut
   rb(core(st.dado[0]),u0,u1,v0,v1,0,1.3,st.dado[1]);rb(core(st.upper[0]),u0,u1,v0,v1,1.3,Hh-.06,st.upper[1]);
-  rb(core('plain'),u0,u1,v0,v1,1.3,1.42,st.stripe);};
+  rb(core('plain'),Math.min(u0,u1)-.02,Math.max(u0,u1)+.02,Math.min(v0,v1)-.02,Math.max(v0,v1)+.02,1.3,1.42,st.stripe);}; /* [textures] liseré en léger relief : plus de face confondue avec le lambris */
  lin(ic.u0,ic.u1,dp-.26,dp-.2);lin(ic.u0,ic.u0+.06,ic.v0,ic.v1);lin(ic.u1-.06,ic.u1,ic.v0,ic.v1);
  if(!st.glassFront){lin(ic.u0,-GW/2,.2,.26);lin(GW/2,ic.u1,.2,.26);}
  else{rb(core('plain'),ic.u0,ic.u1,.2,.26,Hh-.5,Hh-.06,0xdfe4ea);}
