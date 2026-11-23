@@ -122,7 +122,7 @@ api.transports.peer={kind:'peer',
 
 /* ═══════════ Session ═══════════ */
 let role=null,link=null,status='idle',code='',myName='',other=null,backup=null,timer=0,lastRx=0,seq=0,frozen=false;
-let lastN={},lastStr={},pend={},invPrev=[],lastFile='',lastSoc='',sw={me:0,he:0},swT=0,selfStart=false,lastChat=0,msgTxt='';
+let lastN={},lastStr={},pend={},invPrev=[],lastFile='',lastSoc='',lastTn='',sw={me:0,he:0},swT=0,selfStart=false,lastChat=0,msgTxt='';
 const jobs=()=>{try{return MWJ.state().cars;}catch(e){return [];}};
 const carById=id=>jobs().find(c=>c.id===id)||null;
 const send=m=>{if(link){try{link.send(m);}catch(e){}}};
@@ -170,7 +170,7 @@ api.join=function(c,o){
 function onGuestOpen(l){ /* l'hôte : le 1er message « hello » arrive juste après */ }
 function startLive(){
  N.live=true;N.guest=role==='guest';status='connected';lastRx=performance.now();
- lastN={};lastStr={};pend={};invPrev=clone(MW.S.inv)||[];lastFile='';sw={me:0,he:0};
+ lastN={};lastStr={};pend={};invPrev=clone(MW.S.inv)||[];lastFile='';lastTn='';sw={me:0,he:0};
  clearInterval(timer);timer=setInterval(netTick,TICK);
  buildAvatar();friendUI(true);
  MW.addButton('chat','Message (T)',()=>chatPanel());
@@ -230,6 +230,7 @@ function onMsg(m){
   case 'full': if(api._full) api._full();break;
   case 'bye': drop(other?`${other.name} a quitté la partie.`:'Votre ami a quitté la partie.');break;
   case 'pos': case 'st': if(N.live) onState(m);break;
+  case 'tn': if(N.live) onTune(m);break; /* [tuning] voiture préparée de l'ami (js/58) */
   case 'cars': if(N.live&&role==='guest') onCars(m);break;
   case 'cp': if(N.live) onCp(m);break;
   case 'rej': if(N.live&&role==='guest') onRej(m);break;
@@ -252,6 +253,9 @@ function onState(m){
   if(m.day>d0&&m.day-d0<4) for(let d=d0+1;d<=m.day;d++) MW.emit('day',d); /* sa propre paie, ses prêts et ses charges personnelles */
   if(m.fl!==undefined){MWJ.state().file=m.fl;MWJ.rebuild(null);}
   sw.he=m.sw?m.sw[0]:0;sw.me=m.sw?m.sw[1]:0;showSleepHud();}}
+/* [tuning] la voiture de l'ami garde ses modifications (peinture, jantes, kits…) */
+function onTune(m){if(!other) return;other.tn=typeof m.s==='string'?m.s.slice(0,4000):null;applyTune();}
+function applyTune(){try{if(av&&other&&typeof other.tn==='string'&&typeof MWTUNE!=='undefined') MWTUNE.unpack(other.tn,av.car);}catch(e){console.error(e);}}
 function onCars(m){
  const J=MWJ.state();
  for(const id of m.del||[]){const c=carById(id);delete lastN[id];delete lastStr[id];if(c) MWJ.remove(c,true);}
@@ -297,6 +301,7 @@ function netTick(){
  if(now-lastRx>TIMEOUT){drop('Connexion perdue : votre ami ne répond plus.');return;}
  if(frozen) return;
  const S=MW.S;
+ try{if(typeof MWTUNE!=='undefined'){const tn=MWTUNE.pack();if(tn!==lastTn){lastTn=tn;send({t:'tn',s:tn});}}}catch(e){}
  if(role==='host'){
   const cars=jobs().filter(c=>!c.noir),ids=new Set(cars.map(c=>c.id));
   const add=cars.filter(c=>!(c.id in lastN)),del=Object.keys(lastN).filter(id=>!ids.has(id));
@@ -335,7 +340,7 @@ function buildAvatar(){
  const car=MW.carMesh({color:0xd8a030,kind:'citadine'});
  const sp=new T.Sprite(new T.SpriteMaterial({map:nameTex(other.name),transparent:true,depthTest:false}));sp.scale.set(1.9,.475,1);sp.renderOrder=10;
  const root=new T.Group();root.add(g,car,sp);MW.scene.add(root);
- av={root,g,body,legL,legR,armL,armR,car,sp,ph:0};}
+ av={root,g,body,legL,legR,armL,armR,car,sp,ph:0};applyTune();}
 function removeAvatar(){if(av){MW.scene.remove(av.root);av=null;}}
 const lerpA=(a,b,k)=>{let d=b-a;while(d>PI) d-=PI*2;while(d<-PI) d+=PI*2;return a+d*k;};
 function avatarFrame(dt){

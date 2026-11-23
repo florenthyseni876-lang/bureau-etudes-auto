@@ -46,6 +46,8 @@ la déconnexion. Les captures vont dans le dossier donné par la variable d'envi
 
 Le scénario `42-meca-societe.js` couvre la société d'un garage acheté (joueur seul) : prêt de la société, factures et pièces sur le compte du garage, charges, salaire et dividendes taxés, bilan annuel, ancienne sauvegarde, revente. Le scénario 41 y ajoute les deux salaires distincts, l'achat à deux avec apports, la facture de l'invité dans le compte commun, et les propositions de salaire et de dividendes acceptées ou refusées.
 
+Le scénario `43-meca-tuning.js` couvre le tuning (js/58) : les deux ateliers de préparation sur la carte et la mini-carte, l'achat et la pose d'une pièce sur sa voiture (argent, temps, niveau requis, prérequis), l'effet mesuré sur l'accélération et la vitesse maxi, le son, le banc de puissance (ch et Nm avant/après), l'aperçu 3D (jantes, aileron, peinture, kits) sur huit voitures sans faces qui se chevauchent, la fiabilité, les pannes et leur réparation, le contrôle technique et la police, le garage racheté puis équipé, un client de tuning de bout en bout (embauche, commande, étapes, facture, note, expérience, peinture en cabine, client oublié) et la voiture modifiée vue par l'autre joueur. Les captures vont dans `BEA_CAPTURES` (sinon le dossier temporaire).
+
 Un scénario échoue dès qu'une erreur JavaScript (`pageerror`) ou une erreur de console apparaît,
 même si ses étapes ont réussi.
 

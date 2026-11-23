@@ -27,6 +27,7 @@ C'est une **application web installable** : une fois en ligne, elle s'ajoute à 
 | `js/15` à `js/19` | Graphiques, panneaux, essais, réglages, rendu et démarrage |
 | `js/56-meca-reseau.js` | Carrière de mécanicien à deux en ligne (WebRTC via PeerJS, chargé seulement à l'ouverture du menu « Jouer à deux… ») |
 | `js/57-meca-societe.js` | Société d'un garage acheté : compte du garage, associés et parts, salaires et dividendes taxés, bilan annuel |
+| `js/58-meca-tuning.js` | Tuning : deux ateliers de préparation (Prépa Vallon, Atelier Éclat), pièces de performance et de style qui changent vraiment la conduite, aperçu 3D, banc de puissance, pannes et contrôles, clients de tuning, garage équipé |
 | `js/pwa.js` | Installation, fonctionnement hors connexion, avis de mise à jour |
 | `sw.js` | Service hors connexion (généré, ne pas modifier à la main) |
 | `manifest.webmanifest`, `icons/` | Nom, icône et couleurs de l'application installée |
