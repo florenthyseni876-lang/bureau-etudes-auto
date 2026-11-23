@@ -19,7 +19,7 @@
    Point d'entrée « fondation » : MWC.startConstructor({co, y, cash, debt, fac, rep}) démarre une carrière constructeur
    (fac = niveau d'usine de départ, rep = réputation de l'entreprise). MWC.investors() = apport des investisseurs à la fondation. */
 const MWC=(()=>{
-const COMPS=[['entretien','Entretien'],['freinage','Freinage'],['liaison','Liaison au sol'],['moteur','Moteur'],['transmission','Transmission'],['electricite','Électricité et électronique'],['diagnostic','Diagnostic']];
+const COMPS=[['entretien','Entretien'],['freinage','Freinage'],['liaison','Liaison au sol'],['moteur','Moteur'],['transmission','Transmission'],['electricite','Électricité et électronique'],['diagnostic','Diagnostic'],['preparation','Préparation (tuning)']];
 const CN={};for(const [k,n] of COMPS) CN[k]=n;
 const api={COMPS};
 const lvlOf=xp=>Math.min(10,1+Math.floor(Math.sqrt(Math.max(0,xp||0)/50)));
@@ -49,6 +49,8 @@ const EMP={
  ventoux:{nom:'Mécanicien',lieu:'Ventoux Automobiles',zone:'garage2',paie:'mois',part:.1,sem:1750,niv:6,rang:2,req:{niv:{entretien:5,freinage:5},rep:35,dipl:'cap'}},
  aurele:{nom:'Mécanicien',lieu:'Maison Aurèle',zone:'garage3',paie:'mois',part:.1,sem:2600,niv:8,rang:3,req:{niv:{moteur:5,diagnostic:5,electricite:4},rep:40,dipl:'bts'}},
  brivio:{nom:'Mécanicien',lieu:'Scuderia Brivio',zone:'garage4',paie:'mois',part:.1,sem:3400,niv:10,rang:3,req:{niv:{moteur:7,transmission:5,diagnostic:6},rep:60,dipl:'bts'}},
+ prepa:{nom:'Préparateur',lieu:'Prépa Vallon',zone:null,tune:'tune1',paie:'tache',part:.5,sem:0,niv:10,rang:2,req:{niv:{moteur:3,liaison:3},rep:20}}, /* js/58 : atelier de préparation sport et rallye ; les commandes de tuning viennent de MWTUNE */
+ style:{nom:'Carrossier-peintre',lieu:'Atelier Éclat',zone:null,tune:'tune2',paie:'tache',part:.5,sem:0,niv:10,rang:2,req:{niv:{liaison:2,entretien:3},rep:15}},
  proprio:{nom:'Patron de votre garage',lieu:'',zone:null,paie:'tache',part:1,net:true,sem:0,niv:10,rang:2,loyer:0}, /* garage acheté (js/52) : la zone vient de c.ownZone, les charges hebdomadaires sont prélevées par js/52 */
  ing:{nom:'Ingénieur',lieu:'Centre technique',zone:null,paie:'mois',part:0,sem:4800,niv:10,rang:3},
  fondateur:{nom:'Fondateur',lieu:'',zone:null,paie:'tache',part:0,sem:0,niv:10,rang:4}};
@@ -122,7 +124,7 @@ function say(t,g){try{MW.toast(t,g);}catch(e){}}
 /* ── embauche, promotion, démission ── */
 function hire(id){
  const c=C();if(!EMP[id]) return false;
- c.emp=id;c.hired=day();c.payFrom=day();if(id==='meca'||id==='patron'||id==='proprio'||id==='ventoux'||id==='aurele'||id==='brivio') c.everMeca=true;
+ c.emp=id;c.hired=day();c.payFrom=day();if(id==='meca'||id==='patron'||id==='proprio'||id==='ventoux'||id==='aurele'||id==='brivio'||id==='prepa'||id==='style') c.everMeca=true;
  if(id!=='ing') c.mission=null;
  MW.emit('employerChanged',id);refresh();return true;}
 api.hire=hire;

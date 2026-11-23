@@ -41,6 +41,11 @@ const ST={
   sign:{bg:'#15151b',fg:'#e6c46a',t1:'MAISON AURÈLE',t2:'AUTOMOBILES DE PRESTIGE',w:10,h:2.0,serif:1}},
  garage4:{wall:'brick',tint:0xb87870,parapet:0x2a2a2a,floor:'epoxy',ftint:0x5e5e66,dado:['plaster',0x232326],upper:['plaster',0x4a4a50],stripe:0xc01818,ceil:0x6a6a70,lift:0xc01818,chest:0x7a6a6a,glassFront:false,win:{ww:2.2,wh:1.1,sp:4.2},showroom:1,
   sign:{bg:'#c01818',fg:'#ffffff',t1:'SCUDERIA BRIVIO',t2:'CORSE · COMPETITION',w:10,h:2.0,italic:1}},
+ /* ateliers de préparation (js/58) : préparateur sport et rallye (béton sombre, bandes jaunes), atelier style et carrosserie (blanc et violet) */
+ tune1:{wall:'brick',tint:0x8a8c94,parapet:0x1a1c20,floor:'epoxy',ftint:0x4a4c52,dado:['plaster',0x202226],upper:['plaster',0x3a3d44],stripe:0xe8a020,ceil:0x5a5c62,lift:0xe8a020,chest:0x2a2c30,glassFront:false,win:{ww:2.2,wh:1.1,sp:4.2},clutter:1,
+  sign:{bg:'#15161a',fg:'#e8a020',t1:'PRÉPA VALLON',t2:'Sport · Rallye · Banc de puissance',w:10,h:2.0,italic:1}},
+ tune2:{wall:'plaster',tint:0xf2eef8,parapet:0x4a2a70,floor:'epoxy',ftint:0xe6e4ee,dado:['plaster',0xf4f2f8],upper:['plaster',0xf8f6fc],stripe:0x8a2ad0,ceil:0xf6f4fa,lift:0x8a2ad0,chest:0xb8a0d8,glassFront:true,win:{style:'office',sp:4.5},
+  sign:{bg:'#4a2a70',fg:'#ffffff',t1:'ATELIER ÉCLAT',t2:'Peinture · Jantes · Carrosserie',w:10.5,h:2.0}},
  /* garages à acheter (js/52) : mêmes intérieurs que les autres, styles propres à chacun */
  garage5:{wall:'plaster',tint:0xbcc8bc,parapet:0x3a5a40,floor:'floorconc',ftint:0xa0a29c,dado:['conc',0x3f6a4a],upper:['plaster',0xe4e4d8],stripe:0x2f8a4a,ceil:0xd4d4cc,lift:0x3a6a4a,chest:0xffffff,glassFront:false,win:{ww:1.6,wh:.9,sp:3.6},clutter:1,
   sign:{bg:'#2f8a4a',fg:'#ffffff',t1:'ATELIER RUE BASSE',t2:'Entretien · Réparation',w:9,h:1.7}},

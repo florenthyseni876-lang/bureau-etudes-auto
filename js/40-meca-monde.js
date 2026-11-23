@@ -48,7 +48,7 @@
                         zone.etagere={x,z}, zone.accueil={x,z} (comptoir d'accueil, près de l'entrée ; c'est l'endroit
                         d'interaction par défaut du garage). Les x,z de ponts/établi/étagère/accueil sont les CENTRES des
                         objets ; l'avant de l'établi / de l'étagère est tourné vers la porte (se placer à ~1,3 m vers la porte).
-                        Ids : appart, garage1 (Garage du Coin), pieces, garage2 (Ventoux), garage3 (Maison Aurèle),
+                        Ids : appart, garage1 (Garage du Coin), pieces, garage2 (Ventoux), garage3 (Maison Aurèle), tune1 (Prépa Vallon) et tune2 (Atelier Éclat) : ateliers de préparation (js/58),
                         garage4 (Scuderia Brivio), ecole, bureau, banque, terrain, concess.
                         Immobilier à acheter (gérés par js/52, MWI) : loge1..loge4 (logements), garage5..garage7 (garages, 2 à 4 ponts, mêmes champs
                         que garage1..4), usine1..usine2 ; zone.mapTag vaut 'À vendre' ou 'À vous' (carte).
@@ -59,6 +59,7 @@
    MW.player()          {x,z,ry,inCar,zone (identifiant ou null), zoneObj, pitch}
    MW.teleport(x,z,ry)  déplace le joueur (et sa voiture s'il est dedans)
    MW.playerCar()       {mesh (THREE.Group), x, z, ry, speed (m/s)}
+   MW.drv               {vm (vitesse maxi, m/s), acc, brk, turn, eng} : conduite de la voiture du joueur, réglée par js/58 (tuning) selon les pièces montées
    MW.setMarker(cible,etiquette)  repère jaune sur les cartes et faisceau 3D : cible = id de zone, {x,z} ou null
    MW.setDoor(zoneId,fn)  remplace l'action de la porte (accueil pour un garage) : fn(zone) est appelée avec E ; sans fn, rétablit
                         le panneau « Bientôt »
@@ -166,6 +167,9 @@ const ZD=[
  {id:'loge4',nom:'Villa des Hauts',court:'Villa',type:'logement',x:-35,z:-21.5,w:22,d:16,side:'S',H:7.5,wall:0xf4f0e6,roof:0x4a4a52,sign:0x1c1c22,fg:'#e6c46a',immo:1},
  {id:'garage5',nom:'Atelier de la Rue Basse',court:'Rue Basse',type:'garage',x:-112,z:22.5,w:22,d:18,side:'N',H:5.2,wall:0x9aa59a,roof:0x4a5a4a,sign:0x2f8a4a,fg:'#fff',interior:true,np:2,floor:0x70746e,immo:1},
  {id:'garage6',nom:'Garage Delmas et Fils',court:'Garage Delmas',type:'garage',x:110,z:25.5,w:30,d:24,side:'N',H:5.8,wall:0xc9c0b0,roof:0x6a4a2a,sign:0xd8841a,fg:'#fff',interior:true,np:3,floor:0x7a7a78,immo:1},
+ /* ── ateliers de préparation (js/58, MWTUNE) : sport/rallye et style/carrosserie, sur la Rue des Ateliers ── */
+ {id:'tune1',nom:'Prépa Vallon · sport et rallye',court:'Prépa Vallon',type:'garage',x:-60,z:-125,w:30,d:26,side:'N',H:5.8,wall:0x3a3d44,roof:0x1a1c20,sign:0xe8a020,fg:'#111',interior:true,np:2,floor:0x3a3c40,tune:'sport'},
+ {id:'tune2',nom:'Atelier Éclat · style et carrosserie',court:'Atelier Éclat',type:'garage',x:60,z:-175,w:30,d:26,side:'S',H:5.8,wall:0xe9e3f0,roof:0x4a2a70,sign:0x8a2ad0,fg:'#fff',interior:true,np:2,floor:0xcfd0d8,tune:'style'},
  {id:'garage7',nom:"Grand Garage de l'Esplanade",court:'Grand Garage',type:'garage',x:70,z:178.5,w:44,d:30,side:'N',H:6.6,wall:0xdfe3e8,roof:0x2a3a4a,sign:0x1a6a9a,fg:'#fff',interior:true,np:4,floor:0x8a8f95,immo:1},
  {id:'usine1',nom:'Atelier de fabrication Marchand',court:'Atelier fabrication',type:'usine',x:-178.5,z:-40,w:30,d:24,side:'E',H:8,wall:0xb8b8b0,roof:0x5a5f66,sign:0xc86a1a,fg:'#fff',immo:1},
  {id:'usine2',nom:'Grande usine du Vallon',court:'Grande usine',type:'usine',x:-191.5,z:-95,w:56,d:36,side:'E',H:11,wall:0xa8b0b8,roof:0x4a5058,sign:0x1a4a8a,fg:'#fff',immo:1}];
@@ -483,6 +487,7 @@ function toggleCar(){
  else if(carNear()){P.inCar=true;P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;car.v=0;ui.cv.parentNode.classList.add('mw-incar');api.toast('Au volant : Z/S accélérer/freiner, Q/D braquer, espace frein à main. F pour descendre.','info');}
  else api.toast('Votre voiture est trop loin.','info');}
 api.player=()=>({x:P.x,z:P.z,ry:P.ry,inCar:P.inCar,zone:zoneCur?zoneCur.id:null,zoneObj:zoneCur,pitch:P.pitch});
+api.drv={vm:22,acc:1,brk:1,turn:1,eng:1}; /* [tuning] conduite de la voiture du joueur : vitesse maxi (m/s), multiplicateurs d'accélération, de freinage, de braquage, de moteur (js/58) */
 api.playerCar=()=>({mesh:carObj,x:S.car.x,z:S.car.z,ry:S.car.ry,speed:car.v});
 api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;/* [MWG] pitch facultatif */if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;}};
 api.setMarker=(t,label)=>{if(!S) return;S.marker=t;S.markerLabel=label||null;placeBeacon();};
@@ -503,13 +508,13 @@ function walk(dt){
   for(const o of [-1,1]){const px=S.car.x+cf*o*1.0,pz=S.car.z+cz2*o*1.0,ex=x-px,ez=z-pz,d=Math.hypot(ex,ez),rr=1.45;if(d<rr&&d>1e-4){x=px+ex/d*rr;z=pz+ez/d*rr;}}
   const r=pushOut(x,z,.42);P.x=clamp(r.x,-HALF,HALF);P.z=clamp(r.z,-HALF,HALF);}}
 function drive(dt){
- const [mx,my]=inputVec(),VM=22;let v=car.v;
- if(my>.05){v+=(v<-.3?16:Math.max(1.5,7*(1-v/VM)))*my*dt;}
- else if(my<-.05){if(v>.4) v-=15*-my*dt;else v+=(-my)*-4.5*dt;}
+ const DV=api.drv,[mx,my]=inputVec(),VM=DV.vm;let v=car.v; /* [tuning] DV : réglages de conduite de la voiture du joueur (js/58) */
+ if(my>.05){v+=(v<-.3?16*DV.brk:Math.max(1.5*DV.eng,7*DV.acc*DV.eng*(1-v/VM)))*my*dt;}
+ else if(my<-.05){if(v>.4) v-=15*DV.brk*-my*dt;else v+=(-my)*-4.5*dt;}
  else v-=Math.sign(v)*Math.min(Math.abs(v),2.4*dt);
- if(keys.brake) v-=Math.sign(v)*Math.min(Math.abs(v),20*dt);
+ if(keys.brake) v-=Math.sign(v)*Math.min(Math.abs(v),20*DV.brk*dt);
  v=clamp(v,-6,VM);
- const turn=-mx*clamp(Math.abs(v)/4,0,1)*(1.9-1.15*Math.min(Math.abs(v)/VM,1))*Math.sign(v||1);
+ const turn=-mx*clamp(Math.abs(v)/4,0,1)*(1.9-1.15*Math.min(Math.abs(v)/VM,1))*DV.turn*Math.sign(v||1);
  S.car.ry+=turn*dt;
  const fx=Math.sin(S.car.ry),fz=Math.cos(S.car.ry),n=Math.max(1,Math.ceil(Math.abs(v)*dt/.4));
  let hit=false;

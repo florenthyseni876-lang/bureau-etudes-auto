@@ -43,6 +43,13 @@ const CAT=[
  {id:'garage7',kind:'garage',nom:"Grand Garage de l'Esplanade",prix:360000,charges:1900,taux:125,ponts:4,decote:.2,credit:240,req:{rep:50,dipl:'bts',niv:{moteur:6,diagnostic:5}},
   clients:'Clientèle haut de gamme : berlines premium et SUV.',signU:-4.3,signY:2.4,signW:3.0,
   desc:'Un grand garage vitré avec quatre ponts, salon d’attente et clientèle exigeante. Les charges sont lourdes, les factures aussi.'},
+ /* ateliers de préparation (js/58) : on peut d'abord s'y faire embaucher ; les racheter ouvre le tuning à son compte (banc de puissance, cabine de peinture) */
+ {id:'tune1',kind:'garage',nom:'Prépa Vallon',prix:210000,charges:1300,taux:110,ponts:2,decote:.2,credit:240,req:{rep:45,dipl:'cap',niv:{moteur:5,preparation:4}},nosign:1,
+  clients:'Clientèle de passionnés : sportives, compactes préparées et rallye.',signU:-4.3,signY:2.3,signW:2.8,
+  desc:'Le préparateur sport et rallye de la Rue du Commerce : banc de puissance, deux ponts, atelier de reprogrammation. Vous gardez les commandes de tuning des clients.'},
+ {id:'tune2',kind:'garage',nom:'Atelier Éclat',prix:150000,charges:1000,taux:98,ponts:2,decote:.2,credit:240,req:{rep:35,dipl:'cap',niv:{liaison:3,preparation:3}},nosign:1,
+  clients:'Clientèle soucieuse de style : peinture, jantes, kits carrosserie.',signU:-4.3,signY:2.3,signW:2.8,
+  desc:'L’atelier de style et de carrosserie : cabine de peinture, pont, stock de jantes. Peinture, covering et kits pour toutes les voitures.'},
  {id:'usine1',kind:'usine',nom:'Atelier de fabrication Marchand',prix:420000,charges:1600,fac:3,capital:10000,decote:.3,credit:360,req:{rep:45,dipl:'bts'},
   signU:9,signY:3.2,signW:3.4,
   desc:'Un atelier de fabrication équipé de machines-outils et d’une chaîne de montage. Vous y fondez votre propre marque avec une usine déjà bien équipée.'},
@@ -376,7 +383,7 @@ const _m=()=>new THREE.Matrix4();
 function placeSigns(){
  ensureSigns();if(!signs) return;const T=THREE,m=_m(),q=new T.Quaternion(),pos=new T.Vector3(),sc=new T.Vector3(),ax=new T.Vector3(0,1,0);
  CAT.forEach((p,i)=>{const z=MW.zone(p.id);
-  if(!z||own(p.id)){m.makeScale(0,0,0);signs.setMatrixAt(i,m);return;}
+  if(!z||own(p.id)||p.nosign){m.makeScale(0,0,0);signs.setMatrixAt(i,m);return;}
   const ry=Math.atan2(-z.n.x,-z.n.z),tx=Math.cos(ry),tz=-Math.sin(ry),ox=-z.n.x,oz=-z.n.z;
   pos.set(z.door.x+ox*.42+tx*p.signU,p.signY,z.door.z+oz*.42+tz*p.signU);q.setFromAxisAngle(ax,ry);sc.set(p.signW,p.signW/2,1);
   m.compose(pos,q,sc);signs.setMatrixAt(i,m);});
