@@ -311,15 +311,27 @@ function parseTyre(s){
 
 /* gabarits de carrosserie : positions (u = fraction de la longueur depuis l'avant) et hauteurs (fractions de H) */
 const SHAPES={
- hatch:{uc:.245,uf:.325,ur:.625,ub:.945,hn:.50,hb:.645,hd:.665,rb:.35,fb:.46,pill:[.46],cp:.04,roofW:.80,glassUp:1},
- mini:{uc:.215,uf:.30,ur:.80,ub:.965,hn:.49,hb:.63,hd:.645,rb:.45,fb:.42,pill:[],cp:.05,roofW:.82,glassUp:1},
- sedan:{uc:.265,uf:.365,ur:.60,ub:.715,hn:.50,hb:.645,hd:.68,rb:.35,fb:.46,pill:[.475],cp:.20,roofW:.78,glassUp:1},
- wagon:{uc:.25,uf:.335,ur:.89,ub:.975,hn:.51,hb:.65,hd:.66,rb:.7,fb:.46,pill:[.44,.66],cp:.04,roofW:.80,glassUp:1},
- suv:{uc:.26,uf:.345,ur:.875,ub:.975,hn:.60,hb:.69,hd:.70,rb:.6,fb:.46,pill:[.44,.665],cp:.04,roofW:.80,glassUp:1},
- van:{uc:.19,uf:.285,ur:.94,ub:.992,hn:.47,hb:.575,hd:.60,rb:.9,fb:.42,pill:[.50],cp:.03,roofW:.84,glassUp:1},
- coupe:{uc:.325,uf:.44,ur:.66,ub:.84,hn:.455,hb:.615,hd:.615,rb:.3,fb:.46,pill:[],cp:.12,roofW:.76,glassUp:1},
- mid:{uc:.30,uf:.425,ur:.60,ub:.735,hn:.46,hb:.60,hd:.575,rb:.4,fb:.46,pill:[],cp:.12,roofW:.76,glassUp:1,lidR:.945},
- rear:{uc:.285,uf:.405,ur:.69,ub:.815,hn:.52,hb:.60,hd:.585,rb:.3,fb:.46,pill:[],cp:.12,roofW:.78,glassUp:1,lidR:.935}};
+ hatch:{uc:.275,uf:.465,ur:.745,ub:.955,hn:.50,hb:.645,hd:.665,rb:.35,fb:.46,pill:[.50],cp:.04,roofW:.80,glassUp:1},
+ mini:{uc:.27,uf:.44,ur:.80,ub:.975,hn:.49,hb:.63,hd:.645,rb:.45,fb:.42,pill:[],cp:.05,roofW:.82,glassUp:1},
+ sedan:{uc:.39,uf:.55,ur:.715,ub:.82,hn:.50,hb:.645,hd:.68,rb:.35,fb:.46,pill:[.52],cp:.20,roofW:.78,glassUp:1},
+ wagon:{uc:.33,uf:.50,ur:.875,ub:.975,hn:.51,hb:.65,hd:.66,rb:.7,fb:.46,pill:[.52,.75],cp:.04,roofW:.80,glassUp:1},
+ suv:{uc:.30,uf:.47,ur:.855,ub:.975,hn:.60,hb:.69,hd:.70,rb:.6,fb:.46,pill:[.50,.73],cp:.04,roofW:.80,glassUp:1},
+ van:{uc:.20,uf:.37,ur:.93,ub:.995,hn:.47,hb:.575,hd:.60,rb:.9,fb:.42,pill:[.50],cp:.03,roofW:.84,glassUp:1},
+ coupe:{uc:.30,uf:.50,ur:.76,ub:.95,hn:.455,hb:.615,hd:.615,rb:.3,fb:.46,pill:[],cp:.12,roofW:.76,glassUp:1},
+ mid:{uc:.32,uf:.50,ur:.63,ub:.72,hn:.46,hb:.60,hd:.575,rb:.4,fb:.46,pill:[],cp:.12,roofW:.76,glassUp:1,lidR:.945},
+ rear:{uc:.33,uf:.52,ur:.62,ub:.80,hn:.52,hb:.60,hd:.585,rb:.3,fb:.46,pill:[],cp:.12,roofW:.78,glassUp:1,lidR:.935}};
+/* retouches par voiture, d'après les profils réels (distances depuis l'avant ÷ longueur) : position du bas du pare-brise (uc), du bord avant du toit (uf),
+   de la fin du toit (ur) et du bas de la lunette ou du hayon (ub) */
+const SHCAR={
+ p206:{uc:.26,uf:.45,ur:.75,ub:.95},fiat500:{uc:.265,uf:.43,ur:.80,ub:.975},yaris3:{uc:.265,uf:.45,ur:.76},
+ gryaris:{uc:.29,uf:.48,ur:.72,ub:.94},meganers:{uc:.30,uf:.50,ur:.76,ub:.945},golfgti:{uc:.28,uf:.47,ur:.74},rs3:{uc:.285,uf:.48,ur:.745},
+ berlingo3:{uc:.22,uf:.38},kangoo2:{uc:.20,uf:.37},partner2:{uc:.21,uf:.375},
+ captur2:{uc:.285,uf:.46,ur:.84},duster2:{uc:.30,uf:.47,ur:.855},p3008:{uc:.31,uf:.50,ur:.85},xc60:{uc:.34,uf:.51,ur:.845},tiguan2:{uc:.31,uf:.485,ur:.855},
+ mustang:{uc:.43,uf:.60,ur:.72,ub:.87,hn:.47,hb:.66,hd:.67},
+ a6c8:{uc:.40,uf:.56,ur:.73,ub:.83},c220d:{uc:.395,uf:.55,ur:.71,ub:.815},m3g80:{uc:.39,uf:.545,ur:.715,ub:.82},
+ octavia4:{uc:.335,uf:.505,ur:.88,ub:.975},
+ huracan:{uc:.32,uf:.52,ur:.60,ub:.68},a110:{uc:.31,uf:.49,ur:.64,ub:.72},cayman:{uc:.32,uf:.50,ur:.64,ub:.74},
+ p911:{uc:.325,uf:.52,ur:.63,ub:.81}};
 /* matériaux partagés */
 const MT=new Map();
 function mat(key,mk){let m=MT.get(key);if(!m){m=mk();MT.set(key,m);}return m;}
@@ -393,7 +405,7 @@ function brakeGeo(car,front){
 function buildGeo(car){
  if(GEO[car.id]) return GEO[car.id];
  const L=car.L,W=car.W,H=car.H,WB=car.WB,hw=W/2,zf=L/2,zr=-L/2,gc=car.gc;
- const sh=Object.assign({},SHAPES[car.body]||SHAPES.hatch,car.sh||{});
+ const sh=Object.assign({},SHAPES[car.body]||SHAPES.hatch,SHCAR[car.id]||{},car.sh||{});
  const tF=parseTyre(car.tyre),tR=parseTyre(car.tyreR||car.tyre);
  const afz=zf-car.of,arz=afz-WB,wheels=[[afz,tF],[arz,tR]];
  const hn=sh.hn*H,hb=sh.hb*H,hd=sh.hd*H,uz=u=>zf-u*L;
@@ -460,7 +472,7 @@ function buildGeo(car){
  const mz=zc-.2;
  for(const sg of [-1,1]){paint.push(bxg(.1,.13,.17,sg*(hw+.1),hb+.1,mz));paint.push(bxg(.12,.03,.04,sg*(hw+.045),hb+.06,mz+.04));trim.push(bxg(.085,.11,.005,sg*(hw+.1),hb+.1,mz-.087));trim.push(bxg(.06,.04,.09,sg*(hw+.03),hb+.075,mz+.06));amber.push(bxg(.012,.02,.05,sg*(hw+.006),hb-.14,afz+archR(tF)+.12));}
  for(const sg of [-1,1]) trim.push(bxg(.04,.06,Math.abs(dz0-dRear)+.15,sg*(hw+.012),sill-.03,(dz0+dRear)/2));   /* bas de caisse */
- const fuelX=-(hw+.002),fuelZ=Math.max(zr+.4,arz-archR(tR)-.2);dark.push(cyx(.074,.006,20,fuelX,hb-.2,fuelZ));paint.push(cyx(.066,.01,20,fuelX-.005,hb-.2,fuelZ));trim.push(bxg(.012,.012,.03,fuelX-.012,hb-.2,fuelZ-.04));
+ const fuelX=-(hw+.002),fuelZ=Math.max(zr+.4,arz-archR(tR)-.2);dark.push(cyx(.074,.014,20,fuelX+.001,hb-.2,fuelZ));paint.push(cyx(.066,.01,20,fuelX-.017,hb-.2,fuelZ));trim.push(bxg(.012,.012,.03,fuelX-.034,hb-.2,fuelZ-.04));
  /* pare-chocs, calandre, feux : posés sur la surface avant/arrière réelle (la section se resserre aux extrémités) */
  const surf=(front,xa,ylo,yhi)=>{let dd=0;for(;dd<E_END;dd+=.003){const z=front?zf-dd:zr+dd,{wf,vf}=endF(z),ytc=top(z),ybz=yb(z),ym=(ybz+ytc)/2,yt=ym+(ytc-ym)*vf,yB=ym-(ym-ybz)*vf;
    if(xa<=hw*wf*.96&&yhi<=yt-.012&&ylo>=yB+.012) break;}
@@ -472,21 +484,21 @@ function buildGeo(car){
  let headPos=null,tailPos=null,wiperPos=null;
  const ytn=hn-.075,lw=.095*W+.1,lh=car.body==='van'?.15:.095,headY=Math.max(gc+.46,ytn-.02);
  for(const sg of [-1,1]){
-  onFace(dark,true,sg*hw*.64,headY,lw+.035,lh+.032,.04,.012);                       /* lunette sombre de l'optique */
+  onFace(dark,true,sg*hw*.64,headY,lw+.035,lh+.032,.03,.012);                       /* lunette sombre de l'optique */
   const zh=onFace(head,true,sg*hw*.64,headY,lw,lh,.05);if(sg>0) headPos=[sg*(hw*.64-lw*.2),headY,zh+.026];
-  onFace(chrome,true,sg*(hw*.64-lw*.2),headY,.06,.06,.03,.026);                      /* réflecteur */
-  onFace(head,true,sg*hw*.64,headY-lh/2-.022,lw*.85,.014,.04,.022);                  /* feu de jour */
+  onFace(chrome,true,sg*(hw*.64-lw*.2),headY,.06,.06,.036,.026);                      /* réflecteur */
+  onFace(head,true,sg*hw*.64,headY-lh/2-.032,lw*.85,.014,.034,.022);                  /* feu de jour */
   onFace(amber,true,sg*hw*.8,headY-lh*.55-.012,lw*.3,lh*.32,.05);}
  {const gy=Math.max(gc+.42,headY-.015);
   onFace(dark,true,0,gy,hw*.7,.075,.05);
   if(car.cat!=='pop'){onFace(chrome,true,0,gy+.048,hw*.7,.012,.052);onFace(chrome,true,0,gy-.048,hw*.7,.012,.052);}
   const iy=gc+.25;onFace(dark,true,0,iy,hw*1.0,.12,.05);
-  for(const sg of [-1,1]){onFace(dark,true,sg*hw*.76,iy,.2,.07,.05);onFace(head,true,sg*hw*.76,iy,.085,.04,.04,.024);}   /* antibrouillards */
-  for(const k of [-1,0,1]) onFace(trim,true,0,gy+k*.022,hw*.66,.006,.04,.027);        /* lames de calandre */
+  for(const sg of [-1,1]){onFace(dark,true,sg*hw*.76,iy,.2,.07,.05);onFace(head,true,sg*hw*.76,iy,.085,.04,.034,.024);}   /* antibrouillards */
+  for(const k of [-1,0,1]) onFace(trim,true,0,gy+k*.022,hw*.66,.006,.034,.027);        /* lames de calandre */
   onFace(trim,true,0,gc+.125,hw*1.55,.04,.05,.016);}                                  /* lèvre du pare-chocs */
  {const ty=Math.min(top(zr+.01)-.1,hd-.1),tw=car.body==='van'?.1:.1*W+.12,th=car.body==='van'?.34:.1;
-  for(const sg of [-1,1]){onFace(dark,false,sg*hw*.68,ty,tw+.03,th+.03,.04,.012);onFace(tail,false,sg*hw*.68,ty,tw,th,.05);if(sg>0) tailPos=[sg*hw*.68,ty,surf(false,hw*.68,ty,ty)-.02];
-   onFace(head,false,sg*(hw*.68-tw*.28),ty,tw*.26,th*.4,.04,.026);onFace(amber,false,sg*hw*.8,ty-th*.6,tw*.3,.03,.05);}
+  for(const sg of [-1,1]){onFace(dark,false,sg*hw*.68,ty,tw+.03,th+.03,.03,.012);onFace(tail,false,sg*hw*.68,ty,tw,th,.05);if(sg>0) tailPos=[sg*hw*.68,ty,surf(false,hw*.68,ty,ty)-.02];
+   onFace(head,false,sg*(hw*.68-tw*.28),ty,tw*.26,th*.4,.034,.026);onFace(amber,false,sg*hw*.8,ty-th*.6,tw*.3,.03,.05);}
   onFace(trim,false,0,gc+.15,hw*1.45,.045,.05,.016);}
  /* plaques françaises (plans, texture ajoutée à l'instance) */
  const pyF=Math.max(gc+.3,(yb(zf-.15)+top(zf-.15))/2-.04),pyR=(top(zr+.12)+yb(zr+.12))/2+.03;
@@ -523,7 +535,7 @@ function buildGeo(car){
  /* essuie-glaces : bras et balais posés sur le pare-brise ; le balai côté conducteur est amovible (variante de garniture sans lui) */
  const wiper=[],bladeD=[];
  {const wz=zc-.03+(zRf+.025-(zc-.03))*.1,wy=roofY(wz)+.02,th=-Math.atan((roofY(wz+.02)-roofY(wz-.02))/.04),aw=gz(wz).wt*.9,len=aw*.78;
-  dark.push(bxg(aw*2,.014,.1,0,top(zc)+.006,zc+.0));                                                        /* auvent sous le pare-brise */
+  dark.push(bxg(aw*2,.014,.1,0,top(zc)+.014,zc+.0));                                                        /* auvent sous le pare-brise */
   for(const sg of [-1,1]){const cx=sg*aw*.5,arr=sg>0?bladeD:wiper;
    arr.push(bxg(len,.012,.022,cx,wy,wz,th,0,0));arr.push(bxg(len*.96,.006,.01,cx,wy+.008,wz,th,0,0));
    bar(wiper,cx-sg*len*.32,top(zc)+.016,zc+.04,cx,wy+.012,wz,.016,.012);}
