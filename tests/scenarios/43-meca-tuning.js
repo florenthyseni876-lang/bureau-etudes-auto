@@ -19,6 +19,7 @@ module.exports = async function mecaTuning(page, env) {
   await A.waitForFunction(() => window.__mw && window.__mw.S && window.__mwj && window.__mwt && window.__mwcars && window.__mwi, null, { timeout: 20000 });
   await attendre(300);
   const e = (f, a) => A.evaluate(f, a);
+  await e(() => { __mwt.hasard = false; }); // pas de panne ni de contrôle de police au hasard pendant le test
   const jeu = () => e(() => { __mw.S.money = 400000; __mw.S.rep = 80; __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12; MWC.setCar({ id: 'sport', nom: 'Volkswagen Golf GTI', kind: 'sport', color: 0x2244aa, model: 'golfgti' }); });
   await jeu();
   await e(() => { Object.assign(__mw.S.xp, { preparation: 900, moteur: 900, liaison: 900, entretien: 900 }); });

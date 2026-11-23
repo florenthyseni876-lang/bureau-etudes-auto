@@ -254,7 +254,7 @@ function onState(m){
   sw.he=m.sw?m.sw[0]:0;sw.me=m.sw?m.sw[1]:0;showSleepHud();}}
 /* [tuning] la voiture de l'ami garde ses modifications (peinture, jantes, kits…) */
 function onTune(m){if(!other) return;other.tn=typeof m.s==='string'?m.s.slice(0,4000):null;applyTune();}
-function applyTune(){try{if(av&&other&&other.tn&&typeof MWTUNE!=='undefined') MWTUNE.unpack(other.tn,av.car);}catch(e){console.error(e);}}
+function applyTune(){try{if(av&&other&&typeof other.tn==='string'&&typeof MWTUNE!=='undefined') MWTUNE.unpack(other.tn,av.car);}catch(e){console.error(e);}}
 function onCars(m){
  const J=MWJ.state();
  for(const id of m.del||[]){const c=carById(id);delete lastN[id];delete lastStr[id];if(c) MWJ.remove(c,true);}

@@ -17,6 +17,7 @@ module.exports = async function mecaTuningAtelier(page, env) {
   await A.waitForFunction(() => window.__mw && window.__mw.S && window.__mwj && window.__mwt && window.__mwcars && window.__mwi, null, { timeout: 20000 });
   await attendre(300);
   const e = (f, a) => A.evaluate(f, a);
+  await e(() => { __mwt.hasard = false; }); // pas de panne ni de contrôle de police au hasard pendant le test
   const jeu = () => e(() => { __mw.S.money = 400000; __mw.S.rep = 80; __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12; MWC.setCar({ id: 'sport', nom: 'Volkswagen Golf GTI', kind: 'sport', color: 0x2244aa, model: 'golfgti' }); });
   await jeu();
   await e(() => { Object.assign(__mw.S.xp, { preparation: 900, moteur: 900, liaison: 900, entretien: 900 }); });
@@ -93,7 +94,7 @@ module.exports = async function mecaTuningAtelier(page, env) {
     if (r.panel) { await attendreVisible(A, '#mwPb [data-mw="run"]', 'le jeu de cartographie ne s\'ouvre pas'); await A.click('#mwPb [data-mw="run"]'); await A.click('#mwPb [data-mw="end"]'); await attendre(200); await e(() => __mw.closePanel()); }
   }
   verifier(await e(id => { const o = __mwt.order(id); return o.step >= o.steps.length; }, cmd.id), 'toutes les étapes ne sont pas faites');
-  const vue = await e(id => { const o = __mwt.order(id), m = __mw.scene.children.find(c => c.userData && c.userData.plate === o.plaque); return { cfg: o.cfg.p, tune: !!m && !!m.getObjectByName('tune') }; }, cmd.id);
+  const vue = await e(id => { const o = __mwt.order(id), m = __mw.scene.children.find(c => c.userData && c.userData.plate === o.plaque); return { cfg: o.cfg.p, tune: !!m && !!m.userData.tune && m.userData.tune.sig.indexOf('exh1') > 0 }; }, cmd.id);
   verifier(vue.cfg.ecu === 'ecu1' && vue.cfg.exh === 'exh1' && vue.tune, `la voiture du client n'affiche pas ses modifications : ${JSON.stringify(vue)}`);
   const fin = await e(id => { const r = __mwt.deliver(id); return r; }, cmd.id);
   verifier(fin && fin.facture > 200 && fin.stars >= 1 && fin.stars <= 5 && fin.xp > 10 && fin.emp === true, `la facture ou la note du client est absente : ${JSON.stringify(fin)}`);

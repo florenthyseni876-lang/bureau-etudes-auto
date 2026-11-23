@@ -174,7 +174,7 @@ function sumFx(sp,cfg){
 function wheelInch(sp,cfg){return cfg.wheels?cfg.wheels.i:sp.inch;}
 function wheelFx(sp,cfg){const d=wheelInch(sp,cfg)-sp.inch;return {dm:d*2.4,turn:d*.006,rel:d>2?(d-2)*.4:0};}
 /* ─ calcul des performances ─ */
-function stats(model,cfg){
+let stats=function(model,cfg){
  cfg=cfg||cfgOf();const sp=spec(model),fx=sumFx(sp,cfg),wf=wheelFx(sp,cfg);
  const pwr=clamp(fx.pw,0,.9),ch0=sp.ch,nm0=sp.nm;
  const ch=ch0*(1+pwr),nm=nm0*(1+clamp(fx.tq,0,.95));
@@ -203,6 +203,9 @@ function stats(model,cfg){
  const drv={vm:R2(vmax),acc:R2(accel),brk:R2(brake),turn:R2(turnK),eng:1};
  return {ch:Math.round(ch),nm:Math.round(nm),mass:Math.round(mass),t100:R2(t100),t100s:R2(t100s),vmax:Math.round(vreal),vmax0:Math.round(vreal0),grip:R2(gripT+fx.df),brake:R2(brake),turn:R2(turnK),rel:R,rel0:rel,db:Math.round(db),gc:R2(gcN),
   drv,legal,fx,over:R2(over),sp,cap:Math.round(cap),pwr:R2(ch/mass*1000)};}
+const SMEMO=new Map();
+const stats0=stats;
+stats=(model,cfg)=>{cfg=cfg||cfgOf();const k=model+'|'+JSON.stringify(cfg);let r=SMEMO.get(k);if(!r){r=stats0(model,cfg);if(SMEMO.size>300) SMEMO.clear();SMEMO.set(k,r);}return r;};
 api.stats=(model,cfg)=>stats(model,cfg);
 function legalOf(sp,cfg,fx,o){
  const L=[];
@@ -574,7 +577,7 @@ api.reliability=key=>Math.round(relEff(key||keyOf()));
 function kmTick(dt){
  const pc=MW.playerCar(),t=TS();if(!t||!MW.player().inCar) return;const v=Math.abs(pc.speed||0);if(v<.3) return;
  const key=keyOf(),st=stats(modelOfCur(),cfgOf(key)),d=v*dt/1000;
- t.stats.km=R2((t.stats.km||0)+d);
+ t.stats.km=(t.stats.km||0)+d;
  t.wear[key]=Math.min(100,(t.wear[key]||0)+d*(0.4+Math.max(0,st.rel0)*.11));}
 const PANNES=[
  {id:'turbo',when:c=>!!c.p.boost,w:3,nom:'Turbo fatigué',cost:1.6},
@@ -639,7 +642,7 @@ function onMinute(){
  const t=TS();if(!t||!MW.S) return;
  const pl=MW.player(),pc=MW.playerCar(),key=keyOf(),cfg=cfgOf(key);
  banCheck();
- if(!pl.inCar||Math.abs(pc.speed||0)<3) return;
+ if(api.hasard===false||!pl.inCar||Math.abs(pc.speed||0)<3) return; /* api.hasard=false : pas de panne ni de contrôle au hasard (tests) */
  const st=stats(modelOfCur(),cfg),R=relEff(key);
  if(!t.panne[key]&&R<85&&!t.ban[key]){const pb=(85-R)/85*.0045;if(rnd()<pb) breakdown();}
  if(st.legal.length&&!t.ban[key]&&!pl.zone&&!t.panne[key]){const n=st.legal.reduce((a,x)=>a+x.g,0),valid=ctDays(key)>0;if(rnd()<.006*n*(valid?.4:1)) police();}}
@@ -1035,7 +1038,7 @@ const TPLS=[
  ['kit','« Un kit carrosserie avec un aileron. »','style',[P_('fr1'),P_('sk1'),P_('sp2')]],
  ['jant','« Des jantes multi-branches et un échappement visible. »','style',[WH('multi10',18,0xc4c8ce),P_('tp2')]],
  ['led','« Des feux à LED, devant et derrière. »','style',[P_('hl2'),P_('tl2')]]];
-const FIRST=['Lucas','Maël','Inès','Nina','Yanis','Camille','Théo','Léa','Hugo','Jade','Noé','Manon','Enzo','Louise','Karim','Zoé'],LAST=['Dupuis','Lambert','Moreau','Fabre','Garnier','Roux','Lefèvre','Marchand','Perrin','Collet','Masson','Vidal','Girard','Noël','Blanc','Rey'];
+const FIRST=[['M.','Lucas'],['M.','Maël'],['Mme','Inès'],['Mlle','Nina'],['M.','Yanis'],['Mme','Camille'],['M.','Théo'],['Mlle','Léa'],['M.','Hugo'],['Mlle','Jade'],['M.','Noé'],['Mme','Manon'],['M.','Enzo'],['Mme','Louise'],['M.','Karim'],['Mlle','Zoé']],LAST=['Dupuis','Lambert','Moreau','Fabre','Garnier','Roux','Lefèvre','Marchand','Perrin','Collet','Masson','Vidal','Girard','Noël','Blanc','Rey'];
 const COLS=[0xb03030,0x2f5da8,0xe8e8e8,0x2a2a2e,0x3f8a4a,0xd8b22a,0x7a7f88,0xc86a1c,0x6a3a8a];
 const absT=()=>{const s=MW.S;return s.day*1440+(s.min<360?s.min+1440:s.min);};
 const openT=()=>{const s=MW.S;return s.day*660+(s.min<360?660:clamp(s.min-480,0,660));};
@@ -1062,10 +1065,10 @@ function spawnOrder(opt){
   const c=pick(pool),items=fixItems(c.id,tp[3]);if(!items) continue;
   const taux=cp.taux,qt=items.map(it=>quote(c.id,emptyCfg(),it));
   const parts=qt.reduce((a,q)=>a+q.price,0),labor=Math.round(qt.reduce((a,q)=>a+q.mo,0)/60*taux/5)*5;
-  const o={id:'t'+(++t.seq),zone:zid,slot,client:pick(['M.','Mme','M.','Mlle'])+' '+pick(FIRST)+' '+pick(LAST),mdl:c.id,nom:c.mk+' '+c.mo,color:opt.color!=null?opt.color:pick(COLS),
+  const o={id:'t'+(++t.seq),zone:zid,slot,client:(f=>f[0]+' '+f[1]+' '+pick(LAST))(pick(FIRST)),mdl:c.id,nom:c.mk+' '+c.mo,color:opt.color!=null?opt.color:pick(COLS),
    plaque:String.fromCharCode(65+rint(0,22))+String.fromCharCode(65+rint(0,22))+'-'+rint(100,999)+'-'+String.fromCharCode(65+rint(0,22))+String.fromCharCode(65+rint(0,22)),
    tpl:tp[0],label:tp[1],items,cfg:emptyCfg(),step:0,steps:null,status:'new',q:[],t0:absT(),ot0:openT(),devis:Math.round((parts*1.12+labor)/5)*5,parts:Math.round(parts),labor,taux,spent:0};
-  t.orders.push(o);ordMesh(o);regOrder(o);
+  t.orders.push(o);ordMesh(o);regOrder(o);hudTune();
   say(`${o.client} arrive à ${MW.zone(zid).court} avec sa ${o.nom} : ${o.label.replace(/[«»]/g,'').trim()}`,'info');
   try{MW.emit('tuneOrder',o);}catch(e){}
   return o;}
@@ -1082,6 +1085,8 @@ function dropOrdMesh(id){const m=OM[id];if(m){try{clear(m);}catch(e){}MW.scene.r
 function regOrder(o){
  const sl=slotsOf(o.zone)[o.slot];if(!sl) return;const z=MW.zone(o.zone),dx=Math.cos(sl.ry)*2.6,dz=-Math.sin(sl.ry)*2.6;
  MW.addInteract({id:'tn:ord:'+o.id,x:sl.x+dx,z:sl.z+dz,r:2.6,label:()=>`Commande de tuning · ${o.nom} (${o.client})`,when:()=>!MW.paused&&TS().orders.includes(o),use:()=>station(o.id)});}
+function hudTune(){const t=TS();if(!t||!MW.S) return;const wz=workZone(),l=t.orders.filter(o=>o.zone===wz);
+ MW.hud('tune',l.length?'<b>Commandes de tuning</b><br>'+l.map(o=>`${esc(o.client)} · ${esc(o.nom)} : ${o.status==='new'?'à accepter':'étape '+Math.min(o.step+1,o.steps.length)+'/'+o.steps.length}`).join('<br>'):'');}
 const ordBy=id=>TS().orders.find(o=>o.id===id)||null;
 api.order=ordBy;
 /* étapes d'une commande */
@@ -1120,9 +1125,9 @@ function station(id){
   else if(a==='close') MW.closePanel();}});
  return true;}
 api.station=station;
-function acceptOrder(id){const o=ordBy(id);if(!o||o.status!=='new') return false;o.steps=stepsFor(o);o.status='wip';o.step=0;return true;}
+function acceptOrder(id){const o=ordBy(id);if(!o||o.status!=='new') return false;o.steps=stepsFor(o);o.status='wip';o.step=0;hudTune();return true;}
 api.accept=acceptOrder;
-function dropOrder(id,why){const t=TS(),i=t.orders.findIndex(o=>o.id===id);if(i<0) return;const o=t.orders[i];t.orders.splice(i,1);dropOrdMesh(id);
+function dropOrder(id,why){const t=TS(),i=t.orders.findIndex(o=>o.id===id);if(i<0) return;const o=t.orders[i];t.orders.splice(i,1);dropOrdMesh(id);hudTune();
  if(why==='attente'){MW.S.rep=clamp(R2((MW.S.rep||0)-1.5),0,100);say(`${o.client} est reparti avec sa ${o.nom} : trop d’attente.`,'warn');}
  else if(why==='refus'){MW.S.rep=clamp(R2((MW.S.rep||0)-.3),0,100);}}
 api.drop=dropOrder;
@@ -1144,7 +1149,7 @@ function step(id,i){
  let q=clamp(.62+.07*(lvl-niv)+rnd()*.28,.3,1);
  if(s.kind==='bench'&&!o.benchQ){o.benchPending=true;}
  MW.addMin(mo);
- o.q.push(q);o.step++;
+ o.q.push(q);o.step++;hudTune();
  /* les modifications apparaissent sur la voiture à la pose */
  if((s.kind==='pose'||s.kind==='paint')&&it){const c=clone(o.cfg);quote(o.mdl,c,it).fn(c);o.cfg=c;const m=OM[o.id];if(m) apply(m,c,{model:o.mdl});}
  if(s.kind==='bench'){benchGame(o);return {ok:true,panel:true};}
@@ -1178,7 +1183,7 @@ function deliver(id,force){
  const dRep=stars>=4?.8:stars===3?.2:-1;MW.S.rep=clamp(R2((MW.S.rep||0)+dRep),0,100);
  t.stats.done++;t.stats.earn=R2(t.stats.earn+Math.max(0,pay));t.stats.stars+=stars;
  const rep={id:o.id,client:o.client,nom:o.nom,facture,tip,pay,stars,xp,q:R2(q),emp,cost,items:o.items.map(itemName)};
- t.orders.splice(t.orders.indexOf(o),1);dropOrdMesh(o.id);
+ t.orders.splice(t.orders.indexOf(o),1);dropOrdMesh(o.id);hudTune();
  const sx='★'.repeat(stars)+'☆'.repeat(5-stars);
  MW.panel('Voiture rendue',`<p><b>${esc(o.client)}</b> récupère sa ${esc(o.nom)}.</p><div class="mw-card">${rep.items.map(n=>`<div class="mw-row"><span>${esc(n)}</span></div>`).join('')}</div>
   <div class="mw-card"><div class="mw-row"><span>Note du client</span><b style="color:#ffb800;letter-spacing:2px">${sx}</b></div><div class="mw-row"><span>Facture</span><b>${esc(fmt(facture))}</b></div>${tip?`<div class="mw-row"><span>Pourboire</span><b>${esc(fmt(tip))}</b></div>`:''}<div class="mw-row"><span>${emp?'Votre part (paie)':'Bénéfice'}</span><b>${esc(fmt(pay))}</b></div><div class="mw-row"><span>Expérience « préparation »</span><b>+${xp}</b></div></div>
@@ -1238,11 +1243,11 @@ function init(){
  for(const id in t.equip) if(t.equip[id]&&(t.equip[id].banc||t.equip[id].cabine)) buildDecor(id);
  for(const id in OM){MW.scene.remove(OM[id]);delete OM[id];}
  for(const o of t.orders){ordMesh(o);regOrder(o);}
- stk.register();refreshDrv();visualNow();}
+ stk.register();refreshDrv();visualNow();hudTune();}
 MW.on('start',init);
 /* l'atelier de préparation d'un garage dont on n'est plus propriétaire ne propose plus l'équipement */
-MW.on('employerChanged',()=>{try{refreshDrv();}catch(e){}});
-api.state=()=>TS();
+MW.on('employerChanged',()=>{try{refreshDrv();hudTune();}catch(e){}});
+api.state=()=>TS();api.hasard=true;
 api.keyOf=keyOf;api.model=modelOfCur;
 api.PARTS=PARTS;api.LIST=LIST;api.SLOTS=SLOTS;api.PAINTS=PAINTS;api.WRAPS=WRAPS;api.WHEELS=WHEELS;api.COLORS=COLORS;api.cfg=cfgOf;api.TPLS=TPLS;api.EQUIP=EQUIP;
 api.setCfg=(key,c)=>{const t=TS();t.cars[key||keyOf()]=cleanCfg(c);commit(key||keyOf());};
