@@ -32,29 +32,33 @@
    Données sauvegardées : MW.S.reserve = {lieux:{garageN:{p:{id:n}}}, cmd:[commandes], seq}. */
 const MWST=(()=>{
 const api={};
-const CAP={garage1:90,garage2:150,garage3:130,garage4:110,garage5:70,garage6:110,garage7:200};
-const NIV={garage1:3,garage2:4,garage3:4,garage4:3,garage5:2,garage6:3,garage7:3}; /* quantité cible des pièces courantes par lieu */
+const CAP={garage1:90,garage2:150,garage3:130,garage4:110,garage5:70,garage6:110,garage7:200,tune1:120,tune2:100};
+const NIV={garage1:3,garage2:4,garage3:4,garage4:3,garage5:2,garage6:3,garage7:3,tune1:2,tune2:2}; /* quantité cible des pièces courantes par lieu */
 const HOMES=['appart','loge1','loge2','loge3','loge4'];
 const FRAIS={next:6,express:18},WEB=.92,H9=540,H_EXP_MAX=1020,EXP_MIN=90;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const r2=x=>Math.round(x*100)/100,fmt=x=>MW.fmt(x);
-const isHome=z=>HOMES.includes(z),isGarage=z=>/^garage\d$/.test(z);
+const isHome=z=>HOMES.includes(z),isGarage=z=>/^(garage|tune)\d$/.test(z);
 const NOM={garage1:'Garage du Coin',garage2:'Ventoux',garage3:'Maison Aurèle',garage4:'Scuderia Brivio',garage5:'Atelier de la Rue Basse',garage6:'Garage Delmas',garage7:"Grand Garage de l'Esplanade",appart:'le studio',loge1:'la maison de ville',loge2:"l'appartement du Centre",loge3:'le pavillon',loge4:'la villa'};
 const nomLieu=z=>{try{const q=MW.zone(z);if(q&&q.nom) return q.nom;}catch(e){}return NOM[z]||z;};
 const guest=()=>!!(MW.net&&MW.net.live&&MW.net.guest);
 let mirror=null;
-const P=()=>MWJ.PARTS,PL=()=>MWJ.PARTS_LIST;
+/* catalogue étendu : pièces de TUNING (js/58) enregistrées par MWTUNE (ids « tune:… ») ; absentes des réparations (MWJ.PARTS_LIST), stockables dans les garages et ateliers de préparation seulement */
+const EXT={},EXTL=[];let EXTM=null;
+api.register=list=>{for(const p of list||[]){if(!p||!p.id||EXT[p.id]) continue;const q={id:p.id,nom:p.nom,ab:String(p.nom).slice(0,6),zone:'capot',ax:'',comp:'preparation',niv:p.niv||1,prix:p.prix,mo:30,outil:'cles',hid:false,vie:0,tune:1};EXT[q.id]=q;EXTL.push(q);}EXTM=null;return EXTL.length;};
+const P=()=>EXTL.length?(EXTM||(EXTM=Object.assign({},MWJ.PARTS,EXT))):MWJ.PARTS,PL=()=>EXTL.length?MWJ.PARTS_LIST.concat(EXTL):MWJ.PARTS_LIST,BASE=()=>MWJ.PARTS_LIST;
+const skNom=p=>(MWJ.SK_NOM&&MWJ.SK_NOM[p.comp])||(p.comp==='preparation'?'Préparation (tuning)':p.comp);
 /* ── état ── */
 function R(){const s=MW.S;if(!s.reserve||typeof s.reserve!=='object') s.reserve={lieux:{},cmd:[],seq:0};const r=s.reserve;if(!r.lieux) r.lieux={};if(!r.cmd) r.cmd=[];if(r.seq==null) r.seq=0;return r;}
 const D=()=>guest()?(mirror||(mirror={lieux:{},cmd:[],seq:0})):R();
-const common=id=>{const p=P()[id];if(!p) return false;try{if(MWJ.STOCK1&&MWJ.STOCK1.includes(id)) return true;}catch(e){}return p.niv<=2&&p.prix<=80;};
+const common=id=>{const p=P()[id];if(!p||p.tune) return false;try{if(MWJ.STOCK1&&MWJ.STOCK1.includes(id)) return true;}catch(e){}return p.niv<=2&&p.prix<=80;};
 api.common=common;
 /* ── capacité, quantités ── */
 function homeChest(z){try{const o=MWI.state();return o.stock[z]||(o.stock[z]=[]);}catch(e){return [];}}
 api.cap=z=>{if(isHome(z)){try{return MWI.cap(z)||0;}catch(e){return 0;}}return CAP[z]||40;};
 function lieu(z){const d=D();let l=d.lieux[z];if(!l){l=d.lieux[z]={p:{}};if(!guest()) init(z,l);}return l;}
 function init(z,l){ /* stock de départ raisonnable : pièces courantes, et de quoi faire les travaux lourds dans les grands garages */
- const cap=api.cap(z),com=PL().filter(p=>common(p.id)),rare=PL().filter(p=>!common(p.id)),n=NIV[z]||3;let t=0;
+ const cap=api.cap(z),com=BASE().filter(p=>common(p.id)),rare=BASE().filter(p=>!common(p.id)),n=NIV[z]||3;let t=0;
  const put=(id,k)=>{const m=Math.min(k,cap-t);if(m>0){l.p[id]=(l.p[id]||0)+m;t+=m;}};
  for(const p of com) put(p.id,n);
  if(z==='garage2'||z==='garage3'||z==='garage4') for(const p of rare) put(p.id,1);}
@@ -68,7 +72,7 @@ api.get=z=>{const parts={};for(const p of PL()){const q=api.qty(z,p.id);if(q) pa
  return {parts,total:api.total(z),cap:api.cap(z),free:api.free(z),pend};};
 function sync(){if(guest()||!(MW.net&&MW.net.live)) return;try{MWNET.sendTo({t:'stk',s:JSON.parse(JSON.stringify(R()))});}catch(e){}}
 function req(m){try{MWNET.sendTo(Object.assign({t:'stkq'},m));}catch(e){}}
-api.add=(z,id,n)=>{n=n||1;if(!P()[id]) return 0;const m=Math.min(n,api.free(z));if(m<=0) return 0;
+api.add=(z,id,n)=>{n=n||1;if(!P()[id]||(isHome(z)&&EXT[id])) return 0;const m=Math.min(n,api.free(z));if(m<=0) return 0;
  if(isHome(z)){const st=homeChest(z);for(let i=0;i<m;i++) st.push({k:'neuve',id,src:'stock'});return m;}
  const l=lieu(z);l.p[id]=(l.p[id]||0)+m;if(guest()) req({op:'add',z,id,n:m});else sync();return m;};
 api.take=(z,id,n)=>{n=n||1;if(api.qty(z,id)<n) return false;
@@ -76,8 +80,8 @@ api.take=(z,id,n)=>{n=n||1;if(api.qty(z,id)<n) return false;
  const l=lieu(z);l.p[id]-=n;if(l.p[id]<=0) delete l.p[id];if(guest()) req({op:'take',z,id,n});else sync();return true;};
 /* ── lieu de travail et payeur ── */
 const emp=()=>{try{return MWC.employer();}catch(e){return null;}};
-api.lieuDeTravail=()=>{const e=emp();return e&&e.id!=='aucun'&&e.zone?e.zone:null;};
-api.payer=z=>{if(isHome(z)) return 'perso';const e=emp();if(!e||e.zone!==z) return null;return (e.compte||e.net)?'biz':'emp';};
+api.lieuDeTravail=()=>{const e=emp();if(!e||e.id==='aucun') return null;if(e.zone) return e.zone;try{return typeof MWTUNE!=='undefined'&&MWTUNE.workZone?MWTUNE.workZone():null;}catch(x){return null;}}; /* préparateur et carrossier (js/58) : l'atelier de préparation */
+api.payer=z=>{if(isHome(z)) return 'perso';const e=emp();if(!e||api.lieuDeTravail()!==z) return null;return (e.compte||e.net)?'biz':'emp';};
 const cash=k=>k==='biz'?(typeof MWS!=='undefined'?MWS.cash():MW.S.money):MW.S.money;
 const pay=(k,x,motif)=>{if(k==='biz'&&typeof MWS!=='undefined') MWS.biz(-x,motif);else MW.money(-x,motif);};
 /* ── délais ── */
@@ -92,7 +96,7 @@ const wprice=id=>Math.max(1,Math.round(P()[id].prix*WEB*100)/100);
 api.order=(z,items,mode,opt)=>{opt=opt||{};mode=mode==='express'?'express':'next';
  const k=opt.payer||api.payer(z);if(!k) return {ok:false,why:'Cet ordinateur est réservé au personnel du garage.'};
  if(mode==='express'&&k==='emp') mode='next';
- const ids=Object.keys(items).filter(id=>P()[id]&&items[id]>0);if(!ids.length) return {ok:false,why:'Le panier est vide.'};
+ const ids=Object.keys(items).filter(id=>P()[id]&&items[id]>0&&!(isHome(z)&&EXT[id]));if(!ids.length) return {ok:false,why:'Le panier est vide.'};
  const n=ids.reduce((a,id)=>a+items[id],0);
  if(n>api.free(z)-pendTot(z)) return {ok:false,why:`Pas assez de place dans le stock de ${nomLieu(z)} : ${Math.max(0,api.free(z)-pendTot(z))} place(s) libre(s) pour ${n} pièce(s).`};
  let cout=0;if(k!=='emp'){for(const id of ids) cout+=wprice(id)*items[id];cout=r2(cout+FRAIS[mode]);if(cash(k)<cout) return {ok:false,why:`Il manque ${fmt(r2(cout-cash(k)))} (${k==='biz'?'compte du garage':'votre argent'}).`};}
@@ -137,16 +141,16 @@ let cart={},mode='next',tab='tout',cur=null;
 function payerTxt(z){const k=api.payer(z);return k==='emp'?`<b>Payé par l'employeur</b> (livraison du lendemain seulement ; vous ne payez rien).`:k==='biz'?`Payé par le <b>compte du garage</b> : ${fmt(cash('biz'))} disponibles.`:`Payé avec <b>votre argent</b> : ${fmt(MW.S.money)}.`;}
 function site(z){
  const k=api.payer(z);if(!k){MW.toast('Cet ordinateur est réservé au personnel du garage.','warn');return;}
- if(cur!==z){cur=z;cart={};mode='next';}
+ if(cur!==z){cur=z;cart={};mode='next';if(/^tune/.test(z)&&EXTL.length) tab='tuning';else if(tab==='tuning') tab='tout';}
  if(mode==='express'&&!expressOK(z)) mode='next';
  const n=Object.values(cart).reduce((a,x)=>a+x,0),sub=Object.keys(cart).reduce((a,id)=>a+wprice(id)*cart[id],0),fee=k==='emp'?0:FRAIS[mode],tot=r2(sub+fee);
  const dd=api.dueText(dueOf(mode));
  let h=`<p class="hint">Site de livraison <b>Pièces Auto Express</b> pour <b>${esc(nomLieu(z))}</b>. ${payerTxt(z)} Stock : <b>${api.total(z)}/${api.cap(z)}</b>${pendTot(z)?` (+ ${pendTot(z)} en commande)`:''}.</p>`;
  const pend=api.pending(z);if(pend.length) h+=`<p class="mw-soon">En cours de livraison : ${pend.map(c=>Object.keys(c.items).map(id=>c.items[id]+' × '+esc(P()[id].nom.toLowerCase())).join(', ')+' — '+api.dueText(c.due)).join(' · ')}.</p>`;
- h+=`<div class="mw-btns">${btn('tab:tout','Tout',tab==='tout'?'':'ghost')}${btn('tab:courant','Pièces courantes',tab==='courant'?'':'ghost')}${btn('tab:rare','Pièces rares',tab==='rare'?'':'ghost')}${btn('tab:manque','À réapprovisionner',tab==='manque'?'':'ghost')}</div>`;
- const list=PL().filter(p=>tab==='tout'||(tab==='courant'&&common(p.id))||(tab==='rare'&&!common(p.id))||(tab==='manque'&&api.qty(z,p.id)+api.pendQty(z,p.id)<=0));
+ h+=`<div class="mw-btns">${btn('tab:tout','Tout',tab==='tout'?'':'ghost')}${btn('tab:courant','Pièces courantes',tab==='courant'?'':'ghost')}${btn('tab:rare','Pièces rares',tab==='rare'?'':'ghost')}${EXTL.length&&!isHome(z)?btn('tab:tuning','Tuning',tab==='tuning'?'':'ghost'):''}${btn('tab:manque','À réapprovisionner',tab==='manque'?'':'ghost')}</div>`;
+ const list=PL().filter(p=>!(isHome(z)&&p.tune)).filter(p=>tab==='tout'||(tab==='tuning'&&p.tune)||(tab==='courant'&&common(p.id))||(tab==='rare'&&!common(p.id)&&!p.tune)||(tab==='manque'&&api.qty(z,p.id)+api.pendQty(z,p.id)<=0));
  h+=list.map(p=>{const q=api.qty(z,p.id),c=cart[p.id]||0,pe=api.pendQty(z,p.id);
-  return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b><span class="mw-tag${q?' ok':' warn'}">${q} en stock</span><span class="mw-tag">${k==='emp'?'fourni':fmt(wprice(p.id))}</span></div><small>${esc(MWJ.SK_NOM[p.comp])} niv. ${p.niv}${pe?' · '+pe+' en commande':''}${c?' · panier : '+c:''}</small><div class="mw-btns">${btn('add:'+p.id,'+1')}${btn('add5:'+p.id,'+5','ghost')}${btn('sub:'+p.id,'−1','ghost',!c)}</div></div>`;}).join('')||'<p class="hint">Rien à afficher ici.</p>';
+  return `<div class="mw-prt"><div class="mw-prt-h"><b>${esc(p.nom)}</b><span class="mw-tag${q?' ok':' warn'}">${q} en stock</span><span class="mw-tag">${k==='emp'?'fourni':fmt(wprice(p.id))}</span></div><small>${esc(skNom(p))} niv. ${p.niv}${pe?' · '+pe+' en commande':''}${c?' · panier : '+c:''}</small><div class="mw-btns">${btn('add:'+p.id,'+1')}${btn('add5:'+p.id,'+5','ghost')}${btn('sub:'+p.id,'−1','ghost',!c)}</div></div>`;}).join('')||'<p class="hint">Rien à afficher ici.</p>';
  h+=`<div class="mw-card"><b>Panier : ${n} pièce${n>1?'s':''}</b><br><small>Pièces ${k==='emp'?'(fournies par l\'employeur)':fmt(r2(sub))} · livraison ${k==='emp'?'(offerte)':fmt(fee)}</small><div class="mw-btns">${btn('mode:next',`Demain à 9 h${k==='emp'?'':' ('+fmt(FRAIS.next)+')'}`,mode==='next'?'':'ghost')}${k!=='emp'?btn('mode:express',`Express ${expressOK(z)?'· '+fmt(FRAIS.express):'(avant 17 h)'}`,mode==='express'?'':'ghost',!expressOK(z)):''}</div><small>Livraison prévue : ${dd}.</small><div class="mw-btns">${btn('cmd','Commander'+(k==='emp'?'':' · '+fmt(tot)),'',!n)}${btn('clr','Vider le panier','ghost',!n)}${btn('close','Fermer','ghost')}</div></div>`;
  MW.panel('Pièces Auto Express · '+nomLieu(z),h,{wide:true,onClick:a=>{const [c,id]=a.split(':');
   if(c==='add') cart[id]=(cart[id]||0)+1;else if(c==='add5') cart[id]=(cart[id]||0)+5;else if(c==='sub'){cart[id]=Math.max(0,(cart[id]||0)-1);if(!cart[id]) delete cart[id];}

@@ -87,13 +87,27 @@ module.exports = async function mecaTuningAtelier(page, env) {
   const nSt = await e(id => __mwt.order(id).steps.length, cmd.id);
   verifier(nSt >= 6, `la commande ne comporte pas d'étapes (${nSt})`);
   verifier(!(await e(id => __mwt.step(id, 2).ok, cmd.id)), 'on peut sauter une étape');
-  for (let i = 0; i < nSt; i++) {
+  // stock réel (js/59) : les pièces de tuning sont au catalogue, absentes du stock, donc commandées à l'acceptation ; l'étape de pose attend la livraison
+  const st0 = await e(id => { const o = __mwt.order(id), ids = o.steps.filter(x => x.piece).map(x => 'tune:' + x.piece); return { ids, qty: ids.map(i => MWST.qty('tune1', i)), pend: ids.map(i => MWST.pendQty('tune1', i)), payer: MWST.payer('tune1'), lieu: MWST.lieuDeTravail() }; }, cmd.id);
+  verifier(st0.payer === 'emp' && st0.lieu === 'tune1', `le stock ne reconnaît pas le préparateur dans son atelier (${JSON.stringify(st0)})`);
+  verifier(st0.qty.every(q => q === 0) && st0.pend.every(q => q >= 1), `les pièces manquantes ne sont pas commandées à l'acceptation (${JSON.stringify(st0)})`);
+  const att = await e(id => { __mwt.step(id, 0); const r = __mwt.step(id, 1); return { ok: r.ok, wait: !!r.wait, step: __mwt.order(id).step }; }, cmd.id);
+  verifier(!att.ok && att.wait && att.step === 1, `la pose se fait sans la pièce commandée (${JSON.stringify(att)})`);
+  const livre = await e(id => { const o = __mwt.order(id), ids = o.steps.filter(x => x.piece).map(x => 'tune:' + x.piece); for (const c of MWST.R().cmd) c.due = 0; MWST.tick(); return { ids, qty: ids.map(i => MWST.qty('tune1', i)), pend: MWST.pending('tune1').length }; }, cmd.id);
+  verifier(livre.qty.every(q => q >= 1) && livre.pend === 0, `les pièces commandées n'arrivent pas dans le stock de l'atelier (${JSON.stringify(livre)})`);
+  // site de commande : rubrique Tuning
+  await e(() => MWST.site('tune1'));
+  const site = await e(() => ({ tab: !!document.querySelector('#mwPb [data-mw="tab:tuning"]'), txt: document.querySelector('#mwPb').textContent }));
+  verifier(site.tab && /Reprogrammation|Silencieux/.test(site.txt), `le site de commande n'a pas de rubrique Tuning (${site.tab})`);
+  await e(() => __mw.closePanel());
+  for (let i = await e(id => __mwt.order(id).step, cmd.id); i < nSt; i++) {
     const m0 = await e(() => __mw.S.min);
     const r = await e(([id, k]) => { const x = __mwt.step(id, k); return { ok: x.ok, panel: !!x.panel }; }, [cmd.id, i]);
     verifier(r.ok, `l'étape ${i + 1} échoue`);
     if (r.panel) { await attendreVisible(A, '#mwPb [data-mw="run"]', 'le jeu de cartographie ne s\'ouvre pas'); await A.click('#mwPb [data-mw="run"]'); await A.click('#mwPb [data-mw="end"]'); await attendre(200); await e(() => __mw.closePanel()); }
   }
   verifier(await e(id => { const o = __mwt.order(id); return o.step >= o.steps.length; }, cmd.id), 'toutes les étapes ne sont pas faites');
+  verifier(await e(() => MWST.qty('tune1', 'tune:ecu1') === 0 && MWST.qty('tune1', 'tune:exh1') === 0), 'les pièces posées ne sortent pas du stock');
   const vue = await e(id => { const o = __mwt.order(id), m = __mw.scene.children.find(c => c.userData && c.userData.plate === o.plaque); return { cfg: o.cfg.p, tune: !!m && !!m.userData.tune && m.userData.tune.sig.indexOf('exh1') > 0 }; }, cmd.id);
   verifier(vue.cfg.ecu === 'ecu1' && vue.cfg.exh === 'exh1' && vue.tune, `la voiture du client n'affiche pas ses modifications : ${JSON.stringify(vue)}`);
   const fin = await e(id => { const r = __mwt.deliver(id); return r; }, cmd.id);
@@ -118,6 +132,9 @@ module.exports = async function mecaTuningAtelier(page, env) {
   await attendre(100);
   verifier(await e(r => __mwt.orders().length === 0 && __mw.S.rep < r, rp0), 'un client oublié ne repart pas');
 
+  // pose sur sa propre voiture depuis le stock de l'atelier (employé de l'Atelier Éclat : pose par soi-même, pièce prise en stock)
+  const perso = await e(() => { __mwt.setCfg(null, { p: {} }); MWST.add('tune2', 'tune:tp2', 1); const o = __mwt.offer({ k: 'part', id: 'tp2' }, 'tune2'); const m0 = __mw.S.money; const r = __mwt.install({ k: 'part', id: 'tp2' }, { zone: 'tune2' }); return { stock: o.stock, ok: r.ok, d: m0 - __mw.S.money, q: MWST.qty('tune2', 'tune:tp2') }; });
+  verifier(perso.stock && perso.ok && perso.q === 0 && perso.d < 1, `la pose depuis le stock ne prend pas la pièce du stock sans la repayer (${JSON.stringify(perso)})`);
   // 10. à deux : la voiture modifiée d'un joueur est visible par l'autre
   const B = await A.context().newPage();
   const erreursB = [];

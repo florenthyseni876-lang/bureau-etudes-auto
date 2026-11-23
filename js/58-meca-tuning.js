@@ -510,7 +510,7 @@ function offerOf(model,cfg,it,cp){
  const diy=cp.diy&&lvl>=q.niv;
  const part=cp.owner?Math.round(q.price*.75):q.price;
  const labor=diy?0:Math.round(q.mo/60*cp.taux/5)*5;
- const stock=it.k==='part'&&cp.diy&&stk.count(it.id)>0;
+ const stock=it.k==='part'&&cp.diy&&stk.count(cp.zone,it.id)>0;
  const total=(stock?0:part)+labor;
  return Object.assign(q,{lvl,diy,part,labor,total,stock,ok:q.ok&&lieuOK&&(!q.booth||cp.booth),why,time:diy?Math.max(15,Math.round(q.mo*Math.max(.55,1-.07*(lvl-q.niv)))):q.mo});}
 api.offer=(it,zid)=>offerOf(modelOfCur(),cfgOf(),it,caps(zid||nearZone()));
@@ -527,7 +527,7 @@ function install(it,opt){
  if(MW.S.money<o.total) return {ok:false,msg:`Il vous faut ${fmt(o.total)}.`};
  let credit=0;
  if(it.k==='part'){const old=cfg.p[PARTS[it.id].slot];if(old) credit=Math.round(priceOf(model,old)*.2);}
- if(o.stock){if(!stk.take(it.id,'perso')) return {ok:false,msg:'Pièce introuvable en stock.'};}
+ if(o.stock){if(!stk.take(cp.zone,it.id)) return {ok:false,msg:'Pièce introuvable en stock.'};}
  MW.money(-o.total+credit,'Tuning : '+o.nom);
  o.fn(cfg);t.cars[key]=cfg;
  MW.addMin(o.time);
@@ -668,14 +668,18 @@ function soundTick(dt){
   const tm=a.c.currentTime;a.o1.frequency.setTargetAtTime(f,tm,.06);a.o2.frequency.setTargetAtTime(f*.5,tm,.06);a.f.frequency.setTargetAtTime(240+420*(1-.5*snd)+v*12,tm,.1);a.g.gain.setTargetAtTime(sndNow.gain,tm,.1);}catch(e){}}
 api.sound=()=>Object.assign({},sndNow);
 
+/* adaptateur du stock réel (js/59, MWST) : les pièces de tuning y sont enregistrées sous l'identifiant « tune:… » ; le lieu est l'atelier ou le garage où l'on travaille */
+const SID=id=>'tune:'+id;
 const stk={
- m(){return typeof MWST!=='undefined'&&MWST?MWST:null;},
- f(names){const m=stk.m();if(!m) return null;for(const n of names) if(typeof m[n]==='function') return m[n].bind(m);return null;},
- count(id){try{const f=stk.f(['count','qty','have','stockOf']);return f?(+f('tune:'+id)||0):0;}catch(e){return 0;}},
- take(id,who){try{const f=stk.f(['take','use','remove']);if(!f) return false;const r=f('tune:'+id,1,who);return !!r;}catch(e){return false;}},
- order(id,n){try{const f=stk.f(['order','commander','buy']);if(!f) return false;f('tune:'+id,n||1);return true;}catch(e){return false;}},
- register(){try{const f=stk.f(['register','addCatalog','catalogue']);if(f) f(LIST.map(p=>({id:'tune:'+p.id,nom:p.nom,prix:p.prix,cat:'tuning',niv:p.niv})));}catch(e){}},
- has(){return !!stk.m();}};
+ m(){return typeof MWST!=='undefined'&&MWST&&MWST.qty?MWST:null;},
+ has(){return !!stk.m();},
+ count(zid,id){try{const m=stk.m();return m&&zid?(+m.qty(zid,SID(id))||0):0;}catch(e){return 0;}},
+ pend(zid,id){try{const m=stk.m();return m&&zid?(+m.pendQty(zid,SID(id))||0):0;}catch(e){return 0;}},
+ take(zid,id){try{const m=stk.m();return !!(m&&zid&&m.take(zid,SID(id),1));}catch(e){return false;}},
+ payer(zid){try{const m=stk.m();return m&&zid?m.payer(zid):null;}catch(e){return null;}},
+ /* commande des pièces manquantes (livraison demain 9 h, ou express pour qui paie lui-même) → {ok,why,ord} */
+ order(zid,ids,mode){try{const m=stk.m();if(!m||!zid) return {ok:false,why:'Pas de stock.'};const need={};for(const id of ids) need[SID(id)]=(need[SID(id)]||0)+1;return m.order(zid,need,mode||'next');}catch(e){return {ok:false,why:'Commande impossible.'};}},
+ register(){try{const m=stk.m();if(m&&m.register) m.register(LIST.map(p=>({id:SID(p.id),nom:p.nom,prix:p.prix,niv:p.niv})));}catch(e){}}};
 api.stk=stk;
 
 /* courbes de puissance et de couple (banc) : forme selon le type de moteur et les pièces */
@@ -812,7 +816,7 @@ function partRow(model,cfg,p,cp){
  const tags=[];if(o.niv>o.lvl&&cp.diy) tags.push(badge('niveau '+o.niv+' requis pour la pose par vous','warn'));
  const price=on?'posée':(o.stock?`${esc(fmt(o.labor))} (pièce en stock)`:esc(fmt(o.total)));
  return `<div class="tn-item${on?' on':''}${o.ok||on?'':' no'}"><div><b>${esc(p.nom)}</b><small>${esc(p.txt)}</small><small>${on?'':`pièce ${esc(fmt(o.part))}${o.labor?' + pose '+esc(fmt(o.labor)):' · pose par vos soins'} · ${o.time} min · niveau ${p.niv}`}${why?` · <span class="tn-dn">${esc(why)}</span>`:''}</small></div>
-  <div class="tn-btns">${on?btn('rm:'+p.slot,'Déposer','sm ghost'):btn('view:'+p.id,pv?'Masquer':'Voir','sm ghost',false)+btn('buy:'+p.id,esc(fmt(o.total)),'sm',!o.ok||MW.S.money<o.total)}</div></div>`;}
+  <div class="tn-btns">${on?btn('rm:'+p.slot,'Déposer','sm ghost'):btn('view:'+p.id,pv?'Masquer':'Voir','sm ghost',false)+(cp.diy&&stk.has()&&stk.payer(cp.zone)&&!o.stock&&stk.pend(cp.zone,p.id)<1?btn('stk:'+p.id,'Commander','sm ghost',!o.ok):'')+btn('buy:'+p.id,esc(fmt(o.total)),'sm',!o.ok||MW.S.money<o.total)}</div></div>`;}
 function slotBlock(model,cfg,slot,cp){
  const ps=LIST.filter(p=>p.slot===slot&&!(spec(model).ev&&p.ice));if(!ps.length) return '';
  return `<div class="tn-h">${esc(SLOTS[slot])}</div>`+ps.map(p=>partRow(model,cfg,p,cp)).join('');}
@@ -878,6 +882,7 @@ function menuClick(a){
  else if(k==='buy'){
   let it;if(v==='paint') it={k:'paint',f:MS.paint.f,c:MS.paint.c,c2:MS.paint.two?MS.paint.c2:null};else if(v==='wheels') it={k:'wheels',m:MS.wh.m,i:MS.wh.i,c:MS.wh.c};else it={k:'part',id:v};
   const r=install(it,{zone:MS.zone});MS.prev=null;redo(r.msg);}
+ else if(k==='stk'){const r=stk.order(MS.zone,[v],'next');redo(r.ok?'Pièce commandée : livraison '+(()=>{try{return MWST.dueText(r.ord.due);}catch(e){return 'demain';}})()+'.':(r.why||'Commande impossible.'));}
  else if(k==='wview'){MS.prev=MS.prev&&MS.prev.k==='wrap'&&MS.prev.t===v?null:{k:'wrap',t:v,c:MS.wrapC};redo();}
  else if(k==='wbuy'){const r=install({k:'wrap',t:v,c:MS.wrapC},{zone:MS.zone});MS.prev=null;redo(r.msg);}
  else if(k==='rm'){removeSlot(v,{zone:MS.zone});MS.prev=null;redo('Déposé.');}
@@ -1114,7 +1119,7 @@ function stationHtml(o){
   const fin=o.step>=o.steps.length;
   h+=`<div class="mw-btns">${fin?btn('deliver','Rendre la voiture'):''}${btn('close','Fermer','ghost')}</div>`;}
  return h;}
-function pieceSrc(o,s){const cp=caps(o.zone);if(stk.count(s.piece)>0) return ' (en stock)';if(cp.owner) return ' (achat au prix de gros)';return ' (fournie par l’atelier)';}
+function pieceSrc(o,s){const cp=caps(o.zone);if(stk.count(o.zone,s.piece)>0) return ' (en stock)';if(stk.pend(o.zone,s.piece)>0) return ' (en commande, livraison à venir)';if(cp.owner) return ' (achat au prix de gros)';return ' (fournie par l’atelier)';}
 function station(id){
  const o=ordBy(id);if(!o) return false;
  MW.panel('Commande de tuning',stationHtml(o),{wide:true,onClick:a=>{
@@ -1125,7 +1130,11 @@ function station(id){
   else if(a==='close') MW.closePanel();}});
  return true;}
 api.station=station;
-function acceptOrder(id){const o=ordBy(id);if(!o||o.status!=='new') return false;o.steps=stepsFor(o);o.status='wip';o.step=0;hudTune();return true;}
+function acceptOrder(id){const o=ordBy(id);if(!o||o.status!=='new') return false;o.steps=stepsFor(o);o.status='wip';o.step=0;hudTune();
+ /* les pièces qui manquent au stock sont commandées tout de suite (livraison le lendemain à 9 h) */
+ try{if(stk.has()&&stk.payer(o.zone)){const miss=o.steps.filter(s=>s.piece&&stk.count(o.zone,s.piece)+stk.pend(o.zone,s.piece)<1).map(s=>s.piece);
+  if(miss.length){const r=stk.order(o.zone,miss,'next');if(r.ok) say(`Pièces commandées pour ${o.client} : livraison ${(()=>{try{return MWST.dueText(r.ord.due);}catch(e){return 'demain';}})()}.`,'info');else say(r.why||'Commande impossible.','warn');}}}catch(e){}
+ return true;}
 api.accept=acceptOrder;
 function dropOrder(id,why){const t=TS(),i=t.orders.findIndex(o=>o.id===id);if(i<0) return;const o=t.orders[i];t.orders.splice(i,1);dropOrdMesh(id);hudTune();
  if(why==='attente'){MW.S.rep=clamp(R2((MW.S.rep||0)-1.5),0,100);say(`${o.client} est reparti avec sa ${o.nom} : trop d’attente.`,'warn');}
@@ -1134,8 +1143,13 @@ api.drop=dropOrder;
 /* pièce d'une étape : stock (MWST) sinon achat au prix de gros (propriétaire) ou fournie (employé) */
 function takePiece(o,id){
  const cp=caps(o.zone);
- if(stk.count(id)>0&&stk.take(id,o.id)) return {ok:true,src:'stock',cost:0};
- if(stk.has()&&stk.order(id,1)&&stk.count(id)<=0&&!cp.owner) {/* commande passée : on continue avec la pièce de l'étagère */}
+ if(stk.has()&&stk.payer(o.zone)){ /* stock réel : on prend dans la réserve de l'atelier, sinon la pièce se commande et le client attend */
+  if(stk.take(o.zone,id)){const c=Math.round(priceOf(o.mdl,id)*.72);if(cp.owner) o.spent+=c;return {ok:true,src:'stock',cost:0};}
+  if(stk.pend(o.zone,id)>0){say(`Pièce « ${PARTS[id].nom} » déjà commandée : en attente de livraison. ${o.client} patiente.`,'warn');return {ok:false,wait:true};}
+  const r=stk.order(o.zone,[id],cp.owner&&MW.S.min<1020?'express':'next');
+  if(r.ok) say(`Pièce « ${PARTS[id].nom} » absente du stock : commandée, livraison ${(()=>{try{return MWST.dueText(r.ord.due);}catch(e){return 'bientôt';}})()}. ${o.client} patiente.`,'warn');
+  else say(r.why||'Pièce absente du stock.','warn');
+  return {ok:false,wait:true};}
  if(cp.owner){const c=Math.round(priceOf(o.mdl,id)*.72);if(cashNow()<c){say(`Pièce « ${PARTS[id].nom} » : il faut ${fmt(c)} pour l’acheter au grossiste.`,'warn');return {ok:false};}
   biz(-c,'Pièce de tuning : '+PARTS[id].nom);o.spent+=c;return {ok:true,src:'achat',cost:c};}
  return {ok:true,src:'atelier',cost:0};}
@@ -1144,7 +1158,7 @@ function step(id,i){
  const s=o.steps[i],cp=caps(o.zone);
  if(s.booth&&!cp.booth){say('Cette étape demande une cabine de peinture.','warn');return {ok:false};}
  const lvl=level('preparation'),it=o.items[s.i],niv=it?(it.k==='part'?PARTS[it.id].niv:quote(o.mdl,emptyCfg(),it).niv):1;
- if(s.kind==='pose'&&s.piece){const r=takePiece(o,s.piece);if(!r.ok) return {ok:false};}
+ if(s.kind==='pose'&&s.piece){const r=takePiece(o,s.piece);if(!r.ok) return {ok:false,wait:!!r.wait};}
  const f=Math.max(.55,1-.06*(lvl-niv)),mo=Math.max(5,Math.round(s.mo*f));
  let q=clamp(.62+.07*(lvl-niv)+rnd()*.28,.3,1);
  if(s.kind==='bench'&&!o.benchQ){o.benchPending=true;}
@@ -1247,7 +1261,7 @@ function init(){
 MW.on('start',init);
 /* l'atelier de préparation d'un garage dont on n'est plus propriétaire ne propose plus l'équipement */
 MW.on('employerChanged',()=>{try{refreshDrv();hudTune();}catch(e){}});
-api.state=()=>TS();api.hasard=true;
+api.state=()=>TS();api.hasard=true;api.workZone=workZone;api.stkApi=stk;
 api.keyOf=keyOf;api.model=modelOfCur;
 api.PARTS=PARTS;api.LIST=LIST;api.SLOTS=SLOTS;api.PAINTS=PAINTS;api.WRAPS=WRAPS;api.WHEELS=WHEELS;api.COLORS=COLORS;api.cfg=cfgOf;api.TPLS=TPLS;api.EQUIP=EQUIP;
 api.setCfg=(key,c)=>{const t=TS();t.cars[key||keyOf()]=cleanCfg(c);commit(key||keyOf());};

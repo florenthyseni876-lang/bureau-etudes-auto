@@ -350,7 +350,7 @@ for(const z of zones){if(!z._d.immo||z.type==='garage') continue;
    Lp.box(3.4,2.5,.16,-fw*.28,1.25,.1,0xe4e6e8);for(let i=0;i<4;i++) Lp.box(3.2,.04,.18,-fw*.28,.6+i*.5,.12,0xb4b8bc);
    Lc.box(3.6,.1,3.2,-fw*.28,.05,1.8,0x8a8c90);}
   if(z.id==='loge4'){ // colonnes d'entrée, grille, lampes
-   for(const sx of [-1,1]){Lp.cyl(.28,.3,3.6,12,sx*1.5,1.8,1.5,0xf2eee4);Lp.box(.8,.2,.8,sx*1.5,.1,1.5,0xd8d2c0);}
+   for(const sx of [-1,1]){Lp.cyl(.28,.3,3.6,12,sx*1.5,1.8,1.5,0xf2eee4);Lp.box(.8,.26,.8,sx*1.5,.13,1.5,0xd8d2c0); /* socle de colonne plus haut que la dalle du perron (0,20) : plus de face confondue */}
    Lp.box(4.0,.4,2.6,0,3.7,1.1,0xe2dccc);Lc.box(4.4,.2,3.2,0,.1,1.7,0xcfcab8);
    for(const sx of [-1,1]) Ld.box(.06,2.4,.06,sx*(fw/2),1.2,3.2,0x2a2c30);}
   if(z.id==='loge2'){ // entrée vitrée, auvent
