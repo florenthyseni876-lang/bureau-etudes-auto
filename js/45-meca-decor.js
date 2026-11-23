@@ -181,8 +181,8 @@ const MDEF={
  tlA:{map:'tl',emis:1,ts:1},tlB:{map:'tl2',emis:1,ts:1},
  glass:{opts:{transparent:true,opacity:.30,depthWrite:false},ts:1},
  neon:{basic:1},lamph:{emisCol:0xffe6a0,ts:1},glowm:{map:'glow',basic:1,opts:{transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:0}},
- dirs:{map:'dirs',opts:{side:T.DoubleSide},ts:1},tsign:{map:'tsign',opts:{alphaTest:.5,side:T.DoubleSide},ts:1},fence:{map:'fence',opts:{alphaTest:.4,side:T.DoubleSide},ts:1},
- toolpanel:{map:'toolpanel',ts:1,recv:1},posters:{map:'posters',ts:1},chest:{map:'chest',ts:1,cast:1},cardboard:{map:'cardboard',ts:.5,cast:1},
+ dirs:{map:'dirs',opts:{side:T.DoubleSide},ts:1,poly:-2},tsign:{map:'tsign',opts:{alphaTest:.5,side:T.DoubleSide},ts:1,poly:-2},fence:{map:'fence',opts:{alphaTest:.4,side:T.DoubleSide},ts:1},
+ toolpanel:{map:'toolpanel',ts:1,recv:1,poly:-2},posters:{map:'posters',ts:1,poly:-2},chest:{map:'chest',ts:1,cast:1},cardboard:{map:'cardboard',ts:.5,cast:1},
  car:{cast:1,recv:1},signs:{map:'signs',emis:1,ts:1}};
 const MT={};
 D.mat=name=>{if(MT[name]) return MT[name];const d=MDEF[name];if(!d) throw new Error('matériau inconnu '+name);

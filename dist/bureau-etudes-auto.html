@@ -11193,8 +11193,8 @@ const MDEF={
  tlA:{map:'tl',emis:1,ts:1},tlB:{map:'tl2',emis:1,ts:1},
  glass:{opts:{transparent:true,opacity:.30,depthWrite:false},ts:1},
  neon:{basic:1},lamph:{emisCol:0xffe6a0,ts:1},glowm:{map:'glow',basic:1,opts:{transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:0}},
- dirs:{map:'dirs',opts:{side:T.DoubleSide},ts:1},tsign:{map:'tsign',opts:{alphaTest:.5,side:T.DoubleSide},ts:1},fence:{map:'fence',opts:{alphaTest:.4,side:T.DoubleSide},ts:1},
- toolpanel:{map:'toolpanel',ts:1,recv:1},posters:{map:'posters',ts:1},chest:{map:'chest',ts:1,cast:1},cardboard:{map:'cardboard',ts:.5,cast:1},
+ dirs:{map:'dirs',opts:{side:T.DoubleSide},ts:1,poly:-2},tsign:{map:'tsign',opts:{alphaTest:.5,side:T.DoubleSide},ts:1,poly:-2},fence:{map:'fence',opts:{alphaTest:.4,side:T.DoubleSide},ts:1},
+ toolpanel:{map:'toolpanel',ts:1,recv:1,poly:-2},posters:{map:'posters',ts:1,poly:-2},chest:{map:'chest',ts:1,cast:1},cardboard:{map:'cardboard',ts:.5,cast:1},
  car:{cast:1,recv:1},signs:{map:'signs',emis:1,ts:1}};
 const MT={};
 D.mat=name=>{if(MT[name]) return MT[name];const d=MDEF[name];if(!d) throw new Error('matériau inconnu '+name);
@@ -11584,7 +11584,7 @@ H.gable=gable;
 /* bâtiment générique : murs, socle, corniche, fenêtres, porte ou devanture, toit */
 function building(o){
  const {x:cx,z:cz,w,d,H:Hh}=o,lay=o.layer||'core',B=m=>D.B(lay,m),wm=o.wall||'plaster',fr=FACES[o.front],tint=o.tint==null?0xffffff:o.tint;
- B(wm).box(w,Hh,d,cx,Hh/2,cz,tint);
+ B(wm).box(w,Hh-.22,d,cx,(Hh-.22)/2,cz,tint); /* [textures] le mur s'arrête sous la corniche : plus de faces hautes confondues à la hauteur Hh */
  B('conc').box(w+.14,.7,d+.14,cx,.35,cz,o.socle==null?0x8d8b86:o.socle);
  B('conc').box(w+.3,.22,d+.3,cx,Hh-.11,cz,o.corn==null?0xdad6cd:o.corn);
  const sh=o.shop?(o.shopH||3.9):0,fl=o.floors||Math.max(1,Math.round(Hh/3.1)),up=o.shop?Math.max(0,Math.min(fl-1,Math.floor((Hh-sh)/2.9))):fl,fh=o.shop?(Hh-sh)/Math.max(1,up):Hh/fl;
@@ -11710,7 +11710,7 @@ H.bakeCar=bakeCar;
   L.box(1.5,.06,.4,-.4,.46,-.3,0x6a6e74);L.box(.07,.46,.4,-1.0,.23,-.3,0x30363c);L.box(.07,.46,.4,.2,.23,-.3,0x30363c);
   const m=new T.Mesh(new T.PlaneGeometry(1.0,1.5),ads);const p=L.w(1.05,-.5+.03);m.position.set(p[0],1.3,p[1]);m.rotation.y=ry;ctx.scene.add(m);addCol(x,z,Math.abs(Math.cos(ry))>.5?3.6:1.8,Math.abs(Math.cos(ry))>.5?1.8:3.6);}
  // colonne à affiches
- const col=(x,z)=>{const p=det('plain');p.cyl(.62,.62,.15,14,x,.075,z,0x30363c);p.cyl(.55,.55,2.4,14,x,1.35,z,0x2f5a3a);p.cyl(.62,.5,.3,14,x,2.7,z,0x30363c);p.cyl(.3,.55,.5,14,x,3.0,z,0x2f5a3a);};
+ const col=(x,z)=>{const p=det('plain');p.cyl(.62,.62,.19,14,x,.095,z,0x30363c); /* [textures] socle plus haut que le trottoir (0,15) : plus de face confondue */p.cyl(.55,.55,2.4,14,x,1.35,z,0x2f5a3a);p.cyl(.62,.5,.3,14,x,2.7,z,0x30363c);p.cyl(.3,.55,.5,14,x,3.0,z,0x2f5a3a);};
  col(-6.5,-8.6);col(8.2,98);}
 
 /* ═══════ Immeubles ═══════ */
@@ -11814,7 +11814,7 @@ for(const z of zones){if(!z._d.immo||z.type==='garage') continue;
   /* [ville] profondeur négative = côté arrière du bâtiment (la profondeur positive pointe vers la rue : silos et conteneurs posés au milieu de l'avenue) */
   for(const [lx,lz] of [[fw/2+3.4,-dp*.25],[fw/2+3.4,-dp*.5]]){const q=W(lx,lz);Lp.cyl(2.2,2.2,z.id==='usine2'?11:8,14,lx,z.id==='usine2'?5.5:4,lz,0xc8ccd0);Lp.cyl(2.3,2.0,.6,14,lx,z.id==='usine2'?11.2:8.2,lz,0x8a9098);addCol(q[0],q[1],4.6,4.6);}
   const cc=[0xc0392b,0x2a5a9a,0x3a7a4a,0xd8a020];
-  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=-(dp*.2+i*3.2+(i%2)),q=W(lx,lz);Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
+  for(let i=0;i<4;i++){const lx=-fw/2-3.6,lz=-(dp*.12+i*6.4),q=W(lx,lz); /* conteneurs bout à bout (ils se chevauchaient : faces hautes confondues) */Ld.box(2.4,2.6,6,lx,1.3,lz,cc[i]);addCol(q[0],q[1],2.5,6.2);for(let k=0;k<7;k++) Ld.box(2.5,2.4,.06,lx,1.3,lz-2.6+k*.85,0x303236);}
  }
 }
 D.zoneBuilt=true;
@@ -11908,7 +11908,7 @@ function garage(z){
    rb(cn,-hx-t,hx+t,dp+.2,dp+.2+t,y0,y1,col);rb(cn,-hx-.2-t,-hx-.2,-.2-t,dp+.2+t,y0,y1,col);rb(cn,hx+.2,hx+.2+t,-.2-t,dp+.2+t,y0,y1,col);};
   ring(0,.55,.08,pc,true);ring(Hh-.22,Hh,.15,0xdad6cd,false);}
  // encadrement de l'ouverture
- for(const s of [-1,1]) rb(core('plain'),s*(GW/2)+(s>0?0:-.34),s*(GW/2)+(s>0?.34:0),-.3,.3,0,3.95,0x3a3f46);
+ for(const s of [-1,1]) rb(core('plain'),s*(GW/2)+(s>0?-.04:-.34),s*(GW/2)+(s>0?.34:.04),-.3,.3,0,3.95,0x3a3f46); /* [textures] encadrement débordant de 4 cm dans l'ouverture : plus de face confondue avec la tranche du mur */
  rb(core('plain'),-GW/2-.34,GW/2+.34,-.3,.3,3.8,4.0,0x3a3f46);
  /* toit plat à rebord */
  H.roofFlat(z.x,z.z,w+.5,dp+.5,Hh,{layer:'core',wall:'plaster',tint:st.parapet,parapet:st.parapet,clutter:1});
@@ -11941,7 +11941,7 @@ function garage(z){
  rb(core('ceil'),ic.u0,ic.u1,ic.v0,ic.v1,Hh-.06,Hh-.005,st.ceil);
  const lin=(u0,u1,v0,v1)=>{ // un pan de mur : lambris + haut
   rb(core(st.dado[0]),u0,u1,v0,v1,0,1.3,st.dado[1]);rb(core(st.upper[0]),u0,u1,v0,v1,1.3,Hh-.06,st.upper[1]);
-  rb(core('plain'),u0,u1,v0,v1,1.3,1.42,st.stripe);};
+  rb(core('plain'),Math.min(u0,u1)-.02,Math.max(u0,u1)+.02,Math.min(v0,v1)-.02,Math.max(v0,v1)+.02,1.3,1.42,st.stripe);}; /* [textures] liseré en léger relief : plus de face confondue avec le lambris */
  lin(ic.u0,ic.u1,dp-.26,dp-.2);lin(ic.u0,ic.u0+.06,ic.v0,ic.v1);lin(ic.u1-.06,ic.u1,ic.v0,ic.v1);
  if(!st.glassFront){lin(ic.u0,-GW/2,.2,.26);lin(GW/2,ic.u1,.2,.26);}
  else{rb(core('plain'),ic.u0,ic.u1,.2,.26,Hh-.5,Hh-.06,0xdfe4ea);}
