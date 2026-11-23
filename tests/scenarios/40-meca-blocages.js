@@ -13,15 +13,15 @@ module.exports = async function mecaBlocages(page, env) {
   await attendre(400);
   const e = (f, a) => page.evaluate(f, a);
 
-  // 1. étagère : un gros travail accepté (embrayage) y trouve sa pièce ; les autres pièces lourdes non commandées n'y sont pas
+  // 1. gros travail accepté (embrayage) : l'atelier n'a pas la pièce, l'employeur la commande à l'arrivée du client (livraison le lendemain)
   const s1 = await e(() => {
-    MWC.hire('meca'); __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12;
-    const avant = typeof __mwj.stock === 'function' ? __mwj.stock().includes('embrayage') : null;
+    MWC.hire('meca'); __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12; MWST.R().cmd.length = 0;
+    while (MWST.qty('garage1', 'embrayage') > 0) MWST.take('garage1', 'embrayage');
     __mwj.spawn({ travaux: ['embrayage'], silencieux: true });
-    return { avant, apres: __mwj.stock().includes('embrayage'), autre: __mwj.stock().includes('alternateur') };
+    return { stock: MWST.qty('garage1', 'embrayage'), cmd: MWST.pendQty('garage1', 'embrayage'), autre: MWST.pendQty('garage1', 'alternateur') };
   });
-  verifier(s1.avant === false && s1.apres === true, `l'étagère ne fournit pas la pièce du gros travail accepté (${JSON.stringify(s1)})`);
-  verifier(s1.autre === false, "l'étagère fournit une pièce que personne n'a commandée");
+  verifier(s1.stock === 0 && s1.cmd === 1, `la pièce du gros travail n'est pas commandée par l'employeur (${JSON.stringify(s1)})`);
+  verifier(s1.autre === 0, "l'employeur commande une pièce que personne n'a demandée");
 
   // 2. centre de formation : la raison du bouton grisé est écrite
   await e(() => { __mw.S.money = 50; const z = __mw.zone('ecole'), p = z.accueil || z.porte; __mw.teleport(p.x + 1.3, p.z, -Math.PI / 2); });

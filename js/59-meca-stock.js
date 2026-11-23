@@ -32,7 +32,8 @@
    Données sauvegardées : MW.S.reserve = {lieux:{garageN:{p:{id:n}}}, cmd:[commandes], seq}. */
 const MWST=(()=>{
 const api={};
-const CAP={garage1:60,garage2:120,garage3:100,garage4:80,garage5:50,garage6:90,garage7:160};
+const CAP={garage1:90,garage2:150,garage3:130,garage4:110,garage5:70,garage6:110,garage7:200};
+const NIV={garage1:3,garage2:4,garage3:4,garage4:3,garage5:2,garage6:3,garage7:3}; /* quantité cible des pièces courantes par lieu */
 const HOMES=['appart','loge1','loge2','loge3','loge4'];
 const FRAIS={next:6,express:18},WEB=.92,H9=540,H_EXP_MAX=1020,EXP_MIN=90;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -53,7 +54,7 @@ function homeChest(z){try{const o=MWI.state();return o.stock[z]||(o.stock[z]=[])
 api.cap=z=>{if(isHome(z)){try{return MWI.cap(z)||0;}catch(e){return 0;}}return CAP[z]||40;};
 function lieu(z){const d=D();let l=d.lieux[z];if(!l){l=d.lieux[z]={p:{}};if(!guest()) init(z,l);}return l;}
 function init(z,l){ /* stock de départ raisonnable : pièces courantes, et de quoi faire les travaux lourds dans les grands garages */
- const cap=api.cap(z),com=PL().filter(p=>common(p.id)),rare=PL().filter(p=>!common(p.id)),n=z==='garage1'?4:(z==='garage5'||z==='garage6'||z==='garage7')?3:5;let t=0;
+ const cap=api.cap(z),com=PL().filter(p=>common(p.id)),rare=PL().filter(p=>!common(p.id)),n=NIV[z]||3;let t=0;
  const put=(id,k)=>{const m=Math.min(k,cap-t);if(m>0){l.p[id]=(l.p[id]||0)+m;t+=m;}};
  for(const p of com) put(p.id,n);
  if(z==='garage2'||z==='garage3'||z==='garage4') for(const p of rare) put(p.id,1);}
@@ -110,7 +111,7 @@ api.tick=()=>{if(guest()||!MW.S) return;const d=R(),t=absT();let ch=false;
  for(const c of d.cmd.slice()) if(c.due<=t){d.cmd.splice(d.cmd.indexOf(c),1);deliver(c);ch=true;}
  if(ch) sync();vanStep();};
 /* ── réapprovisionnement du matin (salarié) ── */
-api.restock=z=>{if(guest()) return 0;let n=0;const tgt=z==='garage1'?4:5;
+api.restock=z=>{if(guest()) return 0;let n=0;const tgt=NIV[z]||3;
  for(const p of PL()){if(!common(p.id)) continue;const q=api.qty(z,p.id),m=Math.min(tgt-q,api.free(z)-pendTot(z));if(m>0) n+=api.add(z,p.id,m);}return n;};
 function matin(){if(guest()||!MW.S) return;const z=api.lieuDeTravail();if(!z||!isGarage(z)||api.payer(z)!=='emp') return;
  const n=api.restock(z);if(n) MW.toast(`${nomLieu(z)} : l'employeur a réapprovisionné les pièces courantes (${n}).`,'info');}
