@@ -87,6 +87,8 @@ api.biz=(dx,motif)=>{
  if(isGuest()){NET().sendSoc({k:'biz',zid:z,dx,motif});note(dx,motif);return get(z).compte;}
  const c=get(z);op(c,dx,motif,dx>0?'ca':'ch');note(dx,motif);return c.compte;};
 api.charge=(zid,x,motif)=>{const c=get(zid);if(!c) return false;op(c,-x,motif,'ch');return true;};
+api.revenu=(zid,x,motif)=>{const c=get(zid)||ensure(zid);if(!c) return false;op(c,x,motif,'ca');return true;}; /* recette d'un garage dont les employés ont rendu une voiture (js/60) */
+api.solde=zid=>{const c=get(zid);return c?c.compte:0;};
 api.deposit=(zid,x,motif)=>{const c=get(zid);if(!c) return false;op(c,x,motif||'Apport en compte courant','cap');return true;}; /* hors bilan : apport d'associé */
 
 /* ═══ Versements aux associés ═══ */

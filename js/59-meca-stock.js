@@ -82,8 +82,8 @@ api.take=(z,id,n)=>{n=n||1;if(api.qty(z,id)<n) return false;
 const emp=()=>{try{return MWC.employer();}catch(e){return null;}};
 api.lieuDeTravail=()=>{const e=emp();if(!e||e.id==='aucun') return null;if(e.zone) return e.zone;try{return typeof MWTUNE!=='undefined'&&MWTUNE.workZone?MWTUNE.workZone():null;}catch(x){return null;}}; /* préparateur et carrossier (js/58) : l'atelier de préparation */
 api.payer=z=>{if(isHome(z)) return 'perso';const e=emp();if(!e||api.lieuDeTravail()!==z) return null;return (e.compte||e.net)?'biz':'emp';};
-const cash=k=>k==='biz'?(typeof MWS!=='undefined'?MWS.cash():MW.S.money):MW.S.money;
-const pay=(k,x,motif)=>{if(k==='biz'&&typeof MWS!=='undefined') MWS.biz(-x,motif);else MW.money(-x,motif);};
+const cash=(k,z)=>k==='biz'?(typeof MWS!=='undefined'?(z&&MWS.get(z)?MWS.get(z).compte:MWS.cash()):MW.S.money):MW.S.money;
+const pay=(k,x,motif,z)=>{if(k==='biz'&&typeof MWS!=='undefined'){if(z&&MWS.get(z)&&MWS.charge(z,x,motif)) return;MWS.biz(-x,motif);}else MW.money(-x,motif);};
 /* ── délais ── */
 const dayEff=()=>MW.S.min<360?MW.S.day-1:MW.S.day;
 const absT=()=>MW.S.day*1440+(MW.S.min<360?MW.S.min+1440:MW.S.min);
@@ -99,8 +99,8 @@ api.order=(z,items,mode,opt)=>{opt=opt||{};mode=mode==='express'?'express':'next
  const ids=Object.keys(items).filter(id=>P()[id]&&items[id]>0&&!(isHome(z)&&EXT[id]));if(!ids.length) return {ok:false,why:'Le panier est vide.'};
  const n=ids.reduce((a,id)=>a+items[id],0);
  if(n>api.free(z)-pendTot(z)) return {ok:false,why:`Pas assez de place dans le stock de ${nomLieu(z)} : ${Math.max(0,api.free(z)-pendTot(z))} place(s) libre(s) pour ${n} pièce(s).`};
- let cout=0;if(k!=='emp'){for(const id of ids) cout+=wprice(id)*items[id];cout=r2(cout+FRAIS[mode]);if(cash(k)<cout) return {ok:false,why:`Il manque ${fmt(r2(cout-cash(k)))} (${k==='biz'?'compte du garage':'votre argent'}).`};}
- if(cout) pay(k,cout,'Pièces Auto Express : commande en ligne');
+ let cout=0;if(k!=='emp'){for(const id of ids) cout+=wprice(id)*items[id];cout=r2(cout+FRAIS[mode]);if(cash(k,z)<cout) return {ok:false,why:`Il manque ${fmt(r2(cout-cash(k,z)))} (${k==='biz'?'compte du garage':'votre argent'}).`};}
+ if(cout) pay(k,cout,'Pièces Auto Express : commande en ligne',z);
  const ord={id:'c'+(++D().seq),lieu:z,items:Object.fromEntries(ids.map(id=>[id,items[id]])),due:dueOf(mode),mode,cout,payer:k,jour:MW.S.day};
  if(guest()){req({op:'order',z,items:ord.items,mode,payer:'emp'});return {ok:true,ord};}
  D().cmd.push(ord);sync();return {ok:true,ord};};
@@ -162,7 +162,7 @@ api.site=site;
 api.panel=z=>{const g=api.get(z);MW.panel('Stock · '+nomLieu(z),`<p>${g.total}/${g.cap} pièces.</p>`+Object.keys(g.parts).map(id=>`<div class="mw-row"><span>${esc(P()[id].nom)}</span><b>${g.parts[id]}</b></div>`).join('')+`<div class="mw-btns"><button type="button" class="btn ghost" data-mw="close">Fermer</button></div>`,{onClick:()=>MW.closePanel()});};
 /* ── ordinateurs : un par garage ── */
 function start(){if(start.done) return;start.done=true;
- for(const z of MW.zones) if(isGarage(z.id)&&z.pc) MW.addInteract({id:'mst:pc:'+z.id,x:z.pc.x,z:z.pc.z,r:1.5,label:'Ordinateur · commander des pièces (Pièces Auto Express)',use:()=>site(z.id)});}
+ for(const z of MW.zones) if(isGarage(z.id)&&z.pc) MW.addInteract({id:'mst:pc:'+z.id,x:z.pc.x,z:z.pc.z,r:1.5,label:'Ordinateur · commander des pièces (Pièces Auto Express)',use:()=>{try{if(typeof MWEMP!=='undefined'&&MWEMP.canManage(z.id)) return MWEMP.menu(z.id);}catch(e){console.error(e);}site(z.id);}});}
 MW.on('start',()=>{start();api.tick();});
 MW.on('minute',api.tick);
 MW.on('day',()=>{matin();api.tick();});

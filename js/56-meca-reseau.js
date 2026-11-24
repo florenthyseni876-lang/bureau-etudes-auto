@@ -240,6 +240,7 @@ function onMsg(m){
   case 'pay': if(N.live&&role==='guest'&&isFinite(m.dx)) MW.money(+m.dx,String(m.motif||'').slice(0,120));break;
   case 'say': if(N.live) toast(String(m.txt||'').slice(0,200),m.g==='warn'||m.g==='good'||m.g==='crit'?m.g:'info');break;
   case 'soc': if(N.live&&role==='guest') MWS.setMirror(m.s,m.hp,m.hn);break;
+  case 'stf': if(N.live&&role==='guest'&&typeof MWEMP!=='undefined') MWEMP.onNet(m);break;
   case 'stk': case 'stkq': if(N.live&&typeof MWST!=='undefined'&&(m.t==='stk'?role==='guest':role==='host')) MWST.onNet(m);break;
   case 'emp': if(N.live&&role==='guest'){Object.assign(MW.S.career,m.career||{});MW.emit('employerChanged',MW.S.career.emp);}break;
   case 'slq': if(N.live&&role==='host'){sw.he=m.on?(m.wk||1):0;swT=performance.now();toastSleep(m.on);swCheck();}break;

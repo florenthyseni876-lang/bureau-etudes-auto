@@ -20,7 +20,7 @@ function apply(){
  try{const c=MWC.state();if(c&&c.dipl&&MWC.DIPL) for(const k in MWC.DIPL) c.dipl[k]=true;}catch(e){}
  MW.hud('admin','<b style="color:#ff7a45">MODE ADMINISTRATEUR</b> · argent illimité, niveaux au maximum');}
 function set(v){if(!MW.S) return;MW.S.admin=!!v;if(v){apply();MW.toast('Mode administrateur activé : argent illimité et tous les niveaux au maximum.','good');}else{MW.hud('admin','');MW.toast('Mode administrateur désactivé (l\'argent et les niveaux acquis restent).','info');}try{MWJ.invUI();}catch(e){}}
-const car=()=>{const l=MWJ.jobs();return l.find(c=>!c.noir)||l[0]||null;};
+const car=()=>{const l=MWJ.jobs();return l.find(c=>!c.noir&&!c.staff)||l[0]||null;};
 function needJob(){const e=MWC.employer();if(!e||e.id==='aucun') MWC.hire('patron');}
 function spawn(o){needJob();const c=MWJ.spawn(Object.assign({force:true,rend:false},o));if(!c){MW.toast("Impossible de faire venir la voiture (tous les ponts sont pris ?).",'warn');return null;}
  MW.toast(`${c.marque} ${c.modele} arrivée sur le pont ${c.pont+1}.`,'good');return c;}

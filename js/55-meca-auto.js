@@ -115,7 +115,7 @@ function start(rendre){
 
 /* ── mode continu : toutes les voitures du garage, l'une après l'autre ── */
 function nextCar(){const z=empZone();if(!z) return null;
- return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!ami(c)&&!(c.attendLivraison>MWJ.absT())).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
+ return MWJ.jobs().filter(c=>c.zone===z&&!c.noir&&!svc.skip[c.id]&&!ami(c)&&!c.staff&&!(c.attendLivraison>MWJ.absT())).sort((a,b)=>a.arrive-b.arrive)[0]||null;}
 function loop(){
  if(!svc||job) return;
  if(MW.paused){svc.t=setTimeout(loop,500);return;}

@@ -1132,3 +1132,21 @@ html.phone-land .mw-mis{top:4px;padding:5px 9px;font-size:11.5px;gap:3px}html.ph
 html.phone-land .mg-tools{left:4px;flex-direction:row;flex-wrap:wrap;top:auto;bottom:140px;transform:none;max-width:46%}
 html.phone-land .mg-t{min-width:0;padding:2px 4px;font-size:10px}html.phone-land .mg-t b{width:auto}
 html.phone-land .mg-info{top:calc(50% + 14px);font-size:12px}html.phone-land .mg-hint{font-size:11px;padding:3px 8px}
+
+/* ── employés (js/60) : CV, équipe, dialogue d'entretien ── */
+.emp-cv{display:flex;gap:10px;align-items:flex-start;padding:8px;margin:6px 0;border:1px solid #2c4468;border-radius:4px;background:#101c30}
+.emp-cv.garde{border-color:#ffb800}
+.emp-av{width:56px;height:56px;border-radius:4px;flex:none;background:#14233a}
+.emp-cv-b{flex:1;min-width:0;font-size:13px;line-height:1.35}
+.emp-tag{display:inline-block;padding:0 6px;border-radius:3px;background:#2c4468;color:#e8f0f8;font-size:11px}
+.emp-tag.ok{background:#1f6a3a}.emp-tag.new{background:#a8600a}.emp-tag.warn{background:#8a2a1a}
+.emp-sk{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11px;margin:3px 0}
+.emp-sk span{display:inline-flex;align-items:center;gap:4px}
+.emp-bar{display:inline-block;width:44px;height:6px;background:#2c4468;border-radius:3px;overflow:hidden;vertical-align:middle}
+.emp-bar i{display:block;height:100%;background:#ffb800}
+.emp-det{margin-top:6px;padding-top:6px;border-top:1px solid #2c4468}
+.emp-dlg-h{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+.emp-say{margin:6px 0;padding:8px 10px;background:#0c1626;border-left:3px solid #7ab0d8;border-radius:3px;font-style:italic}
+.emp-q{margin:6px 0}
+.mw-pw.emp-dlg{background:linear-gradient(rgba(5,10,18,0) 35%,rgba(5,10,18,.78));align-items:flex-end;padding-bottom:6px}
+.mw-pw.emp-dlg .mw-pn{width:min(820px,100%);max-height:50%;border-color:#7ab0d8}

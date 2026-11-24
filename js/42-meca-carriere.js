@@ -151,7 +151,7 @@ function longGoals(){const c=C(),e=employer(),g=[];if(c.emp==='fondateur') retur
  return g.filter(x=>!x.ok);}
 /* premier client : l'objectif suit l'avancement du travail (pièces, outils, réparation, rendu) */
 function firstJobStep(){
- const base={id:'t_client',zone:'garage1'};let car=null;try{car=MWJ.jobs().find(x=>!x.noir)||null;}catch(e){}
+ const base={id:'t_client',zone:'garage1'};let car=null;try{car=MWJ.jobs().find(x=>!x.noir&&!x.staff)||null;}catch(e){}
  if(!car) return Object.assign(base,{titre:'Attendez votre premier client',aide:'Les clients arrivent au garage entre 8 h et 19 h. En attendant : M pour la carte, H pour le guide.'});
  const todo=car.ordre.filter(id=>!car.done[id]);
  if(car.ordre.length&&!todo.length) return Object.assign(base,{titre:'Rendez la voiture au client',aide:'Visez la portière conducteur, appuyez sur E, puis « Rendre la voiture ».'});
