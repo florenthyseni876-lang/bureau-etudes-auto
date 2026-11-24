@@ -260,7 +260,7 @@ function ivAbort(){if(!IV||IV.fin) return;IV.fin=1;const cv=IV.cv,g=G(IV.zid);cv
 function ivEnd(dec){const cv=IV.cv,zid=IV.zid,g=G(zid),rdv=IV.rdv;IV.fin=1;cv.notes=IV.notes.map(n=>'• '+n);g.rdv=g.rdv.filter(r=>r!==rdv);
  const done=(txt,hired)=>{MW.closePanel();ivLeave(hired);MW.toast(txt,hired?'good':'info');};
  if(dec==='hire'){const pl=plancher(cv),off=IV.offre||cv.pret;
-  const ailleurs=rnd()<.08,ok=off>=pl*.98&&IV.mood>=25&&!ailleurs;
+  const ailleurs=rnd()<api.cfg.ailleurs,ok=off>=pl*.98&&IV.mood>=25&&!ailleurs;
   if(ok){api.hire(zid,cv.id,off);done(`${cv.nom} est embauché(e) comme ${POSTES[cv.poste].nom.toLowerCase()} à ${fmt(off)} brut par mois. Il/elle commence tout de suite.`,true);return;}
   cv.statut='refuse';const why=ailleurs?"a trouvé un autre poste entre-temps":off<pl*.98?'juge le salaire insuffisant':"n'a pas aimé l'entretien";
   done(`${cv.nom} décline l'offre : ${why}.`,false);}
@@ -344,7 +344,7 @@ api.dayStep=()=>{if(guest()) return;for(const zid of owned()){const g=G(zid);arr
    if(!e.demande&&e.humeur<50&&d-e.jour>10&&rnd()<.25&&e.salaire<marche(e)*1.35){e.demande={salaire:Math.round(e.salaire*1.1/10)*10,jour:d};MW.toast(`${e.nom} demande une augmentation (${fmt(e.demande.salaire)} brut/mois) : voir l'équipe.`,'warn');}
    if(e.humeur<18) e.bas=(e.bas||0)+1;else e.bas=0;
    if(e.bas>=2||(e.demande&&d-e.demande.jour>16&&e.humeur<30)){MW.toast(`${e.nom} démissionne de ${nomLieu(zid)}.`,'crit');releaseCar(zid,e);e.etat='parti';PUP.drop(e.id);g.staff=g.staff.filter(x=>x!==e);continue;}
-   if(rnd()<.03){e.etat='absent';e.absent=d+rint(1,3);releaseCar(zid,e);MW.toast(`${e.nom} est malade et ne viendra pas ${e.absent-d>1?'pendant '+(e.absent-d)+' jours':'aujourd\'hui'}.`,'info');}}
+   if(rnd()<api.cfg.maladie){e.etat='absent';e.absent=d+rint(1,3);releaseCar(zid,e);MW.toast(`${e.nom} est malade et ne viendra pas ${e.absent-d>1?'pendant '+(e.absent-d)+' jours':'aujourd\'hui'}.`,'info');}}
   g.hist.unshift({d:d-1,n:g.jour.n,ca:r2(g.jour.ca),note:g.jour.notes.length?r2(g.jour.notes.reduce((a,b)=>a+b,0)/g.jour.notes.length):0});while(g.hist.length>14) g.hist.pop();
   g.jour={d:dayEff(),n:0,ca:0,notes:[]};
   /* le chef d'atelier réapprovisionne les pièces courantes (compte du garage) */
@@ -380,7 +380,7 @@ function stepEffect(zid,e,c,s){const z=zn(zid);
 function finishCar(zid,e,c){const g=G(zid);
  const ids=c.ordre.concat(c.symp?[c.symp.c]:[]);let err=null;
  const pe=clamp(.22-.026*((e.sk.entretien+e.sk.moteur)/2)+.1*(e.perso.stress)+e.fatigue/450-(staffOf(zid).some(x=>POSTES[x.poste].chef&&x!==e&&x.etat!=='absent')?.06:0),.02,.4);
- if(rnd()<pe){if(rnd()<.5&&ids.length){const id=ids[ids.length-1];if(c.done[id]){delete c.done[id];err='oublie';e.errTxt=`${e.nom} a oublié de remonter : ${MWJ.PARTS[id].nom.toLowerCase()}.`;}}
+ if(api.cfg.erreurs===2||(api.cfg.erreurs&&rnd()<pe)){if(api.cfg.erreurs===2?ids.length>=2:(rnd()<.5&&ids.length)){const id=ids[ids.length-1];if(c.done[id]){delete c.done[id];err='oublie';e.errTxt=`${e.nom} a oublié de remonter : ${MWJ.PARTS[id].nom.toLowerCase()}.`;}}
   else{const ex=MWJ.PARTS_LIST.find(p=>!c.done[p.id]&&!ids.includes(p.id)&&c.parts[p.id]&&!c.parts[p.id].na&&p.zone==='capot'&&p.niv<=1&&p.id!=='ampoules');if(ex){c.done[ex.id]=1;err='inutile';e.errTxt=`${e.nom} a changé une pièce inutile (${ex.nom.toLowerCase()}).`;}}}
  c.st.capot=0;c.st.lifted=0;c.st.av=0;c.st.ar=0;sync(c);
  const job=MWJ.done(c);e.car=null;e.plan=null;e.ph='libre';e.dest=null;e.carry=[];
@@ -488,6 +488,7 @@ MW.on('tick',dt=>{if(!MW.S||!MW.scene) return;try{PUP.frame(Math.min(dt,.1));gho
 MW.on('minute',()=>{try{api.tickMin();}catch(e){console.error(e);}});
 MW.on('day',()=>{try{api.dayStep();}catch(e){console.error(e);}});
 MW.on('start',()=>{try{S();for(const zid of Object.keys(S().g)) for(const e of G(zid).staff){e.pos=null;e.dest=null;if(e.car&&!MWJ.jobs().some(c=>c.id===e.car)){e.car=null;e.plan=null;e.ph='libre';}}}catch(e){console.error(e);}});
+api.cfg={erreurs:1,ailleurs:.08,maladie:.03}; /* hasards : erreurs des employés (1 au hasard, 0 jamais, 2 toujours), candidat qui a trouvé ailleurs, maladie par jour (tests : 0) */
 api.POSTES=POSTES;api.COMPS=COMPS;api.IVT=IVT;api.cvF=cvF;api.IV=()=>IV;api.PUPS=PUPS;api.CANDS=CANDS;api.stationOf=stationOf;api.routeTo=routeTo;api.fireOK=true;
 return api;
 })();

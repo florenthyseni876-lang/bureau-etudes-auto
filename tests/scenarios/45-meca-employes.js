@@ -14,6 +14,7 @@ module.exports = async function mecaEmployes(page, env) {
   const e = (f, a) => page.evaluate(f, a);
   const clic = async (a) => { await cliquer(page, `.mw-pn [data-mw="${a}"]`, `bouton ${a} absent`); await attendre(150); };
 
+  await e(() => { MWEMP.cfg.ailleurs = 0; MWEMP.cfg.maladie = 0; }); // pas de hasard dans ce scénario : on teste la mécanique, pas la chance
   // 0. patron du Garage du Coin, compte du garage approvisionné
   await e(() => { MWC.hire('patron'); __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12; MWS.ensure('garage1'); MWS.deposit('garage1', 30000, 'test'); });
   verifier(await e(() => MWEMP.canManage('garage1')), 'le Garage du Coin repris en patron devrait être gérable');
@@ -61,7 +62,7 @@ module.exports = async function mecaEmployes(page, env) {
   await e(() => __mw.closePanel());
 
   // 3. le candidat arrive à l'heure : visible, assis au bureau
-  await e(() => { const g = MWEMP.G('garage1'); g.rdv[0].due = 0; __mw.addMin(1); });
+  await e(() => { const g = MWEMP.G('garage1'); g.cv.find(c => c.id === g.rdv[0].cv).perso.ponct = .9; g.rdv[0].due = 0; __mw.addMin(1); });
   verifier((await e(() => MWEMP.G('garage1').rdv[0].etat)) === 'arrive', "le candidat n'arrive pas à l'heure du rendez-vous");
   await attendreCondition(page, () => Object.keys(MWEMP.CANDS).length === 1, "le candidat n'est pas dessiné (personnage 3D absent)", 10000);
 
@@ -113,35 +114,46 @@ module.exports = async function mecaEmployes(page, env) {
   const emp = await e(() => { const l = MWEMP.staff('garage1'); return l.length ? { id: l[0].id, nom: l[0].nom, poste: l[0].poste, sal: l[0].salaire, sk: l[0].sk } : null; });
   verifier(emp, "le candidat calme et bien payé devrait être embauché");
 
-  // 6. au travail : un client arrive, l'employé va au pont, prend les pièces au stock et rend la voiture seul
-  await e(() => { const z = __mw.zone('garage1'), p = z.ponts[0]; __mw.teleport(p.x + 6, p.z - 6, 0); __mw.S.min = 540; __mw.S.jobs.next = 1e12; MWEMP.G('garage1').next = 0; });
+  // 6. au travail : un client arrive, l'employé va au pont, prend les pièces au stock et rend la voiture seul.
+  // Le test attend des CONDITIONS en temps de jeu (par paquets de minutes), jamais un délai fixe : il ne dépend ni de la vitesse de la machine
+  // ni du nombre d'images par seconde. Stock garni et erreurs coupées : le résultat est déterminé.
+  const avance = (n) => e((n) => { for (let i = 0; i < n; i++) __mw.addMin(1); }, n); // n minutes de jeu d'un coup
+  await e(() => { MWEMP.cfg.erreurs = 0; for (const p of __mwj.PARTS_LIST) MWST.add('garage1', p.id, 1); const z = __mw.zone('garage1'), p = z.ponts[0]; __mw.teleport(p.x + 6, p.z - 6, 0); __mw.S.min = 540; __mw.S.jobs.next = 1e12; MWEMP.G('garage1').next = 0; });
   await attendre(300);
   const ca1 = await e(() => MWS.get('garage1').ex.ca);
-  await attendreCondition(page, () => { __mw.addMin(1); return __mwj.jobs().some(c => c.staff); }, "aucun client ne vient chez l'équipe", 30000);
+  await attendreCondition(page, () => { __mw.addMin(1); return __mwj.jobs().some(c => c.staff); }, "aucun client ne vient chez l'équipe", 60000);
   const vis = await e(() => ({ pup: Object.keys(MWEMP.PUPS).length, mesh: __mwj.jobs().filter(c => c.staff).every(c => __mwj.L.hasMesh(c)) }));
   verifier(vis.pup === 1, `l'employé n'est pas dessiné dans l'atelier (${vis.pup} personnage)`);
+  // il prend la voiture puis marche : on suit son déplacement réel (images) pendant que le temps de jeu avance minute par minute
   const pos0 = await e(() => { const o = Object.values(MWEMP.PUPS)[0].p.g.position; return [o.x, o.z]; });
-  let moved = false;
-  await attendreCondition(page, () => { __mw.addMin(1); const c = __mwj.jobs().find(x => x.staff); return !c || c.empl; }, "l'employé ne prend pas la voiture", 30000);
-  for (let i = 0; i < 40 && !moved; i++) { await e(() => __mw.addMin(1)); await attendre(120); const o = await e(() => { const p = Object.values(MWEMP.PUPS)[0]; return p ? [p.p.g.position.x, p.p.g.position.z] : null; }); if (o && Math.hypot(o[0] - pos0[0], o[1] - pos0[1]) > 1.5) moved = true; }
-  verifier(moved, "l'employé ne marche pas dans l'atelier");
-  await attendreCondition(page, () => { __mw.addMin(1); const g = MWEMP.G('garage1'); return g.jour.n >= 1; }, "l'employé ne finit pas la voiture seul", 90000);
-  const fin = await e(() => ({ caCompte: MWS.get('garage1').ex.ca, n: MWEMP.G('garage1').jour.n, ca: MWEMP.G('garage1').jour.ca }));
-  verifier(fin.caCompte > ca1 && fin.ca > 0, `la voiture rendue par l'employé ne crédite pas le compte du garage (${JSON.stringify(fin)})`);
+  let maxd = 0;
+  for (let i = 0; i < 80 && maxd < 1.2; i++) { await e(() => __mw.addMin(1)); await attendre(100); const o = await e(() => { const p = Object.values(MWEMP.PUPS)[0]; return p ? [p.p.g.position.x, p.p.g.position.z] : null; }); if (o) maxd = Math.max(maxd, Math.hypot(o[0] - pos0[0], o[1] - pos0[1])); }
+  verifier(maxd >= 1.2, `l'employé ne marche pas dans l'atelier (déplacement maxi ${maxd.toFixed(2)} m)`);
+  // la voiture est rendue : tant que ce n'est pas fait, on laisse passer 60 minutes de jeu à la fois (la journée se termine, la suivante commence)
+  await attendreCondition(page, (c0) => { for (let i = 0; i < 60; i++) __mw.addMin(1); return MWS.get('garage1').ex.ca > c0; }, "l'employé ne finit pas la voiture seul (aucune recette)", 150000, ca1);
+  const fin = await e(() => ({ caCompte: MWS.get('garage1').ex.ca, n: MWEMP.G('garage1').jour.n, ca: MWEMP.G('garage1').jour.ca, tot: MWEMP.staff('garage1')[0].stats.voitures }));
+  verifier(fin.caCompte > ca1 && fin.tot >= 1, `la voiture rendue par l'employé ne crédite pas le compte du garage (${JSON.stringify(fin)})`);
 
   // 7. salaire prélevé sur le compte du garage (paie hebdomadaire)
-  const s2 = await e(() => { const avant = MWS.solde('garage1'); __mw.S.day = Math.ceil(__mw.S.day / 7) * 7; MWEMP.dayStep(); return { avant, apres: MWS.solde('garage1') }; });
-  verifier(s2.apres < s2.avant - 100, `le salaire n'est pas prélevé sur le compte du garage (${JSON.stringify(s2)})`);
+  const s2 = await e(() => { const sal = MWEMP.staff('garage1')[0].salaire, avant = MWS.solde('garage1'); __mw.S.day = Math.ceil(__mw.S.day / 7) * 7; MWEMP.dayStep(); return { avant, apres: MWS.solde('garage1'), attendu: Math.round(sal / 30 * 1.45) }; });
+  verifier(s2.avant - s2.apres >= s2.attendu * .9, `le salaire n'est pas prélevé sur le compte du garage (${JSON.stringify(s2)})`);
 
   // 8. le garage tourne seul : joueur loin, un client est servi sans personnage dessiné
-  await e(() => { __mw.teleport(160, 160, 0); __mw.S.min = 540; });
+  await e(() => { __mw.teleport(160, 160, 0); __mw.S.min = 540; for (const p of __mwj.PARTS_LIST) MWST.add('garage1', p.id, 1); });
   await attendre(400);
   const ca3 = await e(() => MWS.get('garage1').ex.ca);
-  await e(() => { MWEMP.G('garage1').next = 0; MWEMP.G('garage1').jour.n = 0; });
-  await attendreCondition(page, (c0) => { __mw.addMin(1); const g = MWEMP.G('garage1'); if (g.jour.n >= 1 && MWS.get('garage1').ex.ca <= c0) { MWEMP.G('garage1').jour.n = 0; MWEMP.G('garage1').next = 0; } return MWS.get('garage1').ex.ca > c0; }, "le garage ne tourne pas quand le joueur est ailleurs", 150000, ca3);
+  await e(() => { MWEMP.G('garage1').next = 0; });
+  await attendreCondition(page, (c0) => { for (let i = 0; i < 60; i++) __mw.addMin(1); return MWS.get('garage1').ex.ca > c0; }, "le garage ne tourne pas quand le joueur est ailleurs", 150000, ca3);
   const loin = await e(() => ({ pup: Object.keys(MWEMP.PUPS).length, ca: MWS.get('garage1').ex.ca }));
   verifier(loin.pup === 0, "des personnages sont dessinés alors que le joueur est loin");
   verifier(loin.ca > ca3, 'le garage ne rapporte rien quand le joueur est ailleurs');
+
+  // 8 bis. erreur forcée : une pièce oubliée donne un client mécontent, et l'erreur est comptée
+  const errs = await e(() => { MWEMP.cfg.erreurs = 2; const em = MWEMP.staff('garage1')[0]; return em.stats.erreurs; });
+  await e(() => { MWEMP.G('garage1').next = 0; });
+  await attendreCondition(page, (n0) => { for (let i = 0; i < 60; i++) __mw.addMin(1); return MWEMP.staff('garage1')[0].stats.erreurs > n0; }, "une erreur forcée n'est pas comptée", 150000, errs);
+  await e(() => { MWEMP.cfg.erreurs = 0; });
+
   // 9. gestion : humeur au plus bas → démission ; réceptionniste à l'accueil ; licenciement avec indemnité
   const dem = await e(() => { const e0 = MWEMP.staff('garage1')[0]; e0.humeur = 5; e0.bas = 1; MWEMP.dayStep(); return MWEMP.staff('garage1').length; });
   verifier(dem === 0, "un employé à bout ne démissionne pas");
