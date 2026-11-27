@@ -15,14 +15,28 @@
      c.insp[id]                                     pièce inspectée
    Rien n'est sauvegardé : tout est recalculé deux à trois fois par seconde.
 
+   Pour ne pas surcharger l'écran, l'encadré est REPLIÉ par défaut : titre, avancement (3/8) et prochaine étape seulement.
+   La petite flèche ▸ / ▾ (ou la touche I) déplie la liste complète ; le choix est retenu dans ce navigateur.
+   Quand l'encadré est affiché, les blocs « Ordres en cours » et « Poste » sont masqués (css : .mw-zones:has(...)).
+
    ═══ API `MWPLAN` (aussi `window.__mwplan`) ═══
    MWPLAN.steps(c)      → [{txt, ok}]  étapes de la voiture c (vide si la panne n'est pas encore diagnostiquée)
    MWPLAN.diagnosed(c)  → vrai si la cause de la panne est identifiée (ou s'il n'y a pas de panne)
-   MWPLAN.refresh()     met l'encadré à jour tout de suite */
+   MWPLAN.refresh()     met l'encadré à jour tout de suite
+   MWPLAN.toggle()      replie / déplie la liste (touche I, ou clic sur la flèche) */
 const MWPLAN = (() => {
 
   const PERIODE_MS = 400;   /* fréquence de mise à jour de l'encadré */
   const MAX_LIGNES = 12;    /* au-delà, on n'affiche que les prochaines étapes */
+
+  const CLE_REPLI = 'bea.meca.planReplie';
+
+  /* replié par défaut ; le choix du joueur est retenu (localStorage peut être indisponible : on ignore l'erreur) */
+  let replie = true;
+  try {
+    const v = localStorage.getItem(CLE_REPLI);
+    if (v !== null) replie = v === '1';
+  } catch (e) { /* stockage indisponible */ }
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -107,9 +121,18 @@ const MWPLAN = (() => {
       '<br><small class="hint">Les étapes de la réparation s\'afficheront dès que la pièce en cause sera identifiée (inspectez-la).</small>';
   }
 
+  /* flèche cliquable (le reste de l'encadré laisse passer la souris vers le jeu) */
+  const fleche = () => `<button type="button" class="mw-fold" data-plan="fold" title="${replie ? 'Afficher toutes les étapes' : 'Replier'} (touche I)">${replie ? '▸' : '▾'}</button>`;
+
   /* ── Encadré des étapes ── */
   function htmlEtapes(c, liste) {
     const prochaine = liste.findIndex(e => !e.ok);
+    const titre = c.symp ? `Réparation : ${esc(nomPiece(c, c.symp.c))} en cause` : `Étapes : ${esc(c.nom)}`;
+    const faites = liste.filter(e => e.ok).length;
+    if (replie) {
+      const suite = prochaine >= 0 ? esc(liste[prochaine].txt) : 'Terminé';
+      return `${fleche()}<b>${titre}</b> <small>(${faites}/${liste.length})</small><br><small style="color:#ffd23a">▶ ${suite}</small>`;
+    }
     let debut = 0;
     if (liste.length > MAX_LIGNES) debut = Math.max(0, Math.min(prochaine - 2, liste.length - MAX_LIGNES));
     const lignes = liste.slice(debut, debut + MAX_LIGNES).map((e, i) => {
@@ -117,8 +140,7 @@ const MWPLAN = (() => {
       const style = e.ok ? ' style="opacity:.55;text-decoration:line-through"' : n === prochaine ? ' style="color:#ffd23a;font-weight:700"' : '';
       return `<div${style}>${e.ok ? '✓' : '☐'} ${n + 1}. ${esc(e.txt)}</div>`;
     });
-    const titre = c.symp ? `Réparation : ${esc(nomPiece(c, c.symp.c))} en cause` : `Étapes : ${esc(c.nom)}`;
-    return `<b>${titre}</b><small>${lignes.join('')}</small>`;
+    return `${fleche()}<b>${titre}</b> <small>(${faites}/${liste.length})</small><small>${lignes.join('')}</small>`;
   }
 
   function refresh() {
@@ -129,6 +151,19 @@ const MWPLAN = (() => {
     MW.hud('plan', htmlEtapes(c, steps(c)));
   }
 
+  function toggle() {
+    replie = !replie;
+    try { localStorage.setItem(CLE_REPLI, replie ? '1' : '0'); } catch (e) { /* stockage indisponible */ }
+    refresh();
+  }
+
+  /* clic sur la flèche (souris libérée ou écran tactile) */
+  document.addEventListener('click', ev => {
+    const b = ev.target && ev.target.closest && ev.target.closest('[data-plan="fold"]');
+    if (b) { ev.preventDefault(); toggle(); }
+  });
+  MW.on('key', k => { if (k === 'i' && MW.S) toggle(); });
+
   let dernier = 0;
   MW.on('tick', () => {
     const t = performance.now();
@@ -138,6 +173,6 @@ const MWPLAN = (() => {
   });
   MW.on('close', () => MW.hud('plan', ''));
 
-  return { steps, diagnosed, refresh };
+  return { steps, diagnosed, refresh, toggle, replie: () => replie };
 })();
 window.__mwplan = MWPLAN;

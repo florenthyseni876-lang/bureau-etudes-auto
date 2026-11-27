@@ -294,8 +294,13 @@ function infoUI(){
   hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${ht?' · '+esc(toolName(ht,HINT.a.sock)):''}${miss?' <b>(à prendre à la servante, le chariot rouge)</b>':''}`;}
  /* pièce déposée sans pièce neuve en poche : on le dit toujours, même sans l'aide (c'est l'étape qui bloque le plus souvent) */
  if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
-  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=false,rupt=typeof MWST!=='undefined'&&e&&e.zone&&miss.some(id=>MWST.qty(e.zone,id)<=0);
-   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${rupt?'en rupture au stock : commandez-la à l\'ordinateur du bureau (ou achetez-la chez Pièces Auto Express)':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
+  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=false,enRupture=id=>typeof MWST!=='undefined'&&e&&e.zone&&MWST.qty(e.zone,id)<=0;
+   /* on sépare les pièces disponibles à l'étagère de celles en rupture (avant : un seul message trompeur pour toutes) */
+   const dispo=miss.filter(id=>!enRupture(id)),rupt=miss.filter(enRupture),noms=l=>esc(l.map(id=>pname(R.c,id)).join(', '));
+   const morceaux=[];
+   if(dispo.length) morceaux.push(`Pièce neuve à aller chercher : <b>${noms(dispo)}</b> — prenez-la à l'étagère de l'atelier (E devant l'étagère), puis revenez la monter.`);
+   if(rupt.length) morceaux.push(`Pièce neuve à aller chercher : <b>${noms(rupt)}</b> — en rupture au stock : commandez-la à l'ordinateur du bureau (ou achetez-la chez Pièces Auto Express).`);
+   hh=`<i></i>${morceaux.join('<br>')}${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
  if(R&&R.c){const Ow=R.c.g&&R.c.g.o;if(Ow&&Ow.on&&Ow.drain<1) hh=`<i></i>L'huile s'écoule… attendez (${Math.max(1,Math.ceil((1-Ow.drain)*DRAIN_T))} s)`+(hh?'<br>'+hh.replace('<i></i>',''):'');}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}

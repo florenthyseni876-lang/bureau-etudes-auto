@@ -42,7 +42,12 @@ module.exports = async function mecaNiveauxPlan(page, env) {
   await attendre(700);
   const apres = await e(() => __mwplan.steps(__mwj.jobs()[0]).filter(s => s.ok).length);
   verifier(apres === avant + 1, `l'étape « Lever le pont » n'est pas cochée (${avant} → ${apres})`);
+  // replié par défaut (écran allégé : prochaine étape seulement), la touche I déplie la liste complète
+  verifier(await e(() => __mwplan.replie()), "l'encadré des étapes devrait être replié par défaut");
+  await page.keyboard.press('i');
+  await attendreCondition(page, () => { const h = document.querySelector('.mw-z[data-h="plan"]'); return h && /Poser la pièce neuve/.test(h.textContent); }, "la touche I ne déplie pas la liste des étapes", 5000);
   verifier(/Déposer : .*huile/i.test(await hud()), "les étapes de la vidange ne citent pas l'huile");
+  verifier(await e(() => !document.querySelector('.mw-z[data-h="job"]') || getComputedStyle(document.querySelector('.mw-z[data-h="job"]')).display === 'none'), "le bloc « Ordres en cours » devrait être masqué quand les étapes sont affichées");
 
   // 3. panne : indices d'abord, puis la réparation dès que la pièce en cause est identifiée
   await e(() => { __mwj.clear(); __mwj.spawn({ symp: 'feu', force: true, rend: false }); });

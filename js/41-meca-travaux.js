@@ -677,7 +677,7 @@ function invUI(){
  if(selIt&&inv().indexOf(selIt)<0){selIt=null;MW.emit('held',null);}
  b.innerHTML=h;
  const sk=typeof MWG!=='undefined'&&MWG.cur&&isTool(selIt)&&['cliquet','cle_dyn','boulonneuse'].includes(selIt.id)?' · douille de '+MWG.cur().sock+' (R pour changer)':'';
- MW.hud('main',selIt?`<b>En main</b> : ${esc(itNom(selIt))}${isTool(selIt)?'':selIt.k==='neuve'?' (neuve)':' (usagée)'}${sk} · V : mains libres`:'<b>Mains libres</b> · touches 1 à 0 : prendre un objet de l\'inventaire');}
+ MW.hud('main',selIt?`<b>En main</b> : ${esc(itNom(selIt))}${isTool(selIt)?'':selIt.k==='neuve'?' (neuve)':' (usagée)'}${sk} · V : mains libres`:''); /* mains libres : rien à afficher (écran moins chargé ; la barre d'inventaire montre les touches) */}
 function hudJobs(){
  if(!MW.S) return;const j=J(),e=emp();
  if(!e&&!j.cars.length){MW.hud('job','');return;}

@@ -991,6 +991,10 @@ html.phone-land .mk-opt{flex:1 1 0;padding:8px 10px}
 .mw-top span{font-family:var(--f-m);font-size:14px;color:#ffd466}
 .mw-zones{position:absolute;left:max(10px,env(safe-area-inset-left,0px));top:calc(max(8px,env(safe-area-inset-top,0px)) + 62px);display:flex;flex-direction:column;gap:6px;max-width:min(340px,46%)}
 .mw-z{background:rgba(10,20,35,.66);padding:6px 10px;border-radius:4px;font-size:13px;line-height:1.35;border-left:3px solid #5b8fd0}
+/* Encadré des étapes (js/61) : flèche pour replier ; quand il est affiché, on masque les blocs redondants pour alléger l'écran */
+.mw-z .mw-fold{pointer-events:auto;cursor:pointer;float:right;background:none;border:0;color:#ffd23a;font-size:15px;line-height:1;padding:0 0 0 8px}
+.mw-zones:has([data-h="plan"]) [data-h="job"],.mw-zones:has([data-h="plan"]) [data-h="career"]{display:none}
+.mw-zones:has([data-h="plan"]) [data-h="goal"] small{display:none}
 .mw-tr{position:absolute;right:max(10px,env(safe-area-inset-right,0px));top:max(8px,env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:flex-end;gap:6px;max-width:48%}
 .mw-mini{width:140px;height:140px;border:2px solid #10233d;border-radius:50%;background:#6f9a4a;box-shadow:0 0 0 2px rgba(255,255,255,.6)}
 .mw-guide{display:flex;align-items:center;gap:7px;background:rgba(10,20,35,.78);border:1.5px solid #ffc820;border-radius:16px;padding:3px 11px 3px 5px;font-size:12.5px;color:#fff;max-width:100%}
@@ -8372,7 +8376,7 @@ function invUI(){
  if(selIt&&inv().indexOf(selIt)<0){selIt=null;MW.emit('held',null);}
  b.innerHTML=h;
  const sk=typeof MWG!=='undefined'&&MWG.cur&&isTool(selIt)&&['cliquet','cle_dyn','boulonneuse'].includes(selIt.id)?' · douille de '+MWG.cur().sock+' (R pour changer)':'';
- MW.hud('main',selIt?`<b>En main</b> : ${esc(itNom(selIt))}${isTool(selIt)?'':selIt.k==='neuve'?' (neuve)':' (usagée)'}${sk} · V : mains libres`:'<b>Mains libres</b> · touches 1 à 0 : prendre un objet de l\'inventaire');}
+ MW.hud('main',selIt?`<b>En main</b> : ${esc(itNom(selIt))}${isTool(selIt)?'':selIt.k==='neuve'?' (neuve)':' (usagée)'}${sk} · V : mains libres`:''); /* mains libres : rien à afficher (écran moins chargé ; la barre d'inventaire montre les touches) */}
 function hudJobs(){
  if(!MW.S) return;const j=J(),e=emp();
  if(!e&&!j.cars.length){MW.hud('job','');return;}
@@ -12743,8 +12747,13 @@ function infoUI(){
   hh=`<i></i>Étape suivante : <b>${esc(HINT.a.lab)}</b> — ${esc(nm)}${ht?' · '+esc(toolName(ht,HINT.a.sock)):''}${miss?' <b>(à prendre à la servante, le chariot rouge)</b>':''}`;}
  /* pièce déposée sans pièce neuve en poche : on le dit toujours, même sans l'aide (c'est l'étape qui bloque le plus souvent) */
  if(R&&R.c&&R.c.rem){const c=R.c,ids=[...new Set(c.ordre.filter(id=>!c.done[id]&&c.parts[id]&&!c.parts[id].na).concat(Object.keys(c.rem)))],miss=ids.filter(id=>!c.done[id]&&!haveNew(c,id));
-  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=false,rupt=typeof MWST!=='undefined'&&e&&e.zone&&miss.some(id=>MWST.qty(e.zone,id)<=0);
-   hh=`<i></i>Pièce neuve à aller chercher : <b>${esc(miss.map(id=>pname(R.c,id)).join(', '))}</b> — ${rupt?'en rupture au stock : commandez-la à l\'ordinateur du bureau (ou achetez-la chez Pièces Auto Express)':'prenez-la à l\'étagère de l\'atelier (E devant l\'étagère)'}, puis revenez la monter.${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
+  if(miss.length){const nx=hh;const e=typeof MWC!=='undefined'&&MWC.employer?MWC.employer():null,shop=false,enRupture=id=>typeof MWST!=='undefined'&&e&&e.zone&&MWST.qty(e.zone,id)<=0;
+   /* on sépare les pièces disponibles à l'étagère de celles en rupture (avant : un seul message trompeur pour toutes) */
+   const dispo=miss.filter(id=>!enRupture(id)),rupt=miss.filter(enRupture),noms=l=>esc(l.map(id=>pname(R.c,id)).join(', '));
+   const morceaux=[];
+   if(dispo.length) morceaux.push(`Pièce neuve à aller chercher : <b>${noms(dispo)}</b> — prenez-la à l'étagère de l'atelier (E devant l'étagère), puis revenez la monter.`);
+   if(rupt.length) morceaux.push(`Pièce neuve à aller chercher : <b>${noms(rupt)}</b> — en rupture au stock : commandez-la à l'ordinateur du bureau (ou achetez-la chez Pièces Auto Express).`);
+   hh=`<i></i>${morceaux.join('<br>')}${nx?'<br>'+nx.replace('<i></i>',''):''}`;}}
  if(R&&R.c){const Ow=R.c.g&&R.c.g.o;if(Ow&&Ow.on&&Ow.drain<1) hh=`<i></i>L'huile s'écoule… attendez (${Math.max(1,Math.ceil((1-Ow.drain)*DRAIN_T))} s)`+(hh?'<br>'+hh.replace('<i></i>',''):'');}
  if(hh!==u._hh){u._hh=hh;u.hint.innerHTML=hh;}u.hint.hidden=!hh;}
 function setHold(p){const u=UI;if(!u) return;if(p<=0){if(!u.hold.hidden) u.hold.hidden=true;return;}u.hold.hidden=false;u.hold.style.setProperty('--p',Math.round(clamp01(p)*360)+'deg');}
@@ -19154,14 +19163,28 @@ window.__mwemp=MWEMP;
      c.insp[id]                                     pièce inspectée
    Rien n'est sauvegardé : tout est recalculé deux à trois fois par seconde.
 
+   Pour ne pas surcharger l'écran, l'encadré est REPLIÉ par défaut : titre, avancement (3/8) et prochaine étape seulement.
+   La petite flèche ▸ / ▾ (ou la touche I) déplie la liste complète ; le choix est retenu dans ce navigateur.
+   Quand l'encadré est affiché, les blocs « Ordres en cours » et « Poste » sont masqués (css : .mw-zones:has(...)).
+
    ═══ API `MWPLAN` (aussi `window.__mwplan`) ═══
    MWPLAN.steps(c)      → [{txt, ok}]  étapes de la voiture c (vide si la panne n'est pas encore diagnostiquée)
    MWPLAN.diagnosed(c)  → vrai si la cause de la panne est identifiée (ou s'il n'y a pas de panne)
-   MWPLAN.refresh()     met l'encadré à jour tout de suite */
+   MWPLAN.refresh()     met l'encadré à jour tout de suite
+   MWPLAN.toggle()      replie / déplie la liste (touche I, ou clic sur la flèche) */
 const MWPLAN = (() => {
 
   const PERIODE_MS = 400;   /* fréquence de mise à jour de l'encadré */
   const MAX_LIGNES = 12;    /* au-delà, on n'affiche que les prochaines étapes */
+
+  const CLE_REPLI = 'bea.meca.planReplie';
+
+  /* replié par défaut ; le choix du joueur est retenu (localStorage peut être indisponible : on ignore l'erreur) */
+  let replie = true;
+  try {
+    const v = localStorage.getItem(CLE_REPLI);
+    if (v !== null) replie = v === '1';
+  } catch (e) { /* stockage indisponible */ }
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
@@ -19246,9 +19269,18 @@ const MWPLAN = (() => {
       '<br><small class="hint">Les étapes de la réparation s\'afficheront dès que la pièce en cause sera identifiée (inspectez-la).</small>';
   }
 
+  /* flèche cliquable (le reste de l'encadré laisse passer la souris vers le jeu) */
+  const fleche = () => `<button type="button" class="mw-fold" data-plan="fold" title="${replie ? 'Afficher toutes les étapes' : 'Replier'} (touche I)">${replie ? '▸' : '▾'}</button>`;
+
   /* ── Encadré des étapes ── */
   function htmlEtapes(c, liste) {
     const prochaine = liste.findIndex(e => !e.ok);
+    const titre = c.symp ? `Réparation : ${esc(nomPiece(c, c.symp.c))} en cause` : `Étapes : ${esc(c.nom)}`;
+    const faites = liste.filter(e => e.ok).length;
+    if (replie) {
+      const suite = prochaine >= 0 ? esc(liste[prochaine].txt) : 'Terminé';
+      return `${fleche()}<b>${titre}</b> <small>(${faites}/${liste.length})</small><br><small style="color:#ffd23a">▶ ${suite}</small>`;
+    }
     let debut = 0;
     if (liste.length > MAX_LIGNES) debut = Math.max(0, Math.min(prochaine - 2, liste.length - MAX_LIGNES));
     const lignes = liste.slice(debut, debut + MAX_LIGNES).map((e, i) => {
@@ -19256,8 +19288,7 @@ const MWPLAN = (() => {
       const style = e.ok ? ' style="opacity:.55;text-decoration:line-through"' : n === prochaine ? ' style="color:#ffd23a;font-weight:700"' : '';
       return `<div${style}>${e.ok ? '✓' : '☐'} ${n + 1}. ${esc(e.txt)}</div>`;
     });
-    const titre = c.symp ? `Réparation : ${esc(nomPiece(c, c.symp.c))} en cause` : `Étapes : ${esc(c.nom)}`;
-    return `<b>${titre}</b><small>${lignes.join('')}</small>`;
+    return `${fleche()}<b>${titre}</b> <small>(${faites}/${liste.length})</small><small>${lignes.join('')}</small>`;
   }
 
   function refresh() {
@@ -19268,6 +19299,19 @@ const MWPLAN = (() => {
     MW.hud('plan', htmlEtapes(c, steps(c)));
   }
 
+  function toggle() {
+    replie = !replie;
+    try { localStorage.setItem(CLE_REPLI, replie ? '1' : '0'); } catch (e) { /* stockage indisponible */ }
+    refresh();
+  }
+
+  /* clic sur la flèche (souris libérée ou écran tactile) */
+  document.addEventListener('click', ev => {
+    const b = ev.target && ev.target.closest && ev.target.closest('[data-plan="fold"]');
+    if (b) { ev.preventDefault(); toggle(); }
+  });
+  MW.on('key', k => { if (k === 'i' && MW.S) toggle(); });
+
   let dernier = 0;
   MW.on('tick', () => {
     const t = performance.now();
@@ -19277,7 +19321,7 @@ const MWPLAN = (() => {
   });
   MW.on('close', () => MW.hud('plan', ''));
 
-  return { steps, diagnosed, refresh };
+  return { steps, diagnosed, refresh, toggle, replie: () => replie };
 })();
 window.__mwplan = MWPLAN;
 
