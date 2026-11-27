@@ -26,7 +26,9 @@ const rnd=Math.random;
 const L=()=>MWJ.L,PARTS=MWJ.PARTS;
 
 /* ═══════════ Réglages ═══════════ */
-const gs=()=>{const s=MW.S;if(!s) return {aide:'auto',classic:true};return s.gest||(s.gest={aide:'auto',classic:false});};
+const gs=()=>{const s=MW.S;if(!s) return {aide:'auto',classic:true,zoom:false};return s.gest||(s.gest={aide:'auto',classic:false,zoom:true});};
+/* vue rapprochée (js/46z) : active par défaut, désactivable dans les réglages (G) pour garder le viseur au centre de l'écran */
+const zoomPref=()=>on()&&gs().zoom!==false&&typeof MWZ!=='undefined';
 const on=()=>!!MW.S&&!gs().classic;
 const aideOn=()=>{const g=gs();return g.aide==='on'||(g.aide==='auto'&&!!MW.S.jobs&&MW.S.jobs.stats.rendues<4);};
 
@@ -134,6 +136,7 @@ function bst(c,S){const g=GS(c);let b=g.k[S];if(!b) b=g.k[S]={cb:[1,1],tl:0,pd:0
 /* ═══════════ Rig : voiture en cours de travail ═══════════ */
 let R=null;           /* rig courant */
 let AIM=null,HINT=null,eDown=false,H=null;  /* visée, aide, E enfoncé, geste maintenu */
+let aimRay=null;                             /* fonction () => {o, d} fournie par js/46z : rayon de visée libre (sinon : centre de l'écran) */
 const tmpV=new T.Vector3(),tmpV2=new T.Vector3(),tmpV3=new T.Vector3();
 const car0=()=>MWJ.jobs();
 function visOf(o){for(let p=o;p;p=p.parent) if(p.visible===false) return false;return true;}
@@ -156,6 +159,7 @@ function newRig(c){
  return r;}
 function freeRig(){
  if(!R) return;
+ if(typeof MWZ!=='undefined'&&MWZ.active()) MWZ.leave(true);
  for(const pr of R.procs) try{pr.free&&pr.free(R);}catch(e){}
  R.root.parent&&R.root.parent.remove(R.root);disposeObj(R.root);
  R.fl.parent&&R.fl.parent.remove(R.fl);disposeObj(R.fl);
@@ -176,8 +180,13 @@ function pickAct(t){
 const REACH=3.1;
 function aimUpdate(){
  AIM=null;if(!R||MW.paused||MW.player().inCar) return;
- const cam=MW.cam;cam.getWorldDirection(tmpV2);const cp=cam.position;let bs=9,bt=null;
- for(const t of R.tg){
+ const cam=MW.cam;let cp=cam.position;
+ let pool=R.tg;
+ if(aimRay){ /* vue rapprochée : le rayon part du pointeur de la souris, et seules les cibles de la zone de travail comptent */
+  const ry=aimRay();cp=ry.o;tmpV2.copy(ry.d);if(ry.only) pool=ry.only;}
+ else cam.getWorldDirection(tmpV2);
+ let bs=9,bt=null;
+ for(const t of pool){
   const hid=!!(t.vis&&!t.vis());
   /* l'objet lui-même peut être caché (vis retirée, couvercle déposé, plaquette sortie) : on vise son emplacement tant que son support est visible */
   const o=typeof t.o==='function'?t.o():t.o;if(!o||!visOf(o.parent||o)) continue;
@@ -668,6 +677,10 @@ function buildVidange(R){
  const uo=c.parts.huile.u0!=null?c.parts.huile.u0:50,uf=c.parts.filtre_huile?c.parts.filtre_huile.u0:50;
  const wantO=()=>wanted(c,'huile'),wantF=()=>partOK(c,'filtre_huile')&&wanted(c,'filtre_huile'),wantAny=()=>wantO()||wantF()||F.p.huile||F.p.filtre_huile;
  const needFill=()=>(!!c.done.huile||!!F.p.huile)&&!O.done;
+ /* anciennes parties : le bouchon « desserré » ou « reposé non serré » et le filtre « desserré » n'existent plus (gestes fusionnés) */
+ if(O.plug===1){O.plug=0;O.on=1;}
+ if(O.plug===3) O.plug=2;
+ if(O.filt==='loose') O.filt='off';
  /* carter et bouchon */
  const pan=grp(pl.x,pl.y,pl.z);R.root.add(pan);   /* le carter lui-même est dessiné par js/44c */
  const plug=hex(.017,.016,0xb9bec4,-.1,-.0,0);pan.add(plug);const plugAt=new T.Object3D();plugAt.position.set(-.1,-.01,0);pan.add(plugAt);
@@ -749,10 +762,14 @@ function buildVidange(R){
  /* ── bouchon de vidange ── */
  R.add({id:'plug',o:plugAt,r:.05,vis:()=>lifted(),name:()=>'Bouchon de vidange du carter',acts:()=>{
   const bacw=O.bac?null:'Placez d\'abord le bac sous le carter.',a=[];
-  if(O.plug===2) a.push({key:'pl1',lab:'Desserrer le bouchon de vidange',tool:'cliquet',sock:skP,hold:1.4,snd:'ratchet',ord:30,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:lw()||bacw||levelOK(c,'huile')||null,fix:lf(),do:()=>{O.plug=1;F.p.huile=1;}});
-  else if(O.plug===1) a.push({key:'pl0',lab:'Retirer le bouchon à la main : l\'huile s\'écoule',tool:'main',hold:.7,snd:'screw',ord:31,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:bacw,do:()=>{O.plug=0;O.on=1;binAdd('bouchon');}});
-  else if(O.plug===0) a.push({key:'pl3',lab:'Reposer le bouchon avec un joint neuf',tool:'main',hold:1.0,snd:'screw',ord:50,exp:1,min:2,ph:['huile','pose'],why:O.on?"Attendez : l'huile s'écoule encore.":needNew(c,'huile'),do:()=>{O.plug=3;binTake('bouchon');}});
-  else if(O.plug===3) a.push({key:'pl2',lab:'Serrer le bouchon au couple',tool:'cle_dyn',sock:skP,hold:1.0,snd:'click',ord:51,exp:1,min:2,ph:['huile','pose'],do:()=>{O.plug=2;if(doDepL(R,'huile')) doPoseL(R,'huile');}});
+  /* un seul geste au cliquet pour dévisser complètement (plus de « desserrer » puis « retirer à la main ») */
+  if(O.plug===2) a.push({key:'pl1',lab:'Dévisser le bouchon de vidange : l\'huile s\'écoule',tool:'cliquet',sock:skP,hold:2.0,
+   snd:'ratchet',ord:30,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:lw()||bacw||levelOK(c,'huile')||null,fix:lf(),
+   do:()=>{O.plug=0;O.on=1;F.p.huile=1;binAdd('bouchon');}});
+  /* un seul geste à la clé dynamométrique pour revisser (joint neuf) et serrer au couple */
+  else if(O.plug===0) a.push({key:'pl2',lab:'Visser le bouchon avec un joint neuf et le serrer au couple',tool:'cle_dyn',sock:skP,hold:1.6,
+   snd:'click',ord:50,exp:1,min:4,ph:['huile','pose'],why:O.on?"Attendez : l'huile s'écoule encore.":needNew(c,'huile'),
+   do:()=>{O.plug=2;binTake('bouchon');if(doDepL(R,'huile')) doPoseL(R,'huile');}});
   else a.push({key:'plin',lab:'Inspecter le carter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'huile');inspMsg(R,'huile');}});
   if(O.plug===2) a.push({key:'plinsp',lab:"Inspecter l'huile",insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'huile');inspMsg(R,'huile');}});
   return a;}});
@@ -760,12 +777,16 @@ function buildVidange(R){
  const fn=()=>cart?'Filtre à huile (cartouche dans son boîtier)':'Filtre à huile';
  R.add({id:'filt',o:fAt,r:.07,vis:()=>lifted(),name:fn,acts:()=>{
   const a=[],bacw=O.bac?null:'Placez d\'abord le bac sous le carter.',sk=cart?skC:0;
-  if(O.filt==='on') a.push({key:'f1',lab:cart?'Dévisser le couvercle du boîtier de filtre':'Desserrer le filtre à huile',tool:cart?'cliquet':'cle_filtre',sock:sk||undefined,hold:1.2,snd:'ratchet',ord:35,exp:wantF(),min:2,ph:['filtre_huile','dep'],why:lw()||bacw,fix:lf(),do:()=>{O.filt='loose';F.p.filtre_huile=1;}},
+  const fLab=cart?'Dévisser le couvercle du boîtier de filtre et sortir la cartouche':'Dévisser le filtre à huile et le déposer';
+  if(O.filt==='on') a.push({key:'f1',lab:fLab,tool:cart?'cliquet':'cle_filtre',sock:sk||undefined,hold:1.8,snd:'ratchet',ord:35,
+    exp:wantF(),min:4,ph:['filtre_huile','dep'],why:lw()||bacw,fix:lf(),do:()=>{O.filt='off';F.p.filtre_huile=1;doDepL(R,'filtre_huile');}},
    {key:'fi',lab:'Inspecter le filtre',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'filtre_huile');inspMsg(R,'filtre_huile');}});
-  else if(O.filt==='loose') a.push({key:'f0',lab:cart?'Sortir la cartouche usagée':'Dévisser le filtre à la main et le déposer',tool:'main',hold:.8,snd:'screw',ord:36,exp:wantF(),min:2,ph:['filtre_huile','dep'],do:()=>{O.filt='off';doDepL(R,'filtre_huile');}});
-  else if(O.filt==='off'&&!O.fg) a.push({key:'fg',lab:cart?'Huiler les joints de la cartouche neuve':'Huiler le joint du filtre neuf',tool:'bidon',hold:.7,snd:'pour',ord:44,exp:1,min:2,ph:['filtre_huile','pose'],why:needNew(c,'filtre_huile'),do:()=>{O.fg=1;}});
-  else if(O.filt==='off') a.push({key:'fs',lab:cart?'Poser la cartouche et visser le couvercle':'Visser le filtre neuf à la main',tool:'main',hold:1.3,snd:'screw',ord:45,exp:1,min:2,ph:['filtre_huile','pose'],do:()=>{O.filt='new';doPoseL(R,'filtre_huile');}});
-  else if(O.filt==='new'&&cart) a.push({key:'ft',lab:'Serrer le couvercle au couple',tool:'cle_dyn',sock:skC,hold:1.0,snd:'click',ord:46,exp:0,do:()=>{O.filt='tight';}});
+  else if(O.filt==='off'&&!O.fg) a.push({key:'fg',lab:cart?'Huiler les joints de la cartouche neuve':'Huiler le joint du filtre neuf',
+    tool:'bidon',hold:.7,snd:'pour',ord:44,exp:1,min:2,ph:['filtre_huile','pose'],why:needNew(c,'filtre_huile'),do:()=>{O.fg=1;}});
+  /* cartouche : le couvercle se serre au couple d'un seul geste (plus de « poser à la main » puis « serrer ») */
+  else if(O.filt==='off') a.push({key:'fs',lab:cart?'Poser la cartouche et serrer le couvercle au couple':'Visser le filtre neuf (serrage à la main)',
+    tool:cart?'cle_dyn':'main',sock:cart?skC:undefined,hold:cart?1.6:1.3,snd:cart?'click':'screw',ord:45,exp:1,min:2,ph:['filtre_huile','pose'],
+    do:()=>{O.filt=cart?'tight':'new';doPoseL(R,'filtre_huile');}});
   return a;}});
  /* ── remplissage ── */
  const topWhy=()=>lifted()?'Baissez le pont avant de remplir.':(c.st.capot?null:'Ouvrez le capot.');
@@ -862,11 +883,16 @@ function buildGeneric(R,sp){
  const ph0=(ph)=>[id,ph];
  const reqFix=(sp.nfix||0)-(sp.optFix||0);
  const done=()=>!!c.done[id];
+ /* dépose de la pièce usée (un seul exemplaire) ; les pièces à plusieurs exemplaires gardent un geste par exemplaire */
+ const deposer=i=>{S.x[i]=1;F.p[id]=1;if(S.x.every(v=>v>=1)) doDepL(R,id);};
+ /* pièce simple, sans couvercle, à la main ou avec l'outil des fixations : la dernière fixation retirée dépose aussi la pièce */
+ const autoDepose=units===1&&(sp.nfix||0)>0&&!sp.cover&&(!sp.depTool||sp.depTool==='main'||sp.depTool===(sp.fixTool||'cliquet'));
  /* fixations */
  fixObjs.forEach((m,i)=>R.add({id:'fx:'+id+':'+i,o:m,r:.028,vis:visOK,name:()=>`${sp.fixName||'Vis'} · ${pname(c,id).replace(/ \(.*/,'')}`,acts:()=>{
   const a=[];
   if(S.f[i]) a.push({key:'fo'+id+i,lab:sp.fixLab||'Dévisser',tool:sp.fixTool||'cliquet',sock:sp.fixTool==='cliquet'||!sp.fixTool?sk:undefined,hold:sp.fixHold||.9,snd:sp.fixTool==='main'?'screw':'ratchet',ord:30+i*.1+(sp.ord||0),exp:w(),min:1,ph:ph0('dep'),
-   why:need()||levelOK(c,id)||toolGate(c,id)||(sp.cover&&!S.cv?null:null),fix:fixFix(),do:()=>{S.f[i]=0;F.p[id]=1;binAdd(sp.bin||'vis');}});
+   why:need()||levelOK(c,id)||toolGate(c,id),fix:fixFix(),
+   do:()=>{S.f[i]=0;F.p[id]=1;binAdd(sp.bin||'vis');if(autoDepose&&S.f.every(v=>!v)) deposer(0);}});
   else a.push({key:'fr'+id+i,lab:sp.fixRe||'Revisser',tool:sp.fixTool||'cliquet',sock:sp.fixTool==='cliquet'||!sp.fixTool?sk:undefined,hold:sp.fixHold||.9,snd:sp.fixTool==='main'?'screw':'ratchet',ord:58+i*.1+(sp.ord||0),exp:i<reqFix||true,min:1,ph:ph0('pose'),
    why:(sp.cover?(S.cv?null:'Remettez d\'abord le couvercle.'):(S.x[0]!==2&&!sp.units&&S.x[0]===1?'Posez d\'abord la pièce neuve.':null)),do:()=>{S.f[i]=1;binTake(sp.bin||'vis');}});
   if(S.f[i]) a.push({key:'fi'+id+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,id);inspMsg(R,id);}});
@@ -880,7 +906,7 @@ function buildGeneric(R,sp){
   const wu=need()||levelOK(c,id)||toolGate(c,id);
   if(x===0){
    a.push({key:'po'+id+un.i,lab:units>1?sp.depLab||'Déposer':(sp.depLab||'Déposer la pièce usée'),tool:sp.depTool||'main',sock:sp.depSock?sockOf(c,sp.depSock):undefined,hold:sp.depHold||.7,snd:sp.depTool==='cliquet'?'ratchet':'screw',ord:36+un.i*.1+(sp.ord||0),exp:w(),min:2,ph:ph0('dep'),
-    why:wu||((sp.nfix||sp.cover)&&!fixOff?'Retirez d\'abord les fixations.':null),fix:fixFix(),do:()=>{S.x[un.i]=1;F.p[id]=1;if(S.x.every(v=>v>=1)) doDepL(R,id);}});
+    why:wu||((sp.nfix||sp.cover)&&!fixOff?'Retirez d\'abord les fixations.':null),fix:fixFix(),do:()=>deposer(un.i)});
    a.push({key:'pi'+id+un.i,lab:'Inspecter',insp:1,tool:'main',ord:300,why:need(),do:()=>{L().doInspect(c,id);inspMsg(R,id);}});}
   else if(x===1) a.push({key:'pn'+id+un.i,lab:units>1?sp.poseLab||'Poser la pièce neuve':(sp.poseLab||'Monter la pièce neuve'),tool:sp.poseTool||'main',sock:sp.poseSock?sockOf(c,sp.poseSock):undefined,hold:sp.poseHold||.8,snd:sp.poseTool==='cliquet'?'ratchet':'screw',ord:44+un.i*.1+(sp.ord||0),exp:1,min:2,ph:ph0('pose'),why:needNew(c,id),
    do:()=>{S.x[un.i]=2;if(S.x.every(v=>v===2)) doPoseL(R,id);}});
@@ -953,26 +979,24 @@ function buildChDecor(R){
 BUILD.push(buildChDecor);
 
 /* ═══════════ Bougies (allumage ou préchauffage) et courroie d'accessoires : gestes détaillés ═══════════ */
-/* essence : connecteur, vis et bobine crayon, bougie dévissée à la douille à bougie, écartement contrôlé, bougie neuve engagée à la main,
-   serrage au couple, bobine, vis, connecteur. Diesel : écrou et cosse d'alimentation, bougie de préchauffage dévissée doucement. */
+/* essence : connecteur, vis + bobine crayon (un seul geste au cliquet), bougie dévissée à la douille à bougie, écartement contrôlé, bougie neuve
+   vissée et serrée au couple (un seul geste à la clé dynamométrique), bobine + vis (un seul geste), connecteur. Diesel : écrou + cosse
+   d'alimentation (un geste), bougie de préchauffage dévissée doucement, vissée et serrée au couple (un geste), cosse + écrou (un geste).
+   `out` : geste qui sort la bougie usée ; `coil` : [premier, dernier + 1] des états où la bobine (ou la cosse) est déposée. */
 const PLUG_E=[
  {lab:'Débrancher le connecteur de la bobine',tool:'main',hold:.5,snd:'clunk',ph:'dep'},
- {lab:'Dévisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1},
- {lab:'Extraire la bobine crayon',tool:'main',hold:.6,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la vis de la bobine et extraire la bobine crayon',tool:'cliquet',sock:'clip',hold:1.2,snd:'ratchet',ph:'dep',bin:1},
  {lab:'Dévisser la bougie usée (douille à bougie et rallonge)',tool:'cliquet',sock:'plugs',hold:1.3,snd:'ratchet',ph:'dep',out:1},
- {lab:'Engager la bougie neuve à la main, sans forcer',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1,gap:1},
- {lab:'Serrer la bougie au couple (25 N·m)',tool:'cle_dyn',sock:'plugs',hold:.9,snd:'click',ph:'pose'},
- {lab:'Remettre la bobine',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
- {lab:'Revisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1},
+ {lab:'Visser la bougie neuve et la serrer au couple (25 N·m)',tool:'cle_dyn',sock:'plugs',hold:1.6,snd:'click',ph:'pose',need:1,gap:1},
+ {lab:'Remettre la bobine et revisser sa vis',tool:'cliquet',sock:'clip',hold:1.0,snd:'ratchet',ph:'pose',bin:-1},
  {lab:'Rebrancher le connecteur (clic)',tool:'main',hold:.4,snd:'click',ph:'pose'}];
+PLUG_E.coil=[2,5];
 const PLUG_D=[
- {lab:"Dévisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1,bk:'cosse'},
- {lab:"Retirer la cosse d'alimentation",tool:'main',hold:.5,snd:'clunk',ph:'dep'},
+ {lab:"Dévisser l'écrou de la cosse et retirer la cosse d'alimentation",tool:'cliquet',sock:'clip',hold:1.0,snd:'ratchet',ph:'dep',bin:1,bk:'cosse'},
  {lab:'Dévisser la bougie de préchauffage (doucement : elle casse facilement)',tool:'cliquet',sock:'glow',hold:1.7,snd:'ratchet',ph:'dep',out:1},
- {lab:'Visser la bougie de préchauffage neuve à la main',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1},
- {lab:'Serrer au couple (15 N·m)',tool:'cle_dyn',sock:'glow',hold:.9,snd:'click',ph:'pose'},
- {lab:'Remettre la cosse',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
- {lab:"Revisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1,bk:'cosse'}];
+ {lab:'Visser la bougie de préchauffage neuve et la serrer au couple (15 N·m)',tool:'cle_dyn',sock:'glow',hold:1.6,snd:'click',ph:'pose',need:1},
+ {lab:"Remettre la cosse et revisser son écrou",tool:'cliquet',sock:'clip',hold:1.0,snd:'ratchet',ph:'pose',bin:-1,bk:'cosse'}];
+PLUG_D.coil=[1,3];
 const plugSteps=c=>{try{return MWCARS.get(c.mdl).eng.fuel==='diesel'?PLUG_D:PLUG_E;}catch(e){return PLUG_E;}};
 /* courroie : repérer le passage, détendre et bloquer le tendeur, sortir la courroie, contrôler les galets, passer la neuve,
    libérer le tendeur, vérifier l'alignement dans toutes les gorges */
@@ -982,6 +1006,7 @@ function buildPlugsBelt(R){
   const steps=plugSteps(c),diesel=steps===PLUG_D,e=c.mdl&&MWCARS.get(c.mdl)?MWCARS.get(c.mdl).eng:null,n=Math.min(e?e.n:4,8);
   if(!F.bp||F.bp.st.length!==n) F.bp={st:new Array(n).fill(0),gap:0};
   const B=F.bp,OUT=steps.findIndex(x=>x.out)+1,END=steps.length;
+  B.st=B.st.map(x=>Math.min(x,END)); /* ancienne partie : plus d'étapes qu'aujourd'hui */
   const want=()=>wanted(c,'bougies')||!!F.p.bougies;
   const at=i=>{const b=bayG(R),cs=b&&b.userData.coils;if(cs&&cs[i]) return cs[i].p.clone().add(V3(0,-.03,0));const a=R.A('coils');return V3(a.x+(i-(n-1)/2)*.08,a.y+.05,a.z);};
   const U=[];
@@ -1003,7 +1028,7 @@ function buildPlugsBelt(R){
     if(k===0) a.push({key:'bpi'+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'bougies');inspMsg(R,'bougies');}});
     return a;}});}
   R.blk.hood.push(()=>B.st.some(x=>x>0&&x<END)?(diesel?'Remontez toutes les bougies de préchauffage et leurs cosses.':'Remontez toutes les bougies, bobines et connecteurs.'):null);
-  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
+  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=k>=steps.coil[0]&&k<steps.coil[1];
    u.coil.position.set(coilOut?.07:0,coilOut?.1:0,0);u.coil.rotation.z=coilOut?.6:0;
    u.plugOld.visible=k<OUT;u.plugOld.position.y=k===OUT-1?.006:0;u.plugNew.visible=k>=OUT+1;});}});}
  if(partOK(c,'courroie_acc')){
@@ -1127,7 +1152,11 @@ function tick(dt){
  if(!MW.S||!MW.S.jobs) return;
  animTick(dt);vmTick(dt);
  const act=on();
- if(!act){if(R) freeRig();if(UI){for(const k of ['tb','info','hold','hint','aux','bin']) UI[k].hidden=true;}return;}
+ if(!act){
+  if(zoomOpen()) MWZ.leave(true);
+  if(R) freeRig();
+  if(UI){for(const k of ['tb','info','hold','hint','aux','bin']) UI[k].hidden=true;}
+  return;}
  const pl=MW.player(),cars=MWJ.jobs(),essai=MWJ.state().essai;
  if(R&&(!cars.includes(R.c)||!MWJ.mesh(R.c)||pontD(R.c)>8.5||essai)) freeRig();
  if(R&&!R.bayAt&&R.g.userData.bay&&!H){const c=R.c;freeRig();buildRig(c);} /* le capot vient de s'ouvrir : cibles du moteur à leur vraie place */
@@ -1182,16 +1211,43 @@ function settings(){
  const b=(a,t,on_)=>`<button type="button" class="btn sm${on_?'':' ghost'}" data-mw="${a}">${t}</button>`;
  MW.panel('Gestes de mécanicien',`<p class="hint">Visez une vis ou une pièce : son nom s'affiche. <b>E</b> fait le geste, <b>maintenir E</b> dévisse ou serre. Outils : touches <b>1 à 0</b> ou molette ; <b>R</b> change la douille.</p>
   <p><b>Aide</b> (surligne l'étape suivante)</p><div class="mw-btns">${b('a:auto','Automatique (premiers travaux)',g.aide==='auto')}${b('a:on','Toujours',g.aide==='on')}${b('a:off','Jamais',g.aide==='off')}</div>
-  <p><b>Présentation</b></p><div class="mw-btns">${b('m:real','Gestes réalistes',!g.classic)}${b('m:classic','Menus simples',g.classic)}</div>`,
-  {onClick:a=>{const [k,v]=a.split(':');if(k==='a') g.aide=v;else if(k==='m') g.classic=v==='classic';lastTb='';settings();if(g.classic&&R) freeRig();}});}
+  <p><b>Présentation</b></p><div class="mw-btns">${b('m:real','Gestes réalistes',!g.classic)}${b('m:classic','Menus simples',g.classic)}</div>
+  <p><b>Vue rapprochée</b> (E sur un élément : la caméra s'approche, la souris devient un viseur libre)</p>
+  <div class="mw-btns">${b('z:on','Activée',g.zoom!==false)}${b('z:off','Désactivée (viseur au centre, mode classique)',g.zoom===false)}</div>`,
+  {onClick:a=>{
+   const [k,v]=a.split(':');
+   if(k==='a') g.aide=v;
+   else if(k==='m') g.classic=v==='classic';
+   else if(k==='z') g.zoom=v==='on';
+   lastTb='';settings();
+   if(g.classic&&R) freeRig();}});}
 function init(){
  if(!MW.S) return;gs();ensureUI();
  if(R) freeRig();}
+/* texte de l'invite « [E] … » affichée en bas de l'écran pour la cible visée */
+function aimLabel(){
+ if(zoomOpen()) return 'Quitter la vue rapprochée';
+ if(!AIM) return '';
+ const a=AIM.a;
+ if(a.why) return a.lab+' (impossible pour l\'instant)';
+ const w=checkAct(a);
+ if(!w||aideOn()) return a.lab;
+ const t=a.tool!==tool&&!(a.tool2&&a.tool2===tool)?TOOL[a.tool]:null;
+ const outil=t?t.nom.toLowerCase()+(t.key?' ('+t.key+')':''):'';
+ const douille=a.sock&&(t||sock!==a.sock)?'douille de '+a.sock+' (R)':'';
+ return `${a.lab} — prenez d'abord ${outil}${t&&a.sock?', ':''}${douille}`;}
+/* ── vue rapprochée (module js/46z) : E sur un élément ouvre le cadrage serré, E dans le cadrage le referme ── */
+const zoomOpen=()=>typeof MWZ!=='undefined'&&MWZ.active();
+function zoomUse(){
+ if(zoomOpen()){MWZ.leave();return true;}
+ if(!AIM||!zoomPref()) return false;
+ return MWZ.enter(AIM.t,AIM.a);}
 let wired=false;
 function wire(){
  if(wired) return;wired=true;
- aimI=MW.addInteract({id:'mg:aim',x:0,z:0,r:1.2,label:()=>{if(!AIM) return '';const a=AIM.a;if(a.why) return a.lab+' (impossible pour l\'instant)';const w=checkAct(a);if(!w||aideOn()) return a.lab;
-  const t=a.tool!==tool&&!(a.tool2&&a.tool2===tool)?TOOL[a.tool]:null;return `${a.lab} — prenez d'abord ${t?t.nom.toLowerCase()+(t.key?' ('+t.key+')':''):''}${t&&a.sock?', ':''}${a.sock&&(t||sock!==a.sock)?'douille de '+a.sock+' (R)':''}`;},when:()=>!!AIM&&on()&&!MW.paused,use:()=>{if(!on()) return;eDown=true;startAct();}});
+ aimI=MW.addInteract({id:'mg:aim',x:0,z:0,r:1.2,label:aimLabel,
+  when:()=>(!!AIM||zoomOpen())&&on()&&!MW.paused,
+  use:()=>{if(!on()) return;if(zoomUse()) return;eDown=true;startAct();}});
  window.addEventListener('keydown',e=>{if(e.key&&e.key.toLowerCase()==='e'&&!e.repeat) eDown=true;},true);
  window.addEventListener('keyup',e=>{if(e.key&&e.key.toLowerCase()==='e') onRelease();},true);
  window.addEventListener('blur',()=>onRelease());
@@ -1205,7 +1261,7 @@ function wire(){
  MW.addButton('gestes','Gestes (G)',()=>{if(MW.S) settings();});}
 MW.on('start',()=>{wire();init();});
 MW.on('open',()=>{wire();ensureUI();});
-MW.on('close',()=>{if(R) freeRig();});
+MW.on('close',()=>{if(zoomOpen()) MWZ.leave(true);if(R) freeRig();});
 MW.on('tick',tick);
 
 Object.assign(api,{
@@ -1232,6 +1288,15 @@ Object.assign(api,{
  holding:()=>H&&R&&R.c?{car:R.c.id,target:H.t.id}:null,
  refresh:()=>{if(R) syncAll(true);},
  startHold:(id,key)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return false;AIM={t,a:actsOf(t).find(x=>!key||x.key===key)};eDown=true;startAct();return !!H;},
- spendAll:()=>{}});
+ spendAll:()=>{},
+ /* ── points d'accroche de la vue rapprochée (js/46z) ── */
+ zoomPref,actsOf,worldOf,visOf,checkAct,cycleSock,
+ hintTarget:()=>HINT?HINT.t:null,
+ setAimRay:f=>{aimRay=f||null;},
+ aimNow:()=>aimUpdate(),
+ pointerDown:()=>{eDown=true;startAct();},
+ pointerUp:()=>onRelease(),
+ holding2:()=>!!H,
+ cancelHold:()=>{if(H){if(H.a.cancel) H.a.cancel(H);H=null;setHold(0);vmWork(0);}eDown=false;}});
 return api;
 })();

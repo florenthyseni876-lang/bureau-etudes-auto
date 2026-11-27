@@ -55,16 +55,16 @@ module.exports = async function mecaBougiesCourroie(page, env) {
   await accueillir('bougies', 'essence', 'bougies'); await pres();
   const l1 = await travail(), b1 = await bilan('bougies');
   verifier(b1.done && b1.blocage.length === 0 && b1.bin === 0, `bougies essence incomplètes : ${JSON.stringify(b1)} ${l1.join(' ')}`);
-  verifier(l1.filter(k => /^bpg/.test(k)).length >= 1 && l1.filter(k => /^bp\d+_8$/.test(k)).length === b1.cyl, `gestes de bougie manquants (écartement, connecteurs) : ${l1.join(' ')}`);
-  const i0 = l1.indexOf('bp0_0'), i3 = l1.indexOf('bp0_3'), i5 = l1.indexOf('bp0_5');
-  verifier(i0 >= 0 && i0 < i3 && i3 < i5, `ordre des gestes de bougie anormal : ${l1.join(' ')}`);
+  verifier(l1.filter(k => /^bpg/.test(k)).length >= 1 && l1.filter(k => /^bp\d+_5$/.test(k)).length === b1.cyl, `gestes de bougie manquants (écartement, connecteurs) : ${l1.join(' ')}`);
+  const i0 = l1.indexOf('bp0_0'), i2 = l1.indexOf('bp0_2'), i3 = l1.indexOf('bp0_3');
+  verifier(i0 >= 0 && i0 < i2 && i2 < i3 && !l1.some(k => /^bp\d+_[6-9]$/.test(k)), `ordre des gestes de bougie anormal : ${l1.join(' ')}`);
 
   // 2. bougies de préchauffage (diesel) : cosse, bougie dévissée doucement, couple
   await e(() => MWG.release());
   await accueillir('bougies', 'diesel', 'bougies'); await pres();
   const l2 = await travail(), b2 = await bilan('bougies');
   verifier(b2.done && b2.blocage.length === 0 && b2.bin === 0, `bougies diesel incomplètes : ${JSON.stringify(b2)} ${l2.join(' ')}`);
-  verifier(!l2.some(k => /^bpg/.test(k)) && l2.filter(k => /^bp\d+_6$/.test(k)).length === b2.cyl, `gestes de préchauffage anormaux : ${l2.join(' ')}`);
+  verifier(!l2.some(k => /^bpg/.test(k)) && l2.filter(k => /^bp\d+_3$/.test(k)).length === b2.cyl, `gestes de préchauffage anormaux : ${l2.join(' ')}`);
 
   // 3. courroie d'accessoires : schéma, tendeur, goupille, galets, passage, alignement
   await e(() => MWG.release());

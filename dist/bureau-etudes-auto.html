@@ -1157,6 +1157,24 @@ html.phone-land .mg-info{top:calc(50% + 14px);font-size:12px}html.phone-land .mg
 .emp-q{margin:6px 0}
 .mw-pw.emp-dlg{background:linear-gradient(rgba(5,10,18,0) 35%,rgba(5,10,18,.78));align-items:flex-end;padding-bottom:6px}
 .mw-pw.emp-dlg .mw-pn{width:min(820px,100%);max-height:50%;border-color:#7ab0d8}
+
+/* ── vue rapprochée (js/46z) : pointeur libre, pastilles sur les points cliquables, bouton de retour ── */
+.mgz{position:absolute;inset:0;pointer-events:none;z-index:6}
+.mgz[hidden]{display:none}
+.mgz-pts{position:absolute;inset:0;overflow:hidden}
+.mgz-dot{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(255,255,255,.55);box-sizing:border-box;pointer-events:none;transition:border-color .12s,background .12s}
+.mgz-dot[hidden]{display:none}
+.mgz-dot.ok{border-color:rgba(255,214,90,.9)}
+.mgz-dot.bloque{border-color:rgba(160,170,185,.45);border-style:dashed}
+.mgz-dot.conseil{animation:mg-pulse 1s infinite}
+.mgz-dot.vise{background:rgba(255,184,0,.28);border-color:#ffb800;border-width:3px}
+.mgz-quit{position:absolute;right:12px;top:max(48px,env(safe-area-inset-top,0px));pointer-events:auto;padding:7px 14px;border:1.5px solid #35506f;border-radius:5px;background:rgba(10,20,35,.82);color:#e8f0f8;font:inherit;font-size:13px;cursor:pointer}
+.mgz-aide{position:absolute;left:50%;bottom:max(10px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:92%;text-align:center;font-size:12px;color:#c9d7e8;background:rgba(10,20,35,.7);padding:4px 12px;border-radius:4px}
+.mgz-on .mw-cross{display:none}
+.mgz-on .mw-look{cursor:crosshair}
+.mgz-on .mg-hold{left:var(--px,50%);top:var(--py,50%)}
+.mgz-on .mg-info{left:var(--px,50%);top:calc(var(--py,50%) + 30px);max-width:70%}
+html.phone-land .mgz-aide{display:none}
 </style>
 <div class="app">
   <header class="cartouche">
@@ -7092,6 +7110,7 @@ api.hud=(id,html)=>{if(html) hudH[id]=html;else delete hudH[id];hudDom(id);};
 api.toast=(t,g)=>{ensureUI();const e=el('div','mw-t '+(g||'info'));e.textContent=t;ui.toasts.appendChild(e);
  while(ui.toasts.children.length>4) ui.toasts.firstChild.remove();setTimeout(()=>e.remove(),5200);};
 function setPaused(){api.paused=!!(panelSt||mapOpen||sleeping);if(api.paused){keys={};js.x=js.y=0;if(ui) ui.knob.style.transform='';exitLock();}}
+api.releaseLock=()=>exitLock(); /* [MWZ] libère le pointeur sans ouvrir le menu pause */
 function exitLock(){try{if(document.pointerLockElement){lockLost=performance.now();document.exitPointerLock();}}catch(e){}}
 api.panel=(titre,html,o)=>{ensureUI();o=o||{};ui.pt.textContent=titre;ui.pb.innerHTML=html;ui.pw.firstElementChild.className='mw-pn'+(o.wide?' wide':'');
  panelSt={onClick:o.onClick,onClose:o.onClose};ui.pw.hidden=false;ui.pb.scrollTop=0;setPaused();
@@ -7139,6 +7158,7 @@ function onKey(e){
  const k=e.key&&e.key.length===1?e.key.toLowerCase():e.key,down=e.type==='keydown';
  e.stopPropagation();
  if(e.ctrlKey||e.metaKey||e.altKey) return;
+ if(api.keyHook&&api.keyHook(k,down,e)) return; /* [MWZ] le module de vue rapprochée peut consommer une touche */
  if(k==='Escape'){if(!down) return;e.preventDefault();if(performance.now()-lockLost<200) return;
   if(panelSt) api.closePanel();else if(mapOpen) toggleMap(false);else pauseMenu();return;}
  if(api.paused){if(down&&k==='m'&&mapOpen) toggleMap(false);return;}
@@ -7149,7 +7169,7 @@ function onKey(e){
  else if(k==='m'){toggleMap(true);}
  else if(k==='Tab'){e.preventDefault();emit('tab');}
  else{emit('key',k.toLowerCase?k.toLowerCase():k,e);}}
-function onMouse(e){if(!active||api.paused||P.inCar) return;if(document.pointerLockElement===ui.look){P.ry-=e.movementX*.0024;P.pitch=clamp(P.pitch-e.movementY*.0022,-1.25,1.25);}}
+function onMouse(e){if(!active||api.paused||P.inCar||api.frozen) return;if(document.pointerLockElement===ui.look){P.ry-=e.movementX*.0024;P.pitch=clamp(P.pitch-e.movementY*.0022,-1.25,1.25);}}
 function onLockChange(){if(!active) return;if(!document.pointerLockElement&&!api.paused&&performance.now()-lockLost>200){lockLost=performance.now();pauseMenu();}}
 function useCur(k){
  if(k==='f'){if(curI&&curI.key.toLowerCase()==='f'&&curI.o){try{curI.o.use();}catch(e){console.error(e);}return;}toggleCar();return;}
@@ -7196,9 +7216,9 @@ function bindUI(){
   const a=b.dataset.mw;if(a==='close'){api.closePanel();return;}const p=panelSt;if(p&&p.onClick) try{p.onClick(a,b);}catch(err){console.error(err);}});
  ui.map.querySelector('#mwMapX').addEventListener('click',()=>toggleMap(false));
  // regarder : souris (verrouillage du pointeur ou glisser) et doigt
- ui.look.addEventListener('click',e=>{if(e.pointerType==='touch'||api.paused||P.inCar) return;try{if(!document.pointerLockElement) ui.look.requestPointerLock();}catch(err){}});
+ ui.look.addEventListener('click',e=>{if(e.pointerType==='touch'||api.paused||P.inCar||api.frozen) return;try{if(!document.pointerLockElement) ui.look.requestPointerLock();}catch(err){}});
  ui.look.addEventListener('pointerdown',e=>{if(look.id!=null||api.paused) return;look.id=e.pointerId;const p=pXY(e);look.x=p.x;look.y=p.y;try{ui.look.setPointerCapture(e.pointerId);}catch(err){}});
- ui.look.addEventListener('pointermove',e=>{if(e.pointerId!==look.id||document.pointerLockElement===ui.look) return;const p=pXY(e);
+ ui.look.addEventListener('pointermove',e=>{if(e.pointerId!==look.id||document.pointerLockElement===ui.look||api.frozen) return;const p=pXY(e);
   if(!P.inCar){P.ry-=(p.x-look.x)*.006;P.pitch=clamp(P.pitch-(p.y-look.y)*.005,-1.25,1.25);}look.x=p.x;look.y=p.y;});
  const lend=e=>{if(e.pointerId===look.id) look.id=null;};ui.look.addEventListener('pointerup',lend);ui.look.addEventListener('pointercancel',lend);
  // joystick
@@ -7389,7 +7409,7 @@ function frame(t){
  if(NT&&!NT.guest&&api.paused){acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}}
  if(!api.paused){
   if(!(NT&&NT.guest)){acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}}
-  if(P.inCar) drive(dt);else walk(dt);
+  if(P.inCar) drive(dt);else if(!api.frozen) walk(dt); /* [MWZ] api.frozen : joueur immobile en vue rapprochée */
   saveT+=dt;if(saveT>30){saveT=0;api.save();}}
  S.player.x=P.x;S.player.z=P.z;S.player.ry=P.ry;S.player.inCar=P.inCar;
  syncCarMesh(api.paused?0:dt);updateZones();updateInteract();
@@ -7397,6 +7417,7 @@ function frame(t){
  if(P.inCar){const fx=Math.sin(S.car.ry),fz=Math.cos(S.car.ry),tx=S.car.x-fx*7.5,tz=S.car.z-fz*7.5,k=camInit?1-Math.exp(-7*dt):1;
   camPos.x+=(tx-camPos.x)*k;camPos.y=3.4;camPos.z+=(tz-camPos.z)*k;camInit=true;cam.position.copy(camPos);cam.lookAt(S.car.x+fx*5,1.3,S.car.z+fz*5);}
  else{camInit=false;cam.position.set(P.x,api.eyeY||1.7,P.z);cam.rotation.set(P.pitch,P.ry+PI,0);/* [MWG] hauteur des yeux */}
+ if(api.camHook){try{api.camHook(cam,dt);}catch(e){api.camHook=null;console.error(e);}} /* [MWZ] vue rapprochée : le module décale la caméra */
  if(decorOn){try{api.decor.frame(dt,t,(S.min+acc)/60);}catch(e){console.error(e);decorOn=false;}}else updateSky();
  if(beacon&&beacon.visible) beacon.material.opacity=.2+.12*Math.sin(t/300);
  // HUD
@@ -12473,7 +12494,9 @@ const rnd=Math.random;
 const L=()=>MWJ.L,PARTS=MWJ.PARTS;
 
 /* ═══════════ Réglages ═══════════ */
-const gs=()=>{const s=MW.S;if(!s) return {aide:'auto',classic:true};return s.gest||(s.gest={aide:'auto',classic:false});};
+const gs=()=>{const s=MW.S;if(!s) return {aide:'auto',classic:true,zoom:false};return s.gest||(s.gest={aide:'auto',classic:false,zoom:true});};
+/* vue rapprochée (js/46z) : active par défaut, désactivable dans les réglages (G) pour garder le viseur au centre de l'écran */
+const zoomPref=()=>on()&&gs().zoom!==false&&typeof MWZ!=='undefined';
 const on=()=>!!MW.S&&!gs().classic;
 const aideOn=()=>{const g=gs();return g.aide==='on'||(g.aide==='auto'&&!!MW.S.jobs&&MW.S.jobs.stats.rendues<4);};
 
@@ -12581,6 +12604,7 @@ function bst(c,S){const g=GS(c);let b=g.k[S];if(!b) b=g.k[S]={cb:[1,1],tl:0,pd:0
 /* ═══════════ Rig : voiture en cours de travail ═══════════ */
 let R=null;           /* rig courant */
 let AIM=null,HINT=null,eDown=false,H=null;  /* visée, aide, E enfoncé, geste maintenu */
+let aimRay=null;                             /* fonction () => {o, d} fournie par js/46z : rayon de visée libre (sinon : centre de l'écran) */
 const tmpV=new T.Vector3(),tmpV2=new T.Vector3(),tmpV3=new T.Vector3();
 const car0=()=>MWJ.jobs();
 function visOf(o){for(let p=o;p;p=p.parent) if(p.visible===false) return false;return true;}
@@ -12603,6 +12627,7 @@ function newRig(c){
  return r;}
 function freeRig(){
  if(!R) return;
+ if(typeof MWZ!=='undefined'&&MWZ.active()) MWZ.leave(true);
  for(const pr of R.procs) try{pr.free&&pr.free(R);}catch(e){}
  R.root.parent&&R.root.parent.remove(R.root);disposeObj(R.root);
  R.fl.parent&&R.fl.parent.remove(R.fl);disposeObj(R.fl);
@@ -12623,8 +12648,13 @@ function pickAct(t){
 const REACH=3.1;
 function aimUpdate(){
  AIM=null;if(!R||MW.paused||MW.player().inCar) return;
- const cam=MW.cam;cam.getWorldDirection(tmpV2);const cp=cam.position;let bs=9,bt=null;
- for(const t of R.tg){
+ const cam=MW.cam;let cp=cam.position;
+ let pool=R.tg;
+ if(aimRay){ /* vue rapprochée : le rayon part du pointeur de la souris, et seules les cibles de la zone de travail comptent */
+  const ry=aimRay();cp=ry.o;tmpV2.copy(ry.d);if(ry.only) pool=ry.only;}
+ else cam.getWorldDirection(tmpV2);
+ let bs=9,bt=null;
+ for(const t of pool){
   const hid=!!(t.vis&&!t.vis());
   /* l'objet lui-même peut être caché (vis retirée, couvercle déposé, plaquette sortie) : on vise son emplacement tant que son support est visible */
   const o=typeof t.o==='function'?t.o():t.o;if(!o||!visOf(o.parent||o)) continue;
@@ -13115,6 +13145,10 @@ function buildVidange(R){
  const uo=c.parts.huile.u0!=null?c.parts.huile.u0:50,uf=c.parts.filtre_huile?c.parts.filtre_huile.u0:50;
  const wantO=()=>wanted(c,'huile'),wantF=()=>partOK(c,'filtre_huile')&&wanted(c,'filtre_huile'),wantAny=()=>wantO()||wantF()||F.p.huile||F.p.filtre_huile;
  const needFill=()=>(!!c.done.huile||!!F.p.huile)&&!O.done;
+ /* anciennes parties : le bouchon « desserré » ou « reposé non serré » et le filtre « desserré » n'existent plus (gestes fusionnés) */
+ if(O.plug===1){O.plug=0;O.on=1;}
+ if(O.plug===3) O.plug=2;
+ if(O.filt==='loose') O.filt='off';
  /* carter et bouchon */
  const pan=grp(pl.x,pl.y,pl.z);R.root.add(pan);   /* le carter lui-même est dessiné par js/44c */
  const plug=hex(.017,.016,0xb9bec4,-.1,-.0,0);pan.add(plug);const plugAt=new T.Object3D();plugAt.position.set(-.1,-.01,0);pan.add(plugAt);
@@ -13196,10 +13230,14 @@ function buildVidange(R){
  /* ── bouchon de vidange ── */
  R.add({id:'plug',o:plugAt,r:.05,vis:()=>lifted(),name:()=>'Bouchon de vidange du carter',acts:()=>{
   const bacw=O.bac?null:'Placez d\'abord le bac sous le carter.',a=[];
-  if(O.plug===2) a.push({key:'pl1',lab:'Desserrer le bouchon de vidange',tool:'cliquet',sock:skP,hold:1.4,snd:'ratchet',ord:30,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:lw()||bacw||levelOK(c,'huile')||null,fix:lf(),do:()=>{O.plug=1;F.p.huile=1;}});
-  else if(O.plug===1) a.push({key:'pl0',lab:'Retirer le bouchon à la main : l\'huile s\'écoule',tool:'main',hold:.7,snd:'screw',ord:31,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:bacw,do:()=>{O.plug=0;O.on=1;binAdd('bouchon');}});
-  else if(O.plug===0) a.push({key:'pl3',lab:'Reposer le bouchon avec un joint neuf',tool:'main',hold:1.0,snd:'screw',ord:50,exp:1,min:2,ph:['huile','pose'],why:O.on?"Attendez : l'huile s'écoule encore.":needNew(c,'huile'),do:()=>{O.plug=3;binTake('bouchon');}});
-  else if(O.plug===3) a.push({key:'pl2',lab:'Serrer le bouchon au couple',tool:'cle_dyn',sock:skP,hold:1.0,snd:'click',ord:51,exp:1,min:2,ph:['huile','pose'],do:()=>{O.plug=2;if(doDepL(R,'huile')) doPoseL(R,'huile');}});
+  /* un seul geste au cliquet pour dévisser complètement (plus de « desserrer » puis « retirer à la main ») */
+  if(O.plug===2) a.push({key:'pl1',lab:'Dévisser le bouchon de vidange : l\'huile s\'écoule',tool:'cliquet',sock:skP,hold:2.0,
+   snd:'ratchet',ord:30,exp:wantO()&&O.drain<1,min:3,ph:['huile','dep'],why:lw()||bacw||levelOK(c,'huile')||null,fix:lf(),
+   do:()=>{O.plug=0;O.on=1;F.p.huile=1;binAdd('bouchon');}});
+  /* un seul geste à la clé dynamométrique pour revisser (joint neuf) et serrer au couple */
+  else if(O.plug===0) a.push({key:'pl2',lab:'Visser le bouchon avec un joint neuf et le serrer au couple',tool:'cle_dyn',sock:skP,hold:1.6,
+   snd:'click',ord:50,exp:1,min:4,ph:['huile','pose'],why:O.on?"Attendez : l'huile s'écoule encore.":needNew(c,'huile'),
+   do:()=>{O.plug=2;binTake('bouchon');if(doDepL(R,'huile')) doPoseL(R,'huile');}});
   else a.push({key:'plin',lab:'Inspecter le carter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'huile');inspMsg(R,'huile');}});
   if(O.plug===2) a.push({key:'plinsp',lab:"Inspecter l'huile",insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'huile');inspMsg(R,'huile');}});
   return a;}});
@@ -13207,12 +13245,16 @@ function buildVidange(R){
  const fn=()=>cart?'Filtre à huile (cartouche dans son boîtier)':'Filtre à huile';
  R.add({id:'filt',o:fAt,r:.07,vis:()=>lifted(),name:fn,acts:()=>{
   const a=[],bacw=O.bac?null:'Placez d\'abord le bac sous le carter.',sk=cart?skC:0;
-  if(O.filt==='on') a.push({key:'f1',lab:cart?'Dévisser le couvercle du boîtier de filtre':'Desserrer le filtre à huile',tool:cart?'cliquet':'cle_filtre',sock:sk||undefined,hold:1.2,snd:'ratchet',ord:35,exp:wantF(),min:2,ph:['filtre_huile','dep'],why:lw()||bacw,fix:lf(),do:()=>{O.filt='loose';F.p.filtre_huile=1;}},
+  const fLab=cart?'Dévisser le couvercle du boîtier de filtre et sortir la cartouche':'Dévisser le filtre à huile et le déposer';
+  if(O.filt==='on') a.push({key:'f1',lab:fLab,tool:cart?'cliquet':'cle_filtre',sock:sk||undefined,hold:1.8,snd:'ratchet',ord:35,
+    exp:wantF(),min:4,ph:['filtre_huile','dep'],why:lw()||bacw,fix:lf(),do:()=>{O.filt='off';F.p.filtre_huile=1;doDepL(R,'filtre_huile');}},
    {key:'fi',lab:'Inspecter le filtre',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'filtre_huile');inspMsg(R,'filtre_huile');}});
-  else if(O.filt==='loose') a.push({key:'f0',lab:cart?'Sortir la cartouche usagée':'Dévisser le filtre à la main et le déposer',tool:'main',hold:.8,snd:'screw',ord:36,exp:wantF(),min:2,ph:['filtre_huile','dep'],do:()=>{O.filt='off';doDepL(R,'filtre_huile');}});
-  else if(O.filt==='off'&&!O.fg) a.push({key:'fg',lab:cart?'Huiler les joints de la cartouche neuve':'Huiler le joint du filtre neuf',tool:'bidon',hold:.7,snd:'pour',ord:44,exp:1,min:2,ph:['filtre_huile','pose'],why:needNew(c,'filtre_huile'),do:()=>{O.fg=1;}});
-  else if(O.filt==='off') a.push({key:'fs',lab:cart?'Poser la cartouche et visser le couvercle':'Visser le filtre neuf à la main',tool:'main',hold:1.3,snd:'screw',ord:45,exp:1,min:2,ph:['filtre_huile','pose'],do:()=>{O.filt='new';doPoseL(R,'filtre_huile');}});
-  else if(O.filt==='new'&&cart) a.push({key:'ft',lab:'Serrer le couvercle au couple',tool:'cle_dyn',sock:skC,hold:1.0,snd:'click',ord:46,exp:0,do:()=>{O.filt='tight';}});
+  else if(O.filt==='off'&&!O.fg) a.push({key:'fg',lab:cart?'Huiler les joints de la cartouche neuve':'Huiler le joint du filtre neuf',
+    tool:'bidon',hold:.7,snd:'pour',ord:44,exp:1,min:2,ph:['filtre_huile','pose'],why:needNew(c,'filtre_huile'),do:()=>{O.fg=1;}});
+  /* cartouche : le couvercle se serre au couple d'un seul geste (plus de « poser à la main » puis « serrer ») */
+  else if(O.filt==='off') a.push({key:'fs',lab:cart?'Poser la cartouche et serrer le couvercle au couple':'Visser le filtre neuf (serrage à la main)',
+    tool:cart?'cle_dyn':'main',sock:cart?skC:undefined,hold:cart?1.6:1.3,snd:cart?'click':'screw',ord:45,exp:1,min:2,ph:['filtre_huile','pose'],
+    do:()=>{O.filt=cart?'tight':'new';doPoseL(R,'filtre_huile');}});
   return a;}});
  /* ── remplissage ── */
  const topWhy=()=>lifted()?'Baissez le pont avant de remplir.':(c.st.capot?null:'Ouvrez le capot.');
@@ -13309,11 +13351,16 @@ function buildGeneric(R,sp){
  const ph0=(ph)=>[id,ph];
  const reqFix=(sp.nfix||0)-(sp.optFix||0);
  const done=()=>!!c.done[id];
+ /* dépose de la pièce usée (un seul exemplaire) ; les pièces à plusieurs exemplaires gardent un geste par exemplaire */
+ const deposer=i=>{S.x[i]=1;F.p[id]=1;if(S.x.every(v=>v>=1)) doDepL(R,id);};
+ /* pièce simple, sans couvercle, à la main ou avec l'outil des fixations : la dernière fixation retirée dépose aussi la pièce */
+ const autoDepose=units===1&&(sp.nfix||0)>0&&!sp.cover&&(!sp.depTool||sp.depTool==='main'||sp.depTool===(sp.fixTool||'cliquet'));
  /* fixations */
  fixObjs.forEach((m,i)=>R.add({id:'fx:'+id+':'+i,o:m,r:.028,vis:visOK,name:()=>`${sp.fixName||'Vis'} · ${pname(c,id).replace(/ \(.*/,'')}`,acts:()=>{
   const a=[];
   if(S.f[i]) a.push({key:'fo'+id+i,lab:sp.fixLab||'Dévisser',tool:sp.fixTool||'cliquet',sock:sp.fixTool==='cliquet'||!sp.fixTool?sk:undefined,hold:sp.fixHold||.9,snd:sp.fixTool==='main'?'screw':'ratchet',ord:30+i*.1+(sp.ord||0),exp:w(),min:1,ph:ph0('dep'),
-   why:need()||levelOK(c,id)||toolGate(c,id)||(sp.cover&&!S.cv?null:null),fix:fixFix(),do:()=>{S.f[i]=0;F.p[id]=1;binAdd(sp.bin||'vis');}});
+   why:need()||levelOK(c,id)||toolGate(c,id),fix:fixFix(),
+   do:()=>{S.f[i]=0;F.p[id]=1;binAdd(sp.bin||'vis');if(autoDepose&&S.f.every(v=>!v)) deposer(0);}});
   else a.push({key:'fr'+id+i,lab:sp.fixRe||'Revisser',tool:sp.fixTool||'cliquet',sock:sp.fixTool==='cliquet'||!sp.fixTool?sk:undefined,hold:sp.fixHold||.9,snd:sp.fixTool==='main'?'screw':'ratchet',ord:58+i*.1+(sp.ord||0),exp:i<reqFix||true,min:1,ph:ph0('pose'),
    why:(sp.cover?(S.cv?null:'Remettez d\'abord le couvercle.'):(S.x[0]!==2&&!sp.units&&S.x[0]===1?'Posez d\'abord la pièce neuve.':null)),do:()=>{S.f[i]=1;binTake(sp.bin||'vis');}});
   if(S.f[i]) a.push({key:'fi'+id+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,id);inspMsg(R,id);}});
@@ -13327,7 +13374,7 @@ function buildGeneric(R,sp){
   const wu=need()||levelOK(c,id)||toolGate(c,id);
   if(x===0){
    a.push({key:'po'+id+un.i,lab:units>1?sp.depLab||'Déposer':(sp.depLab||'Déposer la pièce usée'),tool:sp.depTool||'main',sock:sp.depSock?sockOf(c,sp.depSock):undefined,hold:sp.depHold||.7,snd:sp.depTool==='cliquet'?'ratchet':'screw',ord:36+un.i*.1+(sp.ord||0),exp:w(),min:2,ph:ph0('dep'),
-    why:wu||((sp.nfix||sp.cover)&&!fixOff?'Retirez d\'abord les fixations.':null),fix:fixFix(),do:()=>{S.x[un.i]=1;F.p[id]=1;if(S.x.every(v=>v>=1)) doDepL(R,id);}});
+    why:wu||((sp.nfix||sp.cover)&&!fixOff?'Retirez d\'abord les fixations.':null),fix:fixFix(),do:()=>deposer(un.i)});
    a.push({key:'pi'+id+un.i,lab:'Inspecter',insp:1,tool:'main',ord:300,why:need(),do:()=>{L().doInspect(c,id);inspMsg(R,id);}});}
   else if(x===1) a.push({key:'pn'+id+un.i,lab:units>1?sp.poseLab||'Poser la pièce neuve':(sp.poseLab||'Monter la pièce neuve'),tool:sp.poseTool||'main',sock:sp.poseSock?sockOf(c,sp.poseSock):undefined,hold:sp.poseHold||.8,snd:sp.poseTool==='cliquet'?'ratchet':'screw',ord:44+un.i*.1+(sp.ord||0),exp:1,min:2,ph:ph0('pose'),why:needNew(c,id),
    do:()=>{S.x[un.i]=2;if(S.x.every(v=>v===2)) doPoseL(R,id);}});
@@ -13400,26 +13447,24 @@ function buildChDecor(R){
 BUILD.push(buildChDecor);
 
 /* ═══════════ Bougies (allumage ou préchauffage) et courroie d'accessoires : gestes détaillés ═══════════ */
-/* essence : connecteur, vis et bobine crayon, bougie dévissée à la douille à bougie, écartement contrôlé, bougie neuve engagée à la main,
-   serrage au couple, bobine, vis, connecteur. Diesel : écrou et cosse d'alimentation, bougie de préchauffage dévissée doucement. */
+/* essence : connecteur, vis + bobine crayon (un seul geste au cliquet), bougie dévissée à la douille à bougie, écartement contrôlé, bougie neuve
+   vissée et serrée au couple (un seul geste à la clé dynamométrique), bobine + vis (un seul geste), connecteur. Diesel : écrou + cosse
+   d'alimentation (un geste), bougie de préchauffage dévissée doucement, vissée et serrée au couple (un geste), cosse + écrou (un geste).
+   `out` : geste qui sort la bougie usée ; `coil` : [premier, dernier + 1] des états où la bobine (ou la cosse) est déposée. */
 const PLUG_E=[
  {lab:'Débrancher le connecteur de la bobine',tool:'main',hold:.5,snd:'clunk',ph:'dep'},
- {lab:'Dévisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1},
- {lab:'Extraire la bobine crayon',tool:'main',hold:.6,snd:'clunk',ph:'dep'},
+ {lab:'Dévisser la vis de la bobine et extraire la bobine crayon',tool:'cliquet',sock:'clip',hold:1.2,snd:'ratchet',ph:'dep',bin:1},
  {lab:'Dévisser la bougie usée (douille à bougie et rallonge)',tool:'cliquet',sock:'plugs',hold:1.3,snd:'ratchet',ph:'dep',out:1},
- {lab:'Engager la bougie neuve à la main, sans forcer',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1,gap:1},
- {lab:'Serrer la bougie au couple (25 N·m)',tool:'cle_dyn',sock:'plugs',hold:.9,snd:'click',ph:'pose'},
- {lab:'Remettre la bobine',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
- {lab:'Revisser la vis de la bobine',tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1},
+ {lab:'Visser la bougie neuve et la serrer au couple (25 N·m)',tool:'cle_dyn',sock:'plugs',hold:1.6,snd:'click',ph:'pose',need:1,gap:1},
+ {lab:'Remettre la bobine et revisser sa vis',tool:'cliquet',sock:'clip',hold:1.0,snd:'ratchet',ph:'pose',bin:-1},
  {lab:'Rebrancher le connecteur (clic)',tool:'main',hold:.4,snd:'click',ph:'pose'}];
+PLUG_E.coil=[2,5];
 const PLUG_D=[
- {lab:"Dévisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'dep',bin:1,bk:'cosse'},
- {lab:"Retirer la cosse d'alimentation",tool:'main',hold:.5,snd:'clunk',ph:'dep'},
+ {lab:"Dévisser l'écrou de la cosse et retirer la cosse d'alimentation",tool:'cliquet',sock:'clip',hold:1.0,snd:'ratchet',ph:'dep',bin:1,bk:'cosse'},
  {lab:'Dévisser la bougie de préchauffage (doucement : elle casse facilement)',tool:'cliquet',sock:'glow',hold:1.7,snd:'ratchet',ph:'dep',out:1},
- {lab:'Visser la bougie de préchauffage neuve à la main',tool:'main',hold:.9,snd:'screw',ph:'pose',need:1},
- {lab:'Serrer au couple (15 N·m)',tool:'cle_dyn',sock:'glow',hold:.9,snd:'click',ph:'pose'},
- {lab:'Remettre la cosse',tool:'main',hold:.5,snd:'clunk',ph:'pose'},
- {lab:"Revisser l'écrou de la cosse",tool:'cliquet',sock:'clip',hold:.8,snd:'ratchet',ph:'pose',bin:-1,bk:'cosse'}];
+ {lab:'Visser la bougie de préchauffage neuve et la serrer au couple (15 N·m)',tool:'cle_dyn',sock:'glow',hold:1.6,snd:'click',ph:'pose',need:1},
+ {lab:"Remettre la cosse et revisser son écrou",tool:'cliquet',sock:'clip',hold:1.0,snd:'ratchet',ph:'pose',bin:-1,bk:'cosse'}];
+PLUG_D.coil=[1,3];
 const plugSteps=c=>{try{return MWCARS.get(c.mdl).eng.fuel==='diesel'?PLUG_D:PLUG_E;}catch(e){return PLUG_E;}};
 /* courroie : repérer le passage, détendre et bloquer le tendeur, sortir la courroie, contrôler les galets, passer la neuve,
    libérer le tendeur, vérifier l'alignement dans toutes les gorges */
@@ -13429,6 +13474,7 @@ function buildPlugsBelt(R){
   const steps=plugSteps(c),diesel=steps===PLUG_D,e=c.mdl&&MWCARS.get(c.mdl)?MWCARS.get(c.mdl).eng:null,n=Math.min(e?e.n:4,8);
   if(!F.bp||F.bp.st.length!==n) F.bp={st:new Array(n).fill(0),gap:0};
   const B=F.bp,OUT=steps.findIndex(x=>x.out)+1,END=steps.length;
+  B.st=B.st.map(x=>Math.min(x,END)); /* ancienne partie : plus d'étapes qu'aujourd'hui */
   const want=()=>wanted(c,'bougies')||!!F.p.bougies;
   const at=i=>{const b=bayG(R),cs=b&&b.userData.coils;if(cs&&cs[i]) return cs[i].p.clone().add(V3(0,-.03,0));const a=R.A('coils');return V3(a.x+(i-(n-1)/2)*.08,a.y+.05,a.z);};
   const U=[];
@@ -13450,7 +13496,7 @@ function buildPlugsBelt(R){
     if(k===0) a.push({key:'bpi'+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'bougies');inspMsg(R,'bougies');}});
     return a;}});}
   R.blk.hood.push(()=>B.st.some(x=>x>0&&x<END)?(diesel?'Remontez toutes les bougies de préchauffage et leurs cosses.':'Remontez toutes les bougies, bobines et connecteurs.'):null);
-  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
+  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=k>=steps.coil[0]&&k<steps.coil[1];
    u.coil.position.set(coilOut?.07:0,coilOut?.1:0,0);u.coil.rotation.z=coilOut?.6:0;
    u.plugOld.visible=k<OUT;u.plugOld.position.y=k===OUT-1?.006:0;u.plugNew.visible=k>=OUT+1;});}});}
  if(partOK(c,'courroie_acc')){
@@ -13574,7 +13620,11 @@ function tick(dt){
  if(!MW.S||!MW.S.jobs) return;
  animTick(dt);vmTick(dt);
  const act=on();
- if(!act){if(R) freeRig();if(UI){for(const k of ['tb','info','hold','hint','aux','bin']) UI[k].hidden=true;}return;}
+ if(!act){
+  if(zoomOpen()) MWZ.leave(true);
+  if(R) freeRig();
+  if(UI){for(const k of ['tb','info','hold','hint','aux','bin']) UI[k].hidden=true;}
+  return;}
  const pl=MW.player(),cars=MWJ.jobs(),essai=MWJ.state().essai;
  if(R&&(!cars.includes(R.c)||!MWJ.mesh(R.c)||pontD(R.c)>8.5||essai)) freeRig();
  if(R&&!R.bayAt&&R.g.userData.bay&&!H){const c=R.c;freeRig();buildRig(c);} /* le capot vient de s'ouvrir : cibles du moteur à leur vraie place */
@@ -13629,16 +13679,43 @@ function settings(){
  const b=(a,t,on_)=>`<button type="button" class="btn sm${on_?'':' ghost'}" data-mw="${a}">${t}</button>`;
  MW.panel('Gestes de mécanicien',`<p class="hint">Visez une vis ou une pièce : son nom s'affiche. <b>E</b> fait le geste, <b>maintenir E</b> dévisse ou serre. Outils : touches <b>1 à 0</b> ou molette ; <b>R</b> change la douille.</p>
   <p><b>Aide</b> (surligne l'étape suivante)</p><div class="mw-btns">${b('a:auto','Automatique (premiers travaux)',g.aide==='auto')}${b('a:on','Toujours',g.aide==='on')}${b('a:off','Jamais',g.aide==='off')}</div>
-  <p><b>Présentation</b></p><div class="mw-btns">${b('m:real','Gestes réalistes',!g.classic)}${b('m:classic','Menus simples',g.classic)}</div>`,
-  {onClick:a=>{const [k,v]=a.split(':');if(k==='a') g.aide=v;else if(k==='m') g.classic=v==='classic';lastTb='';settings();if(g.classic&&R) freeRig();}});}
+  <p><b>Présentation</b></p><div class="mw-btns">${b('m:real','Gestes réalistes',!g.classic)}${b('m:classic','Menus simples',g.classic)}</div>
+  <p><b>Vue rapprochée</b> (E sur un élément : la caméra s'approche, la souris devient un viseur libre)</p>
+  <div class="mw-btns">${b('z:on','Activée',g.zoom!==false)}${b('z:off','Désactivée (viseur au centre, mode classique)',g.zoom===false)}</div>`,
+  {onClick:a=>{
+   const [k,v]=a.split(':');
+   if(k==='a') g.aide=v;
+   else if(k==='m') g.classic=v==='classic';
+   else if(k==='z') g.zoom=v==='on';
+   lastTb='';settings();
+   if(g.classic&&R) freeRig();}});}
 function init(){
  if(!MW.S) return;gs();ensureUI();
  if(R) freeRig();}
+/* texte de l'invite « [E] … » affichée en bas de l'écran pour la cible visée */
+function aimLabel(){
+ if(zoomOpen()) return 'Quitter la vue rapprochée';
+ if(!AIM) return '';
+ const a=AIM.a;
+ if(a.why) return a.lab+' (impossible pour l\'instant)';
+ const w=checkAct(a);
+ if(!w||aideOn()) return a.lab;
+ const t=a.tool!==tool&&!(a.tool2&&a.tool2===tool)?TOOL[a.tool]:null;
+ const outil=t?t.nom.toLowerCase()+(t.key?' ('+t.key+')':''):'';
+ const douille=a.sock&&(t||sock!==a.sock)?'douille de '+a.sock+' (R)':'';
+ return `${a.lab} — prenez d'abord ${outil}${t&&a.sock?', ':''}${douille}`;}
+/* ── vue rapprochée (module js/46z) : E sur un élément ouvre le cadrage serré, E dans le cadrage le referme ── */
+const zoomOpen=()=>typeof MWZ!=='undefined'&&MWZ.active();
+function zoomUse(){
+ if(zoomOpen()){MWZ.leave();return true;}
+ if(!AIM||!zoomPref()) return false;
+ return MWZ.enter(AIM.t,AIM.a);}
 let wired=false;
 function wire(){
  if(wired) return;wired=true;
- aimI=MW.addInteract({id:'mg:aim',x:0,z:0,r:1.2,label:()=>{if(!AIM) return '';const a=AIM.a;if(a.why) return a.lab+' (impossible pour l\'instant)';const w=checkAct(a);if(!w||aideOn()) return a.lab;
-  const t=a.tool!==tool&&!(a.tool2&&a.tool2===tool)?TOOL[a.tool]:null;return `${a.lab} — prenez d'abord ${t?t.nom.toLowerCase()+(t.key?' ('+t.key+')':''):''}${t&&a.sock?', ':''}${a.sock&&(t||sock!==a.sock)?'douille de '+a.sock+' (R)':''}`;},when:()=>!!AIM&&on()&&!MW.paused,use:()=>{if(!on()) return;eDown=true;startAct();}});
+ aimI=MW.addInteract({id:'mg:aim',x:0,z:0,r:1.2,label:aimLabel,
+  when:()=>(!!AIM||zoomOpen())&&on()&&!MW.paused,
+  use:()=>{if(!on()) return;if(zoomUse()) return;eDown=true;startAct();}});
  window.addEventListener('keydown',e=>{if(e.key&&e.key.toLowerCase()==='e'&&!e.repeat) eDown=true;},true);
  window.addEventListener('keyup',e=>{if(e.key&&e.key.toLowerCase()==='e') onRelease();},true);
  window.addEventListener('blur',()=>onRelease());
@@ -13652,7 +13729,7 @@ function wire(){
  MW.addButton('gestes','Gestes (G)',()=>{if(MW.S) settings();});}
 MW.on('start',()=>{wire();init();});
 MW.on('open',()=>{wire();ensureUI();});
-MW.on('close',()=>{if(R) freeRig();});
+MW.on('close',()=>{if(zoomOpen()) MWZ.leave(true);if(R) freeRig();});
 MW.on('tick',tick);
 
 Object.assign(api,{
@@ -13679,7 +13756,309 @@ Object.assign(api,{
  holding:()=>H&&R&&R.c?{car:R.c.id,target:H.t.id}:null,
  refresh:()=>{if(R) syncAll(true);},
  startHold:(id,key)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return false;AIM={t,a:actsOf(t).find(x=>!key||x.key===key)};eDown=true;startAct();return !!H;},
- spendAll:()=>{}});
+ spendAll:()=>{},
+ /* ── points d'accroche de la vue rapprochée (js/46z) ── */
+ zoomPref,actsOf,worldOf,visOf,checkAct,cycleSock,
+ hintTarget:()=>HINT?HINT.t:null,
+ setAimRay:f=>{aimRay=f||null;},
+ aimNow:()=>aimUpdate(),
+ pointerDown:()=>{eDown=true;startAct();},
+ pointerUp:()=>onRelease(),
+ holding2:()=>!!H,
+ cancelHold:()=>{if(H){if(H.a.cancel) H.a.cancel(H);H=null;setHold(0);vmWork(0);}eDown=false;}});
+return api;
+})();
+
+/* ───────────── Mode « Mécanicien » — VUE RAPPROCHÉE (« atelier rapproché ») ─────────────
+
+   Pourquoi : viser avec le centre de l'écran une vis de 1 cm à 2 m de distance est pénible. Quand le joueur fait E sur un élément
+   mécanique (bouchon, filtre, roue, étrier, bougie, batterie, courroie…), la caméra glisse en douceur vers un cadrage serré de la
+   zone ; le joueur ne bouge plus ; la souris devient un VISEUR LIBRE : on clique directement sur la vis ou la pièce voulue.
+
+   Comment ça marche, en quatre morceaux :
+   1. Le GROUPE : toutes les cibles du rig (js/46) situées à moins de RAYON_GROUPE mètres de l'élément visé (le bouchon et le filtre,
+      les cinq écrous d'une roue et son frein…). Les positions viennent des cibles elles-mêmes : rien n'est écrit en dur, donc
+      cela marche sur toutes les voitures, pont levé ou non.
+   2. Le CADRAGE : la boîte qui entoure le groupe donne un centre et un rayon ; la caméra se place sur la ligne « yeux du joueur →
+      centre » à la distance qui fait entrer le groupe dans l'écran (donc par-dessous si le joueur est sous la voiture).
+   3. La CAMÉRA : js/40 appelle `MW.camHook` juste avant le rendu ; on y mélange la caméra normale (celle du joueur) et la caméra
+      du cadrage avec un coefficient qui va de 0 à 1 à l'entrée et de 1 à 0 à la sortie. Comme on mélange avec la caméra normale
+      « vivante », la sortie rejoint toujours la vue du joueur, même s'il a bougé.
+   4. Le VISEUR : le pointeur de la souris (ou le doigt) donne un rayon à js/46 (`MWG.setAimRay`) qui choisit la cible comme
+      d'habitude (surbrillance, nom, outil pris automatiquement si l'aide est active). Appui = geste ; appui maintenu = geste long.
+
+   Sortie : Échap, clic droit, E, bouton « Retour », ou automatiquement quand il n'y a plus rien à faire dans le groupe
+   (la sous-tâche est finie : filtre posé, dernier écrou retiré…).
+
+   ═══ API `MWZ` ═══
+   MWZ.enter(cible, action)  entre en vue rapprochée sur une cible du rig ; renvoie faux si ce n'est pas possible (la cible n'est pas
+                             un élément mécanique, l'action est bloquée…) : js/46 fait alors le geste normalement
+   MWZ.leave(immediat)       revient à la vue normale (immediat = sans animation)
+   MWZ.active()              vrai dès l'entrée et jusqu'à la fin du retour ; MWZ.ready() : vrai quand le cadrage est atteint
+   MWZ.screenOf(id)          position écran {x, y} (pixels de la page) d'une cible du rig, ou null (sert aux tests)
+   MWZ.state()               {on, k, groupe:[ids], faits} pour les tests
+   Réglage : MW.S.gest.zoom (faux = mode classique) ; touche G.
+   Points d'accroche : MW.camHook, MW.keyHook, MW.frozen, MW.releaseLock (js/40) ; MWG.setAimRay, pointerDown/Up, actsOf, worldOf… (js/46). */
+const MWZ=(()=>{
+const T=THREE;
+
+/* ═══════════ Réglages (modifiables sans risque) ═══════════ */
+const DUREE_ENTREE=.42;      /* secondes : glissement vers le cadrage */
+const DUREE_SORTIE=.36;      /* secondes : retour à la vue normale */
+const RAYON_GROUPE=.38;      /* mètres : les cibles plus proches que cela de l'élément visé font partie de la même zone de travail */
+const RAYON_MIN=.10;         /* mètres : on ne cadre jamais plus serré que cela (une seule vis) */
+const RAYON_MAX=.55;
+const DISTANCE_MIN=.34;      /* mètres entre la caméra et le centre du cadrage */
+const DISTANCE_MAX=1.7;
+const MARGE=1.3;             /* > 1 : de l'air autour du groupe */
+const HAUTEUR_MIN_CAMERA=.55; /* la caméra ne descend jamais dans le sol */
+const ANGLE_PAR_DESSOUS=52;  /* degrés : pour une pièce sous la voiture, la caméra regarde vers le haut avec cet angle */
+const DELAI_FIN=.55;         /* secondes entre le dernier geste utile et le retour automatique */
+/* cibles du rig qui ne sont PAS des éléments mécaniques : elles gardent le geste direct (servante, commandes, bac, noms de pièces…) */
+const EXCLUS=/^(servante|lift|hood|door|pdoor|pedal|bac|nm:)/;
+/* touches de déplacement : sans effet pendant la vue rapprochée */
+const TOUCHES_MARCHE=['z','q','s','d','w','a','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift'];
+
+/* ═══════════ État ═══════════ */
+const Z={
+ on:false,           /* vue rapprochée ouverte (entrée, cadrage ou sortie en cours) */
+ sortie:false,       /* retour en cours */
+ k:0,                /* progression 0 (vue normale) → 1 (cadrage atteint) */
+ groupe:[],          /* cibles de la zone de travail */
+ pose:null,          /* {pos, quat} : la caméra du cadrage */
+ distance:1,         /* distance caméra → centre, sert à la taille des pastilles */
+ ptr:{x:0,y:0},      /* pointeur, en pixels de la page */
+ faits:0,            /* nombre de gestes faits depuis l'entrée */
+ finT:0,             /* compte à rebours du retour automatique */
+ verrou:false,       /* le pointeur était verrouillé (souris) : on le reverrouille en sortant */
+ ui:null,            /* éléments de l'interface */
+ pastilles:new Map()};
+const api={};
+const v1=new T.Vector3(),v2=new T.Vector3(),v3=new T.Vector3(),q1=new T.Quaternion(),m1=new T.Matrix4();
+const rig=()=>MWG.rig();
+const lissage=k=>k*k*(3-2*k);
+
+/* ═══════════ 1. Le groupe de cibles ═══════════ */
+/* une cible est « utilisable » si elle est visible maintenant et a au moins une action */
+function utilisable(t){
+ if(t.vis&&!t.vis()) return false;
+ const o=typeof t.o==='function'?t.o():t.o;
+ if(!o||!MWG.visOf(o.parent||o)) return false;
+ return MWG.actsOf(t).length>0;}
+const estMecanique=t=>!EXCLUS.test(t.id);
+/* une action vaut un zoom si c'est un vrai geste : ni refusé, ni simple inspection */
+const estGeste=a=>!!a&&!a.why&&!a.insp;
+function constituerGroupe(cible){
+ const centre=MWG.worldOf(cible,new T.Vector3());
+ const groupe=[];
+ for(const t of rig().tg){
+  if(!estMecanique(t)) continue;
+  const p=MWG.worldOf(t,v1);
+  if(p&&p.distanceTo(centre)<=RAYON_GROUPE) groupe.push(t);}
+ return groupe;}
+/* y a-t-il encore un geste attendu dans la zone ? (sinon la sous-tâche est finie) */
+function resteAFaire(){
+ return Z.groupe.some(t=>utilisable(t)&&MWG.actsOf(t).some(a=>estGeste(a)&&a.exp));}
+
+/* ═══════════ 2. Le cadrage ═══════════ */
+/* boîte englobante des cibles visibles du groupe → {centre, rayon} */
+function boiteDuGroupe(groupe){
+ const boite=new T.Box3();
+ for(const t of groupe){
+  if(!utilisable(t)) continue;
+  const p=MWG.worldOf(t,v1);if(!p) continue;
+  const r=t.r||.05;
+  boite.expandByPoint(v2.copy(p).addScalar(r));
+  boite.expandByPoint(v2.copy(p).addScalar(-r));}
+ if(boite.isEmpty()) return null;
+ const centre=boite.getCenter(new T.Vector3());
+ const rayon=Math.min(RAYON_MAX,Math.max(RAYON_MIN,boite.getSize(v3).length()/2));
+ return {centre,rayon};}
+/* distance à laquelle un cercle de rayon `rayon` remplit l'écran (dans la plus petite des deux directions) */
+function distanceDeCadrage(rayon){
+ const cam=MW.cam,fovV=cam.fov*Math.PI/180;
+ const fovH=2*Math.atan(Math.tan(fovV/2)*cam.aspect);
+ const d=rayon/Math.sin(Math.min(fovV,fovH)/2)*MARGE;
+ return Math.min(DISTANCE_MAX,Math.max(DISTANCE_MIN,d));}
+/* zone de la pièce qu'une cible représente (js/41 : PARTS[id].zone = 'capot' | 'dessous' | 'roue' | 'cabine'), ou null */
+function zoneDeCible(t){
+ if(t.id==='plug'||t.id==='filt') return 'dessous';   /* bouchon de vidange et filtre à huile : ils n'ont pas de fiche de pièce propre */
+ const m=/^(?:pt|fx|cv):([^:]+)/.exec(t.id),p=m&&MWJ.PARTS[m[1]];
+ return p?p.zone:null;}
+/* pièce sous une voiture levée : on la regarde par-dessous, comme le mécanicien debout sous le pont (et non de côté, à travers les bas de caisse) */
+const vueParDessous=t=>zoneDeCible(t)==='dessous'&&!!rig().c.st.lifted;
+/* direction du regard : des yeux vers le centre, ou, par-dessous, vers le haut en gardant le côté d'où vient le joueur */
+function directionDuRegard(oeil,centre,parDessous){
+ const dir=v1.copy(centre).sub(oeil);
+ if(!parDessous){
+  if(dir.lengthSq()<1e-4) dir.set(0,0,1);
+  return dir.normalize();}
+ dir.y=0;
+ if(dir.lengthSq()<1e-4) dir.set(Math.sin(rig().p.ry),0,Math.cos(rig().p.ry));
+ const a=ANGLE_PAR_DESSOUS*Math.PI/180;
+ dir.normalize().multiplyScalar(Math.cos(a));
+ dir.y=Math.sin(a);
+ return dir;}
+/* la caméra du cadrage : sur la ligne de regard, `distance` avant le centre, regard vers le centre */
+function calculerPose(oeil,centre,distance,parDessous){
+ const dir=directionDuRegard(oeil,centre,parDessous);
+ const pos=centre.clone().addScaledVector(dir,-distance);
+ pos.y=Math.max(pos.y,HAUTEUR_MIN_CAMERA);
+ /* regard presque vertical (sous la voiture) : « le haut » de l'image est alors l'avant de la voiture */
+ const haut=Math.abs(dir.y)>.97?v2.set(Math.sin(rig().p.ry),0,Math.cos(rig().p.ry)):v2.set(0,1,0);
+ m1.lookAt(pos,centre,haut);
+ return {pos,quat:new T.Quaternion().setFromRotationMatrix(m1)};}
+
+/* ═══════════ 3. La caméra ═══════════ */
+/* appelé par js/40 à chaque image, juste avant le rendu : `cam` porte déjà la vue normale du joueur */
+function crochetCamera(cam,dt){
+ if(!Z.on) return;
+ const pas=dt/(Z.sortie?DUREE_SORTIE:DUREE_ENTREE);
+ Z.k=Z.sortie?Math.max(0,Z.k-pas):Math.min(1,Z.k+pas);
+ if(Z.sortie&&Z.k<=0){terminer();return;}
+ const e=lissage(Z.k);
+ cam.position.lerp(Z.pose.pos,e);
+ cam.quaternion.slerp(Z.pose.quat,e);}
+
+/* ═══════════ 4. Le viseur libre ═══════════ */
+function lookEl(){return document.getElementById('mwLook');}
+/* rayon de visée donné à js/46 : part de la caméra, passe par le pointeur */
+function rayonDuPointeur(){
+ const r=lookEl().getBoundingClientRect(),cam=MW.cam;
+ const nx=(Z.ptr.x-r.left)/Math.max(1,r.width)*2-1,ny=-((Z.ptr.y-r.top)/Math.max(1,r.height))*2+1;
+ const d=v1.set(nx,ny,.5).unproject(cam).sub(cam.position).normalize();
+ return {o:cam.position,d,only:Z.groupe};}
+function placerPointeur(e){
+ Z.ptr.x=e.clientX;Z.ptr.y=e.clientY;
+ const racine=document.getElementById('mwRoot').getBoundingClientRect();
+ const style=document.getElementById('mwRoot').style;
+ style.setProperty('--px',(e.clientX-racine.left)+'px');
+ style.setProperty('--py',(e.clientY-racine.top)+'px');}
+const bloquer=e=>{e.stopImmediatePropagation();};
+const quandPointeurBouge=e=>{placerPointeur(e);bloquer(e);};
+function quandAppui(e){
+ bloquer(e);
+ if(Z.sortie) return;
+ if(e.button===2){e.preventDefault();api.leave();return;}   /* clic droit : retour */
+ if(e.button!==0) return;
+ placerPointeur(e);
+ MWG.aimNow();                                              /* la visée doit être celle de CE pixel, pas celle de l'image précédente */
+ MWG.pointerDown();}
+function quandRelache(e){bloquer(e);MWG.pointerUp();}
+/* molette : change de douille si l'outil en main en a une ; sinon on laisse js/46 changer d'outil */
+function quandMolette(e){
+ const outil=MWG.tools.find(t=>t.id===MWG.curTool());
+ if(!outil||!outil.sock) return;
+ e.preventDefault();bloquer(e);
+ MWG.cycleSock(e.deltaY>0?1:-1);}
+const sansMenu=e=>{e.preventDefault();bloquer(e);};
+const ECOUTEURS=[['pointermove',quandPointeurBouge],['pointerdown',quandAppui],['pointerup',quandRelache],['pointercancel',quandRelache],
+ ['click',bloquer],['contextmenu',sansMenu],['wheel',quandMolette]];
+function brancherPointeur(){for(const [n,f] of ECOUTEURS) lookEl().addEventListener(n,f,{capture:true,passive:false});}
+function debrancherPointeur(){for(const [n,f] of ECOUTEURS) lookEl().removeEventListener(n,f,{capture:true});}
+/* touches : Échap et E ramènent la vue normale ; la marche est bloquée ; les autres (outils, R) passent */
+function crochetTouches(k,down){
+ if(!Z.on||Z.sortie||MW.paused) return false;
+ if(k==='Escape'||k==='e'){if(down) api.leave();return true;}
+ return TOUCHES_MARCHE.includes(k);}
+
+/* ═══════════ Interface : pastilles sur les points cliquables, bouton de retour, aide ═══════════ */
+function creerInterface(){
+ if(Z.ui&&Z.ui.isConnected) return Z.ui;
+ const c=document.createElement('div');
+ c.className='mgz';c.hidden=true;
+ c.innerHTML='<div class="mgz-pts"></div><button type="button" class="mgz-quit">✕ Retour</button>'
+  +'<div class="mgz-aide">Cliquez sur la vis ou la pièce · maintenez pour un geste long · molette ou R : douille · clic droit, Échap ou E : retour</div>';
+ document.getElementById('mwRoot').appendChild(c);
+ c.querySelector('.mgz-quit').addEventListener('click',()=>api.leave());
+ Z.ui=c;Z.pastilles.clear();
+ return c;}
+function pastilleDe(t){
+ let p=Z.pastilles.get(t.id);
+ if(!p){p=document.createElement('i');p.className='mgz-dot';Z.ui.firstChild.appendChild(p);Z.pastilles.set(t.id,p);}
+ return p;}
+/* taille en pixels d'une pastille : le rayon réel de la cible vu à la distance de la caméra */
+function taillePastille(t,distance){
+ const hauteur=MW.cam.fov*Math.PI/180,px=(t.r||.05)*2/Math.max(.05,distance)*(Z.ui.clientHeight/(2*Math.tan(hauteur/2)));
+ return Math.max(16,Math.min(120,px));}
+/* texte d'état d'une pastille : prête (action possible), bloquée (il manque une condition), conseillée par l'aide */
+function etatPastille(t,vise,conseil){
+ const actions=MWG.actsOf(t),possible=actions.some(estGeste);
+ return 'mgz-dot'+(possible?' ok':' bloque')+(t===conseil?' conseil':'')+(vise&&vise.t===t?' vise':'');}
+function majPastilles(){
+ const racine=document.getElementById('mwRoot').getBoundingClientRect(),conseil=MWG.hintTarget(),vise=MWG.aim();
+ const vus=new Set();
+ for(const t of Z.groupe){
+  if(!utilisable(t)) continue;
+  const p=MWG.worldOf(t,v1);if(!p) continue;
+  const distance=p.distanceTo(MW.cam.position);
+  p.project(MW.cam);
+  if(p.z>1) continue;                                   /* derrière la caméra */
+  const el=pastilleDe(t),taille=taillePastille(t,distance);
+  el.className=etatPastille(t,vise,conseil);
+  el.style.width=el.style.height=taille+'px';
+  el.style.left=((p.x+1)/2*racine.width)+'px';
+  el.style.top=((1-p.y)/2*racine.height)+'px';
+  el.hidden=false;vus.add(t.id);}
+ for(const [id,el] of Z.pastilles) if(!vus.has(id)) el.hidden=true;}
+
+/* ═══════════ Entrée, sortie, fin automatique ═══════════ */
+function peutEntrer(cible,action){
+ if(Z.on||!MWG.rig()||MW.paused) return false;
+ return estMecanique(cible)&&estGeste(action);}
+api.enter=(cible,action)=>{
+ if(!peutEntrer(cible,action)) return false;
+ const groupe=constituerGroupe(cible),boite=boiteDuGroupe(groupe);
+ if(!boite) return false;
+ Z.groupe=groupe;
+ Z.distance=distanceDeCadrage(boite.rayon);
+ Z.pose=calculerPose(MW.cam.position,boite.centre,Z.distance,vueParDessous(cible));
+ Z.k=0;Z.sortie=false;Z.faits=0;Z.finT=0;
+ Z.verrou=!!document.pointerLockElement;
+ if(Z.verrou) MW.releaseLock();                 /* le pointeur redevient visible */
+ const r=lookEl().getBoundingClientRect();
+ Z.ptr.x=r.left+r.width/2;Z.ptr.y=r.top+r.height/2;
+ creerInterface().hidden=false;
+ document.getElementById('mwRoot').classList.add('mgz-on');
+ MW.frozen=true;MW.camHook=crochetCamera;MW.keyHook=crochetTouches;
+ MWG.setAimRay(rayonDuPointeur);
+ brancherPointeur();
+ Z.on=true;
+ return true;};
+api.leave=immediat=>{
+ if(!Z.on) return;
+ MWG.cancelHold();
+ MWG.setAimRay(null);
+ MW.frozen=false;                               /* le joueur peut remarcher tout de suite, la caméra le rejoint en glissant */
+ debrancherPointeur();
+ if(Z.ui) Z.ui.hidden=true;
+ document.getElementById('mwRoot').classList.remove('mgz-on');
+ Z.sortie=true;
+ if(immediat){Z.k=0;terminer();}};
+function terminer(){
+ Z.on=false;Z.sortie=false;Z.k=0;Z.groupe=[];
+ if(MW.camHook===crochetCamera) MW.camHook=null;
+ if(MW.keyHook===crochetTouches) MW.keyHook=null;
+ if(Z.verrou){try{lookEl().requestPointerLock();}catch(e){}Z.verrou=false;}}
+api.active=()=>Z.on;
+api.ready=()=>Z.on&&!Z.sortie&&Z.k>=1;
+/* chaque geste réussi : on note qu'il y en a eu (le retour automatique n'a de sens qu'après un geste) */
+MW.on('geste',()=>{if(Z.on&&!Z.sortie) Z.faits++;});
+/* à chaque image : pastilles, et retour automatique quand la sous-tâche est finie */
+MW.on('tick',dt=>{
+ if(!Z.on||Z.sortie) return;
+ majPastilles();
+ const enGeste=MWG.holding2();
+ if(Z.faits>0&&!enGeste&&!resteAFaire()){Z.finT+=dt;if(Z.finT>=DELAI_FIN) api.leave();}
+ else Z.finT=0;});
+/* pour les tests */
+api.screenOf=id=>{
+ const t=rig()&&rig().tg.find(q=>q.id===id);if(!t) return null;
+ const p=MWG.worldOf(t,new T.Vector3());if(!p) return null;
+ p.project(MW.cam);
+ const r=lookEl().getBoundingClientRect();
+ return {x:r.left+(p.x+1)/2*r.width,y:r.top+(1-p.y)/2*r.height,derriere:p.z>1};};
+api.state=()=>({on:Z.on,k:Z.k,sortie:Z.sortie,faits:Z.faits,groupe:Z.groupe.map(t=>t.id),distance:Z.distance});
 return api;
 })();
 

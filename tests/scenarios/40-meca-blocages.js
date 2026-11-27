@@ -71,7 +71,7 @@ module.exports = async function mecaBlocages(page, env) {
   await attendre(500);
   await e(() => MWG.run('lift', 'raise'));
   await attendreCondition(page, () => __mwj.meshY(__mwj.jobs()[0]) > 1.6, 'le pont ne monte pas', 60000);
-  await e(() => { MWG.run('bac', 'bacon'); MWG.run('plug', 'pl1'); MWG.run('plug', 'pl0'); });
+  await e(() => { MWG.run('bac', 'bacon'); MWG.run('plug', 'pl1'); });
   await attendreCondition(page, () => /s'écoule/.test((document.querySelector('.mg-hint') || {}).textContent || '') && /attendez/.test(document.querySelector('.mg-hint').textContent), "l'aide ne dit pas d'attendre pendant l'écoulement de l'huile", 20000);
   // 15 : trop d'huile versée (neuf litres) puis aspirée à la jauge, capot ouvert
   const p15 = await e(() => { const c = __mwj.jobs()[0], O = c.g.o; c.st.capot = 1; O.pour = 9; O.over = 1; MWG.run('dip', 'asp'); return { pour: O.pour, over: O.over }; });

@@ -92,7 +92,7 @@ module.exports = async function mecaGestes(page, env) {
   await attendreCondition(page, () => MWG.aim() && MWG.aim().t.id === 'plug', "le bouchon de vidange n'est pas visé", 20000);
   await attendreCondition(page, () => /^\[E\]/.test(document.getElementById('mwPrompt').textContent), "aucune invite [E] devant le bouchon", 20000);
   await page.keyboard.down('e');
-  await attendreCondition(page, () => __mwj.jobs()[0].g.o.plug === 1, 'maintenir E ne desserre pas le bouchon', 60000);
+  await attendreCondition(page, () => __mwj.jobs()[0].g.o.plug === 0, 'maintenir E ne dévisse pas le bouchon', 60000);
   await page.keyboard.up('e');
   const t0 = await e(() => __mw.S.min);
 
@@ -102,10 +102,10 @@ module.exports = async function mecaGestes(page, env) {
   verifier(f1.done.huile === 1 && f1.done.filtre_huile === 1, `vidange incomplète (${JSON.stringify(f1.done)}) : ${log1.join(' ')}`);
   verifier(Math.abs(f1.versé - f1.cap) <= f1.cap * .13 && f1.versé >= f1.cap * .93, `quantité d'huile non conforme : ${f1.versé} l pour ${f1.cap} l`);
   verifier(f1.blocage.length === 0, 'la voiture ne peut pas être rendue : ' + f1.blocage.join(', '));
-  const ordre = ['pl0', 'pl3', 'pl2', 'bacoff', 'lower', 'hopen', 'co', 'fu', 'pour'];
+  const ordre = ['pl2', 'bacoff', 'lower', 'hopen', 'co', 'fu', 'pour'];
   let k = -1;
   for (const s of ordre) { const i = log1.indexOf(s, k + 1); verifier(i > k, `ordre des gestes de vidange anormal (${s}) : ${log1.join(' ')}`); k = i; }
-  verifier(log1.includes('f1') && log1.includes('f0') && log1.includes('fg') && log1.includes('fs'), 'le filtre n\'est pas déposé / huilé / vissé : ' + log1.join(' '));
+  verifier(log1.includes('f1') && log1.includes('fg') && log1.includes('fs') && !log1.includes('f0') && !log1.includes('pl3'), 'le filtre n\'est pas déposé / huilé / vissé (ou des étapes inutiles reviennent) : ' + log1.join(' '));
   verifier(f1.min - t0 >= 15, `les gestes n'avancent pas assez l'horloge (${f1.min - t0} min)`);
 
   // 4. même vidange sur un diesel (filtre cartouche), quantité propre à ce moteur

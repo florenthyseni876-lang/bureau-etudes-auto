@@ -16,7 +16,7 @@ module.exports = async function mecaHuile(page, env) {
   await attendre(500);
   await e(() => MWG.run('lift', 'raise'));
   await attendreCondition(page, () => __mwj.meshY(__mwj.jobs()[0]) > 1.6, 'le pont ne monte pas', 60000);
-  await e(() => { MWG.run('bac', 'bacon'); MWG.run('plug', 'pl1'); MWG.run('plug', 'pl0'); });
+  await e(() => { MWG.run('bac', 'bacon'); MWG.run('plug', 'pl1'); }); // un seul geste : le bouchon se dévisse entièrement au cliquet
   // objets de l'écoulement : segments de jet (cylindres orientés), gouttes (sphères), ronds (tores) dans le groupe du sol
   const etat = () => e(() => { const R = MWG.rig(), o = { jet: 0, gouttes: 0, ronds: 0 };
     R.fl.traverse(m => { if (!m.isMesh || !m.visible) return; const t = m.geometry.type; if (t === 'CylinderGeometry' && m.geometry.parameters.radiusTop === 1) o.jet++; else if (t === 'SphereGeometry' && m.geometry.parameters.radius === 1) o.gouttes++; else if (t === 'TorusGeometry' && m.geometry.parameters.radius === 1) o.ronds++; });

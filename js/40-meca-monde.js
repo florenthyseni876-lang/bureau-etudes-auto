@@ -358,6 +358,7 @@ api.hud=(id,html)=>{if(html) hudH[id]=html;else delete hudH[id];hudDom(id);};
 api.toast=(t,g)=>{ensureUI();const e=el('div','mw-t '+(g||'info'));e.textContent=t;ui.toasts.appendChild(e);
  while(ui.toasts.children.length>4) ui.toasts.firstChild.remove();setTimeout(()=>e.remove(),5200);};
 function setPaused(){api.paused=!!(panelSt||mapOpen||sleeping);if(api.paused){keys={};js.x=js.y=0;if(ui) ui.knob.style.transform='';exitLock();}}
+api.releaseLock=()=>exitLock(); /* [MWZ] libère le pointeur sans ouvrir le menu pause */
 function exitLock(){try{if(document.pointerLockElement){lockLost=performance.now();document.exitPointerLock();}}catch(e){}}
 api.panel=(titre,html,o)=>{ensureUI();o=o||{};ui.pt.textContent=titre;ui.pb.innerHTML=html;ui.pw.firstElementChild.className='mw-pn'+(o.wide?' wide':'');
  panelSt={onClick:o.onClick,onClose:o.onClose};ui.pw.hidden=false;ui.pb.scrollTop=0;setPaused();
@@ -405,6 +406,7 @@ function onKey(e){
  const k=e.key&&e.key.length===1?e.key.toLowerCase():e.key,down=e.type==='keydown';
  e.stopPropagation();
  if(e.ctrlKey||e.metaKey||e.altKey) return;
+ if(api.keyHook&&api.keyHook(k,down,e)) return; /* [MWZ] le module de vue rapprochée peut consommer une touche */
  if(k==='Escape'){if(!down) return;e.preventDefault();if(performance.now()-lockLost<200) return;
   if(panelSt) api.closePanel();else if(mapOpen) toggleMap(false);else pauseMenu();return;}
  if(api.paused){if(down&&k==='m'&&mapOpen) toggleMap(false);return;}
@@ -415,7 +417,7 @@ function onKey(e){
  else if(k==='m'){toggleMap(true);}
  else if(k==='Tab'){e.preventDefault();emit('tab');}
  else{emit('key',k.toLowerCase?k.toLowerCase():k,e);}}
-function onMouse(e){if(!active||api.paused||P.inCar) return;if(document.pointerLockElement===ui.look){P.ry-=e.movementX*.0024;P.pitch=clamp(P.pitch-e.movementY*.0022,-1.25,1.25);}}
+function onMouse(e){if(!active||api.paused||P.inCar||api.frozen) return;if(document.pointerLockElement===ui.look){P.ry-=e.movementX*.0024;P.pitch=clamp(P.pitch-e.movementY*.0022,-1.25,1.25);}}
 function onLockChange(){if(!active) return;if(!document.pointerLockElement&&!api.paused&&performance.now()-lockLost>200){lockLost=performance.now();pauseMenu();}}
 function useCur(k){
  if(k==='f'){if(curI&&curI.key.toLowerCase()==='f'&&curI.o){try{curI.o.use();}catch(e){console.error(e);}return;}toggleCar();return;}
@@ -462,9 +464,9 @@ function bindUI(){
   const a=b.dataset.mw;if(a==='close'){api.closePanel();return;}const p=panelSt;if(p&&p.onClick) try{p.onClick(a,b);}catch(err){console.error(err);}});
  ui.map.querySelector('#mwMapX').addEventListener('click',()=>toggleMap(false));
  // regarder : souris (verrouillage du pointeur ou glisser) et doigt
- ui.look.addEventListener('click',e=>{if(e.pointerType==='touch'||api.paused||P.inCar) return;try{if(!document.pointerLockElement) ui.look.requestPointerLock();}catch(err){}});
+ ui.look.addEventListener('click',e=>{if(e.pointerType==='touch'||api.paused||P.inCar||api.frozen) return;try{if(!document.pointerLockElement) ui.look.requestPointerLock();}catch(err){}});
  ui.look.addEventListener('pointerdown',e=>{if(look.id!=null||api.paused) return;look.id=e.pointerId;const p=pXY(e);look.x=p.x;look.y=p.y;try{ui.look.setPointerCapture(e.pointerId);}catch(err){}});
- ui.look.addEventListener('pointermove',e=>{if(e.pointerId!==look.id||document.pointerLockElement===ui.look) return;const p=pXY(e);
+ ui.look.addEventListener('pointermove',e=>{if(e.pointerId!==look.id||document.pointerLockElement===ui.look||api.frozen) return;const p=pXY(e);
   if(!P.inCar){P.ry-=(p.x-look.x)*.006;P.pitch=clamp(P.pitch-(p.y-look.y)*.005,-1.25,1.25);}look.x=p.x;look.y=p.y;});
  const lend=e=>{if(e.pointerId===look.id) look.id=null;};ui.look.addEventListener('pointerup',lend);ui.look.addEventListener('pointercancel',lend);
  // joystick
@@ -655,7 +657,7 @@ function frame(t){
  if(NT&&!NT.guest&&api.paused){acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}}
  if(!api.paused){
   if(!(NT&&NT.guest)){acc+=dt*api.timeScale;while(acc>=1){acc-=1;stepMin();}}
-  if(P.inCar) drive(dt);else walk(dt);
+  if(P.inCar) drive(dt);else if(!api.frozen) walk(dt); /* [MWZ] api.frozen : joueur immobile en vue rapprochée */
   saveT+=dt;if(saveT>30){saveT=0;api.save();}}
  S.player.x=P.x;S.player.z=P.z;S.player.ry=P.ry;S.player.inCar=P.inCar;
  syncCarMesh(api.paused?0:dt);updateZones();updateInteract();
@@ -663,6 +665,7 @@ function frame(t){
  if(P.inCar){const fx=Math.sin(S.car.ry),fz=Math.cos(S.car.ry),tx=S.car.x-fx*7.5,tz=S.car.z-fz*7.5,k=camInit?1-Math.exp(-7*dt):1;
   camPos.x+=(tx-camPos.x)*k;camPos.y=3.4;camPos.z+=(tz-camPos.z)*k;camInit=true;cam.position.copy(camPos);cam.lookAt(S.car.x+fx*5,1.3,S.car.z+fz*5);}
  else{camInit=false;cam.position.set(P.x,api.eyeY||1.7,P.z);cam.rotation.set(P.pitch,P.ry+PI,0);/* [MWG] hauteur des yeux */}
+ if(api.camHook){try{api.camHook(cam,dt);}catch(e){api.camHook=null;console.error(e);}} /* [MWZ] vue rapprochée : le module décale la caméra */
  if(decorOn){try{api.decor.frame(dt,t,(S.min+acc)/60);}catch(e){console.error(e);decorOn=false;}}else updateSky();
  if(beacon&&beacon.visible) beacon.material.opacity=.2+.12*Math.sin(t/300);
  // HUD
