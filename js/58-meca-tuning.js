@@ -1069,6 +1069,8 @@ function spawnOrder(opt){
   const tp=pick(list),kind=tp[2]==='both'?(cp.sport?'sport':'style'):tp[2],pool=opt.model?[carOf(opt.model)].filter(Boolean):poolFor(kind);if(!pool.length) return null;
   const c=pick(pool),items=fixItems(c.id,tp[3]);if(!items) continue;
   const taux=cp.taux,qt=items.map(it=>quote(c.id,emptyCfg(),it));
+  /* jamais une commande au-dessus du niveau de préparation du joueur (sauf commande forcée par un test ou l'administrateur) */
+  if(!opt.tpl&&!opt.model&&qt.some(q=>(q.niv||1)>level('preparation'))) continue;
   const parts=qt.reduce((a,q)=>a+q.price,0),labor=Math.round(qt.reduce((a,q)=>a+q.mo,0)/60*taux/5)*5;
   const o={id:'t'+(++t.seq),zone:zid,slot,client:(f=>f[0]+' '+f[1]+' '+pick(LAST))(pick(FIRST)),mdl:c.id,nom:c.mk+' '+c.mo,color:opt.color!=null?opt.color:pick(COLS),
    plaque:String.fromCharCode(65+rint(0,22))+String.fromCharCode(65+rint(0,22))+'-'+rint(100,999)+'-'+String.fromCharCode(65+rint(0,22))+String.fromCharCode(65+rint(0,22)),

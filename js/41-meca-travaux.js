@@ -157,7 +157,9 @@ const invFind=(k,id,job)=>inv().findIndex(it=>it.k===k&&it.id===id&&(job==null||
 /* ═══════════ Voitures clientes ═══════════ */
 function wearOf(p,km){return clamp(Math.round(km/p.vie*60*(.4+rnd()*.8)),0,70);}
 function chooseJob(e,o,mdl){
- const LV=e.lvf||lv,cap=empMax(e),stretch=!e.lvf&&J().stats.rendues>0&&rnd()<.1?1:0, /* jamais de travail « au-dessus » pour la toute première voiture ; e.lvf : niveaux de l'équipe d'un garage (js/60) */
+ /* Règle : un client ne demande JAMAIS un travail au-dessus du niveau du joueur (ni de ce que son poste autorise).
+    e.lvf : niveaux de l'équipe d'un garage (js/60). */
+ const LV=e.lvf||lv,cap=empMax(e),stretch=0,
  ok=id=>{const p=PARTS[id];return p.niv<=Math.max(cap,1)&&LV(p.comp)+stretch>=p.niv&&appl(mdl,id);};
  if(o.travaux){const l=o.travaux.filter(id=>PARTS[id]);return {type:'travaux',ordre:l,nom:o.nom||l.map(id=>PARTS[id].nom).join(', ')};}
  if(o.tpl){const t=TPL.find(x=>x[0]===o.tpl);if(t) return {type:'travaux',ordre:t[2].slice(),nom:t[1]};}
@@ -185,7 +187,7 @@ function makeCar(o){
  const parts={};for(const p of PLIST) parts[p.id]=appl(mod[3],p.id)?{u:p.id==='ampoules'?rint(0,25):wearOf(p,km)}:{u:0,na:1};
  // un petit « extra » usé, détectable à l'inspection
  const sy0=jb.symp?SYMP.find(x=>x.id===jb.symp.id):null,sySet=sy0?[sy0.c].concat(sy0.red,sy0.ch||[]):[];
- if(rnd()<.35){const exl=PLIST.filter(p=>!p.hid&&p.niv<=Math.max(lv(p.comp)+1,1)&&!jb.ordre.includes(p.id)&&!sySet.includes(p.id)&&p.id!=='ampoules'&&appl(mod[3],p.id));const ex=exl.length?pick(exl):null;if(ex) parts[ex.id].u=rint(78,94);}
+ if(rnd()<.35){const exl=PLIST.filter(p=>!p.hid&&p.niv<=lv(p.comp)&&!jb.ordre.includes(p.id)&&!sySet.includes(p.id)&&p.id!=='ampoules'&&appl(mod[3],p.id));const ex=exl.length?pick(exl):null;if(ex) parts[ex.id].u=rint(78,94);}
  for(const id of jb.ordre) parts[id].u=Math.max(parts[id].u,rint(62,97));
  if(jb.symp){parts[jb.symp.c].u=rint(92,100);for(const id of jb.symp.red) if(parts[id]&&!parts[id].na) parts[id].u=Math.max(parts[id].u,rint(42,62));
   for(const id of (sy0&&sy0.ch)||[]) if(parts[id]&&!parts[id].na) parts[id].u=Math.max(parts[id].u,rint(78,94)); /* dégâts en chaîne : abîmés par la panne d'origine */}
