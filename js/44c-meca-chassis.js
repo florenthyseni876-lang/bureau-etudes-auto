@@ -91,7 +91,11 @@ function build(car,X){
 
  /* ── plancher, tunnel, bas de caisse ── */
  for(const g of X.ubel) base.geo(g,K.floor);
- base.box(K.tunnel,.3,.09,Math.abs(afz-arz)*.78,0,gc+.1,(afz+arz)/2);
+ /* tunnel central : il s'arrête avant le berceau et avant le moteur (il ne traverse ni l'un ni l'autre) */
+ let tz0=(afz+arz)/2-Math.abs(afz-arz)*.39,tz1=(afz+arz)/2+Math.abs(afz-arz)*.39;
+ tz1=Math.min(tz1,afz-.5);
+ if(!ev){const marge=.55;if(front) tz1=Math.min(tz1,(trans&&!ev?Math.min(eZ,afz-.2):eZ)-marge);else tz0=Math.max(tz0,eZ+marge);}
+ base.box(K.tunnel,.3,.09,Math.max(.1,tz1-tz0),0,gc+.1,(tz0+tz1)/2);
  for(const sg of cx){
   base.box(K.sub,.075,.085,Math.abs(afz-arz)*.72,sg*(hw-.3),gc+.05,(afz+arz)/2);               /* bas de caisse */
   base.box(K.floor,.02,.05,Math.abs(afz-arz)*.7,sg*(hw-.36),gc+.095,(afz+arz)/2);
@@ -334,6 +338,7 @@ function build(car,X){
 function finish(base,units,A,X,FX){
  const full=new VB();full.vb(base,0,0,0);
  for(const u of units){const p=new VB();p.off(u.piv[0],u.piv[1],u.piv[2]);u.draw(p,false);full.vb(p,u.piv[0],u.piv[1],u.piv[2]);}
+ A.tunnelZ0=[0,0,tz0];A.tunnelZ1=[0,0,tz1];
  return {full:full.done(),base:base.done(),units:units.map(u=>({id:u.id,i:u.i,piv:u.piv,draw:u.draw,cache:{}})),anchors:A,fix:FX};}
 
 /* géométrie d'une pièce amovible, centrée sur son pivot (usée ou neuve), mise en cache */

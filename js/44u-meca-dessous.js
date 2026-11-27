@@ -37,15 +37,18 @@ function plaque(g){
  for(const x of [cx-demi+.03,cx+demi-.03]) for(const z of [z0+.03,z1-.03]) vis.push(new T.Vector3(x,yBas-.004,z));
  return {boite,centre:boite.getCenter(new T.Vector3()),taille:[2*demi,epaisseur,z1-z0],vis};}
 
-/* Berceau avant et tunnel : mêmes cotes que js/44c (ysub, positions de la traverse, du tunnel). */
+/* Berceau avant (deux longerons et deux traverses, pas un bloc plein : le moteur passe entre les longerons), tunnel, traverse de boîte.
+   Mêmes cotes que js/44c (ysub, positions, épaisseurs). Le tunnel lit ses extrémités calculées par js/44c (ancres tunnelZ0 et tunnelZ1). */
 function structure(g){
- const G=g.userData.G,gc=G.gc,ysub=gc+.055,afz=G.afz,arz=G.arz,boites={};
- boites.berceau=new T.Box3(new T.Vector3(-.34,ysub-.033,afz-.46),new T.Vector3(.34,ysub+.12,afz+.45));
- const milieu=(afz+arz)/2,demi=Math.abs(afz-arz)*.39;
- boites.tunnel=new T.Box3(new T.Vector3(-.15,gc+.055,milieu-demi),new T.Vector3(.15,gc+.145,milieu+demi));
- if(g.userData.car.loc==='front'&&g.userData.car.ori!=='T'&&!g.userData.car.ev){
-  const z=afz-.93;
-  boites.traverseBoite=new T.Box3(new T.Vector3(-.275,gc+.0225,z-.04),new T.Vector3(.275,gc+.1,z+.04));}
+ const G=g.userData.G,gc=G.gc,ysub=gc+.055,afz=G.afz,boites={},V=(x,y,z)=>new T.Vector3(x,y,z);
+ const h=.0325+.03;   /* demi-hauteur : barre de .065 et têtes de vis de fixation */
+ for(const sg of [-1,1]) boites['berceau.longeron'+(sg>0?'D':'G')]=new T.Box3(V(sg*.3-.0375,ysub-.0325,afz-.43),V(sg*.3+.0375,ysub+h,afz+.43));
+ boites['berceau.traverseAv']=new T.Box3(V(-.34,ysub-.03,afz+.4-.0425),V(.34,ysub+.03,afz+.4+.0425));
+ boites['berceau.traverseAr']=new T.Box3(V(-.34,ysub-.03,afz-.42-.0425),V(.34,ysub+.03,afz-.42+.0425));
+ const A=g.userData.G.ch.anchors,z0=A.tunnelZ0?A.tunnelZ0[2]:null,z1=A.tunnelZ1?A.tunnelZ1[2]:null;
+ if(z0!=null&&z1!=null) boites.tunnel=new T.Box3(V(-.15,gc+.055,z0),V(.15,gc+.145,z1));
+ const car=g.userData.car;
+ if(car.loc==='front'&&car.ori!=='T'&&!car.ev) boites.traverseBoite=new T.Box3(V(-.275,gc+.0225,afz-.93-.04),V(.275,gc+.1,afz-.93+.04));
  return boites;}
 
 function boites(g){
@@ -64,7 +67,8 @@ function boites(g){
    Les sous-pièces d'une même boîte sont dessinées pour s'emboîter (cloche et carter, support sur le carter) : on ne les compare pas entre elles. */
 function contacts(g){
  const bx=boites(g),noms=Object.keys(bx),res=[];
- const memeBoite=(a,c)=>a.indexOf('boite.')===0&&c.indexOf('boite.')===0;
+ const famille=n=>n.split('.')[0];
+ const memeBoite=(a,c)=>famille(a)===famille(c)&&a.indexOf('.')>0;
  for(let i=0;i<noms.length;i++) for(let j=i+1;j<noms.length;j++){
   const a=noms[i],c=noms[j];
   if(memeBoite(a,c)) continue;
