@@ -95,7 +95,7 @@ function build(car,X){
  let tz0=(afz+arz)/2-Math.abs(afz-arz)*.39,tz1=(afz+arz)/2+Math.abs(afz-arz)*.39;
  tz1=Math.min(tz1,afz-.5);
  if(!ev){const marge=.55;if(front) tz1=Math.min(tz1,(trans&&!ev?Math.min(eZ,afz-.2):eZ)-marge);else tz0=Math.max(tz0,eZ+marge);}
- base.box(K.tunnel,.3,.09,Math.max(.1,tz1-tz0),0,gc+.1,(tz0+tz1)/2);
+ base.box(K.tunnel,.3,.07,Math.max(.1,tz1-tz0),0,gc+.115,(tz0+tz1)/2);
  for(const sg of cx){
   base.box(K.sub,.075,.085,Math.abs(afz-arz)*.72,sg*(hw-.3),gc+.05,(afz+arz)/2);               /* bas de caisse */
   base.box(K.floor,.02,.05,Math.abs(afz-arz)*.7,sg*(hw-.36),gc+.095,(afz+arz)/2);
@@ -209,7 +209,7 @@ function build(car,X){
   A.oilFilter=trans?[.18,gc+.2,pz+.22]:[pw/2+.09,gc+.2,pz+.05];
   unit('__filtre',0,A.oilFilter,(b,w)=>{const f=A.oilFilter;if(diesel){b.cyl(0x34383d,.042,.042,.11,f[0],f[1]-.05,f[2]);b.cyl(K.alu,.034,.034,.03,f[0],f[1]-.12,f[2],'y',8);}else{b.cyl(0x2a62c8,.042,.042,.1,f[0],f[1]-.05,f[2]);b.cyl(K.steel,.046,.046,.014,f[0],f[1]-.003,f[2]);}});
   /* boîte de vitesses longitudinale : cloche, carter, traverse ; transversale : déjà dessinée (côté cardans) */
-  if(!trans){base.box(K.sub,.55,.045,.08,0,gc+.045,pz-dirF*.93);base.box(K.rubber,.07,.05,.07,0,gc+.075,pz-dirF*.93);}   /* traverse de boîte (la boîte est dans la baie) */
+  if(!trans){A.traverseZ=[0,0,pz-dirF*.93];base.box(K.sub,.55,.045,.08,0,gc+.02,pz-dirF*.93);base.box(K.rubber,.07,.03,.07,0,gc+.0525,pz-dirF*.93);}   /* traverse de boîte (la boîte est dans la baie) */
   /* échappement : collecteur → descente → catalyseur → (FAP) → ligne → silencieux → sortie */
   const zcat=front?pz-.42:Math.max(zr+.95,eZ-.1);
   const yP=gc+.04,yC=gc+.075,xs=exX;

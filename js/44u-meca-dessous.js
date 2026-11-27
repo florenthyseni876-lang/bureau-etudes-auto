@@ -46,9 +46,9 @@ function structure(g){
  boites['berceau.traverseAv']=new T.Box3(V(-.34,ysub-.03,afz+.4-.0425),V(.34,ysub+.03,afz+.4+.0425));
  boites['berceau.traverseAr']=new T.Box3(V(-.34,ysub-.03,afz-.42-.0425),V(.34,ysub+.03,afz-.42+.0425));
  const A=g.userData.G.ch.anchors,z0=A.tunnelZ0?A.tunnelZ0[2]:null,z1=A.tunnelZ1?A.tunnelZ1[2]:null;
- if(z0!=null&&z1!=null) boites.tunnel=new T.Box3(V(-.15,gc+.055,z0),V(.15,gc+.145,z1));
+ if(z0!=null&&z1!=null) boites.tunnel=new T.Box3(V(-.15,gc+.08,z0),V(.15,gc+.15,z1));
  const car=g.userData.car;
- if(car.loc==='front'&&car.ori!=='T'&&!car.ev) boites.traverseBoite=new T.Box3(V(-.275,gc+.0225,afz-.93-.04),V(.275,gc+.1,afz-.93+.04));
+ if(A.traverseZ) boites.traverseBoite=new T.Box3(V(-.275,gc-.0025,A.traverseZ[2]-.04),V(.275,gc+.0675,A.traverseZ[2]+.04));
  return boites;}
 
 function boites(g){
