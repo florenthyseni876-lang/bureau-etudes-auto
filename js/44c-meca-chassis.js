@@ -199,6 +199,7 @@ function build(car,X){
 
  /* ═══════ MOTEUR, BOÎTE, ÉCHAPPEMENT ═══════ */
  const A={},FX={};
+ A.tunnelZ0=[0,0,tz0];A.tunnelZ1=[0,0,tz1];   /* extrémités du tunnel, lues par js/44u pour contrôler les formes du dessous */
  if(!ev){
   /* carter d'huile, bouchon, filtre */
   const pw=trans?.46:.3,pl=trans?.3:.5,pc=cat==='pop'?K.sub:K.alu,pyT=gc+.19;
@@ -338,7 +339,6 @@ function build(car,X){
 function finish(base,units,A,X,FX){
  const full=new VB();full.vb(base,0,0,0);
  for(const u of units){const p=new VB();p.off(u.piv[0],u.piv[1],u.piv[2]);u.draw(p,false);full.vb(p,u.piv[0],u.piv[1],u.piv[2]);}
- A.tunnelZ0=[0,0,tz0];A.tunnelZ1=[0,0,tz1];
  return {full:full.done(),base:base.done(),units:units.map(u=>({id:u.id,i:u.i,piv:u.piv,draw:u.draw,cache:{}})),anchors:A,fix:FX};}
 
 /* géométrie d'une pièce amovible, centrée sur son pivot (usée ou neuve), mise en cache */
