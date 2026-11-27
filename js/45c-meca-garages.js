@@ -346,7 +346,7 @@ function other(z){
   for(const s of [-1,1]){Ls.cyl(.4,.42,5.4,14,s*2.4,2.7,2.0,0xefe9d8);Ls.box(1.1,.3,1.1,s*2.4,.15,2.0,0xd8d2c0);Ls.box(1.0,.3,1.0,s*2.4,5.5,2.0,0xd8d2c0);}
   Lb.box(6.6,.5,2.8,0,5.75,1.5,0xd8d2c0);Lc.box(7.2,.2,3.2,0,6.1,1.5,0xcfcab8);
   for(let i=0;i<3;i++) Lc.box(5.6+i*.4,.2,.6+i*.2,0,.1+i*.2,1.9+ (2-i)*.3+.4,0xbab6aa);
-  Lb.box(2.6,3.0,.2,0,1.5,.05,0x2f4a36);D.B('core','win').quad(1.0,2.4,.0,1.5,.2,ry,null,null);
+  Lb.box(2.6,3.0,.2,0,1.5,.05,0x2f4a36); /* [textures] une vitre perdue en coordonnées monde (0 ; 1,5 ; 0,2) flottait au milieu du carrefour central : supprimée */
   const dl=D.L(D.B('core','win'),z.door.x,z.door.z,ry,0);dl.quad(1.1,2.4,-.62,1.5,.2,null);dl.quad(1.1,2.4,.62,1.5,.2,null);
   for(const s of [-1,1]){const f=D.L(det('plain'),z.door.x,z.door.z,ry,0);f.cyl(.05,.05,7,6,s*6.5,3.5,1.6,0xc8ccd0);f.quad(1.5,1.0,s*6.5+.8,6.4,1.6,s>0?0x2a5db0:0xf2f2f2,null,0,true);}
   const bk=D.L(det('plain'),z.door.x,z.door.z,ry,0);for(const s of [-1,1]){bk.box(1.6,.4,.5,s*8.5,.25,1.2,0x7a5030);}

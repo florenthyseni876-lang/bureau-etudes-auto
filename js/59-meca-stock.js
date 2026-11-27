@@ -133,8 +133,24 @@ function vanStep(){if(!MW.S||!MW.scene) return;const t=absT();let best=null;
  for(const c of D().cmd) if(c.due-20<=t&&c.due>t-1){const z=MW.zone(c.lieu);if(z&&z.door&&(!best||c.due<best.due)) best={c,z};}
  if(best&&!van) van=buildVan();if(!van) return;
  if(!best){van.visible=false;return;}
- const z=best.z,out={x:-z.n.x,z:-z.n.z},lat={x:Math.abs(z.n.z),z:Math.abs(z.n.x)};
- van.position.set(z.door.x+out.x*8+lat.x*7,0,z.door.z+out.z*8+lat.z*7);van.rotation.y=Math.atan2(lat.x,lat.z);van.visible=true;}
+ const pos=api.vanSpot(best.z.id);
+ van.position.set(pos.x,0,pos.z);
+ van.rotation.y=pos.ry;
+ van.visible=true;}
+/* Emplacement de la camionnette : dans la file de stationnement de la rue la plus proche du lieu (à 5,55 m de l'axe, le long du trottoir),
+   décalée de 7 m le long de la façade ; jamais au milieu de la chaussée ni dans un carrefour. Rectangle occupé : 5,4 × 2,2 m. */
+api.vanSpot=function(lieu){
+ const z=MW.zone(lieu),ROUTES=[-150,0,150];
+ if(!z||!z.door) return null;
+ const lat={x:Math.abs(z.n.z),z:Math.abs(z.n.x)};
+ let meilleur=null;
+ for(const r of ROUTES){
+  const dz=z.door.z-r,dx=z.door.x-r;
+  if(!meilleur||Math.abs(dz)<meilleur.d) meilleur={d:Math.abs(dz),horiz:true,r,cote:dz>=0?1:-1};
+  if(Math.abs(dx)<meilleur.d) meilleur={d:Math.abs(dx),horiz:false,r,cote:dx>=0?1:-1};}
+ const x=meilleur.horiz?z.door.x+lat.x*7:meilleur.r+meilleur.cote*5.55;
+ const zz=meilleur.horiz?meilleur.r+meilleur.cote*5.55:z.door.z+lat.z*7;
+ return {x,z:zz,ry:meilleur.horiz?Math.PI/2:0,longueur:5.4,largeur:2.2,horiz:meilleur.horiz};};
 /* ── interface : site de commande ── */
 const btn=(a,t,cls,dis)=>`<button type="button" class="btn sm${cls?' '+cls:''}" data-mw="${a}"${dis?' disabled':''}>${t}</button>`;
 let cart={},mode='next',tab='tout',cur=null;

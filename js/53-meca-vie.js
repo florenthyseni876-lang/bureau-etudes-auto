@@ -5,8 +5,8 @@
    tournent aux carrefours, freinent derrière une voiture plus lente, devant un piéton ou devant le joueur, et klaxonnent
    s'il les gêne ou les heurte.
 
-   Principe de performance : tout est dessiné avec des `InstancedMesh` (6 appels pour les piétons, 6 maillages de carrosserie
-   + roues + feux + halo des phares pour les voitures : une quinzaine d'appels de dessin en tout). Rien n'est simulé loin du
+   Principe de performance : tout est dessiné avec des `InstancedMesh` (6 appels pour les piétons, un maillage de carrosserie par
+   modèle de la flotte — 12 au plus, tirés du catalogue MWCARS, voir js/53c — + roues + feux + halo des phares pour les voitures). Rien n'est simulé loin du
    joueur : les piétons au-delà de 85 m et les voitures au-delà de 150 m sont retirés et réapparaissent près de lui, de
    préférence hors du champ de vision. Le nombre de PNJ suit la qualité graphique (MWD.Q.level) et l'heure (rares la nuit).
 
@@ -74,24 +74,6 @@ const ARCH={
  suv:{L:4.5,W:1.84,H:1.68,y0:.3,belt:1.08,zb0:-1.98,zb1:.85,zt0:-1.88,zt1:.2},
  van:{L:4.4,W:1.85,H:1.85,y0:.28,belt:1.0,cargo:.1,zb0:.1,zb1:1.3,zt0:.15,zt1:.85},
  coupe:{L:4.4,W:1.85,H:1.3,y0:.18,belt:.85,zb0:-1.2,zb1:.8,zt0:-.85,zt1:.1}};
-const ARCH_IDS=Object.keys(ARCH);
-function carGeo(a){
- const b=GB(),hw=a.W/2,lh=a.L/2;
- hexa(b,{y0:a.y0-.06,y1:a.y0+.05,wb:hw-.08,zb0:-lh+.12,zb1:lh-.12,cs:UNDER});
- if(a.cargo!=null){   /* utilitaire : caisse peinte derrière la cabine */
-  hexa(b,{y0:a.y0,y1:a.H-.04,wb:hw,wt:hw-.04,zb0:-lh,zb1:a.cargo+.05,cs:WHITE,ct:WHITE});
-  hexa(b,{y0:a.y0,y1:a.belt-.05,wb:hw,wt:hw-.03,zb0:a.cargo,zb1:lh,cs:WHITE,ct:WHITE});
- }else{
-  hexa(b,{y0:a.y0,y1:a.belt,wb:hw,wt:hw-.04,zb0:a.zb0-.2,zb1:a.zb1+.06,cs:WHITE,ct:WHITE});          /* flancs */
-  hexa(b,{y0:a.y0,y1:a.belt-.1,wb:hw,wt:hw-.07,zb0:a.zb1,zb1:lh,cs:WHITE,ct:WHITE});                  /* capot */
-  hexa(b,{y0:a.y0,y1:a.belt-.05,wb:hw,wt:hw-.06,zb0:-lh,zb1:a.zb0-.14,cs:WHITE,ct:WHITE});            /* malle */
- }
- /* habitacle vitré, toit peint */
- hexa(b,{y0:a.belt-.02,y1:a.H,wb:hw-.1,wt:hw-.2,zb0:a.zb0,zb1:a.zb1,zt0:a.zt0,zt1:a.zt1,cs:GLASS,ct:WHITE});
- /* pare-chocs */
- hexa(b,{y0:a.y0,y1:a.y0+.26,wb:hw-.02,zb0:lh-.2,zb1:lh+.04,cs:DARK});
- hexa(b,{y0:a.y0,y1:a.y0+.26,wb:hw-.02,zb0:-lh-.04,zb1:-lh+.2,cs:DARK});
- return toGeo(b);}
 function wheelGeo(){
  const b=GB(),tire=linA(0x141416),hub=linA(0xb4b8be),spoke=linA(0x4a4e54);
  const N=12,R=.3,Wd=.22,Rh=.17;
@@ -196,11 +178,34 @@ function pickCarModels(){
  }catch(e){}
  if(!out.length) for(const [arch,w] of [['hatch',5],['sedan',3],['suv',2],['van',1],['wagon',1],['coupe',.5]]){const a=ARCH[arch];out.push({id:arch,arch,L:a.L,W:a.W,H:a.H,WB:a.L*.62,w});}
  return out;}
-function pickModel(){let t=0;for(const m of carModels) t+=m.w;let r=rnd()*t;for(const m of carModels){r-=m.w;if(r<=0) return m;}return carModels[0];}
+/* Flotte de la circulation : au plus FLOTTE modèles du catalogue (un maillage instancié par modèle, donc un appel de dessin chacun). */
+const FLOTTE=12;
+let fleet=[];
+function choisirFlotte(tous){
+ const restes=tous.slice(),choisis=[];
+ while(choisis.length<FLOTTE&&restes.length){
+  let total=0;
+  for(const m of restes) total+=m.w;
+  let tirage=rnd()*total;
+  let k=0;
+  for(;k<restes.length-1;k++){
+   tirage-=restes[k].w;
+   if(tirage<=0) break;}
+  choisis.push(restes.splice(k,1)[0]);}
+ return choisis;}
+function pickModel(){
+ let t=0;
+ for(const m of fleet) t+=m.w;
+ let r=rnd()*t;
+ for(const m of fleet){
+  r-=m.w;
+  if(r<=0) return m;}
+ return fleet[0];}
 
 function init(){
  if(inited) return;inited=true;
  carModels=pickCarModels();
+ fleet=choisirFlotte(carModels);
  try{tlA=MWD.mat('tlA');tlB=MWD.mat('tlB');if(!tlA.map||!tlB.map){tlA=tlB=null;}}catch(e){tlA=tlB=null;}
  G=new T.Group();G.name='vie';
  /* piétons : 6 maillages */
@@ -211,14 +216,17 @@ function init(){
   arms:mk(box(1,1,1,-.5),matP,MAXP*2),head:mk(box(1,1,1),matP,MAXP),hair:mk(box(1,1,1),matP,MAXP)};
  for(const k in pedM) G.add(pedM[k]);
  /* voitures : un maillage de carrosserie par gabarit, roues, feux, halo des phares */
- const matC=lm({vertexColors:true});
+ const matC=MWVC.material();
  carM={body:{},wheels:mk(wheelGeo(),lm({vertexColors:true}),MAXC*4),lights:null,glow:null};
- for(const id of ARCH_IDS) carM.body[id]=mk(carGeo(ARCH[id]),matC,MAXC);
+ for(const m of fleet){
+  const gabarit=MWVC.spec(m.id);
+  m.spec=gabarit;
+  carM.body[m.id]=mk(MWVC.merged(gabarit),matC,MAXC);}
  const matL=new T.MeshBasicMaterial({color:0xffffff});matL.userData={lin:1};
  carM.lights=mk(new T.BoxGeometry(1,1,1),matL,MAXC*4);
  const gt=glowTex(),matG=new T.MeshBasicMaterial({map:gt,transparent:true,blending:T.AdditiveBlending,depthWrite:false,fog:false,opacity:0});matG.userData={lin:1};
  carM.glow=mk(new T.PlaneGeometry(1,1).rotateX(-PI/2),matG,MAXC);carM.glow.renderOrder=3;carM.glow.visible=false;
- for(const id of ARCH_IDS) G.add(carM.body[id]);
+ for(const id in carM.body) G.add(carM.body[id]);
  G.add(carM.wheels,carM.lights,carM.glow);
  MW.scene.add(G);
  for(let i=0;i<MAXP;i++) peds.push({i,on:false,x:0,z:0,ry:0,state:'walk',ph:0,v:1.3,t:0,lat:0,timer:0});
@@ -368,17 +376,22 @@ function nextCross(c){
  for(let k=0;k<3;k++){const dd=c.dir*(co[k]-c.s);if(dd>0&&(!best||dd<best.dd)) best={k,c:co[k],dd};}
  return best;}
 function offCar(c){c.on=false;c.keep=false;c.wall[0]=c.wall[1]=1e6;c.wall[2]=c.wall[3]=1e6+1;
- for(const id of ARCH_IDS) zeroM(carM.body[id].instanceMatrix.array,c.i);
+ for(const id in carM.body) zeroM(carM.body[id].instanceMatrix.array,c.i);
  for(let j=0;j<4;j++){zeroM(carM.wheels.instanceMatrix.array,c.i*4+j);zeroM(carM.lights.instanceMatrix.array,c.i*4+j);}
  zeroM(carM.glow.instanceMatrix.array,c.i);}
 function setupCar(c){
- const m=pickModel();c.model=m;c.arch=m.arch;const a=ARCH[m.arch];
- c.L=m.L;c.W=m.W;c.sx=m.W/a.W;c.sy=m.H/a.H;c.sz=m.L/a.L;c.wr=m.arch==='suv'?.35:m.arch==='van'?.33:m.arch==='coupe'?.32:.3;
+ const m=pickModel();
+ c.model=m;
+ c.L=m.L;
+ c.W=m.W;
+ c.wr=m.spec.wheelR;
+ c.lightY=.2+(m.H-.2)*.34;
  c.vmax=m.arch==='van'?rr(9,11.5):rr(10,13.5);
- const col=m.arch==='van'?pick(VAN_COL):pick(CAR_COL);
- for(const id of ARCH_IDS) if(id!==c.arch) zeroM(carM.body[id].instanceMatrix.array,c.i);
- setCol(carM.body[c.arch],c.i,col);
- c.v=0;c.state='road';c.lo=LANE;c.lot=LANE;c.plan=null;c.planK=-1;c.blockT=0;c.ghost=0;c.hold=0;c.hornT=0;c.byp=false;c.yieldT=0;c.brake=false;c.lc=-1;c.roll=0;c.why='';}
+ const couleur=m.arch==='van'?pick(VAN_COL):pick(CAR_COL);
+ for(const id in carM.body) zeroM(carM.body[id].instanceMatrix.array,c.i);
+ setCol(carM.body[m.id],c.i,couleur);
+ c.v=0;c.state='road';c.lo=LANE;c.lot=LANE;c.plan=null;c.planK=-1;c.blockT=0;c.ghost=0;c.hold=0;c.hornT=0;c.byp=false;c.yieldT=0;
+ c.brake=false;c.lc=-1;c.roll=0;c.why='';}
 function spawnCar(c,free){
  for(let n=0;n<40;n++){
   const o=rnd()<.5?0:1,ax=(rnd()*3)|0,dir=rnd()<.5?1:-1,s=rr(-272,272),co=o===0?RX:RZ;
@@ -399,8 +412,11 @@ let CIR=[];
 function buildCircles(){
  CIR.length=0;
  if(!player.inCar) CIR.push([player.x,player.z,.5,0,0,2,null]);
- if(pcar){const ca=Math.sin(pcar.ry),cb=Math.cos(pcar.ry),vx=ca*pcar.speed,vz=cb*pcar.speed;
-  for(const o of [-1.1,0,1.1]) CIR.push([pcar.x+ca*o,pcar.z+cb*o,.9,vx,vz,3,null]);}
+ if(pcar){
+  /* la voiture du joueur : trois cercles qui recouvrent son rectangle réel (longueur × largeur du modèle) */
+  const ca=Math.sin(pcar.ry),cb=Math.cos(pcar.ry),vx=ca*pcar.speed,vz=cb*pcar.speed;
+  const rayon=(pcar.W||1.8)/2,e=Math.max(0,(pcar.L||4)/2-rayon);
+  for(const o of [-e,0,e]) CIR.push([pcar.x+ca*o,pcar.z+cb*o,rayon,vx,vz,3,null]);}
  for(const p of peds) if(p.on&&Math.abs(p.x-player.x)<R_CAR&&Math.abs(p.z-player.z)<R_CAR) CIR.push([p.x,p.z,.38,Math.sin(p.ry)*p.v,Math.cos(p.ry)*p.v,1,p]);
  for(const c of cars) if(c.on){const ca=Math.sin(c.ry),cb=Math.cos(c.ry),e=c.L/2-c.W/2-.1;
   for(const o of [-e,0,e]) CIR.push([c.x+ca*o,c.z+cb*o,c.W/2+.05,ca*c.v,cb*c.v,0,c]);}}
@@ -510,12 +526,12 @@ const leftClear=c=>{for(const o of cars) if(o.on&&o!==c&&o.o===c.o&&o.ax===c.ax&
 
 function writeCar(c){
  if(!c.on) return;
- const a=c.arch,im=carM.body[a],yaw=c.ry,ca=Math.cos(yaw),sa=Math.sin(yaw);
- setM(im.instanceMatrix.array,c.i,c.x,0,c.z,yaw,0,c.sx,c.sy,c.sz);
+ const im=carM.body[c.model.id],yaw=c.ry,ca=Math.cos(yaw),sa=Math.sin(yaw);
+ setM(im.instanceMatrix.array,c.i,c.x,0,c.z,yaw,0,1,1,1);
  const hw=c.W/2-.13,hl=c.model.WB/2,wy=c.wr,wsc=c.wr/.3,roll=c.roll%(PI*2);
  let j=0;for(const sx of [-1,1]) for(const sz of [-1,1]){const ox=sx*hw,oz=sz*hl;
   setM(carM.wheels.instanceMatrix.array,c.i*4+j,c.x+ca*ox+sa*oz,wy,c.z-sa*ox+ca*oz,yaw,roll,wsc,wsc,wsc);j++;}
- const lh=.7*Math.max(.9,c.sy),L2=c.L/2;
+ const lh=c.lightY,L2=c.L/2;
  const place=(k,ox,oy,oz,sxx,syy)=>setM(carM.lights.instanceMatrix.array,c.i*4+k,c.x+ca*ox+sa*oz,oy,c.z-sa*ox+ca*oz,yaw,0,sxx,syy,.07);
  place(0,-c.W*.34,lh,L2+.015,.3,.13);place(1,c.W*.34,lh,L2+.015,.3,.13);place(2,-c.W*.36,lh+.06,-L2-.015,.28,.12);place(3,c.W*.36,lh+.06,-L2-.015,.28,.12);
  if(night>.04) setM(carM.glow.instanceMatrix.array,c.i,c.x+sa*(L2+3.9),.085,c.z+ca*(L2+3.9),yaw,0,3.8,1,8.2);
@@ -550,7 +566,10 @@ function hitCheck(){
  for(const c of cars) if(c.on){
   if(Math.abs(c.x-pcar.x)>5||Math.abs(c.z-pcar.z)>5) continue;
   let hit=false;
-  for(const o of [-1.1,1.1]){const px=pcar.x+ca*o,pz=pcar.z+cb*o,w=c.wall,cx=clamp(px,w[0],w[2]),cz=clamp(pz,w[1],w[3]);if(Math.hypot(px-cx,pz-cz)<1.22) hit=true;}
+  const rayon=(pcar.W||1.8)/2,e=Math.max(0,(pcar.L||4)/2-rayon);
+  for(const o of [-e,0,e]){
+   const px=pcar.x+ca*o,pz=pcar.z+cb*o,w=c.wall,cx=clamp(px,w[0],w[2]),cz=clamp(pz,w[1],w[3]);
+   if(Math.hypot(px-cx,pz-cz)<rayon+.05) hit=true;}
   if(hit){c.hold=Math.max(c.hold,2.5);c.v=0;
    if(Math.abs(pcar.speed)>1.2&&tNow-hitT>8){hitT=tNow;honk(c.x,c.z,true);try{MW.toast('Vous avez heurté une voiture : le conducteur klaxonne.','warn');}catch(e){}}
    else if(tNow-hitT>2.5) honk(c.x,c.z);}}}
@@ -574,7 +593,7 @@ function onTick(dt){
   for(const c of cars) if(c.on){updCar(c,dt);if(c.on) writeCar(c);}
   hitCheck();
   for(const k in pedM) pedM[k].instanceMatrix.needsUpdate=true;
-  for(const id of ARCH_IDS) carM.body[id].instanceMatrix.needsUpdate=true;
+  for(const id in carM.body) carM.body[id].instanceMatrix.needsUpdate=true;
   carM.wheels.instanceMatrix.needsUpdate=true;carM.lights.instanceMatrix.needsUpdate=true;carM.glow.instanceMatrix.needsUpdate=true;
  }catch(e){console.error('Vie de la ville : '+(e&&e.stack?e.stack:e));}}
 MW.on('tick',onTick);
@@ -598,6 +617,7 @@ const api={
  sig:()=>sigS.slice(),
  density:h=>[interp(PD,h),interp(CD,h)],
  dump:()=>({g:!!G,tl:!!tlA})};
+api.fleet=()=>fleet.map(m=>({id:m.id,L:m.L,W:m.W,H:m.H,arch:m.arch}));   /* modèles de la circulation (test) */
 window.__mwvie=api;
 return api;
 })();

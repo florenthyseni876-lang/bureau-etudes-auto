@@ -65,7 +65,7 @@ for(const r of RZ) for(const s of [-1,1]) for(let t=-270+(s>0?0:16);t<=275;t+=32
  let k=0;for(const rx of RX) for(const rz of RZ) for(const sx of [-1,1]) for(const sz of [-1,1]){k++;
   const x=rx+sx*9.7,z=rz+sz*14.5,type=[[1,0],[0,0],[2,0],[3,0],[0,1],[1,1],[2,1],[3,1]][(k*3)%8];
   sign(x,z,0,type[0],type[1]);}
- for(const [x,z,ry] of [[-282,6,PI/2],[282,-6,-PI/2],[6,-282,PI],[-6,282,0]]) sign(x,z,ry,0,0);}
+ for(const [x,z,ry] of [[-282,8.7,PI/2],[282,-8.7,-PI/2],[8.7,-282,PI],[-8.7,282,0]]) sign(x,z,ry,0,0);} /* [textures] sur le trottoir, plus au milieu de la chaussée */
 // panneaux de direction : un par approche de chaque carrefour, vers les lieux clés (atlas de 40 panneaux, un seul appel de dessin)
 {const KEY=['garage1','pieces','concess','garage2','garage3','garage4','ecole','banque','bureau'],NS=MW.streets||{ns:[],ew:[]};
  const CW=256,CH=96,COLS=4,ROWS=10,cv=document.createElement('canvas');cv.width=CW*COLS;cv.height=CH*ROWS;const g=cv.getContext('2d');
@@ -225,10 +225,50 @@ function bakeCar(opts,x,z,ry,layer){
  (D.parked||(D.parked=[])).push({g:gr,x,z,layer:layer||'detail'});
  return g;}
 H.bakeCar=bakeCar;
+/* Voiture garée de la rue : carrosserie simplifiée du modèle (js/53c) fusionnée dans le décor, peinture unie, vitres sombres, phares,
+   feux arrière et quatre roues. Renvoie le gabarit du modèle {L, W, …} (pour le collider) ou null. */
+const rueGaree=[];   /* gabarits des voitures garées de la rue, pour les tests : {x, z, ry, L, W, id} */
+function modeleDuType(kind,rnd){
+ let liste=[];
+ try{
+  liste=MWCARS.list.filter(f=>f.kind===kind);
+  if(!liste.length) liste=MWCARS.list;
+ }catch(e){
+  return null;}
+ return liste.length?liste[Math.floor(rnd()*liste.length)]:null;}
+function bakeVilleCar(kind,couleur,x,z,ry,rnd){
+ const fiche=modeleDuType(kind,rnd);
+ const spec=MWVC.spec(fiche||kind);
+ const parts=MWVC.parts(spec);
+ const matrice=new T.Matrix4().makeRotationY(ry).setPosition(x,0,z);
+ const peinture=MWVC.linear(couleur);
+ const coul=MWVC.colors;
+ const groupe=D.group(B=>{
+  const lot=B('car');
+  lot.add(parts.paint,matrice,peinture,true);
+  lot.add(parts.glass,matrice,coul.glass,true);
+  lot.add(parts.dark,matrice,coul.dark,true);
+  lot.add(parts.head,matrice,coul.head,true);
+  lot.add(parts.tail,matrice,coul.tail,true);
+  const pneu=new T.CylinderGeometry(spec.wheelR,spec.wheelR,.22,12).rotateZ(PI/2);
+  const jante=new T.CylinderGeometry(spec.wheelR*.55,spec.wheelR*.55,.24,10).rotateZ(PI/2);
+  for(const [wx,wy,wz] of MWVC.wheelPositions(spec)){
+   const m=new T.Matrix4().makeTranslation(wx,wy,wz).premultiply(matrice);
+   lot.add(pneu,m,coul.rubber,true);
+   lot.add(jante,m,coul.hub,true);}});
+ (D.parked||(D.parked=[])).push({g:groupe,x,z,layer:'detail'});
+ rueGaree.push({x,z,ry,L:spec.L,W:spec.W,id:spec.id});
+ return spec;}
+D.rueGaree=rueGaree;
 {const rm=D.rng(909),COL=[0xb03030,0x2a4a8a,0xe0e0e0,0x202428,0x3a7a4a,0xd8a020,0x8a8f98,0x6a2a5a,0xc4c4c0],KIND=['citadine','berline','suv','citadine','berline','utilitaire'];let n=0;
  const doors=zones.filter(z=>z.porte).map(z=>z.porte);
  const spot=(x,z,ry,len)=>{if(Math.hypot(x+23.5,z-5.4)<8||(Math.abs(z-5.4)<3.6&&x>-32&&x<12)||!free(x,z,len?2.3:1,len?1:2.3,.2)) return;if(doors.some(p=>Math.hypot(p.x-x,p.z-z)<9)) return;
-  const k=pick(KIND);if(bakeCar({kind:k,color:pick(COL)},x,z,ry,'detail')){addCol(x,z,len?4.8:2.1,len?2.1:4.8);n++;}};
+  const spec=bakeVilleCar(pick(KIND),pick(COL),x,z,ry,rm);
+  if(spec){
+   /* collider exact : longueur et largeur du modèle, orientés selon la rue (la voiture est parallèle au trottoir ou perpendiculaire) */
+   const longueur=spec.L+.1,largeur=spec.W+.1;
+   addCol(x,z,len?longueur:largeur,len?largeur:longueur);
+   n++;}};
  for(const r of RZ) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*30+30){if(near(t,RX,20)||rm()<.45||n>=16) continue;spot(t,r+sd*5.55,sd>0?PI/2:-PI/2,1);}
  for(const r of RX) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*40+40){if(near(t,RZ,20)||rm()<.5||n>=16) continue;spot(r+sd*5.55,t,sd<0?0:PI,0);}}
 
@@ -259,7 +299,14 @@ H.bakeCar=bakeCar;
   for(const s of [-1,1]){L.box(.07,.46,.5,s*.78,.23,0,0x2c3036);L.box(.07,.5,.05,s*.78,.65,-.22,0x2c3036);}};
  const bin=(x,z)=>{const p=det('plain');p.cyl(.26,.22,.85,10,x,.43,z,0x2f5a3a);p.cyl(.28,.28,.07,10,x,.88,z,0x1e3a26);};
  const sp=[[-52,-8.3,0],[-52,8.4,PI],[40,-8.3,0],[40,8.4,PI],[100,8.4,PI],[-8,-8.3,0],[-120,-8.3,0],[8,8.4,PI],[-100,141.7,0],[60,158.3,PI],[-60,-141.7,0],[100,-158.3,PI],[-141.7,-60,PI/2],[141.7,70,-PI/2],[8.3,-80,-PI/2],[-8.3,90,PI/2]];
- for(const [x,z,ry] of sp){if(!free(x,z,.9,.9,.1)) continue;bench(x,z,ry);bin(x+Math.cos(ry)*2.2,z-Math.sin(ry)*2.2);}
+ for(const [x,z,ry] of sp){
+  if(!free(x,z,.9,.9,.1)) continue;
+  bench(x,z,ry);
+  /* la poubelle se met à côté du banc, sur le trottoir : on essaie les quatre côtés et on garde le premier qui n'est pas sur une chaussée */
+  const candidats=[[x+2.2,z],[x-2.2,z],[x,z+2.2],[x,z-2.2]];
+  const surChaussee=(bx,bz)=>RX.some(r=>Math.abs(bx-r)<7.3)||RZ.some(r=>Math.abs(bz-r)<7.3);
+  const place=candidats.find(([bx,bz])=>!surChaussee(bx,bz));
+  if(place) bin(place[0],place[1]);}
  const ads=D.signMat(D.canvasTex(256,128,(x,w,h)=>{x.fillStyle='#fffbe6';x.fillRect(0,0,w,h);x.fillStyle='#c02a1a';x.fillRect(0,0,w,26);x.fillStyle='#fff';x.font='bold 18px Arial';x.textAlign='center';x.fillText('VENTE PRIVÉE',w/2,20);x.fillStyle='#222';x.font='bold 30px Arial';x.fillText('-50 %',w/2,72);x.font='14px Arial';x.fillText('Pièces auto · Pneus · Outillage',w/2,100);}));
  for(const [x,z,ry] of [[-50,-9.1,0],[38,9.2,PI],[-9.2,70,PI/2],[9.2,-90,-PI/2],[100,-9.1,0]]){
   const L=D.L(det('plain'),x,z,ry,0),gl=D.L(D.B('detail','glass'),x,z,ry,0);
@@ -269,7 +316,7 @@ H.bakeCar=bakeCar;
   const m=new T.Mesh(new T.PlaneGeometry(1.0,1.5),ads);const p=L.w(1.05,-.5+.03);m.position.set(p[0],1.3,p[1]);m.rotation.y=ry;ctx.scene.add(m);addCol(x,z,Math.abs(Math.cos(ry))>.5?3.6:1.8,Math.abs(Math.cos(ry))>.5?1.8:3.6);}
  // colonne à affiches
  const col=(x,z)=>{const p=det('plain');p.cyl(.62,.62,.19,14,x,.095,z,0x30363c); /* [textures] socle plus haut que le trottoir (0,15) : plus de face confondue */p.cyl(.55,.55,2.4,14,x,1.35,z,0x2f5a3a);p.cyl(.62,.5,.3,14,x,2.7,z,0x30363c);p.cyl(.3,.55,.5,14,x,3.0,z,0x2f5a3a);};
- col(-6.5,-8.6);col(8.2,98);}
+ col(-8.7,-8.6);col(8.2,98); /* [routes libres] la colonne est sur le trottoir (elle mordait sur l avenue à x = -6,5) */}
 
 /* ═══════ Immeubles ═══════ */
 const TINTS={plaster:[0xf0e2c4,0xe8cfa8,0xf2d8d0,0xd8e4ec,0xdde8d0,0xf4ecd8,0xe6c8a0,0xefe0e8],brick:[0xffffff,0xf0e0d8,0xd8c8c0,0xe8d0c0],stone:[0xffffff,0xf4eee4,0xe6e0d4]};
