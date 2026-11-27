@@ -39,6 +39,8 @@ Chaque scénario est un fichier de `tests/scenarios/`, lancé dans un navigateur
 | `07-atelier.js` | Enregistrer un moteur, prendre la place de l'ingénieur, saisir une pièce avec la touche E, la poser. En mode complet, le montage entier est terminé. |
 | `08-telephone.js` | iPhone 13 : interface pivotée en paysage, défilement au doigt, aucun débordement horizontal. |
 
+Le scénario `46-meca-zoom.js` couvre la vue rapprochée des gestes (js/46z) avec de vrais clics de souris sur la page : E sur le bouchon de vidange ouvre un cadrage serré (par-dessous), le joueur reste immobile, les points cliquables s'affichent et se mettent en évidence au survol ; un clic maintenu dévisse le bouchon d'un coup au cliquet, un autre dévisse le filtre, puis huilage et pose du filtre neuf, bouchon revissé et serré d'un geste, retour automatique à la fin de la sous-tâche. Même chose pour les écrous d'une roue (desserrage au sol, retour automatique, retrait, dépose de la roue, clic droit pour sortir) et pour les bougies (6 gestes par cylindre). Il vérifie aussi que les étapes supprimées (`pl0`, `pl3`, `f0`) ne reviennent pas et que le réglage « Vue rapprochée : désactivée » rend le mode classique. Les captures vont dans `BEA_CAPTURES` (sinon le dossier temporaire).
+
 Le scénario `41-meca-deux-joueurs.js` ouvre **deux pages** du même navigateur, reliées par BroadcastChannel (le serveur de rencontre PeerJS n'est pas
 joignable pendant les tests ; la bibliothèque est remplacée par un faux fichier). Il y vérifie le menu, la connexion par code, la vue de l'autre qui bouge,
 les clients à deux, les gestes à deux sur une même voiture, le refus d'une même pièce en même temps, l'argent commun, le sommeil à deux, les messages et
