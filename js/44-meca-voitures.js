@@ -775,6 +775,20 @@ function evParts(add,cz,gc){
  add('orange',bxg(.46,.16,.32,.08,gc+.62,cz-.02));add('alu',bxg(.3,.1,.26,-.4,gc+.5,cz-.05));
  for(const sg of [-1,1]) add('orange',tf(new T.TubeGeometry(new T.CatmullRomCurve3([V3(.08,gc+.62,cz+.1*sg),V3(.22,gc+.5,cz+.18*sg),V3(.3,gc+.32,cz+.12*sg)]),8,.014,6,false),0,0,0));}
 
+/* Pose la boîte de vitesses contre le volant moteur. Renvoie {c, ax, L, e} (centre, axe, longueur, point de la bride) pour js/46.
+   Remplit aussi ud.gbxAncres (points des bouchons, du support, des câbles… en repère voiture) et ud.gbxBoites (boîtes englobantes). */
+function placeGearbox(car,ud,pt,ctx){
+ const {fw,trans,bb,bc,front}=ctx,spec=MWBOX.specOf(car);
+ const bride=trans?V3(fw.x>0?bb.max.x:bb.min.x,bc.y-.02,bc.z):V3(bc.x,bc.y-.04,fw.z>0?bb.max.z:bb.min.z);
+ const angle=Math.atan2(-fw.z,fw.x),inv=-angle,pare=V3(0,0,front?-1:1).applyAxisAngle(V3(0,1,0),inv);
+ const loc=pare.toArray(),rad=pare.clone().negate().toArray();
+ const g=MWBOX.build(spec,{versPareFeu:loc,versRadiateur:rad});
+ for(const pc of g.pieces){pc.geo.rotateY(angle);pc.geo.translate(bride.x,bride.y,bride.z);pt('gearbox',pc.cle,pc.geo);}
+ ud.gbxSpec=spec;ud.gbxAncres={};ud.gbxBoites={};
+ for(const k in g.ancres) if(g.ancres[k]) ud.gbxAncres[k]=MWBOX.placer(g.ancres[k],angle,bride);
+ for(const k in g.boites) ud.gbxBoites[k]=MWBOX.placerBoite(g.boites[k],angle,bride);
+ return {c:bride.clone().addScaledVector(fw,g.longueur/2),ax:fw.clone(),L:g.longueur,e:bride.clone()};}
+
 function engineMesh(car,o){
  car=GET(car);o=o||{};const grp=o.group,G=(grp&&grp.userData.G)||buildGeo(car),g=new T.Group();g.name='bay';
  const hw=G.hw,front=!G.rearLid,lidLo=G.lidLo,lidHi=G.lidHi,gc=G.gc;
@@ -787,7 +801,7 @@ function engineMesh(car,o){
  const topAt=z=>G.top(z);
  const zMin=lidLo+.05,zMax=front?lidHi-.2:lidHi-.04;
  const minTop=Math.min(topAt(zMin),topAt(zMax),topAt((zMin+zMax)/2));
- const availY=minTop-.05-(gc+.13),availZ=zMax-zMin,gbL=trans?.34:0,availX=2*(hw-(front?.3:.26))-gbL;
+ const availY=minTop-.05-(gc+.13),availZ=zMax-zMin,gbL=trans&&!car.ev?(MWBOX.specOf(car).longueur+.02):trans?.34:0,availX=2*(hw-(front?.3:.26))-gbL;
  let fit={ok:true,f:1};
  if(!car.ev){
   parts=engineParts(car);ud.eng=parts;eg=new T.Group();eg.rotation.y=th;
@@ -808,10 +822,8 @@ function engineMesh(car,o){
  const ep=v=>v.clone().multiplyScalar(.001*(fit.f||1)).applyAxisAngle(V3(0,1,0),th).add(eg?eg.position:V3(0,0,0));
  const bc=bb.getCenter(V3(0,0,0)),bs=bb.getSize(V3(0,0,0));
  const lx=hw-.4,zF=lidHi-.12;
- /* boîte de vitesses */
- if(!car.ev){
-  if(trans){const gx=(fw.x>0?bb.max.x:bb.min.x)+fw.x*gbL/2;pt('gearbox','gbx',bxg(gbL,.36,Math.min(bs.z*1.02,.44),gx,bc.y-.02,bc.z));pt('gearbox','gbx',cyx(.17,.12,20,(fw.x>0?bb.max.x:bb.min.x)+fw.x*.04,bc.y-.02,bc.z));ud.gear={c:V3(gx,bc.y-.02,bc.z),ax:V3(fw.x>0?1:-1,0,0),L:gbL,e:V3((fw.x>0?bb.max.x:bb.min.x),bc.y-.02,bc.z)};}
-  else{const gz=(fw.z>0?bb.max.z:bb.min.z)+fw.z*.17;pt('gearbox','gbx',bxg(.34,.34,.34,bc.x,bc.y-.04,gz));pt('gearbox','gbx',cyz(.17,.1,20,bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z)+fw.z*.04));ud.gear={c:V3(bc.x,bc.y-.04,gz),ax:V3(0,0,fw.z>0?1:-1),L:.34,e:V3(bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z))};}}
+ /* boîte de vitesses : modèle de js/07c (manuelle, automatique, double embrayage), posée contre le volant moteur */
+ if(!car.ev) ud.gear=placeGearbox(car,ud,pt,{fw,trans,bb,bc,front});
  /* plancher, tablier, traverse, charnières */
  /* plancher de la baie : deux bandes latérales seulement, le dessous du moteur reste dégagé (vue par en dessous) */
  for(const sg of [-1,1]){const x0=sg>0?bb.max.x+.04:-(hw-.12),x1=sg>0?hw-.12:bb.min.x-.04;if(x1-x0>.04) add('floor',bxg(x1-x0,.02,lidHi-lidLo,(x0+x1)/2,gc+.1,(lidLo+lidHi)/2));}
