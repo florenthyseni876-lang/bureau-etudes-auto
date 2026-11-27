@@ -526,6 +526,8 @@ function drive(dt){
  car.v=phys.u;car.steer=phys.steer;car.choc=choc.vitesse;
  P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;}
 /* Poignées de test : la voiture du joueur (ou un piéton) posée en (x, z) touche-t-elle un obstacle fixe ? */
+/* État dynamique de la voiture du joueur (lecture seule : roulis, tangage, glissement pour js/40s) */
+api.carDyn=()=>({ax:phys.ax,ay:phys.ay,slip:phys.slip,steer:phys.steer,u:phys.u,w:phys.w,r:phys.r,inCar:P.inCar});
 api.carHits=(x,z,ry)=>{
  const spec=carSpec(),etat=MWPHYS.state(x,z,ry);
  return MWPHYS.cercles(etat,spec).some(c=>pushOut(c.x,c.z,spec.W/2).hit);};

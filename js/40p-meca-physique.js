@@ -18,14 +18,20 @@
 
    ═══ API `MWPHYS` (aussi `window.__mwphys`) ═══
    MWPHYS.spec(userData, drv)          gabarit physique d'une voiture : userData = celui de MW.carMesh ({L, W, H, WB, mdl, kind}),
-                                        drv = réglages de MW.drv {vm, acc, brk, turn, eng} (js/58, tuning)
-                                        → {m (kg), L, W, WB, a, b, Iz, h, vm, acc, brk, grip, mu, wheelDrive, deltaMax, …}
+                                        drv = réglages de MW.drv (js/58, tuning) : {vm, acc, brk, turn, eng} et, si présents,
+                                        {mass (kg, allègement compris), ch (puissance), grip (adhérence des pneus), trac (autobloquant),
+                                        gc (garde au sol en cm)}
+                                        → {m (kg), puissance (W), L, W, WB, a, b, Iz, h, vm, brk, mu, traction, lsd, deltaMax, …}
+                                        La MASSE, la PUISSANCE et la TRANSMISSION (traction, propulsion, quatre roues motrices) de la fiche
+                                        MWCARS décident de l'accélération, du freinage, de l'inertie en virage et du comportement à la limite.
    MWPHYS.state(x, z, ry)              état initial {x, z, ry, u, w, r, steer, ax, ay}
    MWPHYS.step(s, p, entree, dt)       fait avancer l'état de dt secondes ; entree = {gaz (−1..1), volant (−1..1, droite positive),
-                                        frein (frein à main, vrai/faux)}
+                                        frein (frein à main, vrai/faux)} ; s.slip (0..1+) = glissement des pneus à la limite
    MWPHYS.cercles(s, p)                3 cercles {x, z} de rayon p.W / 2 qui recouvrent le rectangle de la caisse
    MWPHYS.collisions(s, p, pousser)    repousse la voiture hors des obstacles ; pousser(x, z, r) → {x, z, hit} (comme pushOut de js/40) ;
                                         applique le rebond ; renvoie {hit, vitesse (vitesse d'approche de l'impact le plus fort)}
+   MWPHYS.chocVoiture(s, p, autre)     choc entre la voiture s et une autre {x, z, vx, vz, m} : répartit l'impulsion selon les masses (la plus légère
+                                        est davantage repoussée) ; renvoie {dvx, dvz, vitesse} (variation de vitesse de l'autre) ou null
    MWPHYS.rectangle(s, p, marge)       rectangle orienté de la caisse {cx, cz, fx, fz, lx, lz, demiL, demiW}
    MWPHYS.distanceRectangle(rect, x, z) distance d'un point à la caisse (0 à l'intérieur)
    MWPHYS.repousserPoint(rect, x, z, r) repousse un disque (le joueur à pied) hors de la caisse → {x, z, hit}
@@ -67,14 +73,24 @@ const MWPHYS = (() => {
     } catch (e) {
       fiche = null;
     }
-    const masse = (fiche && fiche.mass) || 1250;
+    const masse = reglages.mass || (fiche && fiche.mass) || 1250;
+    const chevaux = reglages.ch || (fiche && fiche.eng && fiche.eng.ch) || 90;
     const avant = partAvant(fiche);
     const WB = ud.WB || ud.L * 0.62;
     const a = WB * (1 - avant);
     const b = WB - a;
-    const traction = fiche ? fiche.drive : 'fwd';
+    const traction = fiche && fiche.drive ? fiche.drive : 'fwd';
+    /* adhérence : celle des pneus (js/58) ; à défaut, déduite des multiplicateurs de braquage et de freinage */
+    const mu = reglages.grip
+      ? clamp(0.95 * reglages.grip, 0.7, 1.6)
+      : clamp(1 + 0.22 * (reglages.turn - 1) + 0.1 * (reglages.brk - 1), 0.7, 1.5);
+    /* centre de gravité : plus bas si la caisse est abaissée (js/58) */
+    const gcFiche = fiche && fiche.gc ? fiche.gc * 100 : null;
+    const decalageGc = reglages.gc != null && gcFiche != null ? (reglages.gc - gcFiche) / 100 : 0;
     return {
       m: masse,
+      puissance: chevaux * 735.5 * 0.88 * Math.max(0.05, reglages.eng) * (reglages.ch ? 1 : reglages.acc),   /* js/58 donne déjà la puissance réelle */
+      rapportPuissance: chevaux / (masse / 1000),
       L: ud.L,
       W: ud.W,
       H: ud.H,
@@ -82,11 +98,11 @@ const MWPHYS = (() => {
       a,
       b,
       Iz: masse * (ud.L * ud.L + ud.W * ud.W) / 12 * 1.15,
-      h: Math.max(0.45, ud.H * 0.34),
+      h: clamp(Math.max(0.45, ud.H * 0.34) + decalageGc, 0.35, 0.8),
       vm: reglages.vm,
-      acc: reglages.acc * reglages.eng,
       brk: reglages.brk,
-      mu: clamp(1 + 0.22 * (reglages.turn - 1) + 0.1 * (reglages.brk - 1), 0.7, 1.5),
+      mu,
+      lsd: clamp(reglages.trac || 0, 0, 0.3),
       raideur: 11 * clamp(reglages.turn, 0.7, 1.8),
       sousVirage: 1.18,   /* l'essieu arrière est un peu plus raide : la voiture sous-vire (stable) à la limite */
       traction,
@@ -94,7 +110,7 @@ const MWPHYS = (() => {
     };
   };
 
-  api.state = (x, z, ry) => ({ x, z, ry, u: 0, w: 0, r: 0, steer: 0, ax: 0, ay: 0 });
+  api.state = (x, z, ry) => ({ x, z, ry, u: 0, w: 0, r: 0, steer: 0, ax: 0, ay: 0, slip: 0 });
 
   /* ═══════════ Efforts des pneus ═══════════ */
   /* force latérale d'un essieu : saturante, avec cercle d'adhérence (la part déjà prise par l'effort longitudinal est retirée) */
@@ -132,19 +148,27 @@ const MWPHYS = (() => {
     let fxAvant = 0;
     let fxArriere = 0;
     if (entree.gaz > 0.05 && u > -0.3) {
-      const courbe = p.acc * 5.5 * (1 - Math.pow(clamp(u / p.vm, 0, 1), 2.2));
-      const demande = courbe * entree.gaz * p.m;
-      const rep = p.traction === 'awd' ? [0.5, 0.5] : p.traction === 'rwd' ? [0, 1] : [1, 0];
-      fxAvant = Math.min(demande * rep[0], muEffectif * fzAvant);
-      fxArriere = Math.min(demande * rep[1], muArriere * fzArriere);
+      /* force motrice : couple limité à bas régime (selon le rapport poids/puissance), puis puissance constante P / v ;
+         la vitesse maxi du jeu ferme progressivement la courbe */
+      const aCouple = 2.6 + 0.012 * p.rapportPuissance;
+      const fCouple = p.m * aCouple * Math.min(1.4, 0.55 + 0.45 * p.vm / 22);
+      const fPuissance = p.puissance * 0.88 / Math.max(u, 1.5);
+      const fermeture = 1 - Math.pow(clamp(u / p.vm, 0, 1), 3);
+      const demande = Math.min(fCouple, fPuissance) * fermeture * entree.gaz;
+      /* répartition : traction (avant), propulsion (arrière), quatre roues motrices (40 / 60) */
+      const rep = p.traction === 'awd' ? [0.4, 0.6] : p.traction === 'rwd' ? [0, 1] : [1, 0];
+      /* autobloquant : la roue qui patine transmet moins mal → meilleure motricité de l'essieu moteur */
+      const motricite = 1 + p.lsd * 1.5;
+      fxAvant = Math.min(demande * rep[0], motricite * muEffectif * fzAvant);
+      fxArriere = Math.min(demande * rep[1], motricite * muArriere * fzArriere);
     } else if (entree.gaz < -0.05) {
       if (u > 0.4) {
-        const aFrein = 10.5 * p.brk * -entree.gaz;
+        const aFrein = 10.2 * p.brk * Math.pow(1250 / p.m, 0.3) * -entree.gaz;   /* les gros freins d'une voiture lourde fatiguent plus vite */
         const demande = p.m * aFrein;
         fxAvant = -Math.min(demande * 0.62, muEffectif * fzAvant);
         fxArriere = -Math.min(demande * 0.38, muArriere * fzArriere);
       } else {
-        const demande = p.m * 2.6 * p.acc * -entree.gaz * (1 - Math.min(1, Math.abs(Math.min(u, 0)) / 6));
+        const demande = p.m * 2.6 * -entree.gaz * (1 - Math.min(1, Math.abs(Math.min(u, 0)) / 6));
         fxAvant = (p.traction === 'rwd' ? 0 : -1) * Math.min(demande, muEffectif * fzAvant);
         fxArriere = (p.traction === 'fwd' ? 0 : -1) * Math.min(demande, muArriere * fzArriere);
       }
@@ -159,6 +183,7 @@ const MWPHYS = (() => {
     const uRef = sens * Math.max(vitesseAbs, 1.5);
     const alphaAvant = Math.atan2(s.w + p.a * s.r, Math.abs(uRef)) * sens - delta * sens;
     const alphaArriere = Math.atan2(s.w - p.b * s.r, Math.abs(uRef)) * sens;
+    s.slip = Math.max(Math.abs(alphaAvant), Math.abs(alphaArriere)) / (muEffectif / p.raideur);
     const fyAvant = forceLaterale(p.raideur, fzAvant, alphaAvant, fxAvant, muEffectif);
     const fyArriere = forceLaterale(p.raideur * p.sousVirage, fzArriere, alphaArriere, fxArriere, muArriere);
 
@@ -296,6 +321,39 @@ const MWPHYS = (() => {
     s.w = vx * cos - vz * sin;
     return -vn;
   }
+
+  /* choc entre deux voitures : impulsion répartie selon les masses ; la voiture s est modifiée, la variation de vitesse de l'autre est renvoyée */
+  api.chocVoiture = function (s, p, autre) {
+    const dx = s.x - autre.x;
+    const dz = s.z - autre.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 1e-6) {
+      return null;
+    }
+    const n = { x: dx / d, z: dz / d };
+    const fx = Math.sin(s.ry);
+    const fz = Math.cos(s.ry);
+    const lx = Math.cos(s.ry);
+    const lz = -Math.sin(s.ry);
+    const portee = p.L / 2 * Math.abs(n.x * fx + n.z * fz) + p.W / 2 * Math.abs(n.x * lx + n.z * lz);
+    const rc = { x: -n.x * portee, z: -n.z * portee };
+    const vx = s.u * fx + s.w * lx;
+    const vz = s.u * fz + s.w * lz;
+    const relX = vx + s.r * rc.z - autre.vx;
+    const relZ = vz - s.r * rc.x - autre.vz;
+    const vn = relX * n.x + relZ * n.z;
+    if (vn >= 0) {
+      return null;
+    }
+    const bras = rc.z * n.x - rc.x * n.z;
+    const j = -(1 + 0.25) * vn / (1 / p.m + 1 / autre.m + bras * bras / p.Iz);
+    const nvx = vx + j * n.x / p.m;
+    const nvz = vz + j * n.z / p.m;
+    s.u = nvx * fx + nvz * fz;
+    s.w = nvx * lx + nvz * lz;
+    s.r = clamp(s.r + j * bras / p.Iz, -3.5, 3.5);
+    return { dvx: -j * n.x / autre.m, dvz: -j * n.z / autre.m, vitesse: -vn };
+  };
 
   api.collisions = function (s, p, pousser) {
     let meilleur = 0;

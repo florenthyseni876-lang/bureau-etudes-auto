@@ -174,9 +174,9 @@ function pickCarModels(){
   for(const c of MWCARS.list){
    const body=c.body,arch=body==='van'?'van':body==='suv'?'suv':body==='wagon'?'wagon':body==='sedan'?'sedan':(body==='coupe'||body==='mid'||body==='rear')?'coupe':'hatch';
    const w=c.cat==='pop'?4:c.cat==='gen'?3:c.cat==='prem'?1.5:.5;
-   out.push({id:c.id,arch,L:c.L||ARCH[arch].L,W:c.W||ARCH[arch].W,H:c.H||ARCH[arch].H,WB:c.WB||(c.L||4)*.62,w});}
+   out.push({id:c.id,arch,L:c.L||ARCH[arch].L,W:c.W||ARCH[arch].W,H:c.H||ARCH[arch].H,WB:c.WB||(c.L||4)*.62,w,mass:c.mass||1250});}
  }catch(e){}
- if(!out.length) for(const [arch,w] of [['hatch',5],['sedan',3],['suv',2],['van',1],['wagon',1],['coupe',.5]]){const a=ARCH[arch];out.push({id:arch,arch,L:a.L,W:a.W,H:a.H,WB:a.L*.62,w});}
+ if(!out.length) for(const [arch,w] of [['hatch',5],['sedan',3],['suv',2],['van',1],['wagon',1],['coupe',.5]]){const a=ARCH[arch];out.push({id:arch,arch,L:a.L,W:a.W,H:a.H,WB:a.L*.62,w,mass:1250});}
  return out;}
 /* Flotte de la circulation : au plus FLOTTE modèles du catalogue (un maillage instancié par modèle, donc un appel de dessin chacun). */
 const FLOTTE=12;
@@ -560,6 +560,17 @@ function reconcile(){
  budget=3;
  if(nc<wantC) for(const c of cars){if(budget<=0||nc>=wantC) break;if(!c.on&&spawnCar(c,false)){nc++;budget--;}}
  else if(nc>wantC) for(const c of cars){if(nc<=wantC) break;if(c.on&&!c.keep&&(!visible(c.x,c.z,.45)||Math.hypot(c.x-player.x,c.z-player.z)>60)){offCar(c);nc--;}}}
+/* Choc avec la voiture du joueur : l'impulsion est répartie selon les deux masses (js/40p, MWPHYS.chocVoiture) ;
+   la voiture de la rue, si elle est plus légère, est davantage repoussée (déplacement ≈ variation de vitesse × 0,12 s, au plus 1 m). */
+let vitesseAvant=0;
+function repousserVoiture(c){
+ const etat=MWPHYS.state(pcar.x,pcar.z,pcar.ry);
+ etat.u=Math.sign(pcar.speed||vitesseAvant)*Math.max(Math.abs(pcar.speed),Math.abs(vitesseAvant));
+ const ca=Math.sin(c.ry),cb=Math.cos(c.ry);
+ const res=MWPHYS.chocVoiture(etat,MW.carSpec(),{x:c.x,z:c.z,vx:ca*c.v,vz:cb*c.v,m:c.model.mass});
+ if(!res) return;
+ const dx=clamp(res.dvx*.12,-1,1),dz=clamp(res.dvz*.12,-1,1);
+ c.x+=dx;c.z+=dz;}
 function hitCheck(){
  if(!pcar) return;
  const ca=Math.sin(pcar.ry),cb=Math.cos(pcar.ry);
@@ -570,7 +581,9 @@ function hitCheck(){
   for(const o of [-e,0,e]){
    const px=pcar.x+ca*o,pz=pcar.z+cb*o,w=c.wall,cx=clamp(px,w[0],w[2]),cz=clamp(pz,w[1],w[3]);
    if(Math.hypot(px-cx,pz-cz)<rayon+.05) hit=true;}
-  if(hit){c.hold=Math.max(c.hold,2.5);c.v=0;
+  if(hit){
+   repousserVoiture(c);
+   c.hold=Math.max(c.hold,2.5);c.v=0;
    if(Math.abs(pcar.speed)>1.2&&tNow-hitT>8){hitT=tNow;honk(c.x,c.z,true);try{MW.toast('Vous avez heurté une voiture : le conducteur klaxonne.','warn');}catch(e){}}
    else if(tNow-hitT>2.5) honk(c.x,c.z);}}}
 function onTick(dt){
@@ -579,6 +592,7 @@ function onTick(dt){
  try{
   init();
   tNow+=dt;sigClock+=dt;
+  vitesseAvant=pcar?pcar.speed:0;
   player=MW.player();pcar=MW.playerCar();
   MW.cam.getWorldDirection(camDir);camDir.y=0;if(camDir.lengthSq()>1e-6) camDir.normalize();camPos.copy(MW.cam.position);
   hour=MW.hourF();night=nightF(hour);
