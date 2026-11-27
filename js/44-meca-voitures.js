@@ -337,12 +337,23 @@ const MT=new Map();
 function mat(key,mk){let m=MT.get(key);if(!m){m=mk();MT.set(key,m);}return m;}
 /* une peinture blanche réelle réfléchit environ 85 % : on plafonne la clarté pour ne pas saturer sous la baladeuse */
 const softPaint=c=>{const r=c>>16&255,g=c>>8&255,b=c&255,mx=Math.max(r,g,b);if(mx<=222) return c;const k=222/mx;return (Math.round(r*k)<<16)|(Math.round(g*k)<<8)|Math.round(b*k);};
-const paintMat=c=>mat('p'+c,()=>new T.MeshPhongMaterial({color:softPaint(c),shininess:55,specular:0x3a3a3a,side:T.DoubleSide}));
+/* ciel et sol peints sur 6 petites faces : carte d'environnement unique, partagée par toutes les voitures (reflets de la peinture et des vitres) */
+function envCube(){
+ return mat('env',()=>{
+  const faces=[];
+  for(let i=0;i<6;i++){
+   const cv=document.createElement('canvas');cv.width=cv.height=32;const x=cv.getContext('2d'),gr=x.createLinearGradient(0,0,0,32);
+   if(i===2){gr.addColorStop(0,'#9fc2e8');gr.addColorStop(1,'#d8e6f4');}            /* dessus : ciel */
+   else if(i===3){gr.addColorStop(0,'#6d6a64');gr.addColorStop(1,'#8a867e');}       /* dessous : sol */
+   else{gr.addColorStop(0,'#b8d2ee');gr.addColorStop(.46,'#e9eef2');gr.addColorStop(.54,'#8d8a82');gr.addColorStop(1,'#5f5d58');}   /* côtés : ciel, horizon, sol */
+   x.fillStyle=gr;x.fillRect(0,0,32,32);faces.push(cv);}
+  const t=new T.CubeTexture(faces);t.needsUpdate=true;return t;});}
+const paintMat=c=>mat('p'+c,()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.2,combine:T.MixOperation,color:softPaint(c),shininess:90,specular:0x555555,side:T.DoubleSide}));
 const MATS={
- glass:()=>mat('glass',()=>new T.MeshPhongMaterial({color:0x16222c,shininess:100,specular:0x8899aa,transparent:true,opacity:.6,depthWrite:false,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})),
+ glass:()=>mat('glass',()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.4,combine:T.MixOperation,color:0x101a22,shininess:110,specular:0xaabbcc,transparent:true,opacity:.66,depthWrite:false,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})),
  dark:()=>mat('dark',()=>new T.MeshLambertMaterial({color:0x17181b,side:T.DoubleSide})),
  trim:()=>mat('trim',()=>new T.MeshPhongMaterial({color:0x26282c,shininess:25,specular:0x222222,side:T.DoubleSide})),
- chrome:()=>mat('chrome',()=>new T.MeshPhongMaterial({color:0xc4c8ce,shininess:90,specular:0xdddddd})),
+ chrome:()=>mat('chrome',()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.55,combine:T.MixOperation,color:0xc4c8ce,shininess:90,specular:0xdddddd})),
  rubber:()=>mat('rubber',()=>new T.MeshLambertMaterial({color:0x17181a})),
  alu:()=>mat('alu',()=>new T.MeshPhongMaterial({color:0xbfc4cb,shininess:80,specular:0x999999,side:T.DoubleSide})),
  graph:()=>mat('graph',()=>new T.MeshPhongMaterial({color:0x4b4e54,shininess:70,specular:0x666666,side:T.DoubleSide})),
@@ -633,10 +644,18 @@ function updateRod(g){
  const lx=G.hw*.5,ly=-.045,lz=G.hLen*.55,c=Math.cos(a),s=Math.sin(a);
  const top=V3(lx,G.pivY+ly*c-lz*s,G.lidLo+ly*s+lz*c),foot=V3(lx,G.pivY-.13,top.z);
  const d=top.clone().sub(foot),len=d.length();u.rod.visible=true;u.rod.position.copy(foot).addScaledVector(d,.5);u.rod.scale.set(1,1,len);u.rod.quaternion.setFromUnitVectors(V3(0,0,1),d.normalize());}
+/* niveau de détail : le dessous de caisse (≈ 14 000 triangles) n'est dessiné que voiture levée ou à moins de 9 m de la caméra */
+function lodUnder(g,u){
+ if(!u.under) u.under=g.getObjectByName('dessous');
+ if(!u.under) return;
+ const cam=MW.cam;if(!cam){u.under.visible=true;return;}
+ const dx=g.position.x-cam.position.x,dz=g.position.z-cam.position.z;
+ u.under.visible=g.position.y>.35||dx*dx+dz*dz<81;}
 function track(){
  for(const g of LIVE){const u=g.userData;
   if(!u._seen){if(g.parent) u._seen=true;else if(++u._age>600) LIVE.delete(g);continue;}
   if(!g.parent){release(g);LIVE.delete(g);continue;}
+  lodUnder(g,u);
   const h=u.hood;if(!h) continue;
   if(h.rotation.x<-.15&&!u.bay&&!u.noBay){try{const e=engineMesh(u.car,{group:g});g.add(e);u.bay=e;built++;for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);}catch(err){u.noBay=true;console.error('moteur de baie',err);}}
   updateRod(g);
