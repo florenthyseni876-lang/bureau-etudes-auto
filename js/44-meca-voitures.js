@@ -283,11 +283,11 @@ function mergeVC(list,mul){
   o.setIndex(new T.BufferAttribute(off>65000?new Uint32Array(idx):new Uint16Array(idx),1));out.push({g:o,color:0xffffff,rough:b.rough,metal:b.metal,vc:true});}
  return out;}
 /* surface lissée : anneaux de points (x,y) successifs le long de z ; `closed` : l'anneau se referme (sinon « U » ouvert) */
-function loft(rings){
+function loft(rings,skip){
  const K=rings[0].pts.length,pos=[],idx=[];
  for(const r of rings) for(const p of r.pts) pos.push(p[0],p[1],r.z);
  for(let i=0;i<rings.length-1;i++){const a=i*K,b=(i+1)*K,cl=rings[i].closed&&rings[i+1].closed;
-  for(let j=0;j<K-(cl?0:1);j++){const j2=(j+1)%K;idx.push(a+j,b+j,a+j2,b+j,b+j2,a+j2);}}
+  for(let j=0;j<K-(cl?0:1);j++){if(skip&&skip(rings[i],rings[i+1],j)) continue;const j2=(j+1)%K;idx.push(a+j,b+j,a+j2,b+j,b+j2,a+j2);}}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;}
 /* polygone plat triangulé, dont chaque sommet (z,y) est placé en x par fx(z,y) */
 function sidePoly(poly,fx,sgn){
@@ -430,7 +430,7 @@ function buildGeo(car){
   const f=p=>[p[0]*wf,ym+(p[1]-ym)*vf],r=R.map(f),pts=[];
   for(let i=R.length-1;i>=0;i--) pts.push([-r[i][0],r[i][1]]);
   for(let i=0;i<R.length;i++) pts.push(r[i]);
-  return {z,pts,closed:!open};};
+  return {z,pts,closed:!open,bay:open};};
  /* échantillonnage en z */
  const zset=new Set(),N=Math.round(L*30);
  for(let i=0;i<=N;i++) zset.add(+(zr+L*(.5-.5*Math.cos(PI*i/N))).toFixed(4));
@@ -439,9 +439,13 @@ function buildGeo(car){
  const zs=[...zset].filter(z=>z>=zr&&z<=zf).sort((a,b)=>a-b);
  const rings=zs.map(z=>ring(z,z>=lidLo-.0005&&z<=lidHi+.0005));
  const paint=[],dark=[],trim=[],chrome=[],glass=[],head=[],tail=[],amber=[],inter=[],steel=[],ubel=[],sub=[],uexA=[],ualuA=[];
- paint.push(loft(rings));
+ /* sous le compartiment moteur, la coque n'a pas de fond : segment du plancher (entre les deux moitiés du profil) omis */
+ paint.push(loft(rings,(a,b,j)=>j===9&&(a.bay||b.bay)));
  /* dessous sombre (plancher, voûtes de roues) */
- {const ur=zs.map(z=>{const {wf}=endF(z),y=yb(z)-.002,yF=yfl(z)+.108;return {z,pts:[[-.86*hw*wf,y],[-.62*hw*wf,y],[-.62*hw*wf,yF],[.62*hw*wf,yF],[.62*hw*wf,y],[.86*hw*wf,y]],closed:false};});ubel.push(loft(ur));}   /* passage de roue en boîte : paroi verticale côté intérieur (on y voit l'amortisseur et le ressort) */
+ /* le plancher central s'interrompt sous le compartiment moteur : on y voit le moteur et la boîte par en dessous (voir MWUD, js/44u) */
+ {const row=(z,sel)=>{const {wf}=endF(z),y=yb(z)-.002,yF=yfl(z)+.108,a=.86*hw*wf,m=.62*hw*wf,all=[[-a,y],[-m,y],[-m,yF],[m,yF],[m,y],[a,y]];return {z,pts:sel(all),closed:false};};
+  ubel.push(loft(zs.map(z=>row(z,p=>p.slice(0,3)))));ubel.push(loft(zs.map(z=>row(z,p=>p.slice(3)))));
+  for(const run of [zs.filter(z=>z<=lidLo+.0005),zs.filter(z=>z>=lidHi-.0005)]) if(run.length>1) ubel.push(loft(run.map(z=>row(z,p=>p.slice(2,4)))));}   /* passage de roue en boîte : paroi verticale côté intérieur (on y voit l'amortisseur et le ressort) */
  /* habitacle : coque peinte */
  const ptsR=[[zrb,top(zrb)],[lerp(zrb,zRr,.25),lerp(top(zrb),H,sh.rb)],[zRr,H-.03],[lerp(zRr,zRf,.5),H],[zRf,H-.012],[lerp(zRf,zc,.55),lerp(H-.012,top(zc),.4+sh.fb*.2)],[zc,top(zc)]];
  const roofY=curveFn(ptsR),c=.05;
@@ -638,7 +642,7 @@ function track(){
   if(!u._seen){if(g.parent) u._seen=true;else if(++u._age>600) LIVE.delete(g);continue;}
   if(!g.parent){release(g);LIVE.delete(g);continue;}
   const h=u.hood;if(!h) continue;
-  if(h.rotation.x<-.15&&!u.bay&&!u.noBay){try{const e=engineMesh(u.car,{group:g});g.add(e);u.bay=e;built++;for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);}catch(err){u.noBay=true;console.error('moteur de baie',err);}}
+  if((h.rotation.x<-.15||g.position.y>.3)&&!u.bay&&!u.noBay){try{const e=engineMesh(u.car,{group:g});g.add(e);u.bay=e;built++;for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);}catch(err){u.noBay=true;console.error('moteur de baie',err);}}
   updateRod(g);
   for(const n of ['FL','FR']){const w=g.getObjectByName('w'+n);if(w&&u.brakes[n]) u.brakes[n].rotation.y=w.rotation.y+(n==='FR'?PI:0);}}}
 
@@ -681,6 +685,15 @@ function partSpots(root,parts){
    const score=vis+q.w*.2-q.p.distanceTo(c0)/Math.max(50,sz.length())*.1;
    if(!best||score>best.score) best={score,p:q.p,d:q.d,vis};}
   spots[k]={p:best.p.clone().addScaledVector(best.d,7),d:best.d,n:best.vis,box:bb.clone(),name:ps[0].name,desc:ps[0].desc||''};}
+ /* dessous : bouchon de vidange (point le plus bas du carter, sous son centre) et filtre à huile (pied et axe du cylindre) */
+ {const pan=parts.filter(p=>/^Carter d'huile/.test(p.name)&&p.meshes.length);
+  if(pan.length){const mine=new Set(),b=new T.Box3();for(const p of pan) for(const me of p.meshes){mine.add(me);b.expandByObject(me);}
+   const c=b.getCenter(new T.Vector3());rc.set(new T.Vector3(c.x,b.min.y-80,c.z),new T.Vector3(0,1,0));rc.far=400;
+   const h=rc.intersectObjects([...mine],false);spots.oilPlug={p:h.length?h[0].point.clone():new T.Vector3(c.x,b.min.y,c.z),d:new T.Vector3(0,-1,0),name:'Carter d\'huile',desc:''};}
+  const fl=parts.find(p=>/^Filtre à huile/.test(p.name)&&p.meshes.length);
+  if(fl){const me=fl.meshes.find(m=>m.isMesh&&m.geometry.parameters&&m.geometry.parameters.height);
+   if(me){me.updateWorldMatrix(true,false);const ax=new T.Vector3(0,1,0).applyQuaternion(me.getWorldQuaternion(new T.Quaternion())).normalize(),h2=me.geometry.parameters.height;
+    spots.oilFilter={p:me.getWorldPosition(new T.Vector3()).addScaledVector(ax,-h2/2),d:ax,name:fl.name,desc:fl.desc||''};}}}
  return spots;}
 /* construit (ou réutilise) la géométrie du moteur du jeu pour ce moteur : fusionnée par matériau, en mm, centrée */
 function engineParts(car){
@@ -800,7 +813,8 @@ function engineMesh(car,o){
   if(trans){const gx=(fw.x>0?bb.max.x:bb.min.x)+fw.x*gbL/2;pt('gearbox','gbx',bxg(gbL,.36,Math.min(bs.z*1.02,.44),gx,bc.y-.02,bc.z));pt('gearbox','gbx',cyx(.17,.12,20,(fw.x>0?bb.max.x:bb.min.x)+fw.x*.04,bc.y-.02,bc.z));ud.gear={c:V3(gx,bc.y-.02,bc.z),ax:V3(fw.x>0?1:-1,0,0),L:gbL,e:V3((fw.x>0?bb.max.x:bb.min.x),bc.y-.02,bc.z)};}
   else{const gz=(fw.z>0?bb.max.z:bb.min.z)+fw.z*.17;pt('gearbox','gbx',bxg(.34,.34,.34,bc.x,bc.y-.04,gz));pt('gearbox','gbx',cyz(.17,.1,20,bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z)+fw.z*.04));ud.gear={c:V3(bc.x,bc.y-.04,gz),ax:V3(0,0,fw.z>0?1:-1),L:.34,e:V3(bc.x,bc.y-.04,(fw.z>0?bb.max.z:bb.min.z))};}}
  /* plancher, tablier, traverse, charnières */
- add('floor',bxg(2*(hw-.12),.02,lidHi-lidLo,0,gc+.1,(lidLo+lidHi)/2));
+ /* plancher de la baie : deux bandes latérales seulement, le dessous du moteur reste dégagé (vue par en dessous) */
+ for(const sg of [-1,1]){const x0=sg>0?bb.max.x+.04:-(hw-.12),x1=sg>0?hw-.12:bb.min.x-.04;if(x1-x0>.04) add('floor',bxg(x1-x0,.02,lidHi-lidLo,(x0+x1)/2,gc+.1,(lidLo+lidHi)/2));}
  add('tabl',bxg(2*(hw-.1),Math.max(.2,minTop-gc),.03,0,gc+(minTop-gc)/2,lidLo+.012));
  for(const sg of [-1,1]) add('grey',bxg(.07,.05,.07,sg*hw*.5,G.pivY-.02,lidLo+.02));
  if(front){add('floor',bxg(2*(hw-.1),.3,.05,0,gc+.28,lidHi-.02));add('floor',bxg(2*(hw-.12),.06,.06,0,topAt(lidHi)-.05,lidHi-.03));}
@@ -854,6 +868,7 @@ function engineMesh(car,o){
  ud.dirs={};ud.names={};
  if(parts&&parts.spots) for(const k in parts.spots){const q=parts.spots[k];if(k==='coils'||k==='oilCap') continue;A[k]=ep(q.p);ud.names[k]=[q.name,q.desc];ud.dirs[k]=q.d.clone().applyAxisAngle(V3(0,1,0),th);}
  if(A.dip) A.dipstick=A.dip.clone();
+ if(A.oilPlug) A.oilPlug=A.oilPlug.clone();
  if(!car.ev&&!A.maf){const mp=V3(ax+.04,abY+.052,abZ+(front?.2:.3));A.maf=mp;pt('maf','grey',bxg(.07,.04,.075,mp.x,mp.y-.012,mp.z));pt('maf','blk',bxg(.03,.028,.03,mp.x,mp.y+.03,mp.z));pt('maf','clip',bxg(.07,.008,.012,mp.x,mp.y+.01,mp.z+.045));}
  if(!A.egr&&A.throttle) A.egr=A.throttle.clone();
  setA('battery',V3(bx,batY,batZ));setA('airbox',V3(ax,abY,abZ));setA('coolant',V3(vx,minTop-.17,vz));setA('washer',V3(-(hw-.34),front?.5:gc+.2,wz));setA('brakeFluid',V3(bfx,bfy,lidLo+.1));

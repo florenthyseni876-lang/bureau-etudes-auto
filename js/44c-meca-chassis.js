@@ -143,8 +143,9 @@ function build(car,X){
  /* cardans (avant moteur) */
  if(drive!=='rwd'){
   /* boîte ou différentiel avant : à côté du carter, sur le côté, ou devant la boîte */
-  if(trans||ev){base.box(K.alu,.34,.27,.31,.35,gc+.15,pz);base.cyl(K.alu,.15,.15,.12,.15,gc+.15,pz,'x',18);
+  if(ev){base.box(K.alu,.34,.27,.31,.35,gc+.15,pz);base.cyl(K.alu,.15,.15,.12,.15,gc+.15,pz,'x',18);
    for(const k of [-.1,0,.1]) base.box(K.alu,.3,.012,.03,.35,gc+.255,pz+k);}
+  else if(trans){}   /* boîte transversale : dessinée avec le moteur (js/07c, MWBOX) */
   else{base.box(K.alu,.22,.2,.24,0,gc+.1,afz-.02);base.cyl(K.alu,.1,.1,.03,0,gc+.1,afz+.11,'z',14);}
  }
  for(const sg of cx) if(drive!=='rwd'){
@@ -198,19 +199,12 @@ function build(car,X){
   /* carter d'huile, bouchon, filtre */
   const pw=trans?.46:.3,pl=trans?.3:.5,pc=cat==='pop'?K.sub:K.alu,pyT=gc+.19;
   const sCx=trans?-pw*.1:0,sCz=pz+(trans?0:-.07*dirF),sBot=pyT-.095-.0225;
-  base.box(pc,pw,.045,pl,0,pyT,pz);base.box(pc,pw*.93,.065,pl*.92,0,pyT-.045,pz);base.box(pc,pw*.62,.045,pl*.52,sCx,pyT-.095,sCz);
-  if(pc===K.alu) for(const k of [-.35,0,.35]) base.box(0x8e949b,pw*.9,.01,.02,0,pyT-.03,pz+k*pl*.9);
-  base.box(K.alu,.1,.05,.1,0,pyT-.05,pz);
+  /* carter, filtre et boîte : dessinés avec le moteur de la baie (js/44 engineMesh, js/07c) ; ici seulement les repères de secours */
   A.oilPlug=[sCx+.1,sBot,sCz];                                                                                    /* le bouchon est dessiné par js/46, à 0,10 m à gauche de ce point */
   A.oilFilter=trans?[.18,gc+.2,pz+.22]:[pw/2+.09,gc+.2,pz+.05];
-  base.cyl(K.cast,.032,.032,.03,A.oilFilter[0],A.oilFilter[1]+.012,A.oilFilter[2],'y',10);
   unit('__filtre',0,A.oilFilter,(b,w)=>{const f=A.oilFilter;if(diesel){b.cyl(0x34383d,.042,.042,.11,f[0],f[1]-.05,f[2]);b.cyl(K.alu,.034,.034,.03,f[0],f[1]-.12,f[2],'y',8);}else{b.cyl(0x2a62c8,.042,.042,.1,f[0],f[1]-.05,f[2]);b.cyl(K.steel,.046,.046,.014,f[0],f[1]-.003,f[2]);}});
   /* boîte de vitesses longitudinale : cloche, carter, traverse ; transversale : déjà dessinée (côté cardans) */
-  if(!trans){
-   const gz=pz-dirF*.48;
-   base.cyl(K.alu,.16,.16,.3,0,gc+.16,gz,'z',18);base.tube(K.alu,[0,gc+.15,gz-dirF*.15],[0,gc+.12,gz-dirF*.62],.13,.085,14);
-   base.box(K.sub,.55,.045,.08,0,gc+.045,gz-dirF*.45);base.box(K.rubber,.07,.05,.07,0,gc+.075,gz-dirF*.45);   /* traverse de boîte */
-  }
+  if(!trans){base.box(K.sub,.55,.045,.08,0,gc+.045,pz-dirF*.93);base.box(K.rubber,.07,.05,.07,0,gc+.075,pz-dirF*.93);}   /* traverse de boîte (la boîte est dans la baie) */
   /* échappement : collecteur → descente → catalyseur → (FAP) → ligne → silencieux → sortie */
   const zcat=front?pz-.42:Math.max(zr+.95,eZ-.1);
   const yP=gc+.04,yC=gc+.075,xs=exX;

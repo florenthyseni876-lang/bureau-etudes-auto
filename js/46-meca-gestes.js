@@ -669,11 +669,14 @@ function buildVidange(R){
  const wantO=()=>wanted(c,'huile'),wantF=()=>partOK(c,'filtre_huile')&&wanted(c,'filtre_huile'),wantAny=()=>wantO()||wantF()||F.p.huile||F.p.filtre_huile;
  const needFill=()=>(!!c.done.huile||!!F.p.huile)&&!O.done;
  /* carter et bouchon */
- const pan=grp(pl.x,pl.y,pl.z);R.root.add(pan);   /* le carter lui-même est dessiné par js/44c */
- const plug=hex(.017,.016,0xb9bec4,-.1,-.0,0);pan.add(plug);const plugAt=new T.Object3D();plugAt.position.set(-.1,-.01,0);pan.add(plugAt);
- const hole=cy(.012,.006,0x050505,-.1,.0,0);hole.visible=false;pan.add(hole);
+ /* moteur dessiné dans la baie (js/44) : le carter est le vrai, le bouchon se pose exactement sur son point le plus bas */
+ const realPan=!!(bayG(R)&&bayG(R).userData.anchors.oilPlug),dx=realPan?0:-.1;
+ const pan=grp(pl.x,pl.y,pl.z);R.root.add(pan);
+ const plug=hex(.017,.016,0xb9bec4,dx,-.0,0);pan.add(plug);const plugAt=new T.Object3D();plugAt.position.set(dx,-.01,0);pan.add(plugAt);
+ const hole=cy(.012,.006,0x050505,dx,.0,0);hole.visible=false;pan.add(hole);
  /* filtre */
  const filtG=grp(fa.x,fa.y,fa.z);R.root.add(filtG);
+ if(realPan&&bayG(R).userData.dirs.oilFilter) filtG.quaternion.setFromUnitVectors(V3(0,-1,0),bayG(R).userData.dirs.oilFilter);   /* le filtre pend le long de l'axe du vrai filtre */
  const mkFilt=(uu,nw)=>{const f=new T.Group(),dirty=uu>60;
   if(cart){f.add(cy(.042,.12,dirty?0x3a2f26:0x7a838c,0,-.06,0,null,'p'),hex(.034,.03,dirty?0x2e261f:C.alu,0,-.135,0));}
   else{f.add(cy(.042,.1,nw?C.blue:(dirty?0x2a241e:0x3a5a8a),0,-.05,0),cy(.046,.014,C.dsteel,0,-.003,0));if(!nw&&dirty) f.add(cy(.043,.03,0x14100c,0,-.09,0));}
@@ -684,7 +687,7 @@ function buildVidange(R){
  const bacW=R.W(pl.x,.07,pl.z);
  /* bac ouvert (fond, quatre bords, bec verseur) : on voit l'huile monter dedans */
  const bac=grp(0,0,0);bac.add(bx(.55,.012,.4,C.blue,0,.006,0),bx(.55,.12,.012,C.blue,0,.06,.194),bx(.55,.12,.012,C.blue,0,.06,-.194),bx(.012,.12,.4,C.blue,.269,.06,0),bx(.012,.12,.4,C.blue,-.269,.06,0),bx(.08,.012,.06,C.blue,.3,.118,0),bx(.53,.004,.38,0x10161f,0,.013,0));
- const lvl=cy(.22,.02,oilCol(uo),0,.04,0);lvl.scale.set(1.1,1,.75);bac.add(lvl);bac.visible=false;R.fl.add(bac);{R.g.updateWorldMatrix(true,false);const bp=R.g.localToWorld(pl.clone().add(V3(-.26,0,0)));bac.position.set(bp.x,.22,bp.z);}bac.rotation.y=R.p.ry;
+ const lvl=cy(.22,.02,oilCol(uo),0,.04,0);lvl.scale.set(1.1,1,.75);bac.add(lvl);bac.visible=false;R.fl.add(bac);{R.g.updateWorldMatrix(true,false);const bp=R.g.localToWorld(pl.clone().add(V3(dx-.16,0,0)));bac.position.set(bp.x,.22,bp.z);}bac.rotation.y=R.p.ry;
  /* point de visée toujours visible : le bac lui-même est caché tant qu'il n'est pas posé (sinon on ne peut jamais le placer) */
  const bacAt=new T.Object3D();bacAt.position.copy(bac.position);R.fl.add(bacAt);
  /* écoulement : jet en arc (segments), gouttes, ronds à la surface du bac ; tout en coordonnées du monde (R.fl) */
@@ -701,8 +704,8 @@ function buildVidange(R){
  function seg(m,a,b,r){const L=FX.d.subVectors(b,a).length();if(L<1e-4){m.visible=false;return;}m.position.addVectors(a,b).multiplyScalar(.5);FX.d.divideScalar(L);m.quaternion.setFromUnitVectors(FX.up,FX.d);m.scale.set(r,L,r);m.visible=true;}
  function fxTick(R2,dt){
   FX.t+=dt;const flow=O.on&&O.bac?Math.pow(1-O.drain,.6):0;
-  const p0=R2.g.localToWorld(pl.clone().add(V3(-.1,-.022,0)));
-  const out=R2.g.localToWorld(pl.clone().add(V3(-1.1,-.022,0))).sub(p0).setY(0).normalize(); /* le jet part vers l'extérieur du carter */
+  const p0=R2.g.localToWorld(pl.clone().add(V3(dx,-.022,0)));
+  const out=R2.g.localToWorld(pl.clone().add(V3(dx-1,-.022,0))).sub(p0).setY(0).normalize(); /* le jet part vers l'extérieur du carter */
   const sY=surfY(),h=Math.max(.05,p0.y-sY);
   /* jet continu tant que le débit est fort, de plus en plus court et vertical */
   const cont=flow>.16,v0=.62*flow,Tf=Math.sqrt(h/4.9),len=cont?1:(flow>.05?clamp01((flow-.05)/.11)*.45:0);

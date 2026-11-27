@@ -213,7 +213,7 @@ function lampCfg(c,g){
  const an=g.userData.anchors||{},bay=an.bay?an.bay.position:V(0,0,1.5),sg=bay.z>=0?1:-1,y0=g.position.y;
  const zb=bay.z;
  if(c.st.lifted&&c.st.capot) return {x:-1.25,z:zb-sg*.75,h:y0+.55,tx:0,ty:y0+.35,tz:zb*.55,lx:-.95,lz:zb*.25,ly:y0+.5};
- if(c.st.lifted) return {x:-1.3,z:0,h:1.15,tx:0,ty:y0+.3,tz:0,lx:-1.05,lz:0,ly:1.4};   /* la lumière part du projecteur, à côté de la voiture : elle éclaire le dessous en biais, sans brûler ce qui est juste au-dessus */
+ if(c.st.lifted) return {x:-1.3,z:zb*.45,h:1.15,tx:0,ty:y0+.3,tz:zb*.45,lx:-1.05,lz:zb*.45,ly:1.4};   /* la lumière part du projecteur, à côté de la voiture : elle éclaire le dessous en biais, sans brûler ce qui est juste au-dessus */
  if(c.st.capot) return {x:-1.2,z:zb+sg*.45,h:1.55,tx:0,ty:y0+.75,tz:zb,lx:-.45,lz:zb+sg*.15,ly:1.75};
  return null;}
 const lv=V(0,0,0),la=V(0,0,0);
