@@ -10360,17 +10360,17 @@ function envCube(){
   const faces=[];
   for(let i=0;i<6;i++){
    const cv=document.createElement('canvas');cv.width=cv.height=32;const x=cv.getContext('2d'),gr=x.createLinearGradient(0,0,0,32);
-   if(i===2){gr.addColorStop(0,'#9fc2e8');gr.addColorStop(1,'#d8e6f4');}            /* dessus : ciel */
-   else if(i===3){gr.addColorStop(0,'#6d6a64');gr.addColorStop(1,'#8a867e');}       /* dessous : sol */
-   else{gr.addColorStop(0,'#b8d2ee');gr.addColorStop(.46,'#e9eef2');gr.addColorStop(.54,'#8d8a82');gr.addColorStop(1,'#5f5d58');}   /* côtés : ciel, horizon, sol */
+   if(i===2){gr.addColorStop(0,'#5d84b2');gr.addColorStop(1,'#8fb0d2');}            /* dessus : ciel */
+   else if(i===3){gr.addColorStop(0,'#2e2c2a');gr.addColorStop(1,'#3d3b38');}       /* dessous : sol */
+   else{gr.addColorStop(0,'#6f96c4');gr.addColorStop(.46,'#c4d0da');gr.addColorStop(.54,'#4a4743');gr.addColorStop(1,'#2e2c2a');}   /* côtés : ciel, horizon, sol */
    x.fillStyle=gr;x.fillRect(0,0,32,32);faces.push(cv);}
   const t=new T.CubeTexture(faces);t.needsUpdate=true;return t;});}
-const paintMat=c=>mat('p'+c,()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.2,combine:T.MixOperation,color:softPaint(c),shininess:90,specular:0x555555,side:T.DoubleSide}));
+const paintMat=c=>mat('p'+c,()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.1,combine:T.MixOperation,color:softPaint(c),shininess:90,specular:0x555555,side:T.DoubleSide}));
 const MATS={
- glass:()=>mat('glass',()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.4,combine:T.MixOperation,color:0x101a22,shininess:110,specular:0xaabbcc,transparent:true,opacity:.66,depthWrite:false,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})),
+ glass:()=>mat('glass',()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.3,combine:T.MixOperation,color:0x0e161d,shininess:110,specular:0xaabbcc,transparent:true,opacity:.66,depthWrite:false,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})),
  dark:()=>mat('dark',()=>new T.MeshLambertMaterial({color:0x17181b,side:T.DoubleSide})),
  trim:()=>mat('trim',()=>new T.MeshPhongMaterial({color:0x26282c,shininess:25,specular:0x222222,side:T.DoubleSide})),
- chrome:()=>mat('chrome',()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.55,combine:T.MixOperation,color:0xc4c8ce,shininess:90,specular:0xdddddd})),
+ chrome:()=>mat('chrome',()=>new T.MeshPhongMaterial({envMap:envCube(),reflectivity:.45,combine:T.MixOperation,color:0xc4c8ce,shininess:90,specular:0xdddddd})),
  rubber:()=>mat('rubber',()=>new T.MeshLambertMaterial({color:0x17181a})),
  alu:()=>mat('alu',()=>new T.MeshPhongMaterial({color:0xbfc4cb,shininess:80,specular:0x999999,side:T.DoubleSide})),
  graph:()=>mat('graph',()=>new T.MeshPhongMaterial({color:0x4b4e54,shininess:70,specular:0x666666,side:T.DoubleSide})),
@@ -10393,6 +10393,7 @@ const MATS={
 /* éclairage de nuit : les feux sont émissifs quand il fait nuit */
 let nightOn=null;
 function setNight(n){if(n===nightOn) return;nightOn=n;
+ for(const m of MT.values()){if(m&&m.isMaterial&&m.envMap){if(m.userData.refl0==null) m.userData.refl0=m.reflectivity;m.reflectivity=m.userData.refl0*(n?.2:1);}}   /* la nuit, le ciel ne se reflète presque plus */
  const h=MATS.head(),t=MATS.tail(),a=MATS.amber();h.emissiveIntensity=n?.95:.12;t.emissiveIntensity=n?.7:.2;a.emissiveIntensity=n?.3:.15;}
 
 /* ═══════════ 6. Carrosserie, roues, détails d'un modèle (géométries partagées, mises en cache) ═══════════ */
