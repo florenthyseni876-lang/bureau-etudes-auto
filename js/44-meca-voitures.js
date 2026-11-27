@@ -225,6 +225,8 @@ function partName(car,id){
   case 'disq_ar': return b.r==='drum'?'Tambours de frein arrière':`Disques arrière (Ø ${b.rd} mm)`;
   case 'disq_av': return `Disques avant (Ø ${b.fd} mm)`;
   case 'injecteurs': return `Injecteurs (×${e.n})`;
+  case 'huile_boite':{const sp=typeof MWBOX!=='undefined'?MWBOX.specOf(car):null;return sp?`Huile de boîte ${sp.huile} (${fm(sp.vidL)} l)`:null;}
+  case 'filtre_boite': return 'Filtre et joint de carter de boîte automatique';
  }
  return null;}
 function partPrice(car,id,base){
@@ -236,6 +238,7 @@ function partPrice(car,id,base){
   case 'plaq_ar': case 'disq_ar': f=Math.pow(b.rd/260,1.6)*(b.r==='drum'?.8:1);break;
   case 'bougies': f=e.n/4*(e.diesel?1.3:1);break;
   case 'injecteurs': f=e.n/4*(e.diesel?1.6:1);break;
+  case 'huile_boite':{const sp=typeof MWBOX!=='undefined'?MWBOX.specOf(car):null;f=sp?clamp(sp.vidL/2,.8,3.2)*(sp.type==='auto'||sp.fam==='dctHum'?1.6:1):1;break;}
   case 'courroie_dist': f=(1+.12*(e.n-4))*(e.wet?1.3:1);break;
   case 'embrayage': f=clamp(e.nm/250,.8,2.6);break;
   case 'amort': f=Math.pow(car.mass/1300,.8);break;
@@ -783,9 +786,12 @@ function placeGearbox(car,ud,pt,ctx){
  const angle=Math.atan2(-fw.z,fw.x),inv=-angle,pare=V3(0,0,front?-1:1).applyAxisAngle(V3(0,1,0),inv);
  const loc=pare.toArray(),rad=pare.clone().negate().toArray();
  const g=MWBOX.build(spec,{versPareFeu:loc,versRadiateur:rad});
- for(const pc of g.pieces){pc.geo.rotateY(angle);pc.geo.translate(bride.x,bride.y,bride.z);pt('gearbox',pc.cle,pc.geo);}
- ud.gbxSpec=spec;ud.gbxAncres={};ud.gbxBoites={};
+ /* pièces démontables : support, câbles, carter-pan ; le reste forme le groupe « gearbox » */
+ const GROUPE={support:'gbSupport',cables:'gbCables',pan:'gbPan'};
+ for(const pc of g.pieces){pc.geo.rotateY(angle);pc.geo.translate(bride.x,bride.y,bride.z);pt(GROUPE[pc.nom]||'gearbox',pc.cle,pc.geo);}
+ ud.gbxSpec=spec;ud.gbxAncres={};ud.gbxBoites={};ud.gbxOrg=bride.clone();
  for(const k in g.ancres) if(g.ancres[k]) ud.gbxAncres[k]=MWBOX.placer(g.ancres[k],angle,bride);
+ ud.gbxAngle=angle;
  for(const k in g.boites) ud.gbxBoites[k]=MWBOX.placerBoite(g.boites[k],angle,bride);
  return {c:bride.clone().addScaledVector(fw,g.longueur/2),ax:fw.clone(),L:g.longueur,e:bride.clone()};}
 
@@ -880,7 +886,11 @@ function engineMesh(car,o){
  ud.dirs={};ud.names={};
  if(parts&&parts.spots) for(const k in parts.spots){const q=parts.spots[k];if(k==='coils'||k==='oilCap') continue;A[k]=ep(q.p);ud.names[k]=[q.name,q.desc];ud.dirs[k]=q.d.clone().applyAxisAngle(V3(0,1,0),th);}
  if(A.dip) A.dipstick=A.dip.clone();
- if(A.oilPlug) A.oilPlug=A.oilPlug.clone();
+ if(ud.gbxAncres){
+  const NOMS={vidange:'gbVidange',remplissage:'gbRemplissage',support:'gbSupport',cables:'gbCables',sortieCardan:'gbSortie',joint:'gbJoint',refroidisseur:'gbRefroid',filtre:'gbFiltre',selection:'gbSelection'};
+  for(const k in NOMS) if(ud.gbxAncres[k]) A[NOMS[k]]=ud.gbxAncres[k].clone();
+  ud.dirs.gbVidange=V3(0,-1,0);ud.dirs.gbFiltre=V3(0,-1,0);ud.dirs.gbSupport=V3(0,1,0);
+  ud.dirs.gbRemplissage=V3(Math.sin(ud.gbxAngle||0),0,Math.cos(ud.gbxAngle||0));}
  if(!car.ev&&!A.maf){const mp=V3(ax+.04,abY+.052,abZ+(front?.2:.3));A.maf=mp;pt('maf','grey',bxg(.07,.04,.075,mp.x,mp.y-.012,mp.z));pt('maf','blk',bxg(.03,.028,.03,mp.x,mp.y+.03,mp.z));pt('maf','clip',bxg(.07,.008,.012,mp.x,mp.y+.01,mp.z+.045));}
  if(!A.egr&&A.throttle) A.egr=A.throttle.clone();
  setA('battery',V3(bx,batY,batZ));setA('airbox',V3(ax,abY,abZ));setA('coolant',V3(vx,minTop-.17,vz));setA('washer',V3(-(hw-.34),front?.5:gc+.2,wz));setA('brakeFluid',V3(bfx,bfy,lidLo+.1));

@@ -1,5 +1,5 @@
 /* Service hors connexion : fichier généré par outils/build.py, ne pas modifier sw.js à la main. */
-const VERSION='bea-988b833ac0';
+const VERSION='bea-219d3d128d';
 const FICHIERS=[
   './',
   'index.html',
@@ -16,6 +16,7 @@ const FICHIERS=[
   'js/06-dessin-moteur.js',
   'js/07-moteur-3d.js',
   'js/07b-details-moteur.js',
+  'js/07c-boites.js',
   'js/08-banc.js',
   'js/09-son.js',
   'js/10-combustion.js',
@@ -41,17 +42,20 @@ const FICHIERS=[
   'js/31-marketing.js',
   'js/40-meca-monde.js',
   'js/51-meca-pannes.js',
+  'js/51b-meca-boites-donnees.js',
   'js/41-meca-travaux.js',
   'js/42-meca-carriere.js',
   'js/43-meca-noir.js',
   'js/44c-meca-chassis.js',
   'js/44-meca-voitures.js',
   'js/44h-meca-habitacle.js',
+  'js/44u-meca-dessous.js',
   'js/45-meca-decor.js',
   'js/45b-meca-ville.js',
   'js/45c-meca-garages.js',
   'js/45g-meca-ateliers.js',
   'js/46-meca-gestes.js',
+  'js/46u-meca-gestes-dessous.js',
   'js/47-meca-finition.js',
   'js/48-meca-occasion.js',
   'js/49-meca-arnaque.js',

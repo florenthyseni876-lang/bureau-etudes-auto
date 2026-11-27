@@ -79,7 +79,7 @@ function Constructeur(){
   for(let i=0;i<3;i++){
    b.min[i]=Math.min(b.min[i],[bb.min.x,bb.min.y,bb.min.z][i]);
    b.max[i]=Math.max(b.max[i],[bb.max.x,bb.max.y,bb.max.z][i]);}
-  pieces.push({cle,geo});}
+  pieces.push({cle,geo,nom:nomCourant});}
  return {
   pieces,boites,
   piece(nom){nomCourant=nom;},

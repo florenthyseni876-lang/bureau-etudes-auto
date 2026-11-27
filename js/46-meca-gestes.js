@@ -835,6 +835,11 @@ function mkProxy(kind,u){
  else if(kind==='thermo') g.add(cy(.04,.03,C.alu,0,0,0),cy(.012,.05,d?0x6a5a4a:C.steel,0,.03,0));
  else if(kind==='fuelf') g.add(cy(.04,.12,d?0x3a2f26:0x7a838c,0,0,0,null,'p'));
  else if(kind==='gasket') g.add(bx(.3,.01,.12,d?0x3a3028:0x1c1c1c,0,0,0));
+ else if(kind==='gboil') g.add(cy(.05,.12,d?0x3a2a14:0xd9a82a,0,0,0),cy(.02,.03,C.dsteel,0,.075,0));          /* bidon d'huile de boîte */
+ else if(kind==='gbfilt') g.add(bx(.2,.012,.16,d?0x3a342c:0xcfc9b8,0,0,0),bx(.16,.02,.12,d?0x2a241c:C.dsteel,0,.015,0));
+ else if(kind==='gbmount') g.add(bx(.07,.06,.07,d?0x2a2420:0x1b1b1e,0,0,0),bx(.12,.012,.07,C.dsteel,0,.036,0));
+ else if(kind==='gbcable') g.add(tor(.06,.006,d?0x4a4642:0x15171a,0,0,0,'x'),cy(.012,.03,C.chrome,.06,0,0,'x'));
+ else if(kind==='gbboot') g.add(cone(.03,.05,.11,d?0x5a4a38:0x15171a,0,0,0,'x'),cy(.034,.012,C.steel,.05,0,0,'x','p'));
  else g.add(bx(.1,.06,.1,C.steel,0,0,0));
  return g;}
 function buildGeneric(R,sp){
@@ -858,7 +863,8 @@ function buildGeneric(R,sp){
  if(cover&&sp.cover.mk&&!sp.cover.real) cover.o.add(sp.cover.mk());
  const fixObjs=[];
  const DD=sp.dirK?DIR(R,sp.dirK):null,fixA=typeof sp.fixAt==='function'?sp.fixAt(R):(sp.fixAt||[]); /* moteurs : orientation ; carrosserie : positions calculées */
- for(let i=0;i<(sp.nfix||0);i++){const o=fixA[i]||[0,.1,0];const q=DD?offTan(DD,[o[0]*.5,o[1],o[2]*.5]):V3(o[0],o[1],o[2]);const m=hex(.012,.016,0xcfd4d9,home.x+q.x,home.y+q.y,home.z+q.z);if(DD){m.quaternion.setFromUnitVectors(V3(0,1,0),DD);const hp=snapBay(R,home.clone().add(q),DD);m.position.copy(hp||home.clone().addScaledVector(DD,.006));}R.root.add(m);fixObjs.push(m);}
+ const FP=sp.fixPts?sp.fixPts(R):null;   /* fixPts : positions absolues (repère voiture), pour des fixations éloignées les unes des autres (boîte) */
+ for(let i=0;i<(sp.nfix||0);i++){if(FP&&FP[i]){const m0=hex(.012,.016,0xcfd4d9,FP[i].x,FP[i].y,FP[i].z);R.root.add(m0);fixObjs.push(m0);continue;}const o=fixA[i]||[0,.1,0];const q=DD?offTan(DD,[o[0]*.5,o[1],o[2]*.5]):V3(o[0],o[1],o[2]);const m=hex(.012,.016,0xcfd4d9,home.x+q.x,home.y+q.y,home.z+q.z);if(DD){m.quaternion.setFromUnitVectors(V3(0,1,0),DD);const hp=snapBay(R,home.clone().add(q),DD);m.position.copy(hp||home.clone().addScaledVector(DD,.006));}R.root.add(m);fixObjs.push(m);}
  const need=()=>{const a=L().acces(c,P);return a.ok?null:a.why;};
  const fixFix=()=>{const w2=need();return w2?(/capot/.test(w2)?'hood':/pont/.test(w2)?'lift':null):null;};
  const visOK=()=>sp.vis?sp.vis(R):true;
@@ -891,13 +897,13 @@ function buildGeneric(R,sp){
  R.procs.push({id:'g:'+id,vis:(R2,inst)=>{
   const d=inst?0:.5,h=hostOf();
   fixObjs.forEach((m,i)=>{m.visible=!!S.f[i];});
-  if(cover){const ho=sp.cover.host&&sp.cover.host(R2);if(ho) ho.visible=!!S.cv;cover.o.visible=!!S.cv&&!(ho&&sp.cover.real);if(sp.cover.real){const b=bayG(R2),pl=b&&b.userData.coverPlate;if(pl) pl.visible=!!S.cv;}}
+  if(cover){for(const f of (sp.cover.also||[])){const o2=f(R2);if(o2) o2.visible=!!S.cv;}const ho=sp.cover.host&&sp.cover.host(R2);if(ho) ho.visible=!!S.cv;cover.o.visible=!!S.cv&&!(ho&&sp.cover.real);if(sp.cover.real){const b=bayG(R2),pl=b&&b.userData.coverPlate;if(pl) pl.visible=!!S.cv;}}
   unit.forEach(un=>{const x=S.x[un.i];
    if(un.old){un.old.visible=sp.realIn?x===1:(x===0||x===1)&&!(cover&&S.cv);un.nw.visible=sp.realIn?false:x===2&&!(cover&&S.cv);
     if(x===1){attachTo(un.old,R2.cart);tw(un.old,{p:[-.28+.14*((R2.spotN+un.i)%4),.86+(sp.cartY||0),-.1+.1*(un.i%3)],r:[0,0,0],s:sp.cartS||1},d);}
     else if(un.old.parent!==un.base){attachTo(un.old,un.base);un.old.position.set(0,0,0);un.old.rotation.set(0,0,0);un.old.scale.setScalar(1);}}
    else if(h){h.visible=x!==1;}});},
-  free:R2=>{unit.forEach(un=>{if(un.old&&un.old.parent!==un.base) attachTo(un.old,un.base);});const h=hostOf();if(h) h.visible=true;if(cover&&sp.cover.host){const ho=sp.cover.host(R2);if(ho) ho.visible=true;}const b2=bayG(R2),pl=b2&&b2.userData.coverPlate;if(pl) pl.visible=true;}});
+  free:R2=>{unit.forEach(un=>{if(un.old&&un.old.parent!==un.base) attachTo(un.old,un.base);});const h=hostOf();if(h) h.visible=true;if(cover&&sp.cover.host){const ho=sp.cover.host(R2);if(ho) ho.visible=true;for(const f of (sp.cover.also||[])){const o2=f(R2);if(o2) o2.visible=true;}}const b2=bayG(R2),pl=b2&&b2.userData.coverPlate;if(pl) pl.visible=true;}});
 }
 function fixOff4(n,x,y,z,dx,dz){const a=[];for(let i=0;i<n;i++){const k=n===1?0:(i/(n-1)-.5)*2;a.push([x+k*dx,y,z+(i%2?dz:-dz)]);}return a;}
 const LOCAL=(R,n,dx,dy,dz)=>{const a=R.A(n);return V3(a.x+(dx||0),a.y+(dy||0),a.z+(dz||0));};
@@ -924,7 +930,7 @@ const SPECS=[
  {id:'demarreur',host:R=>engSep(R,'starter'),spot:'starter',dirK:'starter',at:R=>SPOT(R,'starter'),nfix:3,fixAt:[[.045,.008,0],[-.045,.008,0],[0,.008,.05]],sock:'start',fixName:'Fixation du démarreur',fixLab:'Dévisser',vis:R=>c4(R),depLab:'Déposer le démarreur',poseLab:'Monter le démarreur neuf',r:.12,ord:4},
  {id:'injecteurs',kind:'rail',host:R=>engSep(R,'inj'),spot:'inj',dirK:'inj',at:R=>SPOT(R,'inj'),nfix:2,fixAt:[[.07,.008,0],[-.07,.008,0]],sock:'inj',fixName:"Fixation de la rampe",fixLab:'Dévisser',vis:R=>c4(R),depLab:'Sortir la rampe et les injecteurs',poseLab:'Monter les injecteurs neufs',r:.14,ord:5},
  {id:'courroie_dist',kind:'belt',spot:'timing',dirK:'timing',at:R=>SPOT(R,'timing'),nfix:4,fixAt:[[.05,.008,.04],[-.05,.008,.04],[.05,.008,-.04],[-.05,.008,-.04]],sock:'clip',fixName:'Vis du carter de distribution',fixLab:'Dévisser',vis:R=>c4(R),cover:{name:'Carter de distribution',host:R=>engSep(R,'timingCover'),at:R=>SPOT(R,'timing'),real:1},realIn:1,depLab:'Déposer la courroie, le galet et la pompe',poseLab:'Poser le kit de distribution neuf',poseTool:'cle_dyn',poseSock:'tens',r:.14,ord:6},
- {id:'embrayage',kind:'clutch',at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.e.clone():LOCAL(R,'bay',0,.2,0);},nfix:4,fixAt:[[.1,.08,.1],[-.1,.08,.1],[.1,-.08,.1],[-.1,-.08,.1]],sock:'gear',fixName:'Vis de la boîte de vitesses',fixLab:'Dévisser',vis:R=>liftedNow(R.c)&&!!bayG(R),cover:{name:'Boîte de vitesses',host:R=>bayPart(R,'gearbox'),at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.c.clone():LOCAL(R,'bay',0,.2,0);}},depLab:"Déposer l'embrayage",poseLab:"Poser l'embrayage neuf (centrage)",r:.16,ord:7},
+ {id:'embrayage',kind:'clutch',at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.e.clone():LOCAL(R,'bay',0,.2,0);},nfix:5,fixPts:R=>[SPOT(R,'gbCables','gbSelection'),SPOT(R,'gbSupport'),SPOT(R,'gbJoint','gbSortie'),gbPt(R,.03,.17,.0),gbPt(R,.03,-.17,.0)],sock:'gear',fixName:'Câbles, support, cardan et vis de cloche de la boîte',fixLab:'Déposer ou dévisser',vis:R=>liftedNow(R.c)&&!!bayG(R),cover:{name:'Boîte de vitesses',host:R=>bayPart(R,'gearbox'),also:[R=>bayPart(R,'gbSupport'),R=>bayPart(R,'gbCables'),R=>bayPart(R,'gbPan')],at:R=>{const b=bayG(R);const e=b&&b.userData.gear;return e?e.c.clone():LOCAL(R,'bay',0,.2,0);}},depLab:"Déposer l'embrayage",poseLab:"Poser l'embrayage neuf (centrage)",r:.16,ord:7},
  {id:'sonde_lambda',kind:'lambda',mk:(R,w,nw,i)=>chMk('sonde_lambda')(R,w,nw,i),at:R=>chP('sonde_lambda',0)(R),vis:R=>liftedNow(R.c),nfix:1,fixAt:R=>chFixAt(R,'sonde_lambda'),fixTool:'pinces',fixName:'Connecteur de la sonde',fixLab:'Débrancher le connecteur',fixRe:'Rebrancher le connecteur',depTool:'cliquet',depSock:'sonde',depLab:'Dévisser la sonde lambda',poseLab:'Visser la sonde neuve',poseTool:'cliquet',poseSock:'sonde',r:.06,ord:8,cartS:1.4},
  {id:'ampoules',kind:'bulb',at:R=>{const a=R.A('headL');return a.lengthSq()?V3(a.x,a.y,a.z+.03):V3(R.u.W*.3,.68,(R.u.L||4)/2-.12);},nfix:2,fixAt:R=>{const lw=.095*R.u.W+.1;return [[lw*.2+lw/2-.02,.065,-.042],[lw*.2-lw/2+.02,.065,-.042]];},fixTool:'tournevis',fixName:'Clip du cache de phare',fixLab:'Déclipser le cache',fixRe:'Reclipser le cache',bin:'clip',depLab:"Sortir l'ampoule grillée",poseLab:"Monter l'ampoule neuve",r:.1,ord:9},
  {id:'essuie',kind:'wiper',at:R=>{const a=R.A('wiperD');return a.lengthSq()?a:V3(-.1,.98,R.A('cabin').z+.8);},rot:R=>[(R.g.userData.G&&R.g.userData.G.wiperTh)||0,0,0],nfix:1,fixAt:[[.0,.03,.0]],fixTool:'main',fixName:"Bras d'essuie-glace",fixLab:'Relever le bras',fixRe:'Rabaisser le bras',depLab:'Déclipser et sortir le balai',poseLab:'Clipser le balai neuf',r:.2,ord:10},
@@ -1072,6 +1078,8 @@ const SPF=[[.07,.07,0],[-.07,.07,0],[.07,-.07,0],[-.07,-.07,0],[0,.08,.07],[0,.0
 const SP=(id,o)=>SPECS.push(Object.assign({id,vis:R=>c4(R),nfix:2,fixAt:SPF,sock:'clip',fixName:'Fixation',fixLab:'Dévisser',r:.11,ord:14},o));
 const fixN=n=>SPF.slice(0,n);
 const radAt=R=>{const a=R.A('radiator');return a.lengthSq()>0?a:LOCAL(R,'coolant',-.1,-.15,.2);};
+/* point de la boîte de vitesses donné dans son repère (origine : bride côté moteur, +X : axe de la boîte), converti en repère voiture */
+const gbPt=(R,x,y,z)=>{const u=R.g.userData.bay&&R.g.userData.bay.userData;return u&&u.gbxOrg?MWBOX.placer([x,y,z],u.gbxAngle,u.gbxOrg):LOCAL(R,'bay',0,.2,0);};
 const radTop=R=>{const a=R.A('radiator');return a.lengthSq()>0?V3(a.x,a.y+.17,a.z+.03):LOCAL(R,'coolant',-.1,-.15,.2);};
 /* sommet de la bobine (ou de la bougie de préchauffage) du cylindre i, tel que la baie le dessine */
 const coilTop=(R,i)=>{const b=bayG(R),cs=b&&b.userData.coils;if(cs&&cs[i]) return cs[i].p.clone().addScaledVector(cs[i].a,cs[i].h*.5+.012);const a=R.A('coils');return V3(a.x,a.y+.05,a.z);};
@@ -1100,6 +1108,26 @@ SP('joint_spi',{kind:'gasket',spot:'pulley',dirK:'pulley',at:R=>SPOT(R,'pulley',
 CHS('rotule',{units:2,unitAt:(R,i)=>chP('rotule',i)(R),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'arm',depLab:'Déposer la rotule',poseTool:'cliquet',poseSock:'arm',poseLab:'Monter la rotule neuve',depHold:1.2,poseHold:1.2,r:.045,cartS:1.6,ord:33});
 CHS('roulement',{units:2,unitAt:(R,i)=>chP('roulement',i)(R),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'bolt',depLab:'Déposer le moyeu et extraire le roulement',poseTool:'cliquet',poseSock:'bolt',poseLab:'Presser le roulement neuf et remonter',depHold:1.4,poseHold:1.4,r:.05,cartS:1.5,ord:34});
 CHS('cardan',{units:2,unitAt:(R,i)=>chP('cardan',i)(R),vis:R=>R.c.st.av,depTool:'cliquet',depSock:'nut',depLab:'Déposer le cardan',poseTool:'cliquet',poseSock:'nut',poseLab:'Monter le cardan neuf',depHold:1.3,poseHold:1.3,r:.05,cartS:.5,ord:35});
+/* ─ boîtes de vitesses (données : js/51b ; formes et repères : js/07c, js/44 placeGearbox) ─ */
+const SPB=(id,o)=>SPECS.push(Object.assign({id,vis:R=>liftedNow(R.c)&&!!bayG(R),nfix:2,sock:'gear',fixName:'Vis de la boîte',fixLab:'Dévisser',r:.1,ord:40},o));
+SPB('huile_boite',{kind:'gboil',spot:'gbVidange',dirK:'gbVidange',at:R=>SPOT(R,'gbVidange','gbSupport'),
+ fixPts:R=>[SPOT(R,'gbRemplissage','gbSupport'),SPOT(R,'gbVidange','gbSupport')],sock:'plugs',fixName:'Bouchon de remplissage et de vidange de la boîte',fixLab:'Dévisser le bouchon',
+ fixRe:'Revisser le bouchon',depLab:"Laisser couler l'huile usagée",poseTool:'bidon',poseLab:"Remplir d'huile neuve par l'orifice de remplissage, jusqu'au débord",poseHold:1.8,
+ bin:'bouchon',r:.07,ord:41});
+SPB('filtre_boite',{kind:'gbfilt',spot:'gbFiltre',dirK:'gbFiltre',at:R=>SPOT(R,'gbFiltre','gbVidange'),nfix:6,
+ fixPts:R=>[.22,.3,.38].flatMap(x=>[gbPt(R,x,-.225,.13),gbPt(R,x,-.225,-.13)]),fixName:'Vis du carter-pan de la boîte',fixLab:'Dévisser',
+ cover:{name:'Carter-pan de la boîte',host:R=>bayPart(R,'gbPan'),at:R=>SPOT(R,'gbFiltre','gbVidange'),real:1},realIn:1,
+ depLab:'Sortir le filtre et son joint',poseLab:'Poser le filtre et le joint neufs',r:.1,ord:42});
+SPB('support_boite',{kind:'gbmount',host:R=>bayPart(R,'gbSupport'),spot:'gbSupport',dirK:'gbSupport',at:R=>SPOT(R,'gbSupport'),nfix:3,
+ fixPts:R=>[gbPt(R,.2,.27,.05),gbPt(R,.2,.27,-.05),gbPt(R,.15,.2,0)],fixName:'Vis du support de boîte',fixLab:'Dévisser',depLab:'Déposer le support de boîte',
+ poseLab:'Monter le support neuf',poseTool:'cle_dyn',poseSock:'gear',r:.09,ord:43});
+SPB('cables_boite',{kind:'gbcable',host:R=>bayPart(R,'gbCables'),spot:'gbCables',at:R=>SPOT(R,'gbCables','gbSelection'),nfix:2,
+ fixPts:R=>[SPOT(R,'gbCables','gbSelection'),SPOT(R,'gbSelection','gbCables',.04,0,0)],fixTool:'pinces',fixName:'Rotule ou support de câble de boîte',fixLab:'Déclipser',fixRe:'Reclipser',
+ depTool:'main',depLab:'Sortir les câbles de commande',poseTool:'main',poseLab:'Passer et clipser les câbles neufs',r:.08,ord:44});
+SPB('joint_spi_boite',{kind:'gasket',spot:'gbJoint',at:R=>SPOT(R,'gbJoint','gbSortie'),nfix:2,fixPts:R=>[gbPt(R,.34,-.18,.0),gbPt(R,.34,-.02,.0)],
+ fixName:'Vis de bride du cardan',fixLab:'Dévisser',depTool:'pinces',depLab:'Extraire le joint spi usé',poseTool:'main',poseLab:'Monter le joint spi neuf',r:.08,ord:45});
+SPB('soufflet_cardan',{kind:'gbboot',spot:'gbSortie',at:R=>SPOT(R,'gbSortie','gbJoint'),nfix:2,fixPts:R=>[gbPt(R,.4,-.14,.05),gbPt(R,.4,-.14,-.05)],fixTool:'pinces',
+ fixName:'Collier du soufflet',fixLab:'Desserrer le collier',fixRe:'Resserrer le collier',depTool:'pinces',depLab:'Déposer le soufflet fendu',poseTool:'main',poseLab:'Monter le soufflet neuf et le regraisser',r:.09,ord:46});
 SP('volant_bimasse',{kind:'clutch',at:R=>gearAt(R,.06),vis:R=>liftedNow(R.c)&&!!bayG(R),nfix:4,fixAt:[[.1,.08,.12],[-.1,.08,.12],[.1,-.08,.12],[-.1,-.08,.12]],sock:'gear',fixName:'Vis du volant moteur',depLab:'Déposer le volant moteur bimasse',poseLab:'Monter le volant neuf',poseTool:'cle_dyn',poseSock:'gear',depHold:1.5,poseHold:1.5,r:.14,ord:36});
 
 /* ═══════════ Blocages, malus ═══════════ */
@@ -1112,6 +1140,7 @@ function blocage(c){
  if(g.pdoor) l.push('la portière passager est ouverte');
  const o=g.o;if(o){if(o.bac) l.push('le bac de vidange est resté sous la voiture');if(!o.cap) l.push("le bouchon de remplissage d'huile est ouvert");if(c.done.huile&&!o.done) l.push("le moteur n'a pas été rempli d'huile");if(o.fun) l.push("l'entonnoir est resté sur le moteur");}
  if(g.bp){const E=plugSteps(c).length;if(g.bp.st.some(x=>x>0&&x<E)) l.push('des bougies ne sont pas remontées');}
+ if(g.sk&&(!g.sk.on||g.sk.f.some(v=>!v))) l.push('la protection sous moteur n\'est pas remontée');
  if(g.cr&&g.cr.k>0&&g.cr.k<7) l.push("la courroie d'accessoires n'est pas remontée");
  if(g.s) for(const id in g.s){const sp=SPECS.find(x=>x.id===id);if(!sp) continue;const req=(sp.nfix||0)-(sp.optFix||0);if(g.s[id].f.slice(0,req).some(v=>!v)) l.push('des fixations ne sont pas remontées ('+id.replace('_',' ')+')');if(g.s[id].cv===0) l.push('un couvercle est déposé');}
  return l;}
@@ -1236,5 +1265,7 @@ Object.assign(api,{
  refresh:()=>{if(R) syncAll(true);},
  startHold:(id,key)=>{const t=R&&R.tg.find(q=>q.id===id);if(!t) return false;AIM={t,a:actsOf(t).find(x=>!key||x.key===key)};eDown=true;startAct();return !!H;},
  spendAll:()=>{}});
+api.builders=BUILD;   /* extension : un module séparé (js/46u) ajoute ses propres procédures de gestes */
+api.kit={T,V3,grp,bx,cy,hex,sph,C,c4,bayG,bayPart,HAS,SPOT,DIR,snapBay,liftedNow,GS,sockOf,binAdd,binTake,partOK,wanted,levelOK,toolGate,jobDone,tw,snd};
 return api;
 })();
