@@ -69,6 +69,10 @@ module.exports = async function mecaZoom(page, env) {
     const avant = await e(() => ({ x: __mw.player().x, z: __mw.player().z }));
     await page.keyboard.press('e');
     await attendreCondition(page, () => MWZ.ready(), 'la caméra ne glisse pas vers le cadrage serré', 30000);
+    await attendre(250);   // laisse dessiner les pastilles
+    const q = await e(() => ({ cachees: MWZ.cachees(), chev: MWZ.chevauchements(), st: MWZ.state() }));
+    verifier(q.cachees === 0, `vue rapprochée sur « ${id} » : la carrosserie cache ${q.cachees} point(s) du cadrage (angle ${JSON.stringify(q.st.zone)})`);
+    verifier(q.chev === 0, `vue rapprochée sur « ${id} » : ${q.chev} paire(s) de pastilles se chevauchent`);
     return avant;
   };
   // clic réel sur une cible : le pointeur va sur sa position écran, appui maintenu jusqu'à ce que le geste soit fait
@@ -185,6 +189,23 @@ module.exports = async function mecaZoom(page, env) {
   verifier(bg.done && !bg.bloc.length, `bougies incomplètes : ${JSON.stringify(bg)} ${cles.join(' ')}`);
   verifier(cles.filter(k => /^bp\d+_5$/.test(k)).length === bg.n && !cles.some(k => /^bp\d+_[6-9]$/.test(k)), `gestes de bougie anormaux : ${cles.join(' ')}`);
   verifier(cles.length <= bg.n * 7, `trop de gestes pour les bougies (${cles.length} pour ${bg.n} cylindres)`);
+
+  // ═══ 3 bis. AUTRES PIÈCES SOUS LE CAPOT : batterie, courroie d'accessoires, filtre à air (cadrage dégagé, pastilles lisibles) ═══
+  const sousCapot = async (tpl, motif, nom) => {
+    await accueillir(tpl); await pres();
+    await attendre(400);
+    await e(() => MWG.run('hood', 'hopen'));
+    await attendreCondition(page, m => !!MWG.rig().g.userData.bay && MWG.rig().tg.some(t => new RegExp(m).test(t.id)), `${nom} : cibles introuvables sous le capot`, 20000, motif);
+    await attendre(500);
+    const id = await e(m => MWG.rig().tg.find(t => new RegExp(m).test(t.id)).id, motif);
+    await entrerZoom(id);
+    await photo('capot-' + nom);
+    await page.keyboard.press('Escape');
+    await inactif(`${nom} : Échap ne ramène pas la vue normale`);
+  };
+  await sousCapot('batterie', '^fx:batterie:0', 'batterie');
+  await sousCapot('cr_acc', '^cr:belt', 'courroie');
+  await sousCapot('filtres', '^fx:filtre_air:0', 'filtre-air');
 
   // ═══ 4. RÉGLAGE : mode classique, E fait le geste sans zoom ═══
   await accueillir('vidange'); await pres();

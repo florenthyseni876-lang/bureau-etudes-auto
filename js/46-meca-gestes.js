@@ -165,7 +165,7 @@ function freeRig(){
  R.fl.parent&&R.fl.parent.remove(R.fl);disposeObj(R.fl);
  for(const o of R.vis){o.parent&&o.parent.remove(o);}
  {const un=R.u.under,ch=R.u.G&&R.u.G.ch;if(R.swap&&un&&ch) un.geometry=ch.full;}
- ANI.length=0;hlClear();if(ring) ring.visible=false;if(ring2) ring2.visible=false;R=null;AIM=null;HINT=null;H=null;handSet(null);setHold(0);if(MW.eyeY) MW.eyeY=0;}
+ ANI.length=0;hlClear();auxSet('');if(ring) ring.visible=false;if(ring2) ring2.visible=false;R=null;AIM=null;HINT=null;H=null;handSet(null);setHold(0);if(MW.eyeY) MW.eyeY=0;}
 
 /* ═══════════ Cibles, actions, visée ═══════════ */
 /* action : {lab, tool, sock, hold, snd, ok:()=>why|null, fix, do, min, ph:[partId,'dep'|'pose'], ord, exp, key} */
@@ -326,7 +326,10 @@ function vmSet(){const m=MF();if(m) m.vmTool(tool);}
 function handSet(item){const m=MF();if(m) m.vmItem(item);} /* pièce neuve tenue dans l'autre main (ou null) */
 function vmKick(a){const m=MF();if(m) m.vmKick();}
 function vmWork(w){const m=MF();if(m) m.vmWork(w);}
-function vmTick(dt){const m=MF();if(m) m.vmTick(dt,!!R&&on()&&!MW.paused&&!MW.player().inCar);}
+/* mains et outil visibles seulement en vue normale (en vue rapprochée ils cacheraient le bas de l'écran) */
+function vmTick(dt){
+ const m=MF();
+ if(m) m.vmTick(dt,!!R&&on()&&!MW.paused&&!MW.player().inCar&&!zoomOpen());}
 
 /* ═══════════ Synchronisation visuelle ═══════════ */
 function syncAll(instant){if(!R) return;for(const pr of R.procs) try{pr.vis&&pr.vis(R,!!instant);}catch(e){console.error('vis '+pr.id,e);}binUI();}
@@ -1186,6 +1189,7 @@ function putRing(r,t,k){
 function ringUpdate(){
  if(!ring) ring=mkRing();if(!ring2) ring2=mkRing();
  /* anneau fin autour de l'élément suivant de l'aide */
+ if(zoomOpen()){ring.visible=false;ring2.visible=false;return;} /* vue rapprochée : les pastilles de js/46z remplacent les anneaux */
  if(!aideOn()||!HINT||!R||MW.paused||!(HINT.t.vis?HINT.t.vis():true)) ring.visible=false;else putRing(ring,HINT.t,.9);
  /* cible visée sans pièce propre (point sur la carrosserie…) : petit anneau, jamais un volume opaque */
  if(AIM&&!hlN&&!MW.paused&&AIM.t!==(HINT&&HINT.t)) putRing(ring2,AIM.t,.55);else ring2.visible=false;}
@@ -1297,6 +1301,7 @@ Object.assign(api,{
  pointerDown:()=>{eDown=true;startAct();},
  pointerUp:()=>onRelease(),
  holding2:()=>!!H,
+ clearAux:()=>auxSet(''),
  cancelHold:()=>{if(H){if(H.a.cancel) H.a.cancel(H);H=null;setHold(0);vmWork(0);}eDown=false;}});
 return api;
 })();

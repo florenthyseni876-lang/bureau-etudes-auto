@@ -1158,13 +1158,15 @@ html.phone-land .mg-info{top:calc(50% + 14px);font-size:12px}html.phone-land .mg
 .mgz-dot{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(255,255,255,.55);box-sizing:border-box;pointer-events:none;transition:border-color .12s,background .12s}
 .mgz-dot[hidden]{display:none}
 .mgz-dot.ok{border-color:rgba(255,214,90,.9)}
+.mgz-dot.discret{width:9px;height:9px;border-width:1.5px;background:rgba(255,255,255,.35);border-color:rgba(255,255,255,.6)}
 .mgz-dot.bloque{border-color:rgba(160,170,185,.45);border-style:dashed}
 .mgz-dot.conseil{animation:mg-pulse 1s infinite}
 .mgz-dot.vise{background:rgba(255,184,0,.28);border-color:#ffb800;border-width:3px}
-.mgz-quit{position:absolute;right:12px;top:max(48px,env(safe-area-inset-top,0px));pointer-events:auto;padding:7px 14px;border:1.5px solid #35506f;border-radius:5px;background:rgba(10,20,35,.82);color:#e8f0f8;font:inherit;font-size:13px;cursor:pointer}
+.mgz-quit{position:absolute;right:14px;bottom:70px;pointer-events:auto;padding:7px 14px;border:1.5px solid #35506f;border-radius:5px;background:rgba(10,20,35,.82);color:#e8f0f8;font:inherit;font-size:13px;cursor:pointer}
 .mgz-aide{position:absolute;left:50%;bottom:max(10px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:92%;text-align:center;font-size:12px;color:#c9d7e8;background:rgba(10,20,35,.7);padding:4px 12px;border-radius:4px}
 .mgz-on .mw-cross{display:none}
 .mgz-on .mw-look{cursor:crosshair}
 .mgz-on .mg-hold{left:var(--px,50%);top:var(--py,50%)}
 .mgz-on .mg-info{left:var(--px,50%);top:calc(var(--py,50%) + 30px);max-width:70%}
 html.phone-land .mgz-aide{display:none}
+html.phone-land .mgz-quit{right:auto;left:50%;transform:translateX(-50%);bottom:60px}

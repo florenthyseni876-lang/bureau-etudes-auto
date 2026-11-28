@@ -1165,16 +1165,18 @@ html.phone-land .mg-info{top:calc(50% + 14px);font-size:12px}html.phone-land .mg
 .mgz-dot{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(255,255,255,.55);box-sizing:border-box;pointer-events:none;transition:border-color .12s,background .12s}
 .mgz-dot[hidden]{display:none}
 .mgz-dot.ok{border-color:rgba(255,214,90,.9)}
+.mgz-dot.discret{width:9px;height:9px;border-width:1.5px;background:rgba(255,255,255,.35);border-color:rgba(255,255,255,.6)}
 .mgz-dot.bloque{border-color:rgba(160,170,185,.45);border-style:dashed}
 .mgz-dot.conseil{animation:mg-pulse 1s infinite}
 .mgz-dot.vise{background:rgba(255,184,0,.28);border-color:#ffb800;border-width:3px}
-.mgz-quit{position:absolute;right:12px;top:max(48px,env(safe-area-inset-top,0px));pointer-events:auto;padding:7px 14px;border:1.5px solid #35506f;border-radius:5px;background:rgba(10,20,35,.82);color:#e8f0f8;font:inherit;font-size:13px;cursor:pointer}
+.mgz-quit{position:absolute;right:14px;bottom:70px;pointer-events:auto;padding:7px 14px;border:1.5px solid #35506f;border-radius:5px;background:rgba(10,20,35,.82);color:#e8f0f8;font:inherit;font-size:13px;cursor:pointer}
 .mgz-aide{position:absolute;left:50%;bottom:max(10px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:92%;text-align:center;font-size:12px;color:#c9d7e8;background:rgba(10,20,35,.7);padding:4px 12px;border-radius:4px}
 .mgz-on .mw-cross{display:none}
 .mgz-on .mw-look{cursor:crosshair}
 .mgz-on .mg-hold{left:var(--px,50%);top:var(--py,50%)}
 .mgz-on .mg-info{left:var(--px,50%);top:calc(var(--py,50%) + 30px);max-width:70%}
 html.phone-land .mgz-aide{display:none}
+html.phone-land .mgz-quit{right:auto;left:50%;transform:translateX(-50%);bottom:60px}
 </style>
 <div class="app">
   <header class="cartouche">
@@ -12633,7 +12635,7 @@ function freeRig(){
  R.fl.parent&&R.fl.parent.remove(R.fl);disposeObj(R.fl);
  for(const o of R.vis){o.parent&&o.parent.remove(o);}
  {const un=R.u.under,ch=R.u.G&&R.u.G.ch;if(R.swap&&un&&ch) un.geometry=ch.full;}
- ANI.length=0;hlClear();if(ring) ring.visible=false;if(ring2) ring2.visible=false;R=null;AIM=null;HINT=null;H=null;handSet(null);setHold(0);if(MW.eyeY) MW.eyeY=0;}
+ ANI.length=0;hlClear();auxSet('');if(ring) ring.visible=false;if(ring2) ring2.visible=false;R=null;AIM=null;HINT=null;H=null;handSet(null);setHold(0);if(MW.eyeY) MW.eyeY=0;}
 
 /* ═══════════ Cibles, actions, visée ═══════════ */
 /* action : {lab, tool, sock, hold, snd, ok:()=>why|null, fix, do, min, ph:[partId,'dep'|'pose'], ord, exp, key} */
@@ -12794,7 +12796,10 @@ function vmSet(){const m=MF();if(m) m.vmTool(tool);}
 function handSet(item){const m=MF();if(m) m.vmItem(item);} /* pièce neuve tenue dans l'autre main (ou null) */
 function vmKick(a){const m=MF();if(m) m.vmKick();}
 function vmWork(w){const m=MF();if(m) m.vmWork(w);}
-function vmTick(dt){const m=MF();if(m) m.vmTick(dt,!!R&&on()&&!MW.paused&&!MW.player().inCar);}
+/* mains et outil visibles seulement en vue normale (en vue rapprochée ils cacheraient le bas de l'écran) */
+function vmTick(dt){
+ const m=MF();
+ if(m) m.vmTick(dt,!!R&&on()&&!MW.paused&&!MW.player().inCar&&!zoomOpen());}
 
 /* ═══════════ Synchronisation visuelle ═══════════ */
 function syncAll(instant){if(!R) return;for(const pr of R.procs) try{pr.vis&&pr.vis(R,!!instant);}catch(e){console.error('vis '+pr.id,e);}binUI();}
@@ -13654,6 +13659,7 @@ function putRing(r,t,k){
 function ringUpdate(){
  if(!ring) ring=mkRing();if(!ring2) ring2=mkRing();
  /* anneau fin autour de l'élément suivant de l'aide */
+ if(zoomOpen()){ring.visible=false;ring2.visible=false;return;} /* vue rapprochée : les pastilles de js/46z remplacent les anneaux */
  if(!aideOn()||!HINT||!R||MW.paused||!(HINT.t.vis?HINT.t.vis():true)) ring.visible=false;else putRing(ring,HINT.t,.9);
  /* cible visée sans pièce propre (point sur la carrosserie…) : petit anneau, jamais un volume opaque */
  if(AIM&&!hlN&&!MW.paused&&AIM.t!==(HINT&&HINT.t)) putRing(ring2,AIM.t,.55);else ring2.visible=false;}
@@ -13765,6 +13771,7 @@ Object.assign(api,{
  pointerDown:()=>{eDown=true;startAct();},
  pointerUp:()=>onRelease(),
  holding2:()=>!!H,
+ clearAux:()=>auxSet(''),
  cancelHold:()=>{if(H){if(H.a.cancel) H.a.cancel(H);H=null;setHold(0);vmWork(0);}eDown=false;}});
 return api;
 })();
@@ -13807,12 +13814,15 @@ const DUREE_ENTREE=.42;      /* secondes : glissement vers le cadrage */
 const DUREE_SORTIE=.36;      /* secondes : retour à la vue normale */
 const RAYON_GROUPE=.38;      /* mètres : les cibles plus proches que cela de l'élément visé font partie de la même zone de travail */
 const RAYON_MIN=.10;         /* mètres : on ne cadre jamais plus serré que cela (une seule vis) */
+const RAYON_MIN_ROUE=.30;    /* idem pour une roue : elle doit occuper environ 60 % de la hauteur de l'écran */
+const RAYON_CIBLE_MAX=.14;   /* une cible plus grosse que cela (la roue) compte comme si elle faisait cette taille */
+const TOLERANCE_OBSTACLE=.09; /* mètres : un obstacle si près de la cible est la pièce elle-même, pas un écran devant elle */
 const RAYON_MAX=.55;
 const DISTANCE_MIN=.34;      /* mètres entre la caméra et le centre du cadrage */
 const DISTANCE_MAX=1.7;
 const MARGE=1.3;             /* > 1 : de l'air autour du groupe */
 const HAUTEUR_MIN_CAMERA=.55; /* la caméra ne descend jamais dans le sol */
-const ANGLE_PAR_DESSOUS=52;  /* degrés : pour une pièce sous la voiture, la caméra regarde vers le haut avec cet angle */
+const PASTILLE_MIN=14,PASTILLE_MAX=110,PASTILLE_DISCRETE=9; /* pixels */
 const DELAI_FIN=.55;         /* secondes entre le dernier geste utile et le retour automatique */
 /* cibles du rig qui ne sont PAS des éléments mécaniques : elles gardent le geste direct (servante, commandes, bac, noms de pièces…) */
 const EXCLUS=/^(servante|lift|hood|door|pdoor|pedal|bac|nm:)/;
@@ -13832,7 +13842,8 @@ const Z={
  finT:0,             /* compte à rebours du retour automatique */
  verrou:false,       /* le pointeur était verrouillé (souris) : on le reverrouille en sortant */
  ui:null,            /* éléments de l'interface */
- pastilles:new Map()};
+ pastilles:new Map(),
+ dessin:[]};         /* pastilles dessinées à l'image précédente : {id, x, y, r, complete} (pour les tests) */
 const api={};
 const v1=new T.Vector3(),v2=new T.Vector3(),v3=new T.Vector3(),q1=new T.Quaternion(),m1=new T.Matrix4();
 const rig=()=>MWG.rig();
@@ -13861,18 +13872,22 @@ function resteAFaire(){
  return Z.groupe.some(t=>utilisable(t)&&MWG.actsOf(t).some(a=>estGeste(a)&&a.exp));}
 
 /* ═══════════ 2. Le cadrage ═══════════ */
+/* rayon utile d'une cible pour le cadrage : une grosse cible (la roue entière) ne doit pas agrandir le cadre à elle seule */
+const rayonDeCible=t=>Math.min(t.r||.05,RAYON_CIBLE_MAX);
+/* une roue ou ses écrous : on cadre plus large que pour une vis, pour voir la roue entière */
+const rayonMinimum=groupe=>groupe.some(t=>/^(wheel|nut):/.test(t.id))?RAYON_MIN_ROUE:RAYON_MIN;
 /* boîte englobante des cibles visibles du groupe → {centre, rayon} */
 function boiteDuGroupe(groupe){
  const boite=new T.Box3();
  for(const t of groupe){
   if(!utilisable(t)) continue;
   const p=MWG.worldOf(t,v1);if(!p) continue;
-  const r=t.r||.05;
+  const r=rayonDeCible(t);
   boite.expandByPoint(v2.copy(p).addScalar(r));
   boite.expandByPoint(v2.copy(p).addScalar(-r));}
  if(boite.isEmpty()) return null;
  const centre=boite.getCenter(new T.Vector3());
- const rayon=Math.min(RAYON_MAX,Math.max(RAYON_MIN,boite.getSize(v3).length()/2));
+ const rayon=Math.min(RAYON_MAX,Math.max(rayonMinimum(groupe),boite.getSize(v3).length()/2));
  return {centre,rayon};}
 /* distance à laquelle un cercle de rayon `rayon` remplit l'écran (dans la plus petite des deux directions) */
 function distanceDeCadrage(rayon){
@@ -13880,34 +13895,78 @@ function distanceDeCadrage(rayon){
  const fovH=2*Math.atan(Math.tan(fovV/2)*cam.aspect);
  const d=rayon/Math.sin(Math.min(fovV,fovH)/2)*MARGE;
  return Math.min(DISTANCE_MAX,Math.max(DISTANCE_MIN,d));}
-/* zone de la pièce qu'une cible représente (js/41 : PARTS[id].zone = 'capot' | 'dessous' | 'roue' | 'cabine'), ou null */
+/* zone de la pièce qu'une cible représente : 'capot' | 'dessous' | 'roue' | 'cabine' (js/41 : PARTS[id].zone), ou null */
 function zoneDeCible(t){
- if(t.id==='plug'||t.id==='filt') return 'dessous';   /* bouchon de vidange et filtre à huile : ils n'ont pas de fiche de pièce propre */
+ if(t.id==='plug'||t.id==='filt') return 'dessous';   /* bouchon de vidange et filtre à huile : pas de fiche de pièce propre */
+ if(/^(bp|cr|oilcap|fun|dip):?/.test(t.id)) return 'capot';  /* bougies, courroie d'accessoires, bouchon et jauge d'huile : dans la baie */
+ if(/^(nut|wheel):/.test(t.id)) return 'roue';
  const m=/^(?:pt|fx|cv):([^:]+)/.exec(t.id),p=m&&MWJ.PARTS[m[1]];
  return p?p.zone:null;}
-/* pièce sous une voiture levée : on la regarde par-dessous, comme le mécanicien debout sous le pont (et non de côté, à travers les bas de caisse) */
-const vueParDessous=t=>zoneDeCible(t)==='dessous'&&!!rig().c.st.lifted;
-/* direction du regard : des yeux vers le centre, ou, par-dessous, vers le haut en gardant le côté d'où vient le joueur */
-function directionDuRegard(oeil,centre,parDessous){
- const dir=v1.copy(centre).sub(oeil);
- if(!parDessous){
-  if(dir.lengthSq()<1e-4) dir.set(0,0,1);
-  return dir.normalize();}
- dir.y=0;
- if(dir.lengthSq()<1e-4) dir.set(Math.sin(rig().p.ry),0,Math.cos(rig().p.ry));
- const a=ANGLE_PAR_DESSOUS*Math.PI/180;
- dir.normalize().multiplyScalar(Math.cos(a));
- dir.y=Math.sin(a);
- return dir;}
-/* la caméra du cadrage : sur la ligne de regard, `distance` avant le centre, regard vers le centre */
-function calculerPose(oeil,centre,distance,parDessous){
- const dir=directionDuRegard(oeil,centre,parDessous);
+/* ── choix de l'angle de vue ──
+   Pièce sous une voiture levée : on regarde par-dessous, comme le mécanicien debout sous le pont. Pièce de la baie moteur : on se penche
+   au-dessus du moteur, regard vers le bas. Sinon : de là où se trouve le joueur. Chaque angle est essayé, du meilleur au moins bon :
+   le premier dont aucune pièce de carrosserie ne cache les cibles est retenu (sinon celui qui en cache le moins). */
+function elevationsPossibles(zone,naturelle){
+ if(zone==='dessous') return [52,70,35,20];
+ if(zone==='capot') return [-55,-72,-38,-20];
+ return [naturelle,-25,10,-50];}
+const DECALAGES_AZIMUT=[0,35,-35,70,-70,110,-110];
+const PI=Math.PI,rad=d=>d*PI/180;
+/* direction (de la caméra vers le centre) pour une élévation et un décalage d'azimut donnés, à partir du côté d'où vient le joueur */
+function directionPour(horizontale,elevation,azimut){
+ const h=horizontale.clone().applyAxisAngle(v3.set(0,1,0),rad(azimut)).multiplyScalar(Math.cos(rad(elevation)));
+ h.y=Math.sin(rad(elevation));
+ return h;}
+/* ── obstacles : les maillages de la carrosserie (pas les pièces dessinées par le rig, qui sont les cibles) ── */
+function maillagesObstacles(){
+ const r=rig(),liste=[];
+ r.g.traverse(o=>{
+  if(!o.isMesh||o.userData.hl||!MWG.visOf(o)) return;
+  for(let p=o;p;p=p.parent) if(p===r.root||p===r.fl) return;
+  liste.push(o);});
+ return liste;}
+const RAYON_TEST=new T.Raycaster();
+/* distance du premier obstacle entre `de` et `vers` (Infinity s'il n'y en a pas) */
+function distanceObstacle(de,vers,obstacles){
+ const d=v1.copy(vers).sub(de),L=d.length();
+ if(L<1e-4) return Infinity;
+ RAYON_TEST.set(de,d.divideScalar(L));RAYON_TEST.near=0;RAYON_TEST.far=L;
+ const h=RAYON_TEST.intersectObjects(obstacles,false);
+ return h.length?h[0].distance:Infinity;}
+/* nombre de cibles du groupe (et centre) qu'une pièce de carrosserie cache depuis cette caméra */
+function nbCachees(pos,centre,points,obstacles){
+ let n=0;
+ for(const p of [centre].concat(points)){
+  const L=pos.distanceTo(p);
+  if(distanceObstacle(pos,p,obstacles)<L-TOLERANCE_OBSTACLE) n++;}
+ return n;}
+/* positions (monde) des cibles du groupe sur lesquelles on peut agir ; sinon de toutes les cibles visibles */
+function pointsAVoir(groupe){
+ const utiles=groupe.filter(t=>utilisable(t));
+ const agir=utiles.filter(t=>MWG.actsOf(t).some(estGeste));
+ return (agir.length?agir:utiles).map(t=>MWG.worldOf(t,new T.Vector3())).filter(Boolean);}
+function poseDepuis(centre,dir,distance){
  const pos=centre.clone().addScaledVector(dir,-distance);
  pos.y=Math.max(pos.y,HAUTEUR_MIN_CAMERA);
- /* regard presque vertical (sous la voiture) : « le haut » de l'image est alors l'avant de la voiture */
+ /* regard presque vertical : « le haut » de l'image est alors l'avant de la voiture */
  const haut=Math.abs(dir.y)>.97?v2.set(Math.sin(rig().p.ry),0,Math.cos(rig().p.ry)):v2.set(0,1,0);
  m1.lookAt(pos,centre,haut);
- return {pos,quat:new T.Quaternion().setFromRotationMatrix(m1)};}
+ return {pos,quat:new T.Quaternion().setFromRotationMatrix(m1),dir:dir.clone(),distance};}
+/* la caméra du cadrage : on essaie les angles dans l'ordre et on garde le premier dont la vue est dégagée */
+function calculerPose(oeil,centre,distance,groupe,zone){
+ const h=v1.copy(centre).sub(oeil),naturelle=Math.atan2(h.y,Math.hypot(h.x,h.z))*180/PI;
+ h.y=0;
+ if(h.lengthSq()<1e-4) h.set(Math.sin(rig().p.ry),0,Math.cos(rig().p.ry));
+ const horizontale=h.normalize().clone();
+ const obstacles=maillagesObstacles(),points=pointsAVoir(groupe);
+ let meilleure=null;
+ for(const el of elevationsPossibles(zone,naturelle)){
+  for(const az of DECALAGES_AZIMUT){
+   const essai=poseDepuis(centre,directionPour(horizontale,el,az),distance);
+   essai.cachees=nbCachees(essai.pos,centre,points,obstacles);
+   if(!meilleure||essai.cachees<meilleure.cachees) meilleure=essai;
+   if(!essai.cachees) return meilleure;}}
+ return meilleure;}
 
 /* ═══════════ 3. La caméra ═══════════ */
 /* appelé par js/40 à chaque image, juste avant le rendu : `cam` porte déjà la vue normale du joueur */
@@ -13977,30 +14036,49 @@ function pastilleDe(t){
  let p=Z.pastilles.get(t.id);
  if(!p){p=document.createElement('i');p.className='mgz-dot';Z.ui.firstChild.appendChild(p);Z.pastilles.set(t.id,p);}
  return p;}
-/* taille en pixels d'une pastille : le rayon réel de la cible vu à la distance de la caméra */
-function taillePastille(t,distance){
- const hauteur=MW.cam.fov*Math.PI/180,px=(t.r||.05)*2/Math.max(.05,distance)*(Z.ui.clientHeight/(2*Math.tan(hauteur/2)));
- return Math.max(16,Math.min(120,px));}
-/* texte d'état d'une pastille : prête (action possible), bloquée (il manque une condition), conseillée par l'aide */
-function etatPastille(t,vise,conseil){
- const actions=MWG.actsOf(t),possible=actions.some(estGeste);
- return 'mgz-dot'+(possible?' ok':' bloque')+(t===conseil?' conseil':'')+(vise&&vise.t===t?' vise':'');}
-function majPastilles(){
- const racine=document.getElementById('mwRoot').getBoundingClientRect(),conseil=MWG.hintTarget(),vise=MWG.aim();
- const vus=new Set();
+/* une cible est « attendue » quand un geste utile y est possible maintenant (les autres ne sont qu'un petit point discret) */
+const attendue=t=>MWG.actsOf(t).some(a=>estGeste(a)&&a.exp);
+/* taille naturelle en pixels d'une pastille : le rayon réel de la cible vu à la distance de la caméra */
+function tailleNaturelle(t,distance){
+ const hauteur=MW.cam.fov*Math.PI/180,px=rayonDeCible(t)*2/Math.max(.05,distance)*(Z.ui.clientHeight/(2*Math.tan(hauteur/2)));
+ return Math.max(PASTILLE_MIN,Math.min(PASTILLE_MAX,px));}
+/* états d'une pastille : attendue (cercle plein), possible, bloquée (pointillés), discrète (petit point), conseillée par l'aide, survolée */
+function classePastille(t,complete,vise,conseil){
+ const possible=MWG.actsOf(t).some(estGeste);
+ return 'mgz-dot'+(complete?(possible?' ok':' bloque'):' discret')+(t===conseil?' conseil':'')+(vise&&vise.t===t?' vise':'');}
+/* positions écran (pixels de la racine) des cibles utilisables du groupe */
+function projeterGroupe(racine){
+ const liste=[];
  for(const t of Z.groupe){
   if(!utilisable(t)) continue;
   const p=MWG.worldOf(t,v1);if(!p) continue;
   const distance=p.distanceTo(MW.cam.position);
   p.project(MW.cam);
   if(p.z>1) continue;                                   /* derrière la caméra */
-  const el=pastilleDe(t),taille=taillePastille(t,distance);
-  el.className=etatPastille(t,vise,conseil);
-  el.style.width=el.style.height=taille+'px';
-  el.style.left=((p.x+1)/2*racine.width)+'px';
-  el.style.top=((1-p.y)/2*racine.height)+'px';
-  el.hidden=false;vus.add(t.id);}
- for(const [id,el] of Z.pastilles) if(!vus.has(id)) el.hidden=true;}
+  liste.push({t,distance,x:(p.x+1)/2*racine.width,y:(1-p.y)/2*racine.height});}
+ return liste;}
+/* les pastilles pleines ne doivent pas se chevaucher : chacune est limitée à 90 % de la distance à sa voisine pleine la plus proche */
+function limiterAuxVoisines(pleines){
+ for(const a of pleines){
+  let voisine=Infinity;
+  for(const b of pleines) if(b!==a) voisine=Math.min(voisine,Math.hypot(a.x-b.x,a.y-b.y));
+  a.taille=Math.max(PASTILLE_MIN,Math.min(a.taille,voisine*.9));}}
+function majPastilles(){
+ const racine=document.getElementById('mwRoot').getBoundingClientRect(),conseil=MWG.hintTarget(),vise=MWG.aim();
+ const liste=projeterGroupe(racine);
+ for(const it of liste){
+  it.complete=attendue(it.t)||it.t===conseil||(!!vise&&vise.t===it.t);
+  it.taille=it.complete?tailleNaturelle(it.t,it.distance):PASTILLE_DISCRETE;}
+ limiterAuxVoisines(liste.filter(it=>it.complete));
+ const vus=new Set();
+ for(const it of liste){
+  const el=pastilleDe(it.t);
+  el.className=classePastille(it.t,it.complete,vise,conseil);
+  el.style.width=el.style.height=it.taille+'px';
+  el.style.left=it.x+'px';el.style.top=it.y+'px';
+  el.hidden=false;vus.add(it.t.id);}
+ for(const [id,el] of Z.pastilles) if(!vus.has(id)) el.hidden=true;
+ Z.dessin=liste.map(it=>({id:it.t.id,x:it.x,y:it.y,r:it.taille/2,complete:it.complete}));}
 
 /* ═══════════ Entrée, sortie, fin automatique ═══════════ */
 function peutEntrer(cible,action){
@@ -14012,9 +14090,11 @@ api.enter=(cible,action)=>{
  if(!boite) return false;
  Z.groupe=groupe;
  Z.distance=distanceDeCadrage(boite.rayon);
- Z.pose=calculerPose(MW.cam.position,boite.centre,Z.distance,vueParDessous(cible));
+ Z.zone=zoneDeCible(cible);
+ Z.pose=calculerPose(MW.cam.position,boite.centre,Z.distance,groupe,Z.zone);
  Z.k=0;Z.sortie=false;Z.faits=0;Z.finT=0;
  Z.verrou=!!document.pointerLockElement;
+ MWG.clearAux();                                  /* pas de panneau de jauge resté d'un travail précédent */
  if(Z.verrou) MW.releaseLock();                 /* le pointeur redevient visible */
  const r=lookEl().getBoundingClientRect();
  Z.ptr.x=r.left+r.width/2;Z.ptr.y=r.top+r.height/2;
@@ -14058,7 +14138,16 @@ api.screenOf=id=>{
  p.project(MW.cam);
  const r=lookEl().getBoundingClientRect();
  return {x:r.left+(p.x+1)/2*r.width,y:r.top+(1-p.y)/2*r.height,derriere:p.z>1};};
-api.state=()=>({on:Z.on,k:Z.k,sortie:Z.sortie,faits:Z.faits,groupe:Z.groupe.map(t=>t.id),distance:Z.distance});
+/* pour les tests : une carrosserie cache-t-elle une cible actionnable depuis la caméra du cadrage ? et les pastilles pleines se chevauchent-elles ? */
+api.cachees=()=>{
+ if(!Z.on) return null;
+ const points=pointsAVoir(Z.groupe),obstacles=maillagesObstacles();
+ return nbCachees(MW.cam.position,boiteDuGroupe(Z.groupe).centre,points,obstacles);};
+api.chevauchements=()=>{
+ const p=Z.dessin.filter(d=>d.complete);let n=0;
+ for(let i=0;i<p.length;i++) for(let j=i+1;j<p.length;j++) if(Math.hypot(p[i].x-p[j].x,p[i].y-p[j].y)<(p[i].r+p[j].r)*.98) n++;
+ return n;};
+api.state=()=>({on:Z.on,k:Z.k,sortie:Z.sortie,faits:Z.faits,groupe:Z.groupe.map(t=>t.id),distance:Z.distance,zone:Z.zone,cachees:Z.pose?Z.pose.cachees:null,pastilles:Z.dessin.length});
 return api;
 })();
 
