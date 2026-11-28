@@ -22,7 +22,7 @@ module.exports = async function mecaZoom(page, env) {
     MWC.hire('meca');
     __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12;
     for (const k of ['entretien', 'moteur', 'freinage', 'liaison']) __mw.S.xp[k] = 900;
-    __mw.S.jobs.outils.cle_dyn = 1;
+    for (const k in MWJ.OUTILS) __mw.S.jobs.outils[k] = 1;   // tout l'outillage acheté : aucune pièce ne reste bloquée faute d'outil
     MWG.set({ aide: 'on', classic: false, zoom: true });
     window.__g = [];                                   // gestes réussis (clé de chaque action), dans l'ordre
     MW.on('geste', (c, key) => window.__g.push(key));
