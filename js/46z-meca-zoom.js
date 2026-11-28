@@ -21,8 +21,8 @@
    (la sous-tâche est finie : filtre posé, dernier écrou retiré…).
 
    ═══ API `MWZ` ═══
-   MWZ.enter(cible, action)  entre en vue rapprochée sur une cible du rig ; renvoie faux si ce n'est pas possible (la cible n'est pas
-                             un élément mécanique, l'action est bloquée…) : js/46 fait alors le geste normalement
+   MWZ.enter(cible)          entre en vue rapprochée sur une cible du rig ; renvoie faux si ce n'est pas possible (la cible n'est pas
+                             un élément mécanique, aucun geste n'y est possible…) : js/46 fait alors le geste normalement
    MWZ.leave(immediat)       revient à la vue normale (immediat = sans animation)
    MWZ.active()              vrai dès l'entrée et jusqu'à la fin du retour ; MWZ.ready() : vrai quand le cadrage est atteint
    MWZ.screenOf(id)          position écran {x, y} (pixels de la page) d'une cible du rig, ou null (sert aux tests)
@@ -305,11 +305,12 @@ function majPastilles(){
  Z.dessin=liste.map(it=>({id:it.t.id,x:it.x,y:it.y,r:it.taille/2,complete:it.complete}));}
 
 /* ═══════════ Entrée, sortie, fin automatique ═══════════ */
-function peutEntrer(cible,action){
+/* on entre si la cible est un élément mécanique sur lequel un vrai geste (pas une simple inspection) est possible maintenant */
+function peutEntrer(cible){
  if(Z.on||!MWG.rig()||MW.paused) return false;
- return estMecanique(cible)&&estGeste(action);}
-api.enter=(cible,action)=>{
- if(!peutEntrer(cible,action)) return false;
+ return estMecanique(cible)&&MWG.actsOf(cible).some(estGeste);}
+api.enter=cible=>{
+ if(!peutEntrer(cible)) return false;
  const groupe=constituerGroupe(cible),boite=boiteDuGroupe(groupe);
  if(!boite) return false;
  Z.groupe=groupe;

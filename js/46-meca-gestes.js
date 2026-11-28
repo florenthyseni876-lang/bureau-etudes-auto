@@ -173,7 +173,9 @@ function actsOf(t){let a=[];try{a=t.acts()||[];}catch(e){console.error('acts '+t
 function pickAct(t){
  const a=actsOf(t);if(!a.length) return null;
  /* l'action dont l'outil correspond et qui est possible ; sinon la première possible ; sinon la première (pour le message) */
- let best=a.find(x=>!x.why&&x.tool===tool);
+ /* vue rapprochée : on est venu pour travailler, pas pour inspecter (le bon outil se prend tout seul) */
+ let best=zoomOpen()?a.find(x=>!x.why&&!x.insp):null;
+ if(!best) best=a.find(x=>!x.why&&x.tool===tool);
  if(!best) best=a.find(x=>!x.why&&!x.insp)||a.find(x=>!x.why);
  if(!best) best=a[0];
  return best;}
@@ -1245,7 +1247,7 @@ const zoomOpen=()=>typeof MWZ!=='undefined'&&MWZ.active();
 function zoomUse(){
  if(zoomOpen()){MWZ.leave();return true;}
  if(!AIM||!zoomPref()) return false;
- return MWZ.enter(AIM.t,AIM.a);}
+ return MWZ.enter(AIM.t);}
 let wired=false;
 function wire(){
  if(wired) return;wired=true;
