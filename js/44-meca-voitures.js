@@ -640,12 +640,23 @@ function updateRod(g){
  const lx=G.hw*.5,ly=-.045,lz=G.hLen*.55,c=Math.cos(a),s=Math.sin(a);
  const top=V3(lx,G.pivY+ly*c-lz*s,G.lidLo+ly*s+lz*c),foot=V3(lx,G.pivY-.13,top.z);
  const d=top.clone().sub(foot),len=d.length();u.rod.visible=true;u.rod.position.copy(foot).addScaledVector(d,.5);u.rod.scale.set(1,1,len);u.rod.quaternion.setFromUnitVectors(V3(0,0,1),d.normalize());}
+/* construit le moteur de la baie d'une voiture (une seule fois) ; appelé à l'ouverture du capot et par js/46 quand la voiture est prise en charge */
+function buildBay(g){
+ const u=g.userData;
+ if(u.bay||u.noBay||!u.car) return;
+ try{
+  const e=engineMesh(u.car,{group:g});
+  g.add(e);u.bay=e;built++;
+  for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);
+ }catch(err){u.noBay=true;console.error('moteur de baie',err);}}
 function track(){
  for(const g of LIVE){const u=g.userData;
   if(!u._seen){if(g.parent) u._seen=true;else if(++u._age>600) LIVE.delete(g);continue;}
   if(!g.parent){release(g);LIVE.delete(g);continue;}
   const h=u.hood;if(!h) continue;
-  if((h.rotation.x<-.15||g.position.y>.3)&&!u.bay&&!u.noBay){try{const e=engineMesh(u.car,{group:g});g.add(e);u.bay=e;built++;for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);}catch(err){u.noBay=true;console.error('moteur de baie',err);}}
+  if(h.rotation.x<-.15) buildBay(g);
+  /* le moteur n'est dessiné que capot ouvert ou voiture levée (sinon il serait invisible : on économise les appels de dessin) */
+  if(u.bay) u.bay.visible=h.rotation.x<-.15||g.position.y>.3;
   /* voûtes et tourelles de la baie : seulement capot ouvert (voiture levée capot fermé, elles masqueraient les amortisseurs et les roues) */
   if(u.bay&&u.bay.userData.parts&&u.bay.userData.parts.arches) u.bay.userData.parts.arches.visible=h.rotation.x<-.15;
   updateRod(g);
@@ -941,7 +952,7 @@ MW.on('minute',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 MW.on('start',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 
 const api={list:CARS,ENG,get:GET,ids:()=>CARS.map(c=>c.id),byCat,pool,pick,tuple,label,toS,checkS,applies,partName,partPrice,oilL:c=>GET(c).eng.oilL,
- fullName,engineMesh,bayBuilt,anchor,anchorWorld,setPlate,build:makeCar,geo:buildGeo,POOL,
+ fullName,engineMesh,buildBay,bayBuilt,anchor,anchorWorld,setPlate,build:makeCar,geo:buildGeo,POOL,
  dims:c=>{c=GET(c);return c?{L:c.L,W:c.W,H:c.H,WB:c.WB}:null;},
  stats:()=>({geo:Object.keys(GEO).length,engines:Object.keys(ECACHE),built,freed,live:LIVE.size,engBuilt}),
  track,

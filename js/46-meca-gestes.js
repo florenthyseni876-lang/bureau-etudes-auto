@@ -1151,6 +1151,7 @@ function malusTxt(c){const g=c.g||{},b=g.bin||{},l=Object.keys(b).filter(k=>b[k]
 const pontD=c=>{const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) return 1e9;const q=MW.player();return Math.hypot(q.x-p.x,q.z-p.z);};
 function buildRig(c){
  const r=newRig(c);if(!r) return null;R=r;
+ try{MWCARS.buildBay(r.g);}catch(e){}   /* le moteur existe avant les cibles : le dessous est lisible dès la levée, sans reconstruction */
  r.bayAt=!!r.g.userData.bay; /* sans moteur dans la baie, les cibles du capot seraient mal placées : on reconstruit à son arrivée */
  for(const b of BUILD) try{b(r);}catch(e){console.error('rig '+(b.name||''),e);}
  vmEnsure();vmSet();syncAll(true);return r;}
