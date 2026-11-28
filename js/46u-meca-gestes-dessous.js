@@ -44,7 +44,7 @@ function construire(R){
   vis.forEach((o,i)=>o.position.copy(p.vis[i]));
   return true;};
 
- R.add({id:'sk:plaque',o:plaque,r:.18,vis:()=>levee()&&poser(),name:'Protection sous moteur',acts:()=>{
+ R.add({id:'sk:plaque',o:plaque,r:.07,vis:()=>levee()&&poser(),name:'Protection sous moteur',acts:()=>{
   const dessus=etat.f.every(v=>!v);
   if(etat.on) return [{key:'skoff',lab:'Déposer la protection sous moteur',tool:'main',hold:.7,snd:'clunk',ord:62,
    why:dessus?null:'Dévissez d\'abord les quatre vis de la protection.',do:()=>{etat.on=0;}}];
