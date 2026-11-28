@@ -633,11 +633,14 @@ function updateRod(g){
  const lx=G.hw*.5,ly=-.045,lz=G.hLen*.55,c=Math.cos(a),s=Math.sin(a);
  const top=V3(lx,G.pivY+ly*c-lz*s,G.lidLo+ly*s+lz*c),foot=V3(lx,G.pivY-.13,top.z);
  const d=top.clone().sub(foot),len=d.length();u.rod.visible=true;u.rod.position.copy(foot).addScaledVector(d,.5);u.rod.scale.set(1,1,len);u.rod.quaternion.setFromUnitVectors(V3(0,0,1),d.normalize());}
+/* voiture à moins de 40 m du joueur : son moteur est préparé à l'avance (les voitures de la circulation ne le sont jamais) */
+function near(g){const p=MW.player&&MW.player();return !!p&&Math.hypot(g.position.x-p.x,g.position.z-p.z)<40;}
 function track(){
  for(const g of LIVE){const u=g.userData;
   if(!u._seen){if(g.parent) u._seen=true;else if(++u._age>600) LIVE.delete(g);continue;}
   if(!g.parent){release(g);LIVE.delete(g);continue;}
   const h=u.hood;if(!h) continue;
+  if(!u.bay&&!u.noBay&&!u.prep&&u.car&&u.car.eng&&near(g)){u.prep=true;warmOn=true;prepare(u.car);}
   if(h.rotation.x<-.15&&!u.bay&&!u.noBay){try{const e=engineMesh(u.car,{group:g});g.add(e);u.bay=e;built++;for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);}catch(err){u.noBay=true;console.error('moteur de baie',err);}}
   updateRod(g);
   for(const n of ['FL','FR']){const w=g.getObjectByName('w'+n);if(w&&u.brakes[n]) u.brakes[n].rotation.y=w.rotation.y+(n==='FR'?PI:0);}}}
@@ -654,9 +657,11 @@ const SPOTK=[['alternator',/^Alternateur/],['starter',/^Démarreur/],['coils',/^
  ['pulley',/^Poulie de vilebrequin/],['valveCover',/^Couvre-culasse/],['dip',/^Jauge/],['oilCap',/^Bouchon de remplissage/],['breather',/^Durite de reniflard/],['oilP',/^Capteur de pression d'huile/],['ic',/^Échangeur/],['throttle',/^Boîtier papillon|^Entrée d'air/],['pipe',/^Tuyau d'air/],['harness',/^Faisceau/],['exman',/^Collecteurs? d'échappement/],['block',/^Bloc-cylindres/]];
 const SPOTD=[[0,1,0,1.6],[1,1,0,1],[-1,1,0,1],[0,1,1,1],[0,1,-1,1],[0,0,1,.7],[0,0,-1,.7],[-1,0,0,.7],[1,0,0,.7]];
 /* pour chaque pièce : rayons lancés sur elle depuis le haut puis les côtés ; on garde un point réellement visible (rien devant), au milieu de la partie visible */
-function partSpots(root,parts){
+function* partSpotsG(root,parts){
  const T=THREE,rc=new T.Raycaster(),occ=[];rc.far=6000;
  root.traverse(o=>{if(o.isMesh&&!o.userData.hid&&o.material&&!o.material.transparent) occ.push(o);});
+ /* boîte englobante de chaque maillage : le lancer de rayon écarte tout de suite les pièces que le rayon ne traverse pas */
+ for(const m of occ) if(!m.geometry.boundingBox) m.geometry.computeBoundingBox();
  const all=new T.Box3().setFromObject(root),ec=all.getCenter(new T.Vector3());
  /* yeux virtuels (repère du moteur, mm) : au-dessus et en biais, comme un joueur penché sur le capot */
  const eyes=[[0,1100,0],[900,900,0],[-900,900,0],[0,900,900],[0,900,-900],[600,700,600],[-600,700,-600]].map(a=>ec.clone().add(new T.Vector3(a[0],a[1],a[2])));
@@ -672,18 +677,21 @@ function partSpots(root,parts){
    for(let i=0;i<N;i++) for(let j=0;j<N;j++){
     o.copy(c0).addScaledVector(d,ext/2+60).addScaledVector(u,(i+.5)/N*su-su/2).addScaledVector(v,(j+.5)/N*sv-sv/2);
     rc.set(o,d.clone().negate());const h=rc.intersectObjects(occ,false);
-    if(h.length&&mine.has(h[0].object)) cand.push({p:h[0].point.clone(),d:d.clone(),w:dd[3]});}}
+    if(h.length&&mine.has(h[0].object)) cand.push({p:h[0].point.clone(),d:d.clone(),w:dd[3]});}
+   yield;}
   if(!cand.length) continue;
   /* on teste d'abord les candidats vus du dessus ; chacun est noté par le nombre d'yeux qui le voient */
   cand.sort((a,b)=>b.w-a.w);const step=Math.max(1,Math.ceil(cand.length/16));let best=null;
   for(let ci=0;ci<cand.length;ci+=step){const q=cand[ci];let vis=0;
    for(const e of eyes){dd2.subVectors(q.p,e);const L=dd2.length();dd2.normalize();rc.set(e,dd2);rc.far=L+1;const h=rc.intersectObjects(occ,false);if(h.length&&h[0].distance>L-6) vis++;}
    const score=vis+q.w*.2-q.p.distanceTo(c0)/Math.max(50,sz.length())*.1;
-   if(!best||score>best.score) best={score,p:q.p,d:q.d,vis};}
+   if(!best||score>best.score) best={score,p:q.p,d:q.d,vis};
+   if((ci/step|0)%3===0) yield;}
   spots[k]={p:best.p.clone().addScaledVector(best.d,7),d:best.d,n:best.vis,box:bb.clone(),name:ps[0].name,desc:ps[0].desc||''};}
  return spots;}
+function partSpots(root,parts){const g=partSpotsG(root,parts);let r;do{r=g.next();}while(!r.done);return r.value;}
 /* construit (ou réutilise) la géométrie du moteur du jeu pour ce moteur : fusionnée par matériau, en mm, centrée */
-function engineParts(car){
+function* engineJob(car){
  const e=car.eng;let c=ECACHE[e.id];if(c){c.refs++;return c;}
  const s=toS(car),snap=Object.assign({},S),keepE=M.E,keepC=M.C,keepE3=E3,keepSel=ui.sel,keepView=ui.eview;let root,parts;
  try{
@@ -694,6 +702,7 @@ function engineParts(car){
   E3={scene:new T.Scene(),root:null,parts:[],anim:null,sig:'',R:600,hl:new T.MeshStandardMaterial({color:0xffb800}),shown:[],pinEls:[],cv:null,renderer:null,w:0,h:0};
   window.__sansAretes=true;try{build3D();}finally{window.__sansAretes=false;}root=E3.root;parts=E3.parts;root.updateMatrixWorld(true);
  }finally{for(const k in S) if(!(k in snap)) delete S[k];Object.assign(S,snap);M.E=keepE;M.C=keepC;E3=keepE3;ui.sel=keepSel;ui.eview=keepView;}
+ yield;/* la construction du moteur est faite : le reste (repères, fusion) est découpé en tranches */
  const anchors={},names=[[/^Alternateur/,'alternator'],[/Bouchon de remplissage/,'oilCap'],[/Bobines|préchauffage|Allumeur/,'coils'],[/Carter de distribution/,'timing'],[/Collecteur d'admission/,'intake'],[/Turbocompresseur/,'turbo'],
   [/^Démarreur/,'starter'],[/Carter d'huile/,'oilPan'],[/^Courroie d'accessoires/,'belt'],[/Couvre-culasse/,'valveCover']];
  let cover=null,plenum=null;const sep={},coilPts=[];
@@ -710,7 +719,7 @@ function engineParts(car){
      const gg=me.geometry.clone();gg.applyMatrix4(me.matrixWorld);if(!gg.attributes.normal) gg.computeVertexNormals();const m=me.material;L.push({g:gg,color:m.color.getHex(),rough:m.roughness,metal:m.metalness});}
     continue;}}
   }
- let spots={};try{spots=partSpots(root,parts);}catch(err){console.error('repères du moteur',err);}
+ let spots={};try{spots=yield* partSpotsG(root,parts);}catch(err){console.error('repères du moteur',err);}
  const items=[];
  root.traverse(o=>{if(!o.isMesh||o.userData.skip||!o.material||o.material.transparent) return;
   const m=o.material,g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal) g.computeVertexNormals();items.push({g,color:m.color.getHex(),rough:m.roughness,metal:m.metalness});});
@@ -719,6 +728,42 @@ function engineParts(car){
  for(const k in sep) sep[k]=mergeVC(sep[k],.55);
  root.traverse(o=>{if(o.geometry) o.geometry.dispose();});
  c=ECACHE[e.id]={buckets,bb,anchors,cover,plenum,refs:1,n:car.eng.n,lay:car.eng.lay,sep,coilPts,spots};engBuilt++;return c;}
+/* version synchrone : termine le travail en cours pour ce moteur (préparé à l'avance si possible, voir PREP) */
+function engineParts(car){
+ const id=car.eng.id,job=PREP.get(id)||engineJob(car);PREP.delete(id);
+ let r;do{r=job.next();}while(!r.done);
+ return r.value;}
+/* préparation à l'avance des moteurs des voitures présentes : un travail par moteur, avancé de quelques millisecondes par image */
+const PREP=new Map();
+function prepare(car){
+ const id=car&&car.eng&&car.eng.id;if(!id||ECACHE[id]||PREP.has(id)) return;
+ PREP.set(id,engineJob(car));}
+let warmOn=false;
+/* précompilation des programmes de la baie (matières standard à couleurs de sommets, plastiques, bocaux…) : un matériau par image,
+   dans la vraie scène (même éclairage, donc mêmes programmes), pour qu'aucune compilation ne tombe à l'ouverture du capot */
+const WARM={list:null,i:0,grp:null};
+function warmStep(){
+ const R=MW.renderer&&MW.renderer();if(!R||!MW.scene||!MW.cam) return;
+ if(!WARM.list){
+  const tex=new T.CanvasTexture(document.createElement('canvas')),ms=[];
+  for(const k in BAYM) ms.push(BAYM[k]());
+  ms.push(emat({color:0x808080,rough:.6,metal:0}),emat({color:0x808080,rough:.6,metal:0,vc:true}),aoMat(),new T.MeshStandardMaterial({map:tex,roughness:.6,metalness:.1}));
+  WARM.list=ms;WARM.grp=new T.Group();WARM.grp.visible=false;WARM.grp.name='prechauffe';MW.scene.add(WARM.grp);WARM.g=new T.BufferGeometry();
+  WARM.g.setAttribute('position',new T.Float32BufferAttribute([0,0,0,0,0,.001,0,.001,0],3));WARM.g.setAttribute('normal',new T.Float32BufferAttribute([1,0,0,1,0,0,1,0,0],3));
+  WARM.g.setAttribute('uv',new T.Float32BufferAttribute([0,0,0,0,0,0],2));WARM.g.setAttribute('color',new T.Float32BufferAttribute([1,1,1,1,1,1,1,1,1],3));}
+ if(WARM.i>=WARM.list.length){if(WARM.grp){MW.scene.remove(WARM.grp);WARM.grp=null;}return;}
+ WARM.grp.add(new T.Mesh(WARM.g,WARM.list[WARM.i++]));
+ try{R.compile(MW.scene,MW.cam);}catch(err){WARM.i=1e9;}}
+function pumpPrep(dt){
+ const PREP_MS=Math.min(40,Math.max(5,(dt||0)*300));/* 30 % d'une image lente, 5 ms au minimum */
+ if(!PREP.size){if(WARM.i<1e9&&(WARM.list===null||WARM.i<WARM.list.length||WARM.grp)&&warmOn) warmStep();return;}
+ const t0=performance.now();
+ for(const [id,job] of PREP){
+  let r;
+  do{try{r=job.next();}catch(err){console.error('préparation du moteur',err);PREP.delete(id);break;}
+   if(r.done){PREP.delete(id);break;}
+  }while(performance.now()-t0<PREP_MS);
+  if(performance.now()-t0>=PREP_MS) break;}}
 function engineRelease(id){const c=ECACHE[id];if(!c) return;if(--c.refs>0) return;for(const b of c.buckets) b.g.dispose();for(const k in c.sep) for(const b of c.sep[k]) b.g.dispose();delete ECACHE[id];}
 const EMAT=new Map();
 const emat=b=>{const k=b.color+'|'+b.rough+'|'+b.metal+(b.vc?'v':'');let m=EMAT.get(k);if(!m){m=new T.MeshStandardMaterial(b.vc?{vertexColors:true,roughness:Math.max(.5,b.rough),metalness:Math.min(.2,b.metal)}:{color:new T.Color(b.color).multiplyScalar(1.7),roughness:Math.max(.5,b.rough),metalness:Math.min(.2,b.metal)});EMAT.set(k,m);}return m;};
@@ -897,14 +942,17 @@ MW.carMesh=function(o){
 try{const D=window.__mwj&&window.__mwj.noirData&&window.__mwj.noirData.MODELS;
  if(D) for(const z of ['garage1','garage2','garage3','garage4']){if(!D[z]) D[z]=[];D[z].length=0;for(const c of pool(z)) D[z].push(tuple(c));}}catch(err){console.error('MWCARS.MODELS',err);}
 let nf0=0;
-MW.on('tick',()=>{if(++nf0%3===0) track();});
+MW.on('tick',dt=>{if(++nf0%3===0) track();pumpPrep(dt);});
 MW.on('minute',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 MW.on('start',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 
 const api={list:CARS,ENG,get:GET,ids:()=>CARS.map(c=>c.id),byCat,pool,pick,tuple,label,toS,checkS,applies,partName,partPrice,oilL:c=>GET(c).eng.oilL,
  fullName,engineMesh,bayBuilt,anchor,anchorWorld,setPlate,build:makeCar,geo:buildGeo,POOL,
  dims:c=>{c=GET(c);return c?{L:c.L,W:c.W,H:c.H,WB:c.WB}:null;},
- stats:()=>({geo:Object.keys(GEO).length,engines:Object.keys(ECACHE),built,freed,live:LIVE.size,engBuilt}),
+ /* termine tout de suite la préparation à l'avance (moteurs des voitures proches, programmes de la baie) : outil de test, le jeu la fait image par image */
+ prechauffer:()=>{for(const [id,job] of [...PREP]){let r;do{r=job.next();}while(!r.done);PREP.delete(id);}
+  if(warmOn){let n=0;while(n++<200&&(WARM.list===null||WARM.i<WARM.list.length||WARM.grp)&&WARM.i<1e9) warmStep();}return true;},
+ stats:()=>({prep:PREP.size,warm:WARM.i,warmOn,geo:Object.keys(GEO).length,engines:Object.keys(ECACHE),built,freed,live:LIVE.size,engBuilt}),
  track,
  /* points d'interaction du capot, de la cabine et des roues autour de la voiture posée (décalages locaux {x,z} : x = côté gauche, z = avant) */
  pts(c){c=GET(c);const G=buildGeo(c),hw=G.hw;

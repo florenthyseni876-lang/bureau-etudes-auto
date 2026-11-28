@@ -31,9 +31,8 @@ MWD.ateliers=(z,k)=>{
   body.box(wd+.08,h+.08,.07,0,y,0,0x24272c);
   const top=y+h/2+.04,len=Hh-.06-top;
   if(len>.1) for(const s of [-1,1]) body.box(.03,len,.03,s*(wd/2-.25),top+len/2,0,0x30343a);
-  const tex=D.canvasTex(512,Math.round(512*h/wd),draw),m=new T.Mesh(new T.PlaneGeometry(wd,h),D.signMat(tex));
-  m.position.set(p.x+nx*.045,y,p.z+nz*.045);m.rotation.y=ry;ctx.scene.add(m);
-  rep.push({cat,x:p.x,z:p.z,y,face});return m;};
+  D.plaque(wd,h,p.x+nx*.045,y,p.z+nz*.045,ry,draw,512);
+  rep.push({cat,x:p.x,z:p.z,y,face});};
  const sy=Math.min(Hh-1.6,4.1);
  hang('pieces',hx-3.4,dp-2.4,sy,4.4,'door');
  hang('etabli',-hx+3.6,dp-2.4,sy,4.4,'door');

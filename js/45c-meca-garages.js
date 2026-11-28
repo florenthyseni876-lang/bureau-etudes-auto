@@ -65,9 +65,9 @@ function signDraw(s){return (x,w,h)=>{
  if(s.t2){x.font=(s.serif?'':'600 ')+Math.round(h*.16)+'px '+(s.serif?fam:'Arial');if(s.serif){x.fillStyle=s.fg;}x.fillText(s.t2,w/2,h*.76);}
  if(s.stripes){x.fillStyle='#111';x.fillRect(0,h*.9,w,h*.1);x.fillStyle='#fff';for(let i=0;i<40;i++) if(i%2) x.fillRect(i*w/40,h*.9,w/40,h*.05);}
 };}
-const signPlane=(z,u,v,y,w,h,face,draw)=>{ // panneau lumineux plat contre un mur (intérieur ou extérieur)
- const tex=D.canvasTex(1024,Math.round(1024*h/w),(x,ww,hh)=>draw(x,ww,hh)),m=new T.Mesh(new T.PlaneGeometry(w,h),D.signMat(tex)),p=z.loc(u,v);
- const out={x:-z.n.x,z:-z.n.z},ry=face==='door'?Math.atan2(out.x,out.z):Math.atan2(z.n.x,z.n.z);m.position.set(p.x,y,p.z);m.rotation.y=ry;ctx.scene.add(m);return m;};
+const signPlane=(z,u,v,y,w,h,face,draw)=>{ // panneau lumineux plat contre un mur (intérieur ou extérieur) : atlas partagé (MWD.plaque)
+ const p=z.loc(u,v),out={x:-z.n.x,z:-z.n.z},ry=face==='door'?Math.atan2(out.x,out.z):Math.atan2(z.n.x,z.n.z);
+ D.plaque(w,h,p.x,y,p.z,ry,draw,1024);};
 
 /* ═══════ Un garage ═══════ */
 function garage(z){

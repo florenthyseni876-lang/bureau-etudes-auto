@@ -306,11 +306,11 @@ for(const [cx,cz,hw,hd,h,side] of ctx.houses){const floors=Math.max(2,Math.round
  H.count=count;}
 
 /* ═══════ Bâtiments de la carte : façades, enseignes (non garages) ═══════ */
-D.zoneSign=(z,o)=>{ /* enseigne lumineuse sur la façade ; o:{w,h,y,off,draw(ctx,w,h)} */
+D.zoneSign=(z,o)=>{ /* enseigne lumineuse sur la façade ; o:{w,h,y,off,draw(ctx,w,h)} : caisson sombre fusionné + face dans l'atlas de panneaux */
  const sw=o.w||Math.min(z.w-3,9),sh=o.h||sw*.2,out={x:-z.n.x,z:-z.n.z},ry=Math.atan2(out.x,out.z);
- const tex=D.canvasTex(1024,Math.round(1024*sh/sw),(x,w,h)=>o.draw(x,w,h)),mt=D.signMat(tex),dk=H.dark||(H.dark=new T.MeshLambertMaterial({color:0x2a2c30}));
- const g=new T.Mesh(new T.BoxGeometry(sw,sh,.22),[dk,dk,dk,dk,mt,dk]);
- const off=o.off==null?.4:o.off;g.position.set(z.door.x+out.x*off,o.y,z.door.z+out.z*off);g.rotation.y=ry;ctx.scene.add(g);return g;};
+ const off=o.off==null?.4:o.off,px=z.door.x+out.x*off,pz=z.door.z+out.z*off;
+ D.L(D.B('core','plain'),px,pz,ry,0).box(sw,sh,.22,0,o.y,0,0x2a2c30);
+ D.plaque(sw,sh,px+Math.sin(ry)*.111,o.y,pz+Math.cos(ry)*.111,ry,o.draw,1024);};
 H.zoneFront=z=>{const o=z.out||(z.out={x:-z.n.x,z:-z.n.z});return o.z<0?'N':o.z>0?'S':o.x<0?'W':'E';};
 
 const draw=(bg,fg,t1,t2)=>(x,w,h)=>{x.fillStyle=bg;x.fillRect(0,0,w,h);x.strokeStyle=fg;x.lineWidth=h*.05;x.strokeRect(h*.06,h*.06,w-h*.12,h*.88);

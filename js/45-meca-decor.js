@@ -165,6 +165,23 @@ D.tex=name=>{if(TXC[name]) return TXC[name];const c=GEN[name]();const t=new T.Ca
  if(!['tl2','signs','win','winlit','shop','office','officelit','tl','tsign','dirs','toolpanel','posters','chest','cardboard','glow','fence'].includes(name)){t.wrapS=t.wrapT=T.RepeatWrapping;}
  else{t.wrapS=t.wrapT=T.ClampToEdgeWrapping;}
  TXC[name]=t;return t;};
+/* panneaux lumineux plats (enseignes, étiquettes d'atelier) : dessinés dans un atlas de textures partagé (2048 px, une page = une matière
+   = un seul appel de dessin) et fusionnés avec les autres lots de la ville, au lieu d'un maillage et d'une texture par panneau.
+   draw(ctx,largeur,hauteur) dessine le panneau ; (x,y,z,ry) : centre et orientation (face vers +z local, tourné de ry) */
+const PLAQ=[],ATLAS=2048;
+D.plaque=(w,h,x,y,z,ry,draw,texW)=>{
+ const tw=Math.round(texW||512),th=Math.max(8,Math.round(tw*h/w)),pad=2;
+ let pg=PLAQ[PLAQ.length-1];
+ const place=p=>{if(p.x+tw+pad>ATLAS){p.x=pad;p.y+=p.rowH+pad;p.rowH=0;}return p.y+th+pad<=ATLAS;};
+ if(!pg||!place(pg)){
+  const cv=canv(ATLAS,ATLAS),tex=new T.CanvasTexture(cv);tex.encoding=T.sRGBEncoding;tex.anisotropy=4;tex.userData={lin:1};
+  const mat=D.signMat(tex);pg={cv,cx:cv.getContext('2d'),x:pad,y:pad,rowH:0,mat,batch:new Batch('core:plaque'+PLAQ.length,mat,'core',true)};
+  BATCH.set(pg.batch.key,pg.batch);PLAQ.push(pg);}
+ const px=pg.x,py=pg.y,c=pg.cx;
+ c.save();c.translate(px,py);c.beginPath();c.rect(0,0,tw,th);c.clip();draw(c,tw,th);c.restore();
+ pg.x+=tw+pad;pg.rowH=Math.max(pg.rowH,th);pg.mat.map.needsUpdate=true;
+ const e=.5/ATLAS,uvr=[px/ATLAS+e,1-(py+th)/ATLAS+e,(px+tw)/ATLAS-e,1-py/ATLAS-e];
+ pg.batch.quad(w,h,x,y,z,ry,null,uvr);};
 /* canvas libres (enseignes) */
 D.canvasTex=(w,h,fn)=>{const c=canv(w,h);fn(c.getContext('2d'),w,h);const t=new T.CanvasTexture(c);t.encoding=T.sRGBEncoding;t.anisotropy=4;t.userData={lin:1};return t;};
 
