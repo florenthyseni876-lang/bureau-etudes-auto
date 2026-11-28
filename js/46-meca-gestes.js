@@ -1012,7 +1012,8 @@ function buildPlugsBelt(R){
     if(k===0) a.push({key:'bpi'+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'bougies');inspMsg(R,'bougies');}});
     return a;}});}
   R.blk.hood.push(()=>B.st.some(x=>x>0&&x<END)?(diesel?'Remontez toutes les bougies de préchauffage et leurs cosses.':'Remontez toutes les bougies, bobines et connecteurs.'):null);
-  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
+  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{u.base.visible=!!c.st.capot;   /* posées sur le vrai moteur : on ne les montre que capot ouvert (sinon visibles par en dessous) */
+   const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
    u.coil.position.set(coilOut?.07:0,coilOut?.1:0,0);u.coil.rotation.z=coilOut?.6:0;
    u.plugOld.visible=k<OUT;u.plugOld.position.y=k===OUT-1?.006:0;u.plugNew.visible=k>=OUT+1;});}});}
  if(partOK(c,'courroie_acc')){
@@ -1039,7 +1040,7 @@ function buildPlugsBelt(R){
    if(K.k===5) a.push(act('cr6','Reprendre le tendeur, retirer la goupille et le relâcher','cliquet','tens',1.0,'ratchet',26,'pose',5,6));
    return a;}});
   R.blk.hood.push(()=>K.k>0&&K.k<7?"Remontez et tendez la courroie d'accessoires.":null);
-  R.procs.push({id:'belt',vis:()=>{const h=host();if(h) h.visible=K.k<3||K.k>=5;if(oldP) oldP.visible=K.k<3;newP.visible=!h&&K.k>=5;
+  R.procs.push({id:'belt',vis:()=>{belt.visible=tens.visible=!!c.st.capot;const h=host();if(h) h.visible=K.k<3||K.k>=5;if(oldP) oldP.visible=K.k<3;newP.visible=!h&&K.k>=5;
    arm.rotation.y=K.k>=1&&K.k<6?.5:0;pin.visible=K.k>=2&&K.k<6;},free:()=>{const h=host();if(h) h.visible=true;}});}
 }
 BUILD.push(buildPlugsBelt);
