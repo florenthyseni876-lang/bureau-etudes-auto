@@ -12643,7 +12643,9 @@ function actsOf(t){let a=[];try{a=t.acts()||[];}catch(e){console.error('acts '+t
 function pickAct(t){
  const a=actsOf(t);if(!a.length) return null;
  /* l'action dont l'outil correspond et qui est possible ; sinon la première possible ; sinon la première (pour le message) */
- let best=a.find(x=>!x.why&&x.tool===tool);
+ /* vue rapprochée : on est venu pour travailler, pas pour inspecter (le bon outil se prend tout seul) */
+ let best=zoomOpen()?a.find(x=>!x.why&&!x.insp):null;
+ if(!best) best=a.find(x=>!x.why&&x.tool===tool);
  if(!best) best=a.find(x=>!x.why&&!x.insp)||a.find(x=>!x.why);
  if(!best) best=a[0];
  return best;}
@@ -13715,7 +13717,7 @@ const zoomOpen=()=>typeof MWZ!=='undefined'&&MWZ.active();
 function zoomUse(){
  if(zoomOpen()){MWZ.leave();return true;}
  if(!AIM||!zoomPref()) return false;
- return MWZ.enter(AIM.t,AIM.a);}
+ return MWZ.enter(AIM.t);}
 let wired=false;
 function wire(){
  if(wired) return;wired=true;
@@ -13798,8 +13800,8 @@ return api;
    (la sous-tâche est finie : filtre posé, dernier écrou retiré…).
 
    ═══ API `MWZ` ═══
-   MWZ.enter(cible, action)  entre en vue rapprochée sur une cible du rig ; renvoie faux si ce n'est pas possible (la cible n'est pas
-                             un élément mécanique, l'action est bloquée…) : js/46 fait alors le geste normalement
+   MWZ.enter(cible)          entre en vue rapprochée sur une cible du rig ; renvoie faux si ce n'est pas possible (la cible n'est pas
+                             un élément mécanique, aucun geste n'y est possible…) : js/46 fait alors le geste normalement
    MWZ.leave(immediat)       revient à la vue normale (immediat = sans animation)
    MWZ.active()              vrai dès l'entrée et jusqu'à la fin du retour ; MWZ.ready() : vrai quand le cadrage est atteint
    MWZ.screenOf(id)          position écran {x, y} (pixels de la page) d'une cible du rig, ou null (sert aux tests)
@@ -13917,12 +13919,13 @@ function directionPour(horizontale,elevation,azimut){
  const h=horizontale.clone().applyAxisAngle(v3.set(0,1,0),rad(azimut)).multiplyScalar(Math.cos(rad(elevation)));
  h.y=Math.sin(rad(elevation));
  return h;}
-/* ── obstacles : les maillages de la carrosserie (pas les pièces dessinées par le rig, qui sont les cibles) ── */
+/* ── obstacles : les maillages de la carrosserie (ni les pièces dessinées par le rig, ni le moteur de la baie) ── */
 function maillagesObstacles(){
  const r=rig(),liste=[];
+ const baie=r.g.userData.bay; /* le moteur dessiné de la baie entoure les cibles : il n'est pas un écran devant elles */
  r.g.traverse(o=>{
   if(!o.isMesh||o.userData.hl||!MWG.visOf(o)) return;
-  for(let p=o;p;p=p.parent) if(p===r.root||p===r.fl) return;
+  for(let p=o;p;p=p.parent) if(p===r.root||p===r.fl||p===baie) return;
   liste.push(o);});
  return liste;}
 const RAYON_TEST=new T.Raycaster();
@@ -14081,11 +14084,12 @@ function majPastilles(){
  Z.dessin=liste.map(it=>({id:it.t.id,x:it.x,y:it.y,r:it.taille/2,complete:it.complete}));}
 
 /* ═══════════ Entrée, sortie, fin automatique ═══════════ */
-function peutEntrer(cible,action){
+/* on entre si la cible est un élément mécanique sur lequel un vrai geste (pas une simple inspection) est possible maintenant */
+function peutEntrer(cible){
  if(Z.on||!MWG.rig()||MW.paused) return false;
- return estMecanique(cible)&&estGeste(action);}
-api.enter=(cible,action)=>{
- if(!peutEntrer(cible,action)) return false;
+ return estMecanique(cible)&&MWG.actsOf(cible).some(estGeste);}
+api.enter=cible=>{
+ if(!peutEntrer(cible)) return false;
  const groupe=constituerGroupe(cible),boite=boiteDuGroupe(groupe);
  if(!boite) return false;
  Z.groupe=groupe;
