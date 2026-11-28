@@ -68,7 +68,10 @@ module.exports = async function mecaZoom(page, env) {
     await attendreCondition(page, id => MWG.aim() && MWG.aim().t.id === id, `la cible « ${id} » n'est pas visée`, 20000, id);
     const avant = await e(() => ({ x: __mw.player().x, z: __mw.player().z }));
     await page.keyboard.press('e');
-    await attendreCondition(page, () => MWZ.ready(), 'la caméra ne glisse pas vers le cadrage serré', 30000);
+    try { await page.waitForFunction(() => MWZ.ready(), null, { timeout: 30000 }); } catch (err) {
+      const d = await e(() => ({ st: MWZ.state(), aim: MWG.aim() && { t: MWG.aim().t.id, a: MWG.aim().a.key, why: MWG.aim().a.why || null } }));
+      throw new Error(`la caméra ne glisse pas vers le cadrage serré sur « ${id} » : ${JSON.stringify(d)}`);
+    }
     await attendre(250);   // laisse dessiner les pastilles
     const q = await e(() => ({ cachees: MWZ.cachees(), chev: MWZ.chevauchements(), st: MWZ.state() }));
     verifier(q.cachees === 0, `vue rapprochée sur « ${id} » : la carrosserie cache ${q.cachees} point(s) du cadrage (angle ${JSON.stringify(q.st.zone)})`);
