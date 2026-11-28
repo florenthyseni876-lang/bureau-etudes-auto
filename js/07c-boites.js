@@ -145,10 +145,11 @@ function manuelle(c,s,A,o){
  bouchons(c,A,.34,.02,.156,.3,-.15,0);
  /* sortie de transmission : différentiel et flasque de cardan côté extérieur de la boîte */
  c.piece('sortie');
- c.cylX('gbx',.09,.25,L,-.1,0);
- c.cylX('clip',.04,L,L+.05,-.1,0);
- A.sortieCardan=[L+.05,-.1,0];
- A.joint=[L,-.1,0];
+ const ys=s.transversale?-.1:-.01;   /* transversale : différentiel en bas ; longitudinale : sortie dans l'axe */
+ c.cylX('gbx',s.transversale?.09:.06,.25,L,ys,0);
+ c.cylX('clip',.04,L,L+.05,ys,0);
+ A.sortieCardan=[L+.05,ys,0];
+ A.joint=[L,ys,0];
  A.fixationEmbrayage=[.02,0,rc];}
 
 /* Boîte automatique : convertisseur, grande cloche, carter-pan profond, refroidisseur et tube de remplissage. */
@@ -184,10 +185,11 @@ function automatique(c,s,A,o){
  A.vidange=[.25,-.239,0];
  A.filtre=[.35,-.2,0];
  c.piece('sortie');
- c.cylX('abl',.09,.25,L,-.12,0);
- c.cylX('clip',.04,L,L+.05,-.12,0);
- A.sortieCardan=[L+.05,-.12,0];
- A.joint=[L,-.12,0];
+ const ys=s.transversale?-.12:-.01;
+ c.cylX('abl',s.transversale?.09:.06,.25,L,ys,0);
+ c.cylX('clip',.04,L,L+.05,ys,0);
+ A.sortieCardan=[L+.05,ys,0];
+ A.joint=[L,ys,0];
  A.fixationEmbrayage=[.02,0,.2];}
 
 /* Boîte à double embrayage : cloche large (deux embrayages), bloc mécatronique, carter. */
@@ -217,10 +219,11 @@ function doubleEmbrayage(c,s,A,o){
  support(c,A,.2,.14,.0);
  bouchons(c,A,.38,.02,.156,.3,-.145,0);
  c.piece('sortie');
- c.cylX('gbx',.09,.25,L,-.1,0);
- c.cylX('clip',.04,L,L+.05,-.1,0);
- A.sortieCardan=[L+.05,-.1,0];
- A.joint=[L,-.1,0];
+ const ys=s.transversale?-.1:-.01;
+ c.cylX('gbx',s.transversale?.09:.06,.25,L,ys,0);
+ c.cylX('clip',.04,L,L+.05,ys,0);
+ A.sortieCardan=[L+.05,ys,0];
+ A.joint=[L,ys,0];
  A.fixationEmbrayage=[.02,0,.19];}
 
 /* Réducteur de voiture électrique : carter cylindrique, un seul rapport. */
