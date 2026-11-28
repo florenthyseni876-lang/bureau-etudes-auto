@@ -565,7 +565,9 @@ function refreshDrv(){
  if(pn){eng=pn.eng;vm=Math.min(vm,22*.75);}
  if(t.ban[key]) eng=0;
  const Reff=relEff(key);if(Reff<30&&!pn) eng*=clamp(.6+Reff/75,.6,1);
- D.vm=vm;D.acc=b.acc;D.brk=b.brk;D.turn=b.turn;D.eng=eng;}
+ D.vm=vm;D.acc=b.acc;D.brk=b.brk;D.turn=b.turn;D.eng=eng;
+ /* [physique] js/40p : masse réelle (allègement compris), puissance, adhérence des pneus, autobloquant et garde au sol alimentent le modèle de conduite */
+ D.mass=st.mass;D.ch=st.ch;D.grip=st.grip;D.trac=st.fx.trac||0;D.gc=st.gc;}
 api.refreshDrv=refreshDrv;
 api.drive=()=>Object.assign({},MW.drv);
 api.status=()=>stats(modelOfCur(),cfgOf(keyOf()));

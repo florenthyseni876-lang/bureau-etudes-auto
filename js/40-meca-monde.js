@@ -483,13 +483,13 @@ function toggleCar(){
  if(P.inCar){if(Math.abs(car.v)>3){api.toast('Arrêtez-vous avant de descendre.','warn');return;}
   const lx=Math.cos(S.car.ry),lz=-Math.sin(S.car.ry);let px=S.car.x+lx*2.2,pz=S.car.z+lz*2.2;
   let r=pushOut(px,pz,.45);if(r.hit){px=S.car.x-lx*2.2;pz=S.car.z-lz*2.2;r=pushOut(px,pz,.45);}
-  P.x=r.x;P.z=r.z;P.ry=S.car.ry;P.pitch=0;P.inCar=false;car.v=0;ui.cv.parentNode.classList.remove('mw-incar');}
- else if(carNear()){P.inCar=true;P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;car.v=0;ui.cv.parentNode.classList.add('mw-incar');api.toast('Au volant : Z/S accélérer/freiner, Q/D braquer, espace frein à main. F pour descendre.','info');}
+  P.x=r.x;P.z=r.z;P.ry=S.car.ry;P.pitch=0;P.inCar=false;car.v=0;resetPhys();ui.cv.parentNode.classList.remove('mw-incar');}
+ else if(carNear()){P.inCar=true;P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;car.v=0;resetPhys();ui.cv.parentNode.classList.add('mw-incar');api.toast('Au volant : Z/S accélérer/freiner, Q/D braquer, espace frein à main. F pour descendre.','info');}
  else api.toast('Votre voiture est trop loin.','info');}
 api.player=()=>({x:P.x,z:P.z,ry:P.ry,inCar:P.inCar,zone:zoneCur?zoneCur.id:null,zoneObj:zoneCur,pitch:P.pitch});
 api.drv={vm:22,acc:1,brk:1,turn:1,eng:1}; /* [tuning] conduite de la voiture du joueur : vitesse maxi (m/s), multiplicateurs d'accélération, de freinage, de braquage, de moteur (js/58) */
-api.playerCar=()=>({mesh:carObj,x:S.car.x,z:S.car.z,ry:S.car.ry,speed:car.v});
-api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;/* [MWG] pitch facultatif */if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;}};
+api.playerCar=()=>{const sp=carSpec();return {mesh:carObj,x:S.car.x,z:S.car.z,ry:S.car.ry,speed:car.v,L:sp.L,W:sp.W};};
+api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;/* [MWG] pitch facultatif */if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;resetPhys();}};
 api.setMarker=(t,label)=>{if(!S) return;S.marker=t;S.markerLabel=label||null;placeBeacon();};
 function markerPos(){const m=S&&S.marker;if(!m) return null;if(typeof m==='string'){const z=zById[m];return z?{x:z.porte.x,z:z.porte.z}:null;}return typeof m.x==='number'?m:null;}
 function placeBeacon(){if(!beacon) return;const p=markerPos();beacon.visible=!!p;if(p){beacon.position.x=p.x;beacon.position.z=p.z;}}
@@ -504,28 +504,37 @@ function walk(dt){
  const n=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.3));
  for(let i=0;i<n;i++){let x=P.x+dx/n,z=P.z+dz/n;
   // la voiture est un obstacle à pied
-  const cf=Math.sin(S.car.ry),cz2=Math.cos(S.car.ry);
-  for(const o of [-1,1]){const px=S.car.x+cf*o*1.0,pz=S.car.z+cz2*o*1.0,ex=x-px,ez=z-pz,d=Math.hypot(ex,ez),rr=1.45;if(d<rr&&d>1e-4){x=px+ex/d*rr;z=pz+ez/d*rr;}}
+  const dessous=MWPHYS.repousserPoint(MWPHYS.rectangle(S.car,carSpec()),x,z,.42);
+  x=dessous.x;z=dessous.z;
   const r=pushOut(x,z,.42);P.x=clamp(r.x,-HALF,HALF);P.z=clamp(r.z,-HALF,HALF);}}
+/* ── conduite : physique de js/40p (inertie, adhérence, transfert de charge, rebond doux) ── */
+const phys=MWPHYS.state(0,0,0);   /* état dynamique de la voiture du joueur ; la position vient de S.car */
+let specVoiture=null,specCle='';
+function carSpec(){
+ const ud=(carObj&&carObj.userData)||{},d=api.drv;
+ const cle=[ud.mdl,ud.L,ud.W,ud.WB,d.vm,d.acc,d.brk,d.turn,d.eng].join('|');
+ if(cle!==specCle){specCle=cle;specVoiture=MWPHYS.spec(ud,d);}
+ return specVoiture;}
+api.carSpec=carSpec;
+function resetPhys(){phys.u=phys.w=phys.r=phys.steer=phys.ax=phys.ay=0;}
 function drive(dt){
- const DV=api.drv,[mx,my]=inputVec(),VM=DV.vm;let v=car.v; /* [tuning] DV : réglages de conduite de la voiture du joueur (js/58) */
- if(my>.05){v+=(v<-.3?16*DV.brk:Math.max(1.5*DV.eng,7*DV.acc*DV.eng*(1-v/VM)))*my*dt;}
- else if(my<-.05){if(v>.4) v-=15*DV.brk*-my*dt;else v+=(-my)*-4.5*dt;}
- else v-=Math.sign(v)*Math.min(Math.abs(v),2.4*dt);
- if(keys.brake) v-=Math.sign(v)*Math.min(Math.abs(v),20*DV.brk*dt);
- v=clamp(v,-6,VM);
- const turn=-mx*clamp(Math.abs(v)/4,0,1)*(1.9-1.15*Math.min(Math.abs(v)/VM,1))*DV.turn*Math.sign(v||1);
- S.car.ry+=turn*dt;
- const fx=Math.sin(S.car.ry),fz=Math.cos(S.car.ry),n=Math.max(1,Math.ceil(Math.abs(v)*dt/.4));
- let hit=false;
- for(let i=0;i<n;i++){let x=S.car.x+fx*v*dt/n,z=S.car.z+fz*v*dt/n;
-  for(const o of [-1.05,1.05]){const r=pushOut(x+fx*o,z+fz*o,1.05);if(r.hit){hit=true;x+=r.x-(x+fx*o);z+=r.z-(z+fz*o);}}
-  S.car.x=clamp(x,-HALF,HALF);S.car.z=clamp(z,-HALF,HALF);}
- car.v=hit?v*.45:v;   // choc : on perd presque toute la vitesse
- car.steer=mx;P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;}
+ const [mx,my]=inputVec(),spec=carSpec();
+ phys.x=S.car.x;phys.z=S.car.z;phys.ry=S.car.ry;phys.u=car.v;
+ MWPHYS.step(phys,spec,{gaz:my,volant:mx,frein:!!keys.brake},dt);
+ const choc=MWPHYS.collisions(phys,spec,pushOut);
+ S.car.x=clamp(phys.x,-HALF,HALF);S.car.z=clamp(phys.z,-HALF,HALF);S.car.ry=phys.ry;
+ car.v=phys.u;car.steer=phys.steer;car.choc=choc.vitesse;
+ P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;}
+/* Poignées de test : la voiture du joueur (ou un piéton) posée en (x, z) touche-t-elle un obstacle fixe ? */
+/* État dynamique de la voiture du joueur (lecture seule : roulis, tangage, glissement pour js/40s) */
+api.carDyn=()=>({ax:phys.ax,ay:phys.ay,slip:phys.slip,steer:phys.steer,u:phys.u,w:phys.w,r:phys.r,inCar:P.inCar});
+api.carHits=(x,z,ry)=>{
+ const spec=carSpec(),etat=MWPHYS.state(x,z,ry);
+ return MWPHYS.cercles(etat,spec).some(c=>pushOut(c.x,c.z,spec.W/2).hit);};
+api.footHits=(x,z)=>pushOut(x,z,.42).hit||MWPHYS.repousserPoint(MWPHYS.rectangle(S.car,carSpec()),x,z,.42).hit;
 function syncCarMesh(dt){
  carObj.position.set(S.car.x,0,S.car.z);carObj.rotation.y=S.car.ry;
- for(const n of ['wFL','wFR','wRL','wRR']){const w=carObj.getObjectByName(n);if(!w) continue;w.rotation.x+=car.v*dt/.3;if(n[1]==='F') w.rotation.y=P.inCar?car.steer*-.45:0;}
+ for(const n of ['wFL','wFR','wRL','wRR']){const w=carObj.getObjectByName(n);if(!w) continue;w.rotation.x+=car.v*dt/.3;if(n[1]==='F') w.rotation.y=P.inCar?car.steer:0;}
  headL.intensity=P.inCar&&api.isNight()?1.6:0;}
 
 /* ── zones, interactions ── */
@@ -677,7 +686,7 @@ function frame(t){
  emit('tick',dt);}
 
 function applyState(){
- P.x=S.player.x;P.z=S.player.z;P.ry=S.player.ry;P.pitch=0;P.inCar=!!S.player.inCar;car.v=0;acc=0;camInit=false;
+ P.x=S.player.x;P.z=S.player.z;P.ry=S.player.ry;P.pitch=0;P.inCar=!!S.player.inCar;car.v=0;resetPhys();acc=0;camInit=false;
  carObj.position.set(S.car.x,0,S.car.z);zoneCur=null;
  ui.r.classList.toggle('mw-incar',P.inCar);
  placeBeacon();}

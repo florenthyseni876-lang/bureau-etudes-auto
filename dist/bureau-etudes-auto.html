@@ -6737,6 +6737,423 @@ function mkTodo(t,prod){
   if(op.length) t.push({t:`${op[0].n} ouvre ce trimestre`,d:'Vous pouvez y présenter l\'un de vos modèles (facultatif).',b:'<button class="chip-btn" type="button" data-go="marketing">Voir les salons</button>'});
 }
 
+/* ───────────── Mode « Mécanicien » — PHYSIQUE DE CONDUITE de la voiture du joueur ─────────────
+   Modèle « bicyclette » à deux essieux, simple mais fidèle dans ses effets :
+     · inertie : la voiture garde sa vitesse, sa dérive et sa rotation d'une image à l'autre ;
+     · adhérence : chaque essieu transmet une force latérale qui sature (tanh) selon l'adhérence des pneus ;
+       le cercle d'adhérence est respecté (freiner ou accélérer fort réduit la force latérale disponible) ;
+     · transfert de charge : au freinage l'avant s'alourdit, à l'accélération l'arrière ; en virage, la charge latérale
+       réduit un peu l'adhérence totale ;
+     · freinage : couple réparti sur les essieux, limité par l'adhérence (pas de blocage) ;
+     · braquage : angle limité à bas régime (rayon de braquage = empattement / tan(angle)), de plus en plus faible à vitesse élevée ;
+     · frein à main : l'essieu arrière perd l'essentiel de son adhérence (dérive) ;
+     · chocs : la caisse est un rectangle (longueur × largeur du modèle) approché par trois cercles ; le rebond est doux
+       (restitution 0,2) et fait tourner la voiture selon le point d'impact.
+
+   Conventions (repère de js/40) : x vers l'est, z vers le sud ; le cap `ry` est l'angle de l'avant (sin ry, cos ry) ;
+   la gauche de la voiture est (cos ry, −sin ry). `u` = vitesse vers l'avant (m/s), `w` = vitesse latérale vers la gauche (m/s),
+   `r` = vitesse de rotation du cap (rad/s, positive vers la gauche). Le braquage est positif vers la gauche.
+
+   ═══ API `MWPHYS` (aussi `window.__mwphys`) ═══
+   MWPHYS.spec(userData, drv)          gabarit physique d'une voiture : userData = celui de MW.carMesh ({L, W, H, WB, mdl, kind}),
+                                        drv = réglages de MW.drv (js/58, tuning) : {vm, acc, brk, turn, eng} et, si présents,
+                                        {mass (kg, allègement compris), ch (puissance), grip (adhérence des pneus), trac (autobloquant),
+                                        gc (garde au sol en cm)}
+                                        → {m (kg), puissance (W), L, W, WB, a, b, Iz, h, vm, brk, mu, traction, lsd, deltaMax, …}
+                                        La MASSE, la PUISSANCE et la TRANSMISSION (traction, propulsion, quatre roues motrices) de la fiche
+                                        MWCARS décident de l'accélération, du freinage, de l'inertie en virage et du comportement à la limite.
+   MWPHYS.state(x, z, ry)              état initial {x, z, ry, u, w, r, steer, ax, ay}
+   MWPHYS.step(s, p, entree, dt)       fait avancer l'état de dt secondes ; entree = {gaz (−1..1), volant (−1..1, droite positive),
+                                        frein (frein à main, vrai/faux)} ; s.slip (0..1+) = glissement des pneus à la limite
+   MWPHYS.cercles(s, p)                3 cercles {x, z} de rayon p.W / 2 qui recouvrent le rectangle de la caisse
+   MWPHYS.collisions(s, p, pousser)    repousse la voiture hors des obstacles ; pousser(x, z, r) → {x, z, hit} (comme pushOut de js/40) ;
+                                        applique le rebond ; renvoie {hit, vitesse (vitesse d'approche de l'impact le plus fort)}
+   MWPHYS.chocVoiture(s, p, autre)     choc entre la voiture s et une autre {x, z, vx, vz, m} : répartit l'impulsion selon les masses (la plus légère
+                                        est davantage repoussée) ; renvoie {dvx, dvz, vitesse} (variation de vitesse de l'autre) ou null
+   MWPHYS.rectangle(s, p, marge)       rectangle orienté de la caisse {cx, cz, fx, fz, lx, lz, demiL, demiW}
+   MWPHYS.distanceRectangle(rect, x, z) distance d'un point à la caisse (0 à l'intérieur)
+   MWPHYS.repousserPoint(rect, x, z, r) repousse un disque (le joueur à pied) hors de la caisse → {x, z, hit}
+   MWPHYS.simulerFreinage(p, v0)       distance (m) pour passer de v0 (m/s) à l'arrêt, plein frein, ligne droite
+   MWPHYS.simulerRayon(p, v)           rayon (m) du cercle décrit à vitesse constante v (m/s), volant à fond */
+const MWPHYS = (() => {
+  const G = 9.81;
+  const api = {};
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const lisse = (a, b, x) => {
+    const t = clamp((x - a) / (b - a), 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+
+  /* ═══════════ Gabarit physique ═══════════ */
+  const PARAMETRES_DEFAUT = { L: 4.2, W: 1.75, H: 1.45, WB: 2.6 };
+
+  /* part de la masse sur l'essieu avant selon l'architecture */
+  function partAvant(fiche) {
+    if (!fiche) {
+      return 0.58;
+    }
+    if (fiche.loc === 'rear') {
+      return 0.40;
+    }
+    if (fiche.loc === 'mid') {
+      return 0.44;
+    }
+    return fiche.drive === 'rwd' ? 0.53 : 0.60;
+  }
+
+  api.spec = function (userData, drv) {
+    const ud = Object.assign({}, PARAMETRES_DEFAUT, userData || {});
+    const reglages = Object.assign({ vm: 22, acc: 1, brk: 1, turn: 1, eng: 1 }, drv || {});
+    let fiche = null;
+    try {
+      fiche = ud.mdl ? MWCARS.get(ud.mdl) : null;
+    } catch (e) {
+      fiche = null;
+    }
+    const masse = reglages.mass || (fiche && fiche.mass) || 1250;
+    const chevaux = reglages.ch || (fiche && fiche.eng && fiche.eng.ch) || 90;
+    const avant = partAvant(fiche);
+    const WB = ud.WB || ud.L * 0.62;
+    const a = WB * (1 - avant);
+    const b = WB - a;
+    const traction = fiche && fiche.drive ? fiche.drive : 'fwd';
+    /* adhérence : celle des pneus (js/58) ; à défaut, déduite des multiplicateurs de braquage et de freinage */
+    const mu = reglages.grip
+      ? clamp(0.95 * reglages.grip, 0.7, 1.6)
+      : clamp(1 + 0.22 * (reglages.turn - 1) + 0.1 * (reglages.brk - 1), 0.7, 1.5);
+    /* centre de gravité : plus bas si la caisse est abaissée (js/58) */
+    const gcFiche = fiche && fiche.gc ? fiche.gc * 100 : null;
+    const decalageGc = reglages.gc != null && gcFiche != null ? (reglages.gc - gcFiche) / 100 : 0;
+    return {
+      m: masse,
+      puissance: chevaux * 735.5 * 0.88 * Math.max(0.05, reglages.eng) * (reglages.ch ? 1 : reglages.acc),   /* js/58 donne déjà la puissance réelle */
+      rapportPuissance: chevaux / (masse / 1000),
+      L: ud.L,
+      W: ud.W,
+      H: ud.H,
+      WB,
+      a,
+      b,
+      Iz: masse * (ud.L * ud.L + ud.W * ud.W) / 12 * 1.15,
+      h: clamp(Math.max(0.45, ud.H * 0.34) + decalageGc, 0.35, 0.8),
+      vm: reglages.vm,
+      brk: reglages.brk,
+      mu,
+      lsd: clamp(reglages.trac || 0, 0, 0.3),
+      raideur: 11 * clamp(reglages.turn, 0.7, 1.8),
+      sousVirage: 1.18,   /* l'essieu arrière est un peu plus raide : la voiture sous-vire (stable) à la limite */
+      traction,
+      deltaMax: 0.56,
+    };
+  };
+
+  api.state = (x, z, ry) => ({ x, z, ry, u: 0, w: 0, r: 0, steer: 0, ax: 0, ay: 0, slip: 0 });
+
+  /* ═══════════ Efforts des pneus ═══════════ */
+  /* force latérale d'un essieu : saturante, avec cercle d'adhérence (la part déjà prise par l'effort longitudinal est retirée) */
+  function forceLaterale(raideur, fz, glissement, fx, mu) {
+    const limite = mu * fz;
+    const reste = Math.sqrt(Math.max(1, limite * limite - fx * fx));
+    return -reste * Math.tanh(raideur * fz * glissement / reste);
+  }
+
+  /* un sous-pas d'intégration (h court : 4 ms) */
+  function sousPas(s, p, entree, h) {
+    const u = s.u;
+    const vitesseAbs = Math.abs(u);
+    const sens = u >= -0.2 ? 1 : -1;
+
+    /* braquage : cible dépendant de la vitesse, vitesse de rotation du volant limitée */
+    /* à pleine butée, l'accélération latérale visée reste proche de l'adhérence (≈ 0,8 g) à toutes les vitesses */
+    const deltaMax = p.deltaMax * p.mu / (1 + Math.pow(vitesseAbs / 7, 2));
+    const cible = -entree.volant * deltaMax;
+    const pas = (Math.abs(cible) < Math.abs(s.steer) ? 4.5 : 2.6) * h;
+    s.steer += clamp(cible - s.steer, -pas, pas);
+    const delta = s.steer;
+
+    /* charges sur les essieux : transfert longitudinal (frein, accélération) et réduction d'adhérence en virage */
+    const fzAvant0 = p.m * G * p.b / p.WB;
+    const fzArriere0 = p.m * G * p.a / p.WB;
+    const transfert = p.m * s.ax * p.h / p.WB;
+    const fzAvant = clamp(fzAvant0 - transfert, 0.15 * fzAvant0, 2 * fzAvant0);
+    const fzArriere = clamp(fzArriere0 + transfert, 0.15 * fzArriere0, 2 * fzArriere0);
+    const chargeLaterale = Math.min(1, Math.abs(s.ay) / (p.mu * G));
+    const muEffectif = p.mu * (1 - 0.08 * chargeLaterale * chargeLaterale);
+    const muArriere = muEffectif * (entree.frein ? 0.32 : 1);
+
+    /* efforts longitudinaux demandés */
+    let fxAvant = 0;
+    let fxArriere = 0;
+    if (entree.gaz > 0.05 && u > -0.3) {
+      /* force motrice : couple limité à bas régime (selon le rapport poids/puissance), puis puissance constante P / v ;
+         la vitesse maxi du jeu ferme progressivement la courbe */
+      const aCouple = 2.6 + 0.012 * p.rapportPuissance;
+      const fCouple = p.m * aCouple * Math.min(1.4, 0.55 + 0.45 * p.vm / 22);
+      const fPuissance = p.puissance * 0.88 / Math.max(u, 1.5);
+      const fermeture = 1 - Math.pow(clamp(u / p.vm, 0, 1), 3);
+      const demande = Math.min(fCouple, fPuissance) * fermeture * entree.gaz;
+      /* répartition : traction (avant), propulsion (arrière), quatre roues motrices (40 / 60) */
+      const rep = p.traction === 'awd' ? [0.4, 0.6] : p.traction === 'rwd' ? [0, 1] : [1, 0];
+      /* autobloquant : la roue qui patine transmet moins mal → meilleure motricité de l'essieu moteur */
+      const motricite = 1 + p.lsd * 1.5;
+      fxAvant = Math.min(demande * rep[0], motricite * muEffectif * fzAvant);
+      fxArriere = Math.min(demande * rep[1], motricite * muArriere * fzArriere);
+    } else if (entree.gaz < -0.05) {
+      if (u > 0.4) {
+        const aFrein = 10.2 * p.brk * Math.pow(1250 / p.m, 0.3) * -entree.gaz;   /* les gros freins d'une voiture lourde fatiguent plus vite */
+        const demande = p.m * aFrein;
+        fxAvant = -Math.min(demande * 0.62, muEffectif * fzAvant);
+        fxArriere = -Math.min(demande * 0.38, muArriere * fzArriere);
+      } else {
+        const demande = p.m * 2.6 * -entree.gaz * (1 - Math.min(1, Math.abs(Math.min(u, 0)) / 6));
+        fxAvant = (p.traction === 'rwd' ? 0 : -1) * Math.min(demande, muEffectif * fzAvant);
+        fxArriere = (p.traction === 'fwd' ? 0 : -1) * Math.min(demande, muArriere * fzArriere);
+      }
+    }
+    if (entree.frein) {
+      fxArriere -= Math.sign(u) * Math.min(p.m * 6, 0.9 * fzArriere) * Math.min(1, vitesseAbs / 0.5);
+    }
+    /* résistance au roulement et à l'air (la vitesse maxi vient surtout de la courbe moteur) */
+    const resistance = (0.012 * p.m * G + 0.4 * u * Math.abs(u)) * Math.sign(u) * Math.min(1, vitesseAbs / 0.3);
+
+    /* angles de dérive des pneus ; en dessous de 1,5 m/s le modèle cinématique prend le relais (voir plus bas) */
+    const uRef = sens * Math.max(vitesseAbs, 1.5);
+    const alphaAvant = Math.atan2(s.w + p.a * s.r, Math.abs(uRef)) * sens - delta * sens;
+    const alphaArriere = Math.atan2(s.w - p.b * s.r, Math.abs(uRef)) * sens;
+    s.slip = Math.max(Math.abs(alphaAvant), Math.abs(alphaArriere)) / (muEffectif / p.raideur);
+    const fyAvant = forceLaterale(p.raideur, fzAvant, alphaAvant, fxAvant, muEffectif);
+    const fyArriere = forceLaterale(p.raideur * p.sousVirage, fzArriere, alphaArriere, fxArriere, muArriere);
+
+    const cd = Math.cos(delta);
+    const sd = Math.sin(delta);
+    const forceAvantX = fxAvant * cd - fyAvant * sd;
+    const forceAvantY = fyAvant * cd + fxAvant * sd;
+    const accU = (forceAvantX + fxArriere - resistance) / p.m + s.w * s.r;
+    const accW = (forceAvantY + fyArriere) / p.m - u * s.r;
+    const accR = (p.a * forceAvantY - p.b * fyArriere) / p.Iz;
+    s.ax += (accU - s.ax) * Math.min(1, h * 12);       /* accélération lissée pour le transfert de charge */
+    s.ay += ((accW + u * s.r) - s.ay) * Math.min(1, h * 12);
+
+    s.u += accU * h;
+    s.w += accW * h;
+    s.r += accR * h;
+
+    /* arrêt propre : sans gaz, la résistance ne fait pas repartir la voiture en arrière */
+    if (Math.abs(s.u) < 0.05 && entree.gaz === 0 && Math.abs(fxAvant + fxArriere) < 1) {
+      s.u = 0;
+    }
+
+    /* mélange avec le modèle cinématique à basse vitesse (stabilité) */
+    const poids = lisse(1.5, 4, vitesseAbs);
+    if (poids < 1) {
+      const rCine = s.u * Math.tan(delta) / p.WB;
+      s.r = lerp(rCine, s.r, poids);
+      s.w = lerp(rCine * p.b, s.w, poids);
+    }
+
+    /* déplacement dans le monde */
+    const sin = Math.sin(s.ry);
+    const cos = Math.cos(s.ry);
+    s.x += (s.u * sin + s.w * cos) * h;
+    s.z += (s.u * cos - s.w * sin) * h;
+    s.ry += s.r * h;
+  }
+
+  api.step = function (s, p, entree, dt) {
+    const n = Math.max(1, Math.ceil(dt / 0.004));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      sousPas(s, p, entree, h);
+    }
+  };
+
+  /* ═══════════ Caisse et collisions ═══════════ */
+  api.rectangle = function (s, p, marge) {
+    const m = marge || 0;
+    return {
+      cx: s.x, cz: s.z,
+      fx: Math.sin(s.ry), fz: Math.cos(s.ry),
+      lx: Math.cos(s.ry), lz: -Math.sin(s.ry),
+      demiL: p.L / 2 + m, demiW: p.W / 2 + m,
+    };
+  };
+
+  api.distanceRectangle = function (rect, x, z) {
+    const dx = x - rect.cx;
+    const dz = z - rect.cz;
+    const longi = Math.abs(dx * rect.fx + dz * rect.fz) - rect.demiL;
+    const lat = Math.abs(dx * rect.lx + dz * rect.lz) - rect.demiW;
+    const ex = Math.max(longi, 0);
+    const ez = Math.max(lat, 0);
+    if (longi < 0 && lat < 0) {
+      return 0;
+    }
+    return Math.hypot(ex, ez);
+  };
+
+  /* repousse un disque de rayon r (le joueur à pied) hors de la caisse ; renvoie {x, z, hit} */
+  api.repousserPoint = function (rect, x, z, r) {
+    const dx = x - rect.cx;
+    const dz = z - rect.cz;
+    const longi = dx * rect.fx + dz * rect.fz;
+    const lat = dx * rect.lx + dz * rect.lz;
+    const pl = clamp(longi, -rect.demiL, rect.demiL);
+    const pw = clamp(lat, -rect.demiW, rect.demiW);
+    let nl = longi - pl;
+    let nw = lat - pw;
+    let d = Math.hypot(nl, nw);
+    if (d >= r) {
+      return { x, z, hit: false };
+    }
+    if (d < 1e-6) {
+      /* centre dans la caisse : sortie par la face la plus proche */
+      const sortieL = rect.demiL - Math.abs(longi);
+      const sortieW = rect.demiW - Math.abs(lat);
+      if (sortieL < sortieW) {
+        nl = Math.sign(longi || 1);
+        nw = 0;
+      } else {
+        nl = 0;
+        nw = Math.sign(lat || 1);
+      }
+      d = 1;
+    }
+    const k = (r - Math.hypot(longi - pl, lat - pw)) / d;
+    const poussL = nl * k;
+    const poussW = nw * k;
+    return { x: x + rect.fx * poussL + rect.lx * poussW, z: z + rect.fz * poussL + rect.lz * poussW, hit: true };
+  };
+
+  api.cercles = function (s, p) {
+    const e = Math.max(0, p.L / 2 - p.W / 2);
+    const fx = Math.sin(s.ry);
+    const fz = Math.cos(s.ry);
+    return [-e, 0, e].map((o) => ({ x: s.x + fx * o, z: s.z + fz * o }));
+  };
+
+  /* impulsion d'un choc de normale n (de l'obstacle vers la voiture) au point rc (relatif au centre de gravité) */
+  function impulsion(s, p, n, rc, restitution) {
+    const sin = Math.sin(s.ry);
+    const cos = Math.cos(s.ry);
+    let vx = s.u * sin + s.w * cos;
+    let vz = s.u * cos - s.w * sin;
+    const contactX = vx + s.r * rc.z;
+    const contactZ = vz - s.r * rc.x;
+    const vn = contactX * n.x + contactZ * n.z;
+    if (vn >= 0) {
+      return 0;
+    }
+    const bras = rc.z * n.x - rc.x * n.z;
+    const j = -(1 + restitution) * vn / (1 / p.m + bras * bras / p.Iz);
+    vx += j * n.x / p.m;
+    vz += j * n.z / p.m;
+    s.r = clamp(s.r + j * bras / p.Iz, -3.5, 3.5);
+    /* frottement contre l'obstacle : on perd un peu de la vitesse tangentielle */
+    const tx = -n.z;
+    const tz = n.x;
+    const vt = vx * tx + vz * tz;
+    vx -= vt * 0.12 * tx;
+    vz -= vt * 0.12 * tz;
+    s.u = vx * sin + vz * cos;
+    s.w = vx * cos - vz * sin;
+    return -vn;
+  }
+
+  /* choc entre deux voitures : impulsion répartie selon les masses ; la voiture s est modifiée, la variation de vitesse de l'autre est renvoyée */
+  api.chocVoiture = function (s, p, autre) {
+    const dx = s.x - autre.x;
+    const dz = s.z - autre.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 1e-6) {
+      return null;
+    }
+    const n = { x: dx / d, z: dz / d };
+    const fx = Math.sin(s.ry);
+    const fz = Math.cos(s.ry);
+    const lx = Math.cos(s.ry);
+    const lz = -Math.sin(s.ry);
+    const portee = p.L / 2 * Math.abs(n.x * fx + n.z * fz) + p.W / 2 * Math.abs(n.x * lx + n.z * lz);
+    const rc = { x: -n.x * portee, z: -n.z * portee };
+    const vx = s.u * fx + s.w * lx;
+    const vz = s.u * fz + s.w * lz;
+    const relX = vx + s.r * rc.z - autre.vx;
+    const relZ = vz - s.r * rc.x - autre.vz;
+    const vn = relX * n.x + relZ * n.z;
+    if (vn >= 0) {
+      return null;
+    }
+    const bras = rc.z * n.x - rc.x * n.z;
+    const j = -(1 + 0.25) * vn / (1 / p.m + 1 / autre.m + bras * bras / p.Iz);
+    const nvx = vx + j * n.x / p.m;
+    const nvz = vz + j * n.z / p.m;
+    s.u = nvx * fx + nvz * fz;
+    s.w = nvx * lx + nvz * lz;
+    s.r = clamp(s.r + j * bras / p.Iz, -3.5, 3.5);
+    return { dvx: -j * n.x / autre.m, dvz: -j * n.z / autre.m, vitesse: -vn };
+  };
+
+  api.collisions = function (s, p, pousser) {
+    let meilleur = 0;
+    let touche = false;
+    for (let essai = 0; essai < 2; essai++) {
+      const cercles = api.cercles(s, p);
+      for (const c of cercles) {
+        const res = pousser(c.x, c.z, p.W / 2);
+        if (!res.hit) {
+          continue;
+        }
+        const dx = res.x - c.x;
+        const dz = res.z - c.z;
+        const longueur = Math.hypot(dx, dz);
+        s.x += dx;
+        s.z += dz;
+        touche = true;
+        if (longueur < 1e-6) {
+          continue;
+        }
+        const n = { x: dx / longueur, z: dz / longueur };
+        const v = impulsion(s, p, n, { x: c.x - s.x, z: c.z - s.z }, 0.2);
+        meilleur = Math.max(meilleur, v);
+      }
+    }
+    return { hit: touche, vitesse: meilleur };
+  };
+
+  /* ═══════════ Simulations pour les tests ═══════════ */
+  api.simulerFreinage = function (p, v0) {
+    const s = api.state(0, 0, 0);
+    s.u = v0;
+    let distance = 0;
+    let t = 0;
+    while (s.u > 0.05 && t < 20) {
+      const avant = s.z;
+      api.step(s, p, { gaz: -1, volant: 0, frein: false }, 0.02);
+      distance += s.z - avant;
+      t += 0.02;
+    }
+    return distance;
+  };
+
+  api.simulerRayon = function (p, v) {
+    const s = api.state(0, 0, 0);
+    s.u = v;
+    const entree = { gaz: 0.0, volant: 1, frein: false };
+    let t = 0;
+    while (t < 8) {
+      /* gaz juste assez pour garder la vitesse */
+      entree.gaz = s.u < v ? 0.5 : 0;
+      api.step(s, p, entree, 0.01);
+      t += 0.01;
+    }
+    const vitesse = Math.hypot(s.u, s.w);
+    return Math.abs(s.r) > 1e-4 ? vitesse / Math.abs(s.r) : Infinity;
+  };
+
+  return api;
+})();
+window.__mwphys = MWPHYS;
+
 /* ───────────── Mode « Mécanicien » — SOCLE (monde ouvert 3D) ─────────────
    Ce fichier fabrique la ville, le joueur (à pied ou en voiture), l'horloge, l'argent, la sauvegarde,
    l'interface (HUD, messages, panneaux, cartes) et les contrôles tactiles. Les modules 41 (travaux) et
@@ -7221,13 +7638,13 @@ function toggleCar(){
  if(P.inCar){if(Math.abs(car.v)>3){api.toast('Arrêtez-vous avant de descendre.','warn');return;}
   const lx=Math.cos(S.car.ry),lz=-Math.sin(S.car.ry);let px=S.car.x+lx*2.2,pz=S.car.z+lz*2.2;
   let r=pushOut(px,pz,.45);if(r.hit){px=S.car.x-lx*2.2;pz=S.car.z-lz*2.2;r=pushOut(px,pz,.45);}
-  P.x=r.x;P.z=r.z;P.ry=S.car.ry;P.pitch=0;P.inCar=false;car.v=0;ui.cv.parentNode.classList.remove('mw-incar');}
- else if(carNear()){P.inCar=true;P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;car.v=0;ui.cv.parentNode.classList.add('mw-incar');api.toast('Au volant : Z/S accélérer/freiner, Q/D braquer, espace frein à main. F pour descendre.','info');}
+  P.x=r.x;P.z=r.z;P.ry=S.car.ry;P.pitch=0;P.inCar=false;car.v=0;resetPhys();ui.cv.parentNode.classList.remove('mw-incar');}
+ else if(carNear()){P.inCar=true;P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;car.v=0;resetPhys();ui.cv.parentNode.classList.add('mw-incar');api.toast('Au volant : Z/S accélérer/freiner, Q/D braquer, espace frein à main. F pour descendre.','info');}
  else api.toast('Votre voiture est trop loin.','info');}
 api.player=()=>({x:P.x,z:P.z,ry:P.ry,inCar:P.inCar,zone:zoneCur?zoneCur.id:null,zoneObj:zoneCur,pitch:P.pitch});
 api.drv={vm:22,acc:1,brk:1,turn:1,eng:1}; /* [tuning] conduite de la voiture du joueur : vitesse maxi (m/s), multiplicateurs d'accélération, de freinage, de braquage, de moteur (js/58) */
-api.playerCar=()=>({mesh:carObj,x:S.car.x,z:S.car.z,ry:S.car.ry,speed:car.v});
-api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;/* [MWG] pitch facultatif */if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;}};
+api.playerCar=()=>{const sp=carSpec();return {mesh:carObj,x:S.car.x,z:S.car.z,ry:S.car.ry,speed:car.v,L:sp.L,W:sp.W};};
+api.teleport=(x,z,ry,pitch)=>{P.x=x;P.z=z;if(ry!=null) P.ry=ry;if(pitch!=null) P.pitch=pitch;/* [MWG] pitch facultatif */if(P.inCar){S.car.x=x;S.car.z=z;if(ry!=null) S.car.ry=ry;car.v=0;resetPhys();}};
 api.setMarker=(t,label)=>{if(!S) return;S.marker=t;S.markerLabel=label||null;placeBeacon();};
 function markerPos(){const m=S&&S.marker;if(!m) return null;if(typeof m==='string'){const z=zById[m];return z?{x:z.porte.x,z:z.porte.z}:null;}return typeof m.x==='number'?m:null;}
 function placeBeacon(){if(!beacon) return;const p=markerPos();beacon.visible=!!p;if(p){beacon.position.x=p.x;beacon.position.z=p.z;}}
@@ -7242,28 +7659,37 @@ function walk(dt){
  const n=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.3));
  for(let i=0;i<n;i++){let x=P.x+dx/n,z=P.z+dz/n;
   // la voiture est un obstacle à pied
-  const cf=Math.sin(S.car.ry),cz2=Math.cos(S.car.ry);
-  for(const o of [-1,1]){const px=S.car.x+cf*o*1.0,pz=S.car.z+cz2*o*1.0,ex=x-px,ez=z-pz,d=Math.hypot(ex,ez),rr=1.45;if(d<rr&&d>1e-4){x=px+ex/d*rr;z=pz+ez/d*rr;}}
+  const dessous=MWPHYS.repousserPoint(MWPHYS.rectangle(S.car,carSpec()),x,z,.42);
+  x=dessous.x;z=dessous.z;
   const r=pushOut(x,z,.42);P.x=clamp(r.x,-HALF,HALF);P.z=clamp(r.z,-HALF,HALF);}}
+/* ── conduite : physique de js/40p (inertie, adhérence, transfert de charge, rebond doux) ── */
+const phys=MWPHYS.state(0,0,0);   /* état dynamique de la voiture du joueur ; la position vient de S.car */
+let specVoiture=null,specCle='';
+function carSpec(){
+ const ud=(carObj&&carObj.userData)||{},d=api.drv;
+ const cle=[ud.mdl,ud.L,ud.W,ud.WB,d.vm,d.acc,d.brk,d.turn,d.eng].join('|');
+ if(cle!==specCle){specCle=cle;specVoiture=MWPHYS.spec(ud,d);}
+ return specVoiture;}
+api.carSpec=carSpec;
+function resetPhys(){phys.u=phys.w=phys.r=phys.steer=phys.ax=phys.ay=0;}
 function drive(dt){
- const DV=api.drv,[mx,my]=inputVec(),VM=DV.vm;let v=car.v; /* [tuning] DV : réglages de conduite de la voiture du joueur (js/58) */
- if(my>.05){v+=(v<-.3?16*DV.brk:Math.max(1.5*DV.eng,7*DV.acc*DV.eng*(1-v/VM)))*my*dt;}
- else if(my<-.05){if(v>.4) v-=15*DV.brk*-my*dt;else v+=(-my)*-4.5*dt;}
- else v-=Math.sign(v)*Math.min(Math.abs(v),2.4*dt);
- if(keys.brake) v-=Math.sign(v)*Math.min(Math.abs(v),20*DV.brk*dt);
- v=clamp(v,-6,VM);
- const turn=-mx*clamp(Math.abs(v)/4,0,1)*(1.9-1.15*Math.min(Math.abs(v)/VM,1))*DV.turn*Math.sign(v||1);
- S.car.ry+=turn*dt;
- const fx=Math.sin(S.car.ry),fz=Math.cos(S.car.ry),n=Math.max(1,Math.ceil(Math.abs(v)*dt/.4));
- let hit=false;
- for(let i=0;i<n;i++){let x=S.car.x+fx*v*dt/n,z=S.car.z+fz*v*dt/n;
-  for(const o of [-1.05,1.05]){const r=pushOut(x+fx*o,z+fz*o,1.05);if(r.hit){hit=true;x+=r.x-(x+fx*o);z+=r.z-(z+fz*o);}}
-  S.car.x=clamp(x,-HALF,HALF);S.car.z=clamp(z,-HALF,HALF);}
- car.v=hit?v*.45:v;   // choc : on perd presque toute la vitesse
- car.steer=mx;P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;}
+ const [mx,my]=inputVec(),spec=carSpec();
+ phys.x=S.car.x;phys.z=S.car.z;phys.ry=S.car.ry;phys.u=car.v;
+ MWPHYS.step(phys,spec,{gaz:my,volant:mx,frein:!!keys.brake},dt);
+ const choc=MWPHYS.collisions(phys,spec,pushOut);
+ S.car.x=clamp(phys.x,-HALF,HALF);S.car.z=clamp(phys.z,-HALF,HALF);S.car.ry=phys.ry;
+ car.v=phys.u;car.steer=phys.steer;car.choc=choc.vitesse;
+ P.x=S.car.x;P.z=S.car.z;P.ry=S.car.ry;}
+/* Poignées de test : la voiture du joueur (ou un piéton) posée en (x, z) touche-t-elle un obstacle fixe ? */
+/* État dynamique de la voiture du joueur (lecture seule : roulis, tangage, glissement pour js/40s) */
+api.carDyn=()=>({ax:phys.ax,ay:phys.ay,slip:phys.slip,steer:phys.steer,u:phys.u,w:phys.w,r:phys.r,inCar:P.inCar});
+api.carHits=(x,z,ry)=>{
+ const spec=carSpec(),etat=MWPHYS.state(x,z,ry);
+ return MWPHYS.cercles(etat,spec).some(c=>pushOut(c.x,c.z,spec.W/2).hit);};
+api.footHits=(x,z)=>pushOut(x,z,.42).hit||MWPHYS.repousserPoint(MWPHYS.rectangle(S.car,carSpec()),x,z,.42).hit;
 function syncCarMesh(dt){
  carObj.position.set(S.car.x,0,S.car.z);carObj.rotation.y=S.car.ry;
- for(const n of ['wFL','wFR','wRL','wRR']){const w=carObj.getObjectByName(n);if(!w) continue;w.rotation.x+=car.v*dt/.3;if(n[1]==='F') w.rotation.y=P.inCar?car.steer*-.45:0;}
+ for(const n of ['wFL','wFR','wRL','wRR']){const w=carObj.getObjectByName(n);if(!w) continue;w.rotation.x+=car.v*dt/.3;if(n[1]==='F') w.rotation.y=P.inCar?car.steer:0;}
  headL.intensity=P.inCar&&api.isNight()?1.6:0;}
 
 /* ── zones, interactions ── */
@@ -7415,7 +7841,7 @@ function frame(t){
  emit('tick',dt);}
 
 function applyState(){
- P.x=S.player.x;P.z=S.player.z;P.ry=S.player.ry;P.pitch=0;P.inCar=!!S.player.inCar;car.v=0;acc=0;camInit=false;
+ P.x=S.player.x;P.z=S.player.z;P.ry=S.player.ry;P.pitch=0;P.inCar=!!S.player.inCar;car.v=0;resetPhys();acc=0;camInit=false;
  carObj.position.set(S.car.x,0,S.car.z);zoneCur=null;
  ui.r.classList.toggle('mw-incar',P.inCar);
  placeBeacon();}
@@ -7464,6 +7890,186 @@ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded'
 api.useDoor=id=>{const z=api.zone(id);if(z) zoneUse(z);};/* outil de test : déclenche l'action de la porte (ou du comptoir) d'une zone */
 window.__mw=api;
 return api;})();
+
+/* ────────── Mode « Mécanicien » — RESSENTI DE CONDUITE : roulis, tangage, crissement, traces de pneus ──────────
+   Lit l'état dynamique de la voiture du joueur (MW.carDyn, calculé par js/40p) et le rend visible et audible :
+     · roulis : la caisse se penche vers l'extérieur du virage (environ 2° par g) ;
+     · tangage : elle plonge du nez au freinage et se cabre à l'accélération (environ 1,2° par g) ;
+       une suspension plus ferme (réglage de braquage de js/58) réduit les deux ;
+     · crissement : un bruit de pneus filtré dont le volume suit le glissement, dès que les pneus approchent de la limite ;
+     · traces : des marques noires au sol, derrière les roues arrière, quand la voiture glisse (160 marques au plus, un seul appel de dessin).
+
+   ═══ API `MWFEEL` (aussi `window.__mwfeel`) ═══
+   MWFEEL.roulis() / MWFEEL.tangage()   angles actuels de la caisse (rad)
+   MWFEEL.crissement()                  volume actuel du crissement (0..1)
+   MWFEEL.traces()                      nombre de traces posées depuis le début de la partie */
+const MWFEEL = (() => {
+  const T = THREE;
+  const api = {};
+  const G = 9.81;
+  const ROULIS_PAR_G = 0.035;      /* rad par g d'accélération latérale */
+  const TANGAGE_PAR_G = 0.021;     /* rad par g d'accélération longitudinale */
+  const SEUIL_CRISSEMENT = 0.72;   /* glissement (0..1+) au-dessus duquel les pneus crissent */
+  const NB_TRACES = 160;
+
+  let roulis = 0;
+  let tangage = 0;
+  let volumeCrissement = 0;
+  let tracesPosees = 0;
+  let prochaineTrace = 0;
+  let tempsTrace = 0;
+
+  /* ═══════════ Roulis et tangage ═══════════ */
+  function suivreCaisse(dt, dyn, mesh) {
+    const drv = MW.drv || { turn: 1 };
+    const fermete = Math.max(0.6, drv.turn || 1);
+    const cibleRoulis = dyn.inCar ? ROULIS_PAR_G * (dyn.ay / G) / (fermete * fermete) : 0;
+    const cibleTangage = dyn.inCar ? -TANGAGE_PAR_G * (dyn.ax / G) / fermete : 0;
+    const k = 1 - Math.exp(-7 * dt);
+    roulis += (cibleRoulis - roulis) * k;
+    tangage += (cibleTangage - tangage) * k;
+    if (!mesh) {
+      return;
+    }
+    mesh.rotation.order = 'YXZ';
+    mesh.rotation.x = tangage;
+    mesh.rotation.z = roulis;
+  }
+
+  /* ═══════════ Traces de pneus ═══════════ */
+  let traces = null;
+  const matrice = new T.Matrix4();
+  const quaternion = new T.Quaternion();
+  const axeY = new T.Vector3(0, 1, 0);
+  const echelle = new T.Vector3(1, 1, 1);
+  const position = new T.Vector3();
+
+  function creerTraces() {
+    const geo = new T.PlaneGeometry(0.2, 0.8).rotateX(-Math.PI / 2);
+    const mat = new T.MeshBasicMaterial({
+      color: 0x0c0c0e,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+    });
+    traces = new T.InstancedMesh(geo, mat, NB_TRACES);
+    traces.frustumCulled = false;
+    const cache = new T.Matrix4().makeScale(0, 0, 0);
+    for (let i = 0; i < NB_TRACES; i++) {
+      traces.setMatrixAt(i, cache);
+    }
+    traces.instanceMatrix.needsUpdate = true;
+    MW.scene.add(traces);
+  }
+
+  function poserTraces(dt, dyn, voiture) {
+    tempsTrace += dt;
+    if (!dyn.inCar || dyn.slip < 0.9 || Math.abs(dyn.u) < 3 || tempsTrace < 0.05) {
+      return;
+    }
+    tempsTrace = 0;
+    if (!traces) {
+      creerTraces();
+    }
+    const ud = voiture.mesh.userData || {};
+    const demiVoie = (ud.W || 1.75) / 2 - 0.14;
+    const demiEmpattement = (ud.WB || 2.6) / 2;
+    const cap = voiture.ry;
+    const sin = Math.sin(cap);
+    const cos = Math.cos(cap);
+    quaternion.setFromAxisAngle(axeY, cap);
+    for (const cote of [-1, 1]) {
+      const lx = cote * demiVoie;
+      const lz = -demiEmpattement;
+      position.set(voiture.x + cos * lx + sin * lz, 0.07, voiture.z - sin * lx + cos * lz);
+      matrice.compose(position, quaternion, echelle);
+      traces.setMatrixAt(prochaineTrace, matrice);
+      prochaineTrace = (prochaineTrace + 1) % NB_TRACES;
+      tracesPosees++;
+    }
+    traces.instanceMatrix.needsUpdate = true;
+  }
+
+  /* ═══════════ Crissement des pneus ═══════════ */
+  let audio = null;
+  function preparerAudio() {
+    try {
+      const Contexte = window.AudioContext || window.webkitAudioContext;
+      if (!Contexte) {
+        return null;
+      }
+      const ctx = new Contexte();
+      const longueur = ctx.sampleRate;
+      const tampon = ctx.createBuffer(1, longueur, ctx.sampleRate);
+      const donnees = tampon.getChannelData(0);
+      for (let i = 0; i < longueur; i++) {
+        donnees[i] = Math.random() * 2 - 1;
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = tampon;
+      source.loop = true;
+      const filtre = ctx.createBiquadFilter();
+      filtre.type = 'bandpass';
+      filtre.frequency.value = 1500;
+      filtre.Q.value = 3.2;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      source.connect(filtre);
+      filtre.connect(gain);
+      gain.connect(ctx.destination);
+      source.start();
+      return { ctx, filtre, gain };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function crisser(dt, dyn) {
+    const cible = dyn.inCar && Math.abs(dyn.u) > 2.5 && !MW.paused
+      ? Math.min(1, Math.max(0, (dyn.slip - SEUIL_CRISSEMENT) / 0.5))
+      : 0;
+    volumeCrissement += (cible - volumeCrissement) * (1 - Math.exp(-10 * dt));
+    if (volumeCrissement < 0.01 && !audio) {
+      return;
+    }
+    if (!audio) {
+      audio = preparerAudio();
+    }
+    if (!audio) {
+      return;
+    }
+    if (audio.ctx.state === 'suspended') {
+      audio.ctx.resume().catch(() => {});
+    }
+    audio.gain.gain.value = volumeCrissement * 0.1;
+    audio.filtre.frequency.value = 1100 + 900 * Math.min(1, Math.abs(dyn.u) / 20);
+  }
+
+  /* ═══════════ Boucle ═══════════ */
+  MW.on('tick', (dt) => {
+    if (!MW.isOpen() || !MW.carDyn) {
+      return;
+    }
+    const pas = Math.min(dt, 0.05);
+    const dyn = MW.carDyn();
+    const voiture = MW.playerCar();
+    suivreCaisse(pas, dyn, voiture && voiture.mesh);
+    if (!MW.paused) {
+      poserTraces(pas, dyn, voiture);
+    }
+    crisser(pas, dyn);
+  });
+
+  api.roulis = () => roulis;
+  api.tangage = () => tangage;
+  api.crissement = () => volumeCrissement;
+  api.traces = () => tracesPosees;
+  return api;
+})();
+window.__mwfeel = MWFEEL;
 
 /* ───────────── Mode « Mécanicien » — PANNES RÉALISTES (données) ─────────────
    Données pures, chargées avant js/41 : nouvelles pièces, nouveaux modèles de travaux, et le catalogue des symptômes à diagnostiquer.
@@ -11495,6 +12101,411 @@ D.tick=()=>{if((++fixN)%12===0&&CX) D.fix(CX.scene);};
 MW.decor={build:D.build,renderer:D.renderer,frame:(dt,t,h)=>{const P=MW.player();D.frame(dt,t,h,P);D.tick();},qualityLabel:D.qualityLabel,cycleQuality:D.cycleQuality};
 return D;})();
 
+/* ─────────── Mode « Mécanicien » — VOITURES DE LA VILLE : une carrosserie simplifiée par modèle ───────────
+   Les voitures de la circulation (js/53, instanciées) et les voitures garées (js/45b, fusionnées dans le décor) ne reprennent plus
+   quelques gabarits génériques : chaque modèle du catalogue MWCARS (js/44) a sa propre carrosserie simplifiée, construite à partir de
+   sa fiche (longueur, largeur, hauteur, empattement, type de carrosserie). Tout est opaque : aucune voiture transparente.
+
+   Une carrosserie = deux volumes lissés :
+     · la caisse basse (capot, ailes, coffre, pare-chocs), construite par tranches le long de la voiture ;
+     · l'habitacle (pare-brise, toit peint, lunette arrière, vitres latérales), plus étroit en haut qu'en bas.
+   S'y ajoutent des pare-chocs, des rétroviseurs, des phares et des feux arrière.
+
+   ═══ API `MWVC` (aussi `window.__mwvc`) ═══
+   MWVC.spec(id | fiche)        gabarit d'un modèle : {id, L, W, H, WB, body, kind, wheelR, trackW}
+   MWVC.parts(spec)             parties de la carrosserie, en repère de la voiture (avant vers +z, pieds à y = 0) :
+                                {paint, glass, dark, head, tail} : géométries indexées (position, normal) ; mêmes objets à chaque appel
+   MWVC.merged(spec)            une seule géométrie (paint + glass + dark) avec couleurs et attribut aPaint (1 = reçoit la couleur
+                                de l'instance, 0 = couleur fixe) : pour un InstancedMesh avec MWVC.material()
+   MWVC.material()              matériau partagé des voitures instanciées (la couleur d'instance ne teinte que la peinture)
+   MWVC.linear(hex)             [r, v, b] linéaires d'une couleur 0xRRGGBB (pour les lots fusionnés du décor)
+   MWVC.colors                  {glass, dark, head, tail, rubber, hub} couleurs fixes (linéaires)
+   MWVC.wheelPositions(spec)    4 centres de roues [x, y, z] (avant gauche, avant droite, arrière gauche, arrière droite)
+   MWVC.count()                 nombre de carrosseries construites (un test vérifie « une forme par modèle »)
+   MWVC.signature(spec)         empreinte de la forme (sert au test : deux modèles différents ont des formes différentes) */
+const MWVC = (() => {
+  const T = THREE;
+  const api = {};
+  const GARDE_AU_SOL = 0.2;       /* hauteur du dessous de caisse (m) */
+  const cache = new Map();
+
+  /* ═══════════ Couleurs fixes (linéaires) ═══════════ */
+  const lin = (hex) => {
+    const c = new T.Color(hex);
+    c.convertSRGBToLinear();
+    return [c.r, c.g, c.b];
+  };
+  api.linear = lin;
+  api.colors = {
+    glass: lin(0x2c4052),
+    dark: lin(0x16181b),
+    head: lin(0xf4eed2),
+    tail: lin(0xa01418),
+    rubber: lin(0x121214),
+    hub: lin(0xb4b8be),
+  };
+
+  /* ═══════════ Profils de carrosserie ═══════════
+     Hauteurs en fraction de la hauteur utile (de la garde au sol au toit), positions en fraction de la longueur (1 = avant, 0 = arrière).
+     nose : hauteur de l'avant · cowl : hauteur du capot au pied du pare-brise · zCowl : position du pied du pare-brise
+     zRoofF / zRoofR : début et fin du toit · zRear : pied de la lunette arrière · rearY : hauteur du coffre · tailY : hauteur de l'arrière */
+  const PROFILS = {
+    hatch: { nose: 0.50, cowl: 0.60, zCowl: 0.70, zRoofF: 0.56, zRoofR: 0.20, zRear: 0.04, rearY: 0.74, tailY: 0.70 },
+    mini: { nose: 0.52, cowl: 0.60, zCowl: 0.72, zRoofF: 0.58, zRoofR: 0.18, zRear: 0.04, rearY: 0.78, tailY: 0.72 },
+    sedan: { nose: 0.48, cowl: 0.58, zCowl: 0.68, zRoofF: 0.55, zRoofR: 0.32, zRear: 0.20, rearY: 0.62, tailY: 0.62 },
+    wagon: { nose: 0.50, cowl: 0.60, zCowl: 0.70, zRoofF: 0.56, zRoofR: 0.08, zRear: 0.03, rearY: 0.80, tailY: 0.78 },
+    suv: { nose: 0.56, cowl: 0.64, zCowl: 0.72, zRoofF: 0.58, zRoofR: 0.12, zRear: 0.03, rearY: 0.86, tailY: 0.84 },
+    coupe: { nose: 0.50, cowl: 0.56, zCowl: 0.62, zRoofF: 0.50, zRoofR: 0.30, zRear: 0.12, rearY: 0.60, tailY: 0.62 },
+    mid: { nose: 0.44, cowl: 0.52, zCowl: 0.62, zRoofF: 0.50, zRoofR: 0.36, zRear: 0.14, rearY: 0.62, tailY: 0.60 },
+    rear: { nose: 0.54, cowl: 0.60, zCowl: 0.66, zRoofF: 0.52, zRoofR: 0.26, zRear: 0.05, rearY: 0.68, tailY: 0.66 },
+    van: { nose: 0.50, cowl: 0.60, zCowl: 0.82, zRoofF: 0.72, zRoofR: 0.64, zRear: 0.64, rearY: 1.0, tailY: 1.0, cargo: 0.64 },
+  };
+
+  /* ═══════════ Gabarit d'un modèle ═══════════ */
+  const KIND_BODY = { citadine: 'hatch', berline: 'sedan', sport: 'coupe', suv: 'suv', utilitaire: 'van' };
+  const KIND_DIM = {
+    citadine: [3.9, 1.72, 1.48, 2.5],
+    berline: [4.6, 1.8, 1.45, 2.75],
+    sport: [4.4, 1.85, 1.3, 2.65],
+    suv: [4.5, 1.86, 1.68, 2.7],
+    utilitaire: [4.8, 1.9, 1.95, 2.9],
+  };
+
+  /* rayon d'une roue (m) d'après les pneus « 195/55 R16 » : largeur × rapport + demi-jante */
+  function rayonRoue(tyre, kind) {
+    const m = /(\d+)\/(\d+)\s*R(\d+)/.exec(tyre || '');
+    if (!m) return kind === 'suv' ? 0.36 : kind === 'utilitaire' ? 0.34 : 0.30;
+    return (Number(m[1]) * Number(m[2]) / 100 + Number(m[3]) * 25.4 / 2) / 1000;
+  }
+
+  api.spec = function (modele) {
+    let fiche = modele;
+    if (typeof modele === 'string') {
+      try {
+        fiche = MWCARS.get(modele);
+      } catch (e) {
+        fiche = null;
+      }
+    }
+    const kind = (fiche && fiche.kind) || 'berline';
+    const dim = KIND_DIM[kind] || KIND_DIM.berline;
+    const L = (fiche && fiche.L) || dim[0];
+    const body = (fiche && fiche.body && PROFILS[fiche.body]) ? fiche.body : (KIND_BODY[kind] || 'sedan');
+    return {
+      id: (fiche && fiche.id) || body,
+      L,
+      W: (fiche && fiche.W) || dim[1],
+      H: (fiche && fiche.H) || dim[2],
+      WB: (fiche && fiche.WB) || L * 0.62,
+      body,
+      kind,
+      wheelR: rayonRoue(fiche && fiche.tyre, kind),
+      trackW: (fiche && fiche.W) || dim[1],
+    };
+  };
+
+  api.wheelPositions = function (spec) {
+    const x = spec.W / 2 - 0.12;
+    const z = spec.WB / 2;
+    const y = spec.wheelR;
+    return [[x, y, z], [-x, y, z], [x, y, -z], [-x, y, -z]];
+  };
+
+  /* ═══════════ Constructeur de géométrie ═══════════ */
+  function nouveauLot() {
+    return { pos: [], nor: [], idx: [] };
+  }
+
+  /* quadrilatère a-b-c-d : la normale est orientée vers l'extérieur (loin du centre de la voiture) */
+  function ajouterQuad(lot, centre, a, b, c, d) {
+    const ux = b[0] - a[0];
+    const uy = b[1] - a[1];
+    const uz = b[2] - a[2];
+    const vx = d[0] - a[0];
+    const vy = d[1] - a[1];
+    const vz = d[2] - a[2];
+    let nx = uy * vz - uz * vy;
+    let ny = uz * vx - ux * vz;
+    let nz = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz);
+    if (l < 1e-9) {
+      return;
+    }
+    nx /= l;
+    ny /= l;
+    nz /= l;
+    const mx = (a[0] + b[0] + c[0] + d[0]) / 4 - centre[0];
+    const my = (a[1] + b[1] + c[1] + d[1]) / 4 - centre[1];
+    const mz = (a[2] + b[2] + c[2] + d[2]) / 4 - centre[2];
+    const sens = nx * mx + ny * my + nz * mz < 0 ? -1 : 1;
+    const base = lot.pos.length / 3;
+    for (const p of [a, b, c, d]) {
+      lot.pos.push(p[0], p[1], p[2]);
+      lot.nor.push(nx * sens, ny * sens, nz * sens);
+    }
+    if (sens > 0) {
+      lot.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    } else {
+      lot.idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    }
+  }
+
+  /* éventail de triangles autour du barycentre d'un contour (bouchon d'une tranche) */
+  function ajouterBouchon(lot, centre, contour) {
+    const g = [0, 0, 0];
+    for (const p of contour) {
+      g[0] += p[0] / contour.length;
+      g[1] += p[1] / contour.length;
+      g[2] += p[2] / contour.length;
+    }
+    for (let i = 0; i < contour.length; i++) {
+      const suivant = contour[(i + 1) % contour.length];
+      ajouterQuad(lot, centre, g, contour[i], suivant, suivant);
+    }
+  }
+
+  function ajouterBoite(lot, centre, x0, x1, y0, y1, z0, z1) {
+    const p = (x, y, z) => [x, y, z];
+    const s = [p(x0, y0, z0), p(x1, y0, z0), p(x1, y1, z0), p(x0, y1, z0), p(x0, y0, z1), p(x1, y0, z1), p(x1, y1, z1), p(x0, y1, z1)];
+    const faces = [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [3, 2, 6, 7], [0, 3, 7, 4], [1, 2, 6, 5]];
+    for (const f of faces) {
+      ajouterQuad(lot, centre, s[f[0]], s[f[1]], s[f[2]], s[f[3]]);
+    }
+  }
+
+  /* interpolation linéaire d'une ligne brisée [[z, y], …] triée par z décroissant */
+  function surLigne(ligne, z) {
+    if (z >= ligne[0][0]) {
+      return ligne[0][1];
+    }
+    for (let i = 1; i < ligne.length; i++) {
+      if (z >= ligne[i][0]) {
+        const a = ligne[i - 1];
+        const b = ligne[i];
+        const t = (a[0] - z) / (a[0] - b[0] || 1);
+        return a[1] + (b[1] - a[1]) * t;
+      }
+    }
+    return ligne[ligne.length - 1][1];
+  }
+
+  /* ═══════════ Construction d'une carrosserie ═══════════ */
+  function construire(spec) {
+    const P = PROFILS[spec.body] || PROFILS.sedan;
+    const L = spec.L;
+    const hw = spec.W / 2;
+    const y0 = GARDE_AU_SOL;
+    const hu = spec.H - y0;
+    const lots = { paint: nouveauLot(), glass: nouveauLot(), dark: nouveauLot(), head: nouveauLot(), tail: nouveauLot() };
+    const centre = [0, spec.H * 0.45, 0];
+    const Y = (f) => y0 + f * hu;                 /* hauteur réelle d'une fraction */
+    const Z = (f) => (f - 0.5) * L;               /* position réelle d'une fraction de longueur */
+
+    /* ligne du dessus de la caisse basse (avant → arrière) */
+    const dessus = [[1.0, P.nose * 0.88], [0.965, P.nose], [P.zCowl, P.cowl], [P.zRear, P.rearY], [0.035, P.tailY], [0.0, P.tailY * 0.9]];
+    if (P.cargo) {
+      dessus.length = 0;
+      dessus.push([1.0, P.nose * 0.88], [0.965, P.nose], [P.zCowl, P.cowl], [P.cargo + 0.001, P.cowl]);
+    }
+    const largeurBout = (f) => (f > 0.9 ? 0.86 + (1 - f) * 1.4 : f < 0.08 ? 0.9 + f * 1.25 : 1);
+
+    /* anneau de la caisse basse à la position f */
+    const anneau = (f, yTop) => {
+      const z = Z(f);
+      const k = largeurBout(f);
+      const w = hw * k;
+      const wb = w * 0.88;
+      const wt = w * 0.94;
+      return [
+        [-wb, y0, z], [-w, y0 + 0.14, z], [-w, yTop - 0.06, z], [-wt, yTop, z],
+        [wt, yTop, z], [w, yTop - 0.06, z], [w, y0 + 0.14, z], [wb, y0, z],
+      ];
+    };
+    const categorieSegment = ['dark', 'paint', 'paint', 'paint', 'paint', 'paint', 'dark', 'dark'];
+    const stationsBasse = dessus.map((d) => d[0]);
+    const anneaux = stationsBasse.map((f) => anneau(f, Y(surLigne(dessus, f))));
+    for (let i = 0; i < anneaux.length - 1; i++) {
+      for (let k = 0; k < 8; k++) {
+        const a = anneaux[i];
+        const b = anneaux[i + 1];
+        ajouterQuad(lots[categorieSegment[k]], centre, a[k], a[(k + 1) % 8], b[(k + 1) % 8], b[k]);
+      }
+    }
+    /* avant : bas sombre (pare-chocs), haut peint ; arrière : tout peint sauf le bas */
+    const av = anneaux[0];
+    ajouterBouchon(lots.dark, centre, [av[0], av[1], av[6], av[7]]);
+    ajouterBouchon(lots.paint, centre, [av[1], av[2], av[3], av[4], av[5], av[6]]);
+    const ar = anneaux[anneaux.length - 1];
+    ajouterBouchon(lots.dark, centre, [ar[0], ar[1], ar[6], ar[7]]);
+    ajouterBouchon(lots.paint, centre, [ar[1], ar[2], ar[3], ar[4], ar[5], ar[6]]);
+
+    /* habitacle : (z, hauteur de base, hauteur du dessus) */
+    const cabine = [];
+    cabine.push([P.zCowl, surLigne(dessus, P.zCowl), surLigne(dessus, P.zCowl)]);
+    cabine.push([P.zRoofF, surLigne(dessus, P.zRoofF), 1.0]);
+    cabine.push([P.zRoofR, surLigne(dessus, P.zRoofR), 1.0]);
+    cabine.push([P.zRear, surLigne(dessus, P.zRear), P.cargo ? 1.0 : P.rearY]);
+    const bas = hw * 0.9;
+    const haut = hw * 0.74;
+    const cabAnneau = (c) => {
+      const z = Z(c[0]);
+      return [[-bas, Y(c[1]), z], [-haut, Y(c[2]), z], [haut, Y(c[2]), z], [bas, Y(c[1]), z]];
+    };
+    const cabs = cabine.map(cabAnneau);
+    for (let i = 0; i < cabs.length - 1; i++) {
+      const a = cabs[i];
+      const b = cabs[i + 1];
+      const toit = cabine[i][2] >= 0.999 && cabine[i + 1][2] >= 0.999;
+      ajouterQuad(lots.glass, centre, a[0], a[1], b[1], b[0]);          /* vitre gauche */
+      ajouterQuad(lots.glass, centre, a[3], a[2], b[2], b[3]);          /* vitre droite */
+      ajouterQuad(lots[toit ? 'paint' : 'glass'], centre, a[1], a[2], b[2], b[1]);   /* toit, pare-brise ou lunette */
+    }
+    const derniere = cabs[cabs.length - 1];
+    ajouterQuad(lots.paint, centre, derniere[0], derniere[1], derniere[2], derniere[3]);
+
+    /* utilitaire : caisse de chargement peinte derrière la cabine */
+    if (P.cargo) {
+      const zc = Z(P.cargo);
+      ajouterBoite(lots.paint, centre, -hw * 0.98, hw * 0.98, y0, spec.H - 0.03, -L / 2, zc);
+    }
+
+    /* pare-chocs, rétroviseurs */
+    const bumperH = y0 + 0.3;
+    ajouterBoite(lots.dark, centre, -hw * 0.96, hw * 0.96, y0, bumperH, L / 2 - 0.12, L / 2 + 0.03);
+    ajouterBoite(lots.dark, centre, -hw * 0.94, hw * 0.94, y0, bumperH, -L / 2 - 0.03, -L / 2 + 0.12);
+    const zMir = Z(P.zCowl) - 0.12;
+    const yMir = Y(surLigne(dessus, P.zCowl)) + 0.05;
+    for (const s of [-1, 1]) {
+      ajouterBoite(lots.paint, centre, s > 0 ? hw * 0.9 : -hw - 0.1, s > 0 ? hw + 0.1 : -hw * 0.9, yMir, yMir + 0.12, zMir - 0.1, zMir + 0.1);
+    }
+
+    /* phares et feux arrière : petits panneaux sur les faces avant et arrière */
+    const yPhare = y0 + (Y(P.nose) - y0) * 0.7 + 0.02;
+    const yFeu = y0 + (Y(P.tailY) - y0) * 0.62;
+    for (const s of [-1, 1]) {
+      const x0 = s * hw * 0.52;
+      const x1 = s * hw * 0.86;
+      ajouterQuad(lots.head, centre, [x0, yPhare - 0.07, L / 2 + 0.035], [x1, yPhare - 0.07, L / 2 + 0.035],
+        [x1, yPhare + 0.07, L / 2 + 0.035], [x0, yPhare + 0.07, L / 2 + 0.035]);
+      ajouterQuad(lots.tail, centre, [x0, yFeu - 0.08, -L / 2 - 0.035], [x1, yFeu - 0.08, -L / 2 - 0.035],
+        [x1, yFeu + 0.08, -L / 2 - 0.035], [x0, yFeu + 0.08, -L / 2 - 0.035]);
+    }
+    return lots;
+  }
+
+  function versGeometrie(lot) {
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(lot.pos, 3));
+    g.setAttribute('normal', new T.Float32BufferAttribute(lot.nor, 3));
+    g.setIndex(lot.idx);
+    g.computeBoundingSphere();
+    return g;
+  }
+
+  api.parts = function (spec) {
+    const cle = spec.id + '|' + spec.body + '|' + spec.L + '|' + spec.W + '|' + spec.H;
+    let e = cache.get(cle);
+    if (!e) {
+      const lots = construire(spec);
+      e = { parts: {}, merged: null, lots, spec };
+      for (const k of Object.keys(lots)) {
+        e.parts[k] = versGeometrie(lots[k]);
+      }
+      cache.set(cle, e);
+    }
+    return e.parts;
+  };
+
+  /* ═══════════ Géométrie fusionnée pour l'instanciation ═══════════ */
+  api.merged = function (spec) {
+    const cle = spec.id + '|' + spec.body + '|' + spec.L + '|' + spec.W + '|' + spec.H;
+    api.parts(spec);
+    const e = cache.get(cle);
+    if (e.merged) {
+      return e.merged;
+    }
+    const pos = [];
+    const nor = [];
+    const col = [];
+    const paint = [];
+    const idx = [];
+    const ajouter = (lot, couleur, peinture) => {
+      const base = pos.length / 3;
+      for (let i = 0; i < lot.pos.length; i += 3) {
+        pos.push(lot.pos[i], lot.pos[i + 1], lot.pos[i + 2]);
+        nor.push(lot.nor[i], lot.nor[i + 1], lot.nor[i + 2]);
+        col.push(couleur[0], couleur[1], couleur[2]);
+        paint.push(peinture);
+      }
+      for (const i of lot.idx) {
+        idx.push(base + i);
+      }
+    };
+    ajouter(e.lots.paint, [1, 1, 1], 1);
+    ajouter(e.lots.glass, api.colors.glass, 0);
+    ajouter(e.lots.dark, api.colors.dark, 0);
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new T.Float32BufferAttribute(nor, 3));
+    g.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+    g.setAttribute('aPaint', new T.Float32BufferAttribute(paint, 1));
+    g.setIndex(idx);
+    g.computeBoundingSphere();
+    e.merged = g;
+    return g;
+  };
+
+  let materiauPartage = null;
+  api.material = function () {
+    if (materiauPartage) {
+      return materiauPartage;
+    }
+    const m = new T.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
+    m.userData = { lin: 1 };
+    m.onBeforeCompile = (shader) => {
+      /* la couleur de l'instance ne teinte que les sommets de peinture (aPaint = 1) : vitres et pièces sombres gardent leur teinte */
+      const couleurs = [
+        '#if defined( USE_COLOR )',
+        '  vColor = color;',
+        '#else',
+        '  vColor = vec3( 1.0 );',
+        '#endif',
+        '#ifdef USE_INSTANCING_COLOR',
+        '  vColor.xyz *= mix( vec3( 1.0 ), instanceColor.xyz, aPaint );',
+        '#endif',
+      ].join('\n');
+      shader.vertexShader = 'attribute float aPaint;\n' + shader.vertexShader.replace('#include <color_vertex>', couleurs);
+    };
+    m.customProgramCacheKey = () => 'mwvc-peinture';
+    materiauPartage = m;
+    return m;
+  };
+
+  api.count = () => cache.size;
+
+  /* empreinte de forme : longueur, hauteur du toit et position du toit mesurées sur les sommets de la peinture */
+  api.signature = function (spec) {
+    const g = api.merged(spec);
+    const p = g.attributes.position;
+    let zToitMin = 1e9;
+    let zToitMax = -1e9;
+    let yMax = -1e9;
+    for (let i = 0; i < p.count; i++) {
+      yMax = Math.max(yMax, p.getY(i));
+    }
+    for (let i = 0; i < p.count; i++) {
+      if (p.getY(i) > yMax - 0.01) {
+        zToitMin = Math.min(zToitMin, p.getZ(i));
+        zToitMax = Math.max(zToitMax, p.getZ(i));
+      }
+    }
+    return [spec.L, spec.W, yMax, zToitMin, zToitMax].map((v) => v.toFixed(2)).join('/');
+  };
+
+  return api;
+})();
+window.__mwvc = MWVC;
+
 /* ───────────── Mode « Mécanicien » — DÉCOR : la ville (rues, bâtiments, arbres, mobilier urbain) ─────────────
    Appelé par MWD.build (45-meca-decor.js). Tout est fusionné par matériau (peu d'appels de dessin). */
 MWD.city=(ctx,D)=>{
@@ -11561,7 +12572,7 @@ for(const r of RZ) for(const s of [-1,1]) for(let t=-270+(s>0?0:16);t<=275;t+=32
  let k=0;for(const rx of RX) for(const rz of RZ) for(const sx of [-1,1]) for(const sz of [-1,1]){k++;
   const x=rx+sx*9.7,z=rz+sz*14.5,type=[[1,0],[0,0],[2,0],[3,0],[0,1],[1,1],[2,1],[3,1]][(k*3)%8];
   sign(x,z,0,type[0],type[1]);}
- for(const [x,z,ry] of [[-282,6,PI/2],[282,-6,-PI/2],[6,-282,PI],[-6,282,0]]) sign(x,z,ry,0,0);}
+ for(const [x,z,ry] of [[-282,8.7,PI/2],[282,-8.7,-PI/2],[8.7,-282,PI],[-8.7,282,0]]) sign(x,z,ry,0,0);} /* [textures] sur le trottoir, plus au milieu de la chaussée */
 // panneaux de direction : un par approche de chaque carrefour, vers les lieux clés (atlas de 40 panneaux, un seul appel de dessin)
 {const KEY=['garage1','pieces','concess','garage2','garage3','garage4','ecole','banque','bureau'],NS=MW.streets||{ns:[],ew:[]};
  const CW=256,CH=96,COLS=4,ROWS=10,cv=document.createElement('canvas');cv.width=CW*COLS;cv.height=CH*ROWS;const g=cv.getContext('2d');
@@ -11721,10 +12732,50 @@ function bakeCar(opts,x,z,ry,layer){
  (D.parked||(D.parked=[])).push({g:gr,x,z,layer:layer||'detail'});
  return g;}
 H.bakeCar=bakeCar;
+/* Voiture garée de la rue : carrosserie simplifiée du modèle (js/53c) fusionnée dans le décor, peinture unie, vitres sombres, phares,
+   feux arrière et quatre roues. Renvoie le gabarit du modèle {L, W, …} (pour le collider) ou null. */
+const rueGaree=[];   /* gabarits des voitures garées de la rue, pour les tests : {x, z, ry, L, W, id} */
+function modeleDuType(kind,rnd){
+ let liste=[];
+ try{
+  liste=MWCARS.list.filter(f=>f.kind===kind);
+  if(!liste.length) liste=MWCARS.list;
+ }catch(e){
+  return null;}
+ return liste.length?liste[Math.floor(rnd()*liste.length)]:null;}
+function bakeVilleCar(kind,couleur,x,z,ry,rnd){
+ const fiche=modeleDuType(kind,rnd);
+ const spec=MWVC.spec(fiche||kind);
+ const parts=MWVC.parts(spec);
+ const matrice=new T.Matrix4().makeRotationY(ry).setPosition(x,0,z);
+ const peinture=MWVC.linear(couleur);
+ const coul=MWVC.colors;
+ const groupe=D.group(B=>{
+  const lot=B('car');
+  lot.add(parts.paint,matrice,peinture,true);
+  lot.add(parts.glass,matrice,coul.glass,true);
+  lot.add(parts.dark,matrice,coul.dark,true);
+  lot.add(parts.head,matrice,coul.head,true);
+  lot.add(parts.tail,matrice,coul.tail,true);
+  const pneu=new T.CylinderGeometry(spec.wheelR,spec.wheelR,.22,12).rotateZ(PI/2);
+  const jante=new T.CylinderGeometry(spec.wheelR*.55,spec.wheelR*.55,.24,10).rotateZ(PI/2);
+  for(const [wx,wy,wz] of MWVC.wheelPositions(spec)){
+   const m=new T.Matrix4().makeTranslation(wx,wy,wz).premultiply(matrice);
+   lot.add(pneu,m,coul.rubber,true);
+   lot.add(jante,m,coul.hub,true);}});
+ (D.parked||(D.parked=[])).push({g:groupe,x,z,layer:'detail'});
+ rueGaree.push({x,z,ry,L:spec.L,W:spec.W,id:spec.id});
+ return spec;}
+D.rueGaree=rueGaree;
 {const rm=D.rng(909),COL=[0xb03030,0x2a4a8a,0xe0e0e0,0x202428,0x3a7a4a,0xd8a020,0x8a8f98,0x6a2a5a,0xc4c4c0],KIND=['citadine','berline','suv','citadine','berline','utilitaire'];let n=0;
  const doors=zones.filter(z=>z.porte).map(z=>z.porte);
  const spot=(x,z,ry,len)=>{if(Math.hypot(x+23.5,z-5.4)<8||(Math.abs(z-5.4)<3.6&&x>-32&&x<12)||!free(x,z,len?2.3:1,len?1:2.3,.2)) return;if(doors.some(p=>Math.hypot(p.x-x,p.z-z)<9)) return;
-  const k=pick(KIND);if(bakeCar({kind:k,color:pick(COL)},x,z,ry,'detail')){addCol(x,z,len?4.8:2.1,len?2.1:4.8);n++;}};
+  const spec=bakeVilleCar(pick(KIND),pick(COL),x,z,ry,rm);
+  if(spec){
+   /* collider exact : longueur et largeur du modèle, orientés selon la rue (la voiture est parallèle au trottoir ou perpendiculaire) */
+   const longueur=spec.L+.1,largeur=spec.W+.1;
+   addCol(x,z,len?longueur:largeur,len?largeur:longueur);
+   n++;}};
  for(const r of RZ) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*30+30){if(near(t,RX,20)||rm()<.45||n>=16) continue;spot(t,r+sd*5.55,sd>0?PI/2:-PI/2,1);}
  for(const r of RX) for(const sd of [-1,1]) for(let t=-250;t<=250;t+=rm()*40+40){if(near(t,RZ,20)||rm()<.5||n>=16) continue;spot(r+sd*5.55,t,sd<0?0:PI,0);}}
 
@@ -11755,7 +12806,14 @@ H.bakeCar=bakeCar;
   for(const s of [-1,1]){L.box(.07,.46,.5,s*.78,.23,0,0x2c3036);L.box(.07,.5,.05,s*.78,.65,-.22,0x2c3036);}};
  const bin=(x,z)=>{const p=det('plain');p.cyl(.26,.22,.85,10,x,.43,z,0x2f5a3a);p.cyl(.28,.28,.07,10,x,.88,z,0x1e3a26);};
  const sp=[[-52,-8.3,0],[-52,8.4,PI],[40,-8.3,0],[40,8.4,PI],[100,8.4,PI],[-8,-8.3,0],[-120,-8.3,0],[8,8.4,PI],[-100,141.7,0],[60,158.3,PI],[-60,-141.7,0],[100,-158.3,PI],[-141.7,-60,PI/2],[141.7,70,-PI/2],[8.3,-80,-PI/2],[-8.3,90,PI/2]];
- for(const [x,z,ry] of sp){if(!free(x,z,.9,.9,.1)) continue;bench(x,z,ry);bin(x+Math.cos(ry)*2.2,z-Math.sin(ry)*2.2);}
+ for(const [x,z,ry] of sp){
+  if(!free(x,z,.9,.9,.1)) continue;
+  bench(x,z,ry);
+  /* la poubelle se met à côté du banc, sur le trottoir : on essaie les quatre côtés et on garde le premier qui n'est pas sur une chaussée */
+  const candidats=[[x+2.2,z],[x-2.2,z],[x,z+2.2],[x,z-2.2]];
+  const surChaussee=(bx,bz)=>RX.some(r=>Math.abs(bx-r)<7.3)||RZ.some(r=>Math.abs(bz-r)<7.3);
+  const place=candidats.find(([bx,bz])=>!surChaussee(bx,bz));
+  if(place) bin(place[0],place[1]);}
  const ads=D.signMat(D.canvasTex(256,128,(x,w,h)=>{x.fillStyle='#fffbe6';x.fillRect(0,0,w,h);x.fillStyle='#c02a1a';x.fillRect(0,0,w,26);x.fillStyle='#fff';x.font='bold 18px Arial';x.textAlign='center';x.fillText('VENTE PRIVÉE',w/2,20);x.fillStyle='#222';x.font='bold 30px Arial';x.fillText('-50 %',w/2,72);x.font='14px Arial';x.fillText('Pièces auto · Pneus · Outillage',w/2,100);}));
  for(const [x,z,ry] of [[-50,-9.1,0],[38,9.2,PI],[-9.2,70,PI/2],[9.2,-90,-PI/2],[100,-9.1,0]]){
   const L=D.L(det('plain'),x,z,ry,0),gl=D.L(D.B('detail','glass'),x,z,ry,0);
@@ -11765,7 +12823,7 @@ H.bakeCar=bakeCar;
   const m=new T.Mesh(new T.PlaneGeometry(1.0,1.5),ads);const p=L.w(1.05,-.5+.03);m.position.set(p[0],1.3,p[1]);m.rotation.y=ry;ctx.scene.add(m);addCol(x,z,Math.abs(Math.cos(ry))>.5?3.6:1.8,Math.abs(Math.cos(ry))>.5?1.8:3.6);}
  // colonne à affiches
  const col=(x,z)=>{const p=det('plain');p.cyl(.62,.62,.19,14,x,.095,z,0x30363c); /* [textures] socle plus haut que le trottoir (0,15) : plus de face confondue */p.cyl(.55,.55,2.4,14,x,1.35,z,0x2f5a3a);p.cyl(.62,.5,.3,14,x,2.7,z,0x30363c);p.cyl(.3,.55,.5,14,x,3.0,z,0x2f5a3a);};
- col(-6.5,-8.6);col(8.2,98);}
+ col(-8.7,-8.6);col(8.2,98); /* [routes libres] la colonne est sur le trottoir (elle mordait sur l avenue à x = -6,5) */}
 
 /* ═══════ Immeubles ═══════ */
 const TINTS={plaster:[0xf0e2c4,0xe8cfa8,0xf2d8d0,0xd8e4ec,0xdde8d0,0xf4ecd8,0xe6c8a0,0xefe0e8],brick:[0xffffff,0xf0e0d8,0xd8c8c0,0xe8d0c0],stone:[0xffffff,0xf4eee4,0xe6e0d4]};
@@ -12221,7 +13279,7 @@ function other(z){
   for(const s of [-1,1]){Ls.cyl(.4,.42,5.4,14,s*2.4,2.7,2.0,0xefe9d8);Ls.box(1.1,.3,1.1,s*2.4,.15,2.0,0xd8d2c0);Ls.box(1.0,.3,1.0,s*2.4,5.5,2.0,0xd8d2c0);}
   Lb.box(6.6,.5,2.8,0,5.75,1.5,0xd8d2c0);Lc.box(7.2,.2,3.2,0,6.1,1.5,0xcfcab8);
   for(let i=0;i<3;i++) Lc.box(5.6+i*.4,.2,.6+i*.2,0,.1+i*.2,1.9+ (2-i)*.3+.4,0xbab6aa);
-  Lb.box(2.6,3.0,.2,0,1.5,.05,0x2f4a36);D.B('core','win').quad(1.0,2.4,.0,1.5,.2,ry,null,null);
+  Lb.box(2.6,3.0,.2,0,1.5,.05,0x2f4a36); /* [textures] une vitre perdue en coordonnées monde (0 ; 1,5 ; 0,2) flottait au milieu du carrefour central : supprimée */
   const dl=D.L(D.B('core','win'),z.door.x,z.door.z,ry,0);dl.quad(1.1,2.4,-.62,1.5,.2,null);dl.quad(1.1,2.4,.62,1.5,.2,null);
   for(const s of [-1,1]){const f=D.L(det('plain'),z.door.x,z.door.z,ry,0);f.cyl(.05,.05,7,6,s*6.5,3.5,1.6,0xc8ccd0);f.quad(1.5,1.0,s*6.5+.8,6.4,1.6,s>0?0x2a5db0:0xf2f2f2,null,0,true);}
   const bk=D.L(det('plain'),z.door.x,z.door.z,ry,0);for(const s of [-1,1]){bk.box(1.6,.4,.5,s*8.5,.25,1.2,0x7a5030);}
@@ -15566,8 +16624,8 @@ return api;})();
    tournent aux carrefours, freinent derrière une voiture plus lente, devant un piéton ou devant le joueur, et klaxonnent
    s'il les gêne ou les heurte.
 
-   Principe de performance : tout est dessiné avec des `InstancedMesh` (6 appels pour les piétons, 6 maillages de carrosserie
-   + roues + feux + halo des phares pour les voitures : une quinzaine d'appels de dessin en tout). Rien n'est simulé loin du
+   Principe de performance : tout est dessiné avec des `InstancedMesh` (6 appels pour les piétons, un maillage de carrosserie par
+   modèle de la flotte — 12 au plus, tirés du catalogue MWCARS, voir js/53c — + roues + feux + halo des phares pour les voitures). Rien n'est simulé loin du
    joueur : les piétons au-delà de 85 m et les voitures au-delà de 150 m sont retirés et réapparaissent près de lui, de
    préférence hors du champ de vision. Le nombre de PNJ suit la qualité graphique (MWD.Q.level) et l'heure (rares la nuit).
 
@@ -15635,24 +16693,6 @@ const ARCH={
  suv:{L:4.5,W:1.84,H:1.68,y0:.3,belt:1.08,zb0:-1.98,zb1:.85,zt0:-1.88,zt1:.2},
  van:{L:4.4,W:1.85,H:1.85,y0:.28,belt:1.0,cargo:.1,zb0:.1,zb1:1.3,zt0:.15,zt1:.85},
  coupe:{L:4.4,W:1.85,H:1.3,y0:.18,belt:.85,zb0:-1.2,zb1:.8,zt0:-.85,zt1:.1}};
-const ARCH_IDS=Object.keys(ARCH);
-function carGeo(a){
- const b=GB(),hw=a.W/2,lh=a.L/2;
- hexa(b,{y0:a.y0-.06,y1:a.y0+.05,wb:hw-.08,zb0:-lh+.12,zb1:lh-.12,cs:UNDER});
- if(a.cargo!=null){   /* utilitaire : caisse peinte derrière la cabine */
-  hexa(b,{y0:a.y0,y1:a.H-.04,wb:hw,wt:hw-.04,zb0:-lh,zb1:a.cargo+.05,cs:WHITE,ct:WHITE});
-  hexa(b,{y0:a.y0,y1:a.belt-.05,wb:hw,wt:hw-.03,zb0:a.cargo,zb1:lh,cs:WHITE,ct:WHITE});
- }else{
-  hexa(b,{y0:a.y0,y1:a.belt,wb:hw,wt:hw-.04,zb0:a.zb0-.2,zb1:a.zb1+.06,cs:WHITE,ct:WHITE});          /* flancs */
-  hexa(b,{y0:a.y0,y1:a.belt-.1,wb:hw,wt:hw-.07,zb0:a.zb1,zb1:lh,cs:WHITE,ct:WHITE});                  /* capot */
-  hexa(b,{y0:a.y0,y1:a.belt-.05,wb:hw,wt:hw-.06,zb0:-lh,zb1:a.zb0-.14,cs:WHITE,ct:WHITE});            /* malle */
- }
- /* habitacle vitré, toit peint */
- hexa(b,{y0:a.belt-.02,y1:a.H,wb:hw-.1,wt:hw-.2,zb0:a.zb0,zb1:a.zb1,zt0:a.zt0,zt1:a.zt1,cs:GLASS,ct:WHITE});
- /* pare-chocs */
- hexa(b,{y0:a.y0,y1:a.y0+.26,wb:hw-.02,zb0:lh-.2,zb1:lh+.04,cs:DARK});
- hexa(b,{y0:a.y0,y1:a.y0+.26,wb:hw-.02,zb0:-lh-.04,zb1:-lh+.2,cs:DARK});
- return toGeo(b);}
 function wheelGeo(){
  const b=GB(),tire=linA(0x141416),hub=linA(0xb4b8be),spoke=linA(0x4a4e54);
  const N=12,R=.3,Wd=.22,Rh=.17;
@@ -15753,15 +16793,38 @@ function pickCarModels(){
   for(const c of MWCARS.list){
    const body=c.body,arch=body==='van'?'van':body==='suv'?'suv':body==='wagon'?'wagon':body==='sedan'?'sedan':(body==='coupe'||body==='mid'||body==='rear')?'coupe':'hatch';
    const w=c.cat==='pop'?4:c.cat==='gen'?3:c.cat==='prem'?1.5:.5;
-   out.push({id:c.id,arch,L:c.L||ARCH[arch].L,W:c.W||ARCH[arch].W,H:c.H||ARCH[arch].H,WB:c.WB||(c.L||4)*.62,w});}
+   out.push({id:c.id,arch,L:c.L||ARCH[arch].L,W:c.W||ARCH[arch].W,H:c.H||ARCH[arch].H,WB:c.WB||(c.L||4)*.62,w,mass:c.mass||1250});}
  }catch(e){}
- if(!out.length) for(const [arch,w] of [['hatch',5],['sedan',3],['suv',2],['van',1],['wagon',1],['coupe',.5]]){const a=ARCH[arch];out.push({id:arch,arch,L:a.L,W:a.W,H:a.H,WB:a.L*.62,w});}
+ if(!out.length) for(const [arch,w] of [['hatch',5],['sedan',3],['suv',2],['van',1],['wagon',1],['coupe',.5]]){const a=ARCH[arch];out.push({id:arch,arch,L:a.L,W:a.W,H:a.H,WB:a.L*.62,w,mass:1250});}
  return out;}
-function pickModel(){let t=0;for(const m of carModels) t+=m.w;let r=rnd()*t;for(const m of carModels){r-=m.w;if(r<=0) return m;}return carModels[0];}
+/* Flotte de la circulation : au plus FLOTTE modèles du catalogue (un maillage instancié par modèle, donc un appel de dessin chacun). */
+const FLOTTE=12;
+let fleet=[];
+function choisirFlotte(tous){
+ const restes=tous.slice(),choisis=[];
+ while(choisis.length<FLOTTE&&restes.length){
+  let total=0;
+  for(const m of restes) total+=m.w;
+  let tirage=rnd()*total;
+  let k=0;
+  for(;k<restes.length-1;k++){
+   tirage-=restes[k].w;
+   if(tirage<=0) break;}
+  choisis.push(restes.splice(k,1)[0]);}
+ return choisis;}
+function pickModel(){
+ let t=0;
+ for(const m of fleet) t+=m.w;
+ let r=rnd()*t;
+ for(const m of fleet){
+  r-=m.w;
+  if(r<=0) return m;}
+ return fleet[0];}
 
 function init(){
  if(inited) return;inited=true;
  carModels=pickCarModels();
+ fleet=choisirFlotte(carModels);
  try{tlA=MWD.mat('tlA');tlB=MWD.mat('tlB');if(!tlA.map||!tlB.map){tlA=tlB=null;}}catch(e){tlA=tlB=null;}
  G=new T.Group();G.name='vie';
  /* piétons : 6 maillages */
@@ -15772,14 +16835,17 @@ function init(){
   arms:mk(box(1,1,1,-.5),matP,MAXP*2),head:mk(box(1,1,1),matP,MAXP),hair:mk(box(1,1,1),matP,MAXP)};
  for(const k in pedM) G.add(pedM[k]);
  /* voitures : un maillage de carrosserie par gabarit, roues, feux, halo des phares */
- const matC=lm({vertexColors:true});
+ const matC=MWVC.material();
  carM={body:{},wheels:mk(wheelGeo(),lm({vertexColors:true}),MAXC*4),lights:null,glow:null};
- for(const id of ARCH_IDS) carM.body[id]=mk(carGeo(ARCH[id]),matC,MAXC);
+ for(const m of fleet){
+  const gabarit=MWVC.spec(m.id);
+  m.spec=gabarit;
+  carM.body[m.id]=mk(MWVC.merged(gabarit),matC,MAXC);}
  const matL=new T.MeshBasicMaterial({color:0xffffff});matL.userData={lin:1};
  carM.lights=mk(new T.BoxGeometry(1,1,1),matL,MAXC*4);
  const gt=glowTex(),matG=new T.MeshBasicMaterial({map:gt,transparent:true,blending:T.AdditiveBlending,depthWrite:false,fog:false,opacity:0});matG.userData={lin:1};
  carM.glow=mk(new T.PlaneGeometry(1,1).rotateX(-PI/2),matG,MAXC);carM.glow.renderOrder=3;carM.glow.visible=false;
- for(const id of ARCH_IDS) G.add(carM.body[id]);
+ for(const id in carM.body) G.add(carM.body[id]);
  G.add(carM.wheels,carM.lights,carM.glow);
  MW.scene.add(G);
  for(let i=0;i<MAXP;i++) peds.push({i,on:false,x:0,z:0,ry:0,state:'walk',ph:0,v:1.3,t:0,lat:0,timer:0});
@@ -15929,17 +16995,22 @@ function nextCross(c){
  for(let k=0;k<3;k++){const dd=c.dir*(co[k]-c.s);if(dd>0&&(!best||dd<best.dd)) best={k,c:co[k],dd};}
  return best;}
 function offCar(c){c.on=false;c.keep=false;c.wall[0]=c.wall[1]=1e6;c.wall[2]=c.wall[3]=1e6+1;
- for(const id of ARCH_IDS) zeroM(carM.body[id].instanceMatrix.array,c.i);
+ for(const id in carM.body) zeroM(carM.body[id].instanceMatrix.array,c.i);
  for(let j=0;j<4;j++){zeroM(carM.wheels.instanceMatrix.array,c.i*4+j);zeroM(carM.lights.instanceMatrix.array,c.i*4+j);}
  zeroM(carM.glow.instanceMatrix.array,c.i);}
 function setupCar(c){
- const m=pickModel();c.model=m;c.arch=m.arch;const a=ARCH[m.arch];
- c.L=m.L;c.W=m.W;c.sx=m.W/a.W;c.sy=m.H/a.H;c.sz=m.L/a.L;c.wr=m.arch==='suv'?.35:m.arch==='van'?.33:m.arch==='coupe'?.32:.3;
+ const m=pickModel();
+ c.model=m;
+ c.L=m.L;
+ c.W=m.W;
+ c.wr=m.spec.wheelR;
+ c.lightY=.2+(m.H-.2)*.34;
  c.vmax=m.arch==='van'?rr(9,11.5):rr(10,13.5);
- const col=m.arch==='van'?pick(VAN_COL):pick(CAR_COL);
- for(const id of ARCH_IDS) if(id!==c.arch) zeroM(carM.body[id].instanceMatrix.array,c.i);
- setCol(carM.body[c.arch],c.i,col);
- c.v=0;c.state='road';c.lo=LANE;c.lot=LANE;c.plan=null;c.planK=-1;c.blockT=0;c.ghost=0;c.hold=0;c.hornT=0;c.byp=false;c.yieldT=0;c.brake=false;c.lc=-1;c.roll=0;c.why='';}
+ const couleur=m.arch==='van'?pick(VAN_COL):pick(CAR_COL);
+ for(const id in carM.body) zeroM(carM.body[id].instanceMatrix.array,c.i);
+ setCol(carM.body[m.id],c.i,couleur);
+ c.v=0;c.state='road';c.lo=LANE;c.lot=LANE;c.plan=null;c.planK=-1;c.blockT=0;c.ghost=0;c.hold=0;c.hornT=0;c.byp=false;c.yieldT=0;
+ c.brake=false;c.lc=-1;c.roll=0;c.why='';}
 function spawnCar(c,free){
  for(let n=0;n<40;n++){
   const o=rnd()<.5?0:1,ax=(rnd()*3)|0,dir=rnd()<.5?1:-1,s=rr(-272,272),co=o===0?RX:RZ;
@@ -15960,8 +17031,11 @@ let CIR=[];
 function buildCircles(){
  CIR.length=0;
  if(!player.inCar) CIR.push([player.x,player.z,.5,0,0,2,null]);
- if(pcar){const ca=Math.sin(pcar.ry),cb=Math.cos(pcar.ry),vx=ca*pcar.speed,vz=cb*pcar.speed;
-  for(const o of [-1.1,0,1.1]) CIR.push([pcar.x+ca*o,pcar.z+cb*o,.9,vx,vz,3,null]);}
+ if(pcar){
+  /* la voiture du joueur : trois cercles qui recouvrent son rectangle réel (longueur × largeur du modèle) */
+  const ca=Math.sin(pcar.ry),cb=Math.cos(pcar.ry),vx=ca*pcar.speed,vz=cb*pcar.speed;
+  const rayon=(pcar.W||1.8)/2,e=Math.max(0,(pcar.L||4)/2-rayon);
+  for(const o of [-e,0,e]) CIR.push([pcar.x+ca*o,pcar.z+cb*o,rayon,vx,vz,3,null]);}
  for(const p of peds) if(p.on&&Math.abs(p.x-player.x)<R_CAR&&Math.abs(p.z-player.z)<R_CAR) CIR.push([p.x,p.z,.38,Math.sin(p.ry)*p.v,Math.cos(p.ry)*p.v,1,p]);
  for(const c of cars) if(c.on){const ca=Math.sin(c.ry),cb=Math.cos(c.ry),e=c.L/2-c.W/2-.1;
   for(const o of [-e,0,e]) CIR.push([c.x+ca*o,c.z+cb*o,c.W/2+.05,ca*c.v,cb*c.v,0,c]);}}
@@ -16071,12 +17145,12 @@ const leftClear=c=>{for(const o of cars) if(o.on&&o!==c&&o.o===c.o&&o.ax===c.ax&
 
 function writeCar(c){
  if(!c.on) return;
- const a=c.arch,im=carM.body[a],yaw=c.ry,ca=Math.cos(yaw),sa=Math.sin(yaw);
- setM(im.instanceMatrix.array,c.i,c.x,0,c.z,yaw,0,c.sx,c.sy,c.sz);
+ const im=carM.body[c.model.id],yaw=c.ry,ca=Math.cos(yaw),sa=Math.sin(yaw);
+ setM(im.instanceMatrix.array,c.i,c.x,0,c.z,yaw,0,1,1,1);
  const hw=c.W/2-.13,hl=c.model.WB/2,wy=c.wr,wsc=c.wr/.3,roll=c.roll%(PI*2);
  let j=0;for(const sx of [-1,1]) for(const sz of [-1,1]){const ox=sx*hw,oz=sz*hl;
   setM(carM.wheels.instanceMatrix.array,c.i*4+j,c.x+ca*ox+sa*oz,wy,c.z-sa*ox+ca*oz,yaw,roll,wsc,wsc,wsc);j++;}
- const lh=.7*Math.max(.9,c.sy),L2=c.L/2;
+ const lh=c.lightY,L2=c.L/2;
  const place=(k,ox,oy,oz,sxx,syy)=>setM(carM.lights.instanceMatrix.array,c.i*4+k,c.x+ca*ox+sa*oz,oy,c.z-sa*ox+ca*oz,yaw,0,sxx,syy,.07);
  place(0,-c.W*.34,lh,L2+.015,.3,.13);place(1,c.W*.34,lh,L2+.015,.3,.13);place(2,-c.W*.36,lh+.06,-L2-.015,.28,.12);place(3,c.W*.36,lh+.06,-L2-.015,.28,.12);
  if(night>.04) setM(carM.glow.instanceMatrix.array,c.i,c.x+sa*(L2+3.9),.085,c.z+ca*(L2+3.9),yaw,0,3.8,1,8.2);
@@ -16105,14 +17179,30 @@ function reconcile(){
  budget=3;
  if(nc<wantC) for(const c of cars){if(budget<=0||nc>=wantC) break;if(!c.on&&spawnCar(c,false)){nc++;budget--;}}
  else if(nc>wantC) for(const c of cars){if(nc<=wantC) break;if(c.on&&!c.keep&&(!visible(c.x,c.z,.45)||Math.hypot(c.x-player.x,c.z-player.z)>60)){offCar(c);nc--;}}}
+/* Choc avec la voiture du joueur : l'impulsion est répartie selon les deux masses (js/40p, MWPHYS.chocVoiture) ;
+   la voiture de la rue, si elle est plus légère, est davantage repoussée (déplacement ≈ variation de vitesse × 0,12 s, au plus 1 m). */
+let vitesseAvant=0;
+function repousserVoiture(c){
+ const etat=MWPHYS.state(pcar.x,pcar.z,pcar.ry);
+ etat.u=Math.sign(pcar.speed||vitesseAvant)*Math.max(Math.abs(pcar.speed),Math.abs(vitesseAvant));
+ const ca=Math.sin(c.ry),cb=Math.cos(c.ry);
+ const res=MWPHYS.chocVoiture(etat,MW.carSpec(),{x:c.x,z:c.z,vx:ca*c.v,vz:cb*c.v,m:c.model.mass});
+ if(!res) return;
+ const dx=clamp(res.dvx*.12,-1,1),dz=clamp(res.dvz*.12,-1,1);
+ c.x+=dx;c.z+=dz;}
 function hitCheck(){
  if(!pcar) return;
  const ca=Math.sin(pcar.ry),cb=Math.cos(pcar.ry);
  for(const c of cars) if(c.on){
   if(Math.abs(c.x-pcar.x)>5||Math.abs(c.z-pcar.z)>5) continue;
   let hit=false;
-  for(const o of [-1.1,1.1]){const px=pcar.x+ca*o,pz=pcar.z+cb*o,w=c.wall,cx=clamp(px,w[0],w[2]),cz=clamp(pz,w[1],w[3]);if(Math.hypot(px-cx,pz-cz)<1.22) hit=true;}
-  if(hit){c.hold=Math.max(c.hold,2.5);c.v=0;
+  const rayon=(pcar.W||1.8)/2,e=Math.max(0,(pcar.L||4)/2-rayon);
+  for(const o of [-e,0,e]){
+   const px=pcar.x+ca*o,pz=pcar.z+cb*o,w=c.wall,cx=clamp(px,w[0],w[2]),cz=clamp(pz,w[1],w[3]);
+   if(Math.hypot(px-cx,pz-cz)<rayon+.05) hit=true;}
+  if(hit){
+   repousserVoiture(c);
+   c.hold=Math.max(c.hold,2.5);c.v=0;
    if(Math.abs(pcar.speed)>1.2&&tNow-hitT>8){hitT=tNow;honk(c.x,c.z,true);try{MW.toast('Vous avez heurté une voiture : le conducteur klaxonne.','warn');}catch(e){}}
    else if(tNow-hitT>2.5) honk(c.x,c.z);}}}
 function onTick(dt){
@@ -16121,6 +17211,7 @@ function onTick(dt){
  try{
   init();
   tNow+=dt;sigClock+=dt;
+  vitesseAvant=pcar?pcar.speed:0;
   player=MW.player();pcar=MW.playerCar();
   MW.cam.getWorldDirection(camDir);camDir.y=0;if(camDir.lengthSq()>1e-6) camDir.normalize();camPos.copy(MW.cam.position);
   hour=MW.hourF();night=nightF(hour);
@@ -16135,7 +17226,7 @@ function onTick(dt){
   for(const c of cars) if(c.on){updCar(c,dt);if(c.on) writeCar(c);}
   hitCheck();
   for(const k in pedM) pedM[k].instanceMatrix.needsUpdate=true;
-  for(const id of ARCH_IDS) carM.body[id].instanceMatrix.needsUpdate=true;
+  for(const id in carM.body) carM.body[id].instanceMatrix.needsUpdate=true;
   carM.wheels.instanceMatrix.needsUpdate=true;carM.lights.instanceMatrix.needsUpdate=true;carM.glow.instanceMatrix.needsUpdate=true;
  }catch(e){console.error('Vie de la ville : '+(e&&e.stack?e.stack:e));}}
 MW.on('tick',onTick);
@@ -16159,6 +17250,7 @@ const api={
  sig:()=>sigS.slice(),
  density:h=>[interp(PD,h),interp(CD,h)],
  dump:()=>({g:!!G,tl:!!tlA})};
+api.fleet=()=>fleet.map(m=>({id:m.id,L:m.L,W:m.W,H:m.H,arch:m.arch}));   /* modèles de la circulation (test) */
 window.__mwvie=api;
 return api;
 })();
@@ -17691,7 +18783,9 @@ function refreshDrv(){
  if(pn){eng=pn.eng;vm=Math.min(vm,22*.75);}
  if(t.ban[key]) eng=0;
  const Reff=relEff(key);if(Reff<30&&!pn) eng*=clamp(.6+Reff/75,.6,1);
- D.vm=vm;D.acc=b.acc;D.brk=b.brk;D.turn=b.turn;D.eng=eng;}
+ D.vm=vm;D.acc=b.acc;D.brk=b.brk;D.turn=b.turn;D.eng=eng;
+ /* [physique] js/40p : masse réelle (allègement compris), puissance, adhérence des pneus, autobloquant et garde au sol alimentent le modèle de conduite */
+ D.mass=st.mass;D.ch=st.ch;D.grip=st.grip;D.trac=st.fx.trac||0;D.gc=st.gc;}
 api.refreshDrv=refreshDrv;
 api.drive=()=>Object.assign({},MW.drv);
 api.status=()=>stats(modelOfCur(),cfgOf(keyOf()));
@@ -18531,8 +19625,24 @@ function vanStep(){if(!MW.S||!MW.scene) return;const t=absT();let best=null;
  for(const c of D().cmd) if(c.due-20<=t&&c.due>t-1){const z=MW.zone(c.lieu);if(z&&z.door&&(!best||c.due<best.due)) best={c,z};}
  if(best&&!van) van=buildVan();if(!van) return;
  if(!best){van.visible=false;return;}
- const z=best.z,out={x:-z.n.x,z:-z.n.z},lat={x:Math.abs(z.n.z),z:Math.abs(z.n.x)};
- van.position.set(z.door.x+out.x*8+lat.x*7,0,z.door.z+out.z*8+lat.z*7);van.rotation.y=Math.atan2(lat.x,lat.z);van.visible=true;}
+ const pos=api.vanSpot(best.z.id);
+ van.position.set(pos.x,0,pos.z);
+ van.rotation.y=pos.ry;
+ van.visible=true;}
+/* Emplacement de la camionnette : dans la file de stationnement de la rue la plus proche du lieu (à 5,55 m de l'axe, le long du trottoir),
+   décalée de 7 m le long de la façade ; jamais au milieu de la chaussée ni dans un carrefour. Rectangle occupé : 5,4 × 2,2 m. */
+api.vanSpot=function(lieu){
+ const z=MW.zone(lieu),ROUTES=[-150,0,150];
+ if(!z||!z.door) return null;
+ const lat={x:Math.abs(z.n.z),z:Math.abs(z.n.x)};
+ let meilleur=null;
+ for(const r of ROUTES){
+  const dz=z.door.z-r,dx=z.door.x-r;
+  if(!meilleur||Math.abs(dz)<meilleur.d) meilleur={d:Math.abs(dz),horiz:true,r,cote:dz>=0?1:-1};
+  if(Math.abs(dx)<meilleur.d) meilleur={d:Math.abs(dx),horiz:false,r,cote:dx>=0?1:-1};}
+ const x=meilleur.horiz?z.door.x+lat.x*7:meilleur.r+meilleur.cote*5.55;
+ const zz=meilleur.horiz?meilleur.r+meilleur.cote*5.55:z.door.z+lat.z*7;
+ return {x,z:zz,ry:meilleur.horiz?Math.PI/2:0,longueur:5.4,largeur:2.2,horiz:meilleur.horiz};};
 /* ── interface : site de commande ── */
 const btn=(a,t,cls,dis)=>`<button type="button" class="btn sm${cls?' '+cls:''}" data-mw="${a}"${dis?' disabled':''}>${t}</button>`;
 let cart={},mode='next',tab='tout',cur=null;
