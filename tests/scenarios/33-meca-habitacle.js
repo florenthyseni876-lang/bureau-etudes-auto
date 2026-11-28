@@ -12,7 +12,7 @@ module.exports = async function mecaHabitacle(page, env) {
   await attendre(300);
   const e = (f, a) => page.evaluate(f, a);
   await e(() => { MWC.hire('patron'); __mw.S.min = 600; __mw.S.flags.coinVu = true; __mwj.clear(); __mw.S.jobs.next = 1e12;
-    MWG.set({ aide: 'on', classic: false });
+    MWG.set({ aide: 'on', classic: false, zoom: false }); // ce scénario teste le geste direct (maintenir E) : pas de vue rapprochée
     for (const k of ['entretien', 'moteur', 'freinage', 'liaison', 'electricite']) __mw.S.xp[k] = 2000; });
 
   const accueillir = (tpl, mdl) => e(([tpl, mdl]) => {

@@ -73,7 +73,7 @@ module.exports = async function mecaGestes(page, env) {
   await pres();
   const aide0 = await e(() => MWG.nextHint());
   verifier(aide0 && aide0.key === 'raise', `l'aide n'indique pas de lever le pont d'abord (${JSON.stringify(aide0)})`);
-  await e(() => MWG.set({ aide: 'off' }));
+  await e(() => MWG.set({ aide: 'off', zoom: false })); // geste direct (maintenir E) : la vue rapprochée est testée par le scénario 46
   verifier(!(await e(() => MWG.nextHint())), "l'aide désactivée indique encore une étape");
   await e(() => MWG.set({ aide: 'on' }));
   verifier(!!(await e(() => MWG.nextHint())), "l'aide réactivée n'indique rien");
