@@ -264,10 +264,11 @@ function merge(list){
  const o=new T.BufferGeometry();o.setAttribute('position',new T.Float32BufferAttribute(pos,3));o.setAttribute('normal',new T.Float32BufferAttribute(nor,3));
  o.setIndex(new T.BufferAttribute(off>65000?new Uint32Array(idx):new Uint16Array(idx),1));return o;}
 /* idem, avec couleur par sommet : list = [{g, color (hex), rough, metal}] ; regroupe par classe de rugosité et de métal, d'où très peu de maillages */
-function mergeVC(list,mul){
+/* groupes de pièces regroupés par rugosité / métal ; seul=true : un seul lot (petites pièces amovibles : un appel de dessin au lieu de plusieurs) */
+function mergeVC(list,mul,seul){
  const cls=new Map(),c=new T.Color();
  for(const it of list){
-  const r=it.rough==null?.6:it.rough,m=it.metal||0,rk=r<.5?.5:r<.7?.6:.8,mk=m>=.6?.2:m>=.3?.1:.02,key=rk+'|'+mk;
+  const r=it.rough==null?.6:it.rough,m=it.metal||0,rk=seul?.6:r<.5?.5:r<.7?.6:.8,mk=seul?.08:m>=.6?.2:m>=.3?.1:.02,key=rk+'|'+mk;
   let b=cls.get(key);if(!b){b={rough:rk,metal:mk,list:[]};cls.set(key,b);}
   const g=it.g,n=g.attributes.position.count,col=new Float32Array(n*3);c.setHex(it.color).multiplyScalar(mul||1);
   for(let i=0;i<n;i++){col[3*i]=c.r;col[3*i+1]=c.g;col[3*i+2]=c.b;}
@@ -725,7 +726,7 @@ function* engineJob(car){
   const m=o.material,g=o.geometry.clone();g.applyMatrix4(o.matrixWorld);if(!g.attributes.normal) g.computeVertexNormals();items.push({g,color:m.color.getHex(),rough:m.roughness,metal:m.metalness});});
  const buckets=mergeVC(items,.55),bb=new T.Box3();
  for(const b of buckets){b.g.computeBoundingBox();bb.union(b.g.boundingBox);}
- for(const k in sep) sep[k]=mergeVC(sep[k],.55);
+ for(const k in sep) sep[k]=mergeVC(sep[k],.55,true);
  root.traverse(o=>{if(o.geometry) o.geometry.dispose();});
  c=ECACHE[e.id]={buckets,bb,anchors,cover,plenum,refs:1,n:car.eng.n,lay:car.eng.lay,sep,coilPts,spots};engBuilt++;return c;}
 /* version synchrone : termine le travail en cours pour ce moteur (préparé à l'avance si possible, voir PREP) */
@@ -942,7 +943,19 @@ MW.carMesh=function(o){
 try{const D=window.__mwj&&window.__mwj.noirData&&window.__mwj.noirData.MODELS;
  if(D) for(const z of ['garage1','garage2','garage3','garage4']){if(!D[z]) D[z]=[];D[z].length=0;for(const c of pool(z)) D[z].push(tuple(c));}}catch(err){console.error('MWCARS.MODELS',err);}
 let nf0=0;
-MW.on('tick',dt=>{if(++nf0%3===0) track();pumpPrep(dt);});
+/* niveau de détail des voitures : au-delà de 28 m de la caméra, les freins (cachés derrière les jantes) ne sont plus dessinés ;
+   une voiture dont le capot est ouvert (moteur de baie) garde tout. */
+const LOD_D2=28*28;
+function lodCars(){
+ const cam=MW.cam,sc=MW.scene;if(!cam||!sc) return;
+ for(const g of sc.children){
+  const u=g.userData;if(!u||!u.brakes||!u.mdl) continue;
+  const dx=g.position.x-cam.position.x,dz=g.position.z-cam.position.z,far=!u.bay&&dx*dx+dz*dz>LOD_D2;
+  if(u.lodFar===far) continue;u.lodFar=far;
+  /* on ne rend visibles que les freins que ce niveau de détail a lui-même cachés (js/46 en masque d'autres lors des gestes) */
+  if(far){u.lodHid=[];for(const k in u.brakes){const b=u.brakes[k];if(b&&b.visible){b.visible=false;u.lodHid.push(b);}}}
+  else if(u.lodHid){for(const b of u.lodHid) b.visible=true;u.lodHid=null;}}}
+MW.on('tick',dt=>{if(++nf0%3===0) track();if(nf0%6===0) lodCars();pumpPrep(dt);});
 MW.on('minute',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 MW.on('start',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 

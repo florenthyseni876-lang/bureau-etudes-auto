@@ -24,24 +24,41 @@ module.exports = async function mecaPerf(page, env) {
 
   // instrumentation : durée de chaque image (rappel de requestAnimationFrame) et durée de renderer.render
   await e(() => {
-    const P = window.__perf = { f: [], r: 0, n: 0 };
+    const P = window.__perf = { f: [], r: 0, n: 0, c: 0, t: 0, cmax: 0, tmax: 0 };
     const raf = window.requestAnimationFrame.bind(window);
     window.requestAnimationFrame = cb => raf(t => { const a = performance.now(); cb(t); P.f.push(performance.now() - a); });
     const R = __mw.renderer(), rr = R.render.bind(R);
-    R.render = (s, c) => { const a = performance.now(); rr(s, c); P.r += performance.now() - a; P.n++; };
+    R.render = (s, c) => {
+      const a = performance.now(); rr(s, c); P.r += performance.now() - a; P.n++;
+      P.s = s; P.cam = c;
+      const i = R.info.render; P.c += i.calls; P.t += i.triangles; P.cmax = Math.max(P.cmax, i.calls); P.tmax = Math.max(P.tmax, i.triangles);
+    };
   });
 
   // lit les mesures accumulées depuis la dernière remise à zéro
+  // détail par groupe de la scène (PERF_DETAIL=1) : maillages visibles dans le champ, par groupe de premier niveau
+  const detail = () => e(() => {
+    const P = window.__perf, fr = new THREE.Frustum(), m = new THREE.Matrix4(), top = {};
+    P.cam.updateMatrixWorld(); m.multiplyMatrices(P.cam.projectionMatrix, P.cam.matrixWorldInverse); fr.setFromProjectionMatrix(m);
+    P.s.traverse(o => {
+      if (!o.isMesh && !o.isLine) return;
+      let v = true, p = o, t = o; while (p) { if (!p.visible) v = false; if (p.parent === P.s) t = p; p = p.parent; }
+      if (!v) return; const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere();
+      if (o.frustumCulled && !fr.intersectsSphere(g.boundingSphere.clone().applyMatrix4(o.matrixWorld))) return;
+      const k = /^car_/.test(t.name) ? 'voiture' : (t.name || t.type); top[k] = (top[k] || 0) + 1;
+    });
+    return Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 9).map(x => x.join('=')).join(' ');
+  });
   const lire = (nom) => e((nom) => {
     const P = window.__perf, f = P.f.slice().sort((a, b) => a - b), n = f.length, s = f.reduce((a, b) => a + b, 0), info = __mw.renderer().info.render;
     return {
       nom, images: n, ips: +(n / ((performance.now() - P.t0) / 1000)).toFixed(1), msImage: +(s / Math.max(1, n)).toFixed(1),
       p95: +(f[Math.floor(n * .95)] || 0).toFixed(1), max: +(f[n - 1] || 0).toFixed(1), plus50: f.filter(x => x > 50).length,
       msRendu: +(P.r / Math.max(1, n)).toFixed(1), msLogique: +((s - P.r) / Math.max(1, n)).toFixed(1),
-      appels: info.calls, triangles: info.triangles,
+      appels: Math.round(P.c / Math.max(1, P.n)), appelsMax: P.cmax, triangles: Math.round(P.t / Math.max(1, P.n)), trianglesMax: P.tmax,
     };
   }, nom);
-  const raz = () => e(() => { const P = window.__perf; P.f.length = 0; P.r = 0; P.n = 0; P.t0 = performance.now(); });
+  const raz = () => e(() => { const P = window.__perf; P.f.length = 0; P.r = 0; P.n = 0; P.c = 0; P.t = 0; P.cmax = 0; P.tmax = 0; P.t0 = performance.now(); });
 
   // met en place la situation, laisse la scène se stabiliser, puis mesure
   const mesure = async (nom, place, ms) => {
@@ -49,7 +66,9 @@ module.exports = async function mecaPerf(page, env) {
     await attendre(1500);
     await raz();
     await attendre(ms);
-    return lire(nom);
+    const r = await lire(nom);
+    if (process.env.PERF_DETAIL) r.detail = await detail();
+    return r;
   };
 
   // le garage : une voiture sur le premier pont, le joueur devant, capot fermé
@@ -84,7 +103,9 @@ module.exports = async function mecaPerf(page, env) {
     await e(() => { __mwj.clear(); });
     await e(garage);
     await attendre(1500);
-    await e(() => __mwcars.prechauffer());
+    await e(() => window.__mwcars && __mwcars.prechauffer && __mwcars.prechauffer());
+    await attendre(900);
+    await e(() => window.__mwcars && __mwcars.prechauffer && __mwcars.prechauffer());
     await attendre(500);
     await raz();
     await attendre(ms);
@@ -130,7 +151,7 @@ module.exports = async function mecaPerf(page, env) {
   }
 
   // table lisible, renvoyée aussi en cas d'échec pour garder les chiffres
-  const ligne = r => `${r.nom} : ${r.msImage} ms/image (rendu ${r.msRendu}, logique ${r.msLogique}, p95 ${r.p95}, max ${r.max}), ${r.ips} i/s, ${r.appels} appels, ${Math.round(r.triangles / 1000)} k triangles`;
+  const ligne = r => `${r.nom} : ${r.msImage} ms/image (rendu ${r.msRendu}, logique ${r.msLogique}, p95 ${r.p95}, max ${r.max}), ${r.ips} i/s, ${r.appels} appels (max ${r.appelsMax}), ${Math.round(r.triangles / 1000)} k triangles (max ${Math.round(r.trianglesMax / 1000)} k)${r.detail ? ' [' + r.detail + ']' : ''}`;
   const table = res.map(ligne).join(' | ') + ' || PICS À L\'OUVERTURE : ' + pics.map(p => `${p.nom} max ${p.max} ms (${p.plus50} images > 50 ms)`).join(' ; ');
 
   // PERF_SORTIE=fichier : écrit la table complète (le lanceur coupe les messages d'échec)
@@ -138,12 +159,12 @@ module.exports = async function mecaPerf(page, env) {
   const echecs = [];
   for (const r of res) {
     if (!(r.images > 0)) echecs.push(`aucune image mesurée (${r.nom})`);
-    if (!(r.appels < SEUIL_APPELS)) echecs.push(`trop d'appels de dessin (${r.nom}) : ${r.appels}`);
+    if (!(r.appelsMax < SEUIL_APPELS)) echecs.push(`trop d'appels de dessin (${r.nom}) : ${r.appelsMax} au plus, ${r.appels} en moyenne`);
   }
   for (const niv of ['basse', 'moyenne', 'haute']) {
     const f = res.find(r => r.nom === niv + ' garage capot fermé'), o = res.find(r => r.nom === niv + ' garage capot ouvert');
     if (f && o && o.msImage > f.msImage * RATIO_MAX + 1) echecs.push(`capot ouvert trop lent en ${niv} : ${o.msImage} ms contre ${f.msImage} ms capot fermé`);
-    if (o && f && o.appels > f.appels + 90) echecs.push(`capot ouvert : ${o.appels - f.appels} appels de dessin de plus en ${niv}`);
+    if (o && f && o.appels > f.appels + 90) echecs.push(`capot ouvert : ${o.appelsMax - f.appelsMax} appels de dessin de plus en ${niv}`);
   }
   // le pic n'est contrôlé que si le rendu n'est pas logiciel (sur le rendu logiciel toute image est lente)
   const logiciel = await e(() => MWD.Q.soft);

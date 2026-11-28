@@ -270,7 +270,7 @@ const BATCH=new Map(),CELL=130,CHUNK_MIN=12000;
 D.B=(layer,mat)=>{const k=layer+':'+mat;let b=BATCH.get(k);if(!b){b=new Batch(k,D.mat(mat),layer,true);BATCH.set(k,b);}return b;};
 function meshOf(b,c){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(c.p,3));g.setAttribute('normal',new T.Float32BufferAttribute(c.n,3));
  g.setAttribute('uv',new T.Float32BufferAttribute(c.u,2));g.setAttribute('color',new T.Float32BufferAttribute(c.c,3));g.setIndex(c.i);g.computeBoundingSphere();
- const m=new T.Mesh(g,b.mat);m.name=b.key;m.castShadow=!!b.mat.userData.cast&&b.layer!=='far';m.receiveShadow=!!b.mat.userData.recv;
+ const m=new T.Mesh(g,b.mat);m.name=b.key;m.castShadow=!!b.mat.userData.cast&&(b.layer==='core'||b.key==='detail:car'||b.key.slice(0,4)==='dyn:');/* le petit détail et le lointain ne projettent pas d'ombre : la passe d'ombres reste légère */m.receiveShadow=!!b.mat.userData.recv;
  if(b.mat.transparent) m.renderOrder=3;D.tris+=c.i.length/3;c.p=c.n=c.u=c.c=c.i=[];return m;}
 /* un lot léger (< CHUNK_MIN triangles) reste d'un seul tenant : plus d'appels de dessin que de gain d'écartement sinon */
 const meshesOf=b=>{const cs=[...b.cells.values()].filter(c=>c.p.length),out=[];let tr=0;for(const c of cs) tr+=c.i.length/3;
@@ -349,7 +349,7 @@ D.renderer=R=>{RN=R;try{const gl=R.getContext(),e=gl.getExtension('WEBGL_debug_r
  R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1;
  R.shadowMap.enabled=true;R.shadowMap.type=T.PCFShadowMap;};
 const sunDir=new T.Vector3(),moonDir=new T.Vector3(),tmpC=new T.Color(),tmpC2=new T.Color(),lastTgt=new T.Vector3(1e9,0,1e9);
-let parkT=0,shT=0,TL={A:null,B:null},clock=0,lampMat=null,glowMat=null,zonesG=[];
+let detT=0,parkT=0,shT=0,TL={A:null,B:null},clock=0,lampMat=null,glowMat=null,zonesG=[];
 D.registerTL=(a,b)=>{TL.A=a;TL.B=b;};
 D.frame=(dt,t,h,P,quick)=>{
  if(!CX) return;
@@ -395,6 +395,9 @@ D.frame=(dt,t,h,P,quick)=>{
  fill.intensity=ins*(.32+.2*night);
  if(groups&&groups.anim) groups.anim(dt,P,h,night);
  /* voitures garées : dessinées seulement dans un rayon qui dépend de la qualité */
+ if(groups&&(detT=(detT+1)%6)===0){/* petits détails (mobilier, outillage) : lots masqués au-delà d'un rayon qui dépend de la qualité */
+  const rd=Q.level==='haute'?190:Q.level==='moyenne'?130:0,r2d=rd*rd;
+  for(const m of groups.detail.children){if(!m.isMesh) continue;const bs=m.geometry.boundingSphere;if(!bs||!rd){m.visible=true;continue;}const dx=Math.max(0,Math.abs(bs.center.x-P.x)-bs.radius),dz=Math.max(0,Math.abs(bs.center.z-P.z)-bs.radius);m.visible=dx*dx+dz*dz<r2d;}}
  if(D.parked&&(parkT=(parkT+1)%6)===0){const r=Q.level==='haute'?140:100,r2=r*r;for(const p of D.parked){const dx=p.x-P.x,dz=p.z-P.z;p.g.visible=dx*dx+dz*dz<r2;}}
  // qualité automatique : d'abord la résolution dynamique (échelle de rendu), puis le niveau si cela ne suffit pas
  if(Q.auto&&!quick){if(Q.wait>0) Q.wait--;else{Q.sum+=dt;Q.n++;if(Q.n>=50){const avg=Q.sum/Q.n;Q.sum=0;Q.n=0;
@@ -418,7 +421,7 @@ D.build=ctx=>{
  const rn=MW.renderer&&MW.renderer();if(rn){RN=rn;}
  // lumières et ciel
  const S=ctx.scene;S.background=new T.Color(0x9fc4e6);S.fog=new T.Fog(0xbcd9f0,60,340);
- ctx.hemi.intensity=.7;ctx.sun.shadow.mapSize.set(1024,1024);const sc=ctx.sun.shadow.camera;sc.left=-46;sc.right=46;sc.top=46;sc.bottom=-46;sc.near=10;sc.far=260;sc.updateProjectionMatrix();
+ ctx.hemi.intensity=.7;ctx.sun.shadow.mapSize.set(1024,1024);const sc=ctx.sun.shadow.camera;sc.left=-38;sc.right=38;sc.top=38;sc.bottom=-38;/* zone d'ombres autour du joueur : 76 m, carte de 1024 px (plus fine et moins d'objets à dessiner) */sc.near=10;sc.far=260;sc.updateProjectionMatrix();
  ctx.sun.shadow.bias=-.0007;ctx.sun.shadow.normalBias=.04;
  fill=new T.PointLight(0xfff0dc,0,0);fill.visible=false;// remplacé ci-dessous par une lumière ambiante (les matériaux Lambert éclairent par sommet)
  fill=new T.AmbientLight(0xfff0dc,0);S.add(fill);
