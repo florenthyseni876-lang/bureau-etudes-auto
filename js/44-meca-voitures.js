@@ -646,6 +646,8 @@ function track(){
   if(!g.parent){release(g);LIVE.delete(g);continue;}
   const h=u.hood;if(!h) continue;
   if((h.rotation.x<-.15||g.position.y>.3)&&!u.bay&&!u.noBay){try{const e=engineMesh(u.car,{group:g});g.add(e);u.bay=e;built++;for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);}catch(err){u.noBay=true;console.error('moteur de baie',err);}}
+  /* voûtes et tourelles de la baie : seulement capot ouvert (voiture levée capot fermé, elles masqueraient les amortisseurs et les roues) */
+  if(u.bay&&u.bay.userData.parts&&u.bay.userData.parts.arches) u.bay.userData.parts.arches.visible=h.rotation.x<-.15;
   updateRod(g);
   for(const n of ['FL','FR']){const w=g.getObjectByName('w'+n);if(w&&u.brakes[n]) u.brakes[n].rotation.y=w.rotation.y+(n==='FR'?PI:0);}}}
 
@@ -842,7 +844,7 @@ function engineMesh(car,o){
   add('hose',cyz(.17,.07,22,trans?-fw.x*.2:0,gc+.4,rz-.075));add('blk',bxg(.36,.36,.07,trans?-fw.x*.2:0,gc+.4,rz-.075));
   for(let i=0;i<7;i++){const a=i/7*TAU;add('plas',bxg(.14,.012,.05,Math.cos(a)*.08+(trans?-fw.x*.2:0),gc+.4+Math.sin(a)*.08,rz-.115,0,0,a));}
   /* tourelles de suspension et passages de roues */
-  for(const sg of [-1,1]){add('grey',cyg(.07,.09,.2,14,sg*(hw-.34),.78,G.afz));add('rad',tf(new T.CylinderGeometry(G.tF.rt+.07,G.tF.rt+.07,.3,26,1,true,0,PI),sg*(hw-.15),G.tF.rt,G.afz,0,0,PI/2));}}
+  for(const sg of [-1,1]){pt('arches','grey',cyg(.07,.09,.2,14,sg*(hw-.34),.78,G.afz));pt('arches','rad',tf(new T.CylinderGeometry(G.tF.rt+.07,G.tF.rt+.07,.3,26,1,true,0,PI),sg*(hw-.15),G.tF.rt,G.afz,0,0,PI/2));}}
  /* boîte à air, batterie, vase d'expansion, lave-glace, liquide de frein */
  const sx2=bb.max.x+.1,sx1=bb.min.x-.1;
  const bx=Math.min(hw-.3,Math.max(sx2+.1,lx*.8)),ax=-Math.min(hw-.3,Math.max(-sx1+.1,lx*.8));
