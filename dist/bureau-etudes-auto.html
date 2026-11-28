@@ -3001,10 +3001,11 @@ function manuelle(c,s,A,o){
  bouchons(c,A,.34,.02,.156,.3,-.15,0);
  /* sortie de transmission : différentiel et flasque de cardan côté extérieur de la boîte */
  c.piece('sortie');
- c.cylX('gbx',.09,.25,L,-.1,0);
- c.cylX('clip',.04,L,L+.05,-.1,0);
- A.sortieCardan=[L+.05,-.1,0];
- A.joint=[L,-.1,0];
+ const ys=s.transversale?-.1:-.01;   /* transversale : différentiel en bas ; longitudinale : sortie dans l'axe */
+ c.cylX('gbx',s.transversale?.09:.06,.25,L,ys,0);
+ c.cylX('clip',.04,L,L+.05,ys,0);
+ A.sortieCardan=[L+.05,ys,0];
+ A.joint=[L,ys,0];
  A.fixationEmbrayage=[.02,0,rc];}
 
 /* Boîte automatique : convertisseur, grande cloche, carter-pan profond, refroidisseur et tube de remplissage. */
@@ -3040,10 +3041,11 @@ function automatique(c,s,A,o){
  A.vidange=[.25,-.239,0];
  A.filtre=[.35,-.2,0];
  c.piece('sortie');
- c.cylX('abl',.09,.25,L,-.12,0);
- c.cylX('clip',.04,L,L+.05,-.12,0);
- A.sortieCardan=[L+.05,-.12,0];
- A.joint=[L,-.12,0];
+ const ys=s.transversale?-.12:-.01;
+ c.cylX('abl',s.transversale?.09:.06,.25,L,ys,0);
+ c.cylX('clip',.04,L,L+.05,ys,0);
+ A.sortieCardan=[L+.05,ys,0];
+ A.joint=[L,ys,0];
  A.fixationEmbrayage=[.02,0,.2];}
 
 /* Boîte à double embrayage : cloche large (deux embrayages), bloc mécatronique, carter. */
@@ -3073,10 +3075,11 @@ function doubleEmbrayage(c,s,A,o){
  support(c,A,.2,.14,.0);
  bouchons(c,A,.38,.02,.156,.3,-.145,0);
  c.piece('sortie');
- c.cylX('gbx',.09,.25,L,-.1,0);
- c.cylX('clip',.04,L,L+.05,-.1,0);
- A.sortieCardan=[L+.05,-.1,0];
- A.joint=[L,-.1,0];
+ const ys=s.transversale?-.1:-.01;
+ c.cylX('gbx',s.transversale?.09:.06,.25,L,ys,0);
+ c.cylX('clip',.04,L,L+.05,ys,0);
+ A.sortieCardan=[L+.05,ys,0];
+ A.joint=[L,ys,0];
  A.fixationEmbrayage=[.02,0,.19];}
 
 /* Réducteur de voiture électrique : carter cylindrique, un seul rapport. */
@@ -10133,7 +10136,11 @@ function build(car,X){
 
  /* ── plancher, tunnel, bas de caisse ── */
  for(const g of X.ubel) base.geo(g,K.floor);
- base.box(K.tunnel,.3,.09,Math.abs(afz-arz)*.78,0,gc+.1,(afz+arz)/2);
+ /* tunnel central : il s'arrête avant le berceau et avant le moteur (il ne traverse ni l'un ni l'autre) */
+ let tz0=(afz+arz)/2-Math.abs(afz-arz)*.39,tz1=(afz+arz)/2+Math.abs(afz-arz)*.39;
+ tz1=Math.min(tz1,afz-.5);
+ if(!ev){const marge=.55;if(front) tz1=Math.min(tz1,(trans&&!ev?Math.min(eZ,afz-.2):eZ)-marge);else tz0=Math.max(tz0,eZ+marge);}
+ base.box(K.tunnel,.3,.07,Math.max(.1,tz1-tz0),0,gc+.115,(tz0+tz1)/2);
  for(const sg of cx){
   base.box(K.sub,.075,.085,Math.abs(afz-arz)*.72,sg*(hw-.3),gc+.05,(afz+arz)/2);               /* bas de caisse */
   base.box(K.floor,.02,.05,Math.abs(afz-arz)*.7,sg*(hw-.36),gc+.095,(afz+arz)/2);
@@ -10237,6 +10244,7 @@ function build(car,X){
 
  /* ═══════ MOTEUR, BOÎTE, ÉCHAPPEMENT ═══════ */
  const A={},FX={};
+ A.tunnelZ0=[0,0,tz0];A.tunnelZ1=[0,0,tz1];   /* extrémités du tunnel, lues par js/44u pour contrôler les formes du dessous */
  if(!ev){
   /* carter d'huile, bouchon, filtre */
   const pw=trans?.46:.3,pl=trans?.3:.5,pc=cat==='pop'?K.sub:K.alu,pyT=gc+.19;
@@ -10246,7 +10254,7 @@ function build(car,X){
   A.oilFilter=trans?[.18,gc+.2,pz+.22]:[pw/2+.09,gc+.2,pz+.05];
   unit('__filtre',0,A.oilFilter,(b,w)=>{const f=A.oilFilter;if(diesel){b.cyl(0x34383d,.042,.042,.11,f[0],f[1]-.05,f[2]);b.cyl(K.alu,.034,.034,.03,f[0],f[1]-.12,f[2],'y',8);}else{b.cyl(0x2a62c8,.042,.042,.1,f[0],f[1]-.05,f[2]);b.cyl(K.steel,.046,.046,.014,f[0],f[1]-.003,f[2]);}});
   /* boîte de vitesses longitudinale : cloche, carter, traverse ; transversale : déjà dessinée (côté cardans) */
-  if(!trans){base.box(K.sub,.55,.045,.08,0,gc+.045,pz-dirF*.93);base.box(K.rubber,.07,.05,.07,0,gc+.075,pz-dirF*.93);}   /* traverse de boîte (la boîte est dans la baie) */
+  if(!trans){A.traverseZ=[0,0,pz-dirF*.93];base.box(K.sub,.55,.045,.08,0,gc+.02,pz-dirF*.93);base.box(K.rubber,.07,.03,.07,0,gc+.0525,pz-dirF*.93);}   /* traverse de boîte (la boîte est dans la baie) */
   /* échappement : collecteur → descente → catalyseur → (FAP) → ligne → silencieux → sortie */
   const zcat=front?pz-.42:Math.max(zr+.95,eZ-.1);
   const yP=gc+.04,yC=gc+.075,xs=exX;
@@ -11027,12 +11035,34 @@ function updateRod(g){
  const lx=G.hw*.5,ly=-.045,lz=G.hLen*.55,c=Math.cos(a),s=Math.sin(a);
  const top=V3(lx,G.pivY+ly*c-lz*s,G.lidLo+ly*s+lz*c),foot=V3(lx,G.pivY-.13,top.z);
  const d=top.clone().sub(foot),len=d.length();u.rod.visible=true;u.rod.position.copy(foot).addScaledVector(d,.5);u.rod.scale.set(1,1,len);u.rod.quaternion.setFromUnitVectors(V3(0,0,1),d.normalize());}
+/* Capot ouvert : toute la baie. Voiture levée capot fermé : seulement le moteur, la boîte et leurs pièces (le reste de la baie, panneaux,
+   radiateur, bocaux, masquerait le châssis vu d'en dessous). */
+const SOUS_VOITURE=/^(engine|sp_|p_gearbox|p_gb)/;
+function afficherBaie(u,capotOuvert,levee){
+ const mode=capotOuvert?2:levee?1:0;
+ if(u._modeBaie===mode) return;
+ u._modeBaie=mode;
+ u.bay.visible=mode>0;
+ for(const ch of u.bay.children) ch.visible=mode===2||SOUS_VOITURE.test(ch.name);}
+/* construit le moteur de la baie d'une voiture (une seule fois) ; appelé à l'ouverture du capot et par js/46 quand la voiture est prise en charge */
+function buildBay(g){
+ const u=g.userData;
+ if(u.bay||u.noBay||!u.car) return;
+ try{
+  const e=engineMesh(u.car,{group:g});
+  g.add(e);u.bay=e;built++;
+  for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);
+ }catch(err){u.noBay=true;console.error('moteur de baie',err);}}
 function track(){
  for(const g of LIVE){const u=g.userData;
   if(!u._seen){if(g.parent) u._seen=true;else if(++u._age>600) LIVE.delete(g);continue;}
   if(!g.parent){release(g);LIVE.delete(g);continue;}
   const h=u.hood;if(!h) continue;
-  if((h.rotation.x<-.15||g.position.y>.3)&&!u.bay&&!u.noBay){try{const e=engineMesh(u.car,{group:g});g.add(e);u.bay=e;built++;for(const k in e.userData.anchors) if(u.anchors[k]) u.anchors[k].position.copy(e.userData.anchors[k]);}catch(err){u.noBay=true;console.error('moteur de baie',err);}}
+  if(h.rotation.x<-.15) buildBay(g);
+  /* le moteur n'est dessiné que capot ouvert ou voiture levée (sinon il serait invisible : on économise les appels de dessin) */
+  if(u.bay) afficherBaie(u,h.rotation.x<-.15,g.position.y>.3);
+  /* voûtes et tourelles de la baie : seulement capot ouvert (voiture levée capot fermé, elles masqueraient les amortisseurs et les roues) */
+  if(u.bay&&u.bay.userData.parts&&u.bay.userData.parts.arches) u.bay.userData.parts.arches.visible=h.rotation.x<-.15;
   updateRod(g);
   for(const n of ['FL','FR']){const w=g.getObjectByName('w'+n);if(w&&u.brakes[n]) u.brakes[n].rotation.y=w.rotation.y+(n==='FR'?PI:0);}}}
 
@@ -11229,7 +11259,7 @@ function engineMesh(car,o){
   add('hose',cyz(.17,.07,22,trans?-fw.x*.2:0,gc+.4,rz-.075));add('blk',bxg(.36,.36,.07,trans?-fw.x*.2:0,gc+.4,rz-.075));
   for(let i=0;i<7;i++){const a=i/7*TAU;add('plas',bxg(.14,.012,.05,Math.cos(a)*.08+(trans?-fw.x*.2:0),gc+.4+Math.sin(a)*.08,rz-.115,0,0,a));}
   /* tourelles de suspension et passages de roues */
-  for(const sg of [-1,1]){add('grey',cyg(.07,.09,.2,14,sg*(hw-.34),.78,G.afz));add('rad',tf(new T.CylinderGeometry(G.tF.rt+.07,G.tF.rt+.07,.3,26,1,true,0,PI),sg*(hw-.15),G.tF.rt,G.afz,0,0,PI/2));}}
+  for(const sg of [-1,1]){pt('arches','grey',cyg(.07,.09,.2,14,sg*(hw-.34),.78,G.afz));pt('arches','rad',tf(new T.CylinderGeometry(G.tF.rt+.07,G.tF.rt+.07,.3,26,1,true,0,PI),sg*(hw-.15),G.tF.rt,G.afz,0,0,PI/2));}}
  /* boîte à air, batterie, vase d'expansion, lave-glace, liquide de frein */
  const sx2=bb.max.x+.1,sx1=bb.min.x-.1;
  const bx=Math.min(hw-.3,Math.max(sx2+.1,lx*.8)),ax=-Math.min(hw-.3,Math.max(-sx1+.1,lx*.8));
@@ -11326,7 +11356,7 @@ MW.on('minute',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 MW.on('start',()=>{try{setNight(!!MW.isNight());}catch(e){}});
 
 const api={list:CARS,ENG,get:GET,ids:()=>CARS.map(c=>c.id),byCat,pool,pick,tuple,label,toS,checkS,applies,partName,partPrice,oilL:c=>GET(c).eng.oilL,
- fullName,engineMesh,bayBuilt,anchor,anchorWorld,setPlate,build:makeCar,geo:buildGeo,POOL,
+ fullName,engineMesh,buildBay,bayBuilt,anchor,anchorWorld,setPlate,build:makeCar,geo:buildGeo,POOL,
  dims:c=>{c=GET(c);return c?{L:c.L,W:c.W,H:c.H,WB:c.WB}:null;},
  stats:()=>({geo:Object.keys(GEO).length,engines:Object.keys(ECACHE),built,freed,live:LIVE.size,engBuilt}),
  track,
@@ -11504,15 +11534,18 @@ function plaque(g){
  for(const x of [cx-demi+.03,cx+demi-.03]) for(const z of [z0+.03,z1-.03]) vis.push(new T.Vector3(x,yBas-.004,z));
  return {boite,centre:boite.getCenter(new T.Vector3()),taille:[2*demi,epaisseur,z1-z0],vis};}
 
-/* Berceau avant et tunnel : mêmes cotes que js/44c (ysub, positions de la traverse, du tunnel). */
+/* Berceau avant (deux longerons et deux traverses, pas un bloc plein : le moteur passe entre les longerons), tunnel, traverse de boîte.
+   Mêmes cotes que js/44c (ysub, positions, épaisseurs). Le tunnel lit ses extrémités calculées par js/44c (ancres tunnelZ0 et tunnelZ1). */
 function structure(g){
- const G=g.userData.G,gc=G.gc,ysub=gc+.055,afz=G.afz,arz=G.arz,boites={};
- boites.berceau=new T.Box3(new T.Vector3(-.34,ysub-.033,afz-.46),new T.Vector3(.34,ysub+.12,afz+.45));
- const milieu=(afz+arz)/2,demi=Math.abs(afz-arz)*.39;
- boites.tunnel=new T.Box3(new T.Vector3(-.15,gc+.055,milieu-demi),new T.Vector3(.15,gc+.145,milieu+demi));
- if(g.userData.car.loc==='front'&&g.userData.car.ori!=='T'&&!g.userData.car.ev){
-  const z=afz-.93;
-  boites.traverseBoite=new T.Box3(new T.Vector3(-.275,gc+.0225,z-.04),new T.Vector3(.275,gc+.1,z+.04));}
+ const G=g.userData.G,gc=G.gc,ysub=gc+.055,afz=G.afz,boites={},V=(x,y,z)=>new T.Vector3(x,y,z);
+ const h=.0325+.03;   /* demi-hauteur : barre de .065 et têtes de vis de fixation */
+ for(const sg of [-1,1]) boites['berceau.longeron'+(sg>0?'D':'G')]=new T.Box3(V(sg*.3-.0375,ysub-.0325,afz-.43),V(sg*.3+.0375,ysub+h,afz+.43));
+ boites['berceau.traverseAv']=new T.Box3(V(-.34,ysub-.03,afz+.4-.0425),V(.34,ysub+.03,afz+.4+.0425));
+ boites['berceau.traverseAr']=new T.Box3(V(-.34,ysub-.03,afz-.42-.0425),V(.34,ysub+.03,afz-.42+.0425));
+ const A=g.userData.G.ch.anchors,z0=A.tunnelZ0?A.tunnelZ0[2]:null,z1=A.tunnelZ1?A.tunnelZ1[2]:null;
+ if(z0!=null&&z1!=null) boites.tunnel=new T.Box3(V(-.15,gc+.08,z0),V(.15,gc+.15,z1));
+ const car=g.userData.car;
+ if(A.traverseZ) boites.traverseBoite=new T.Box3(V(-.275,gc-.0025,A.traverseZ[2]-.04),V(.275,gc+.0675,A.traverseZ[2]+.04));
  return boites;}
 
 function boites(g){
@@ -11531,7 +11564,8 @@ function boites(g){
    Les sous-pièces d'une même boîte sont dessinées pour s'emboîter (cloche et carter, support sur le carter) : on ne les compare pas entre elles. */
 function contacts(g){
  const bx=boites(g),noms=Object.keys(bx),res=[];
- const memeBoite=(a,c)=>a.indexOf('boite.')===0&&c.indexOf('boite.')===0;
+ const famille=n=>n.split('.')[0];
+ const memeBoite=(a,c)=>famille(a)===famille(c)&&a.indexOf('.')>0;
  for(let i=0;i<noms.length;i++) for(let j=i+1;j<noms.length;j++){
   const a=noms[i],c=noms[j];
   if(memeBoite(a,c)) continue;
@@ -13947,7 +13981,8 @@ function buildPlugsBelt(R){
     if(k===0) a.push({key:'bpi'+i,lab:'Inspecter',insp:1,tool:'main',ord:300,do:()=>{L().doInspect(c,'bougies');inspMsg(R,'bougies');}});
     return a;}});}
   R.blk.hood.push(()=>B.st.some(x=>x>0&&x<END)?(diesel?'Remontez toutes les bougies de préchauffage et leurs cosses.':'Remontez toutes les bougies, bobines et connecteurs.'):null);
-  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
+  R.procs.push({id:'plugs',vis:()=>{U.forEach((u,i)=>{u.base.visible=!!c.st.capot;   /* posées sur le vrai moteur : on ne les montre que capot ouvert (sinon visibles par en dessous) */
+   const k=B.st[i],coilOut=diesel?(k>=2&&k<6):(k>=3&&k<7);
    u.coil.position.set(coilOut?.07:0,coilOut?.1:0,0);u.coil.rotation.z=coilOut?.6:0;
    u.plugOld.visible=k<OUT;u.plugOld.position.y=k===OUT-1?.006:0;u.plugNew.visible=k>=OUT+1;});}});}
  if(partOK(c,'courroie_acc')){
@@ -13974,7 +14009,7 @@ function buildPlugsBelt(R){
    if(K.k===5) a.push(act('cr6','Reprendre le tendeur, retirer la goupille et le relâcher','cliquet','tens',1.0,'ratchet',26,'pose',5,6));
    return a;}});
   R.blk.hood.push(()=>K.k>0&&K.k<7?"Remontez et tendez la courroie d'accessoires.":null);
-  R.procs.push({id:'belt',vis:()=>{const h=host();if(h) h.visible=K.k<3||K.k>=5;if(oldP) oldP.visible=K.k<3;newP.visible=!h&&K.k>=5;
+  R.procs.push({id:'belt',vis:()=>{belt.visible=tens.visible=!!c.st.capot;const h=host();if(h) h.visible=K.k<3||K.k>=5;if(oldP) oldP.visible=K.k<3;newP.visible=!h&&K.k>=5;
    arm.rotation.y=K.k>=1&&K.k<6?.5:0;pin.visible=K.k>=2&&K.k<6;},free:()=>{const h=host();if(h) h.visible=true;}});}
 }
 BUILD.push(buildPlugsBelt);
@@ -14086,6 +14121,7 @@ function malusTxt(c){const g=c.g||{},b=g.bin||{},l=Object.keys(b).filter(k=>b[k]
 const pontD=c=>{const z=MW.zone(c.zone),p=z&&z.ponts&&z.ponts[c.pont];if(!p) return 1e9;const q=MW.player();return Math.hypot(q.x-p.x,q.z-p.z);};
 function buildRig(c){
  const r=newRig(c);if(!r) return null;R=r;
+ try{MWCARS.buildBay(r.g);}catch(e){}   /* le moteur existe avant les cibles : le dessous est lisible dès la levée, sans reconstruction */
  r.bayAt=!!r.g.userData.bay; /* sans moteur dans la baie, les cibles du capot seraient mal placées : on reconstruit à son arrivée */
  for(const b of BUILD) try{b(r);}catch(e){console.error('rig '+(b.name||''),e);}
  vmEnsure();vmSet();syncAll(true);return r;}
@@ -14250,7 +14286,7 @@ function construire(R){
   vis.forEach((o,i)=>o.position.copy(p.vis[i]));
   return true;};
 
- R.add({id:'sk:plaque',o:plaque,r:.18,vis:()=>levee()&&poser(),name:'Protection sous moteur',acts:()=>{
+ R.add({id:'sk:plaque',o:plaque,r:.07,vis:()=>levee()&&poser(),name:'Protection sous moteur',acts:()=>{
   const dessus=etat.f.every(v=>!v);
   if(etat.on) return [{key:'skoff',lab:'Déposer la protection sous moteur',tool:'main',hold:.7,snd:'clunk',ord:62,
    why:dessus?null:'Dévissez d\'abord les quatre vis de la protection.',do:()=>{etat.on=0;}}];
