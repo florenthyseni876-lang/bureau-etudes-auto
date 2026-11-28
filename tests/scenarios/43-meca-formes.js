@@ -52,7 +52,9 @@ module.exports = async function mecaFormes(page, env) {
           if (cell.has(k) && cell.get(k) !== m) dup++; else cell.set(k, m);
         }
       }
-      if (dup > 4) bad.push(`${dup} faces superposées dans la carrosserie`);
+      /* les feux, joints et baguettes sont des pièces minces posées à moins d'un centimètre de la tôle : quelques faces voisines sont normales ;
+         une vraie superposition (deux panneaux confondus) en donnerait des centaines */
+      if (dup > 16) bad.push(`${dup} faces superposées dans la carrosserie`);
       out.push({ id, bad, L, W, H });
     }
     return out;
